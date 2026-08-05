@@ -232,6 +232,8 @@ def validate_tree(root: Path) -> None:
         'systemctl enable "$unit"',
         'systemctl start "$unit"',
         "systemctl is-active --quiet",
+        'systemctl show "$unit" -p NRestarts --value',
+        'sleep "$SERVICE_STABILITY_SECONDS"',
         'systemctl reset-failed "$failed_unit"',
     ):
         require(

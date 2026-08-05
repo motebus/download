@@ -25,6 +25,7 @@ DESKTOP_UNITS="
 deskd-session.service
 ss-webos-session.service
 "
+SERVICE_STABILITY_SECONDS=30
 
 fail() {
     printf 'MEdge install failed: %s\n' "$*" >&2
@@ -69,7 +70,8 @@ cleanup() {
     rm -f \
         "$TEMP_DIR/medge-archive-keyring.gpg" \
         "$TEMP_DIR/medge.sources" \
-        "$TEMP_DIR/expected.sources"
+        "$TEMP_DIR/expected.sources" \
+        "$TEMP_DIR/service-restarts"
     rmdir "$TEMP_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT HUP INT TERM
@@ -136,16 +138,36 @@ for unit in $SYSTEM_UNITS; do
         system_unit_failed "$unit"
     systemctl start "$unit" ||
         system_unit_failed "$unit"
-    sleep 2
     systemctl is-active --quiet "$unit" ||
         system_unit_failed "$unit"
 done
 
-sleep 2
+: >"$TEMP_DIR/service-restarts"
+for unit in $SYSTEM_UNITS; do
+    restart_count="$(systemctl show "$unit" -p NRestarts --value)" ||
+        system_unit_failed "$unit"
+    case "$restart_count" in
+        ''|*[!0-9]*) system_unit_failed "$unit" ;;
+    esac
+    printf '%s %s\n' "$unit" "$restart_count" >>"$TEMP_DIR/service-restarts"
+done
+
+printf 'Verifying MEdge service stability for %s seconds...\n' \
+    "$SERVICE_STABILITY_SECONDS"
+sleep "$SERVICE_STABILITY_SECONDS"
 for unit in $SYSTEM_UNITS; do
     systemctl is-active --quiet "$unit" ||
         system_unit_failed "$unit"
 done
+while read -r unit before_restarts; do
+    after_restarts="$(systemctl show "$unit" -p NRestarts --value)" ||
+        system_unit_failed "$unit"
+    [ "$after_restarts" = "$before_restarts" ] || {
+        printf '%s restarted during the stability window: before=%s after=%s\n' \
+            "$unit" "$before_restarts" "$after_restarts" >&2
+        system_unit_failed "$unit"
+    }
+done <"$TEMP_DIR/service-restarts"
 
 DESKTOP_SESSION=""
 DESKTOP_USER=""

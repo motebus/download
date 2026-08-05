@@ -45,8 +45,10 @@ It does not use `apt-key`, `trusted=yes`, or a direct DEB URL.
 It does not create or modify MChat topology or service authorization policy.
 Before the package transaction, it stops and disables existing MEdge system
 units in reverse dependency order. It then enables, starts, and verifies each
-unit individually in dependency order, advancing only after that unit remains
-active.
+unit individually in dependency order. It then requires every system service
+to remain active without increasing its systemd restart count during a
+30-second stability window; a transient `active` state inside a restart loop
+does not pass installation.
 When exactly one local graphical session is active, it also reloads and
 starts the Desk and SS-WebOS user-session helpers. On a headless install,
 those helpers remain enabled and start at graphical login. If a system service
