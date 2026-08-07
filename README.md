@@ -80,14 +80,14 @@ publication.
 
 Each approved GitHub Release contains:
 
-- eight component binary DEBs;
+- nine component binary DEBs;
 - one dependency-only `medge` meta-package DEB;
 - `release-manifest.json`;
 - `SHA256SUMS`;
 - optional binary `.changes` and `.buildinfo` provenance.
 
 The `medge` package installs the exact coordinated versions of `sphered`,
-`mgate`, `ss-webos`, `moted`, `agos`, `qbix-wasm`, `mote`, and `desk`.
+`mgate`, `ss-webos`, `moted`, `agos`, `qbix`, `qbix-func`, `mote`, and `desk`.
 
 Every stable publication requires explicit owner approval. Existing release
 tags and assets are immutable.

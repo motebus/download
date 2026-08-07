@@ -10,12 +10,14 @@ sphered.service
 mgated.service
 ss-webosd.service
 moted.service
+qbix.service
 agosd.service
 deskd.service
 "
 STOP_SYSTEM_UNITS="
 deskd.service
 agosd.service
+qbix.service
 moted.service
 ss-webosd.service
 mgated.service

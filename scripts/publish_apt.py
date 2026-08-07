@@ -21,7 +21,8 @@ EXPECTED_PACKAGES = (
     "ss-webos",
     "moted",
     "agos",
-    "qbix-wasm",
+    "qbix",
+    "qbix-func",
     "mote",
     "desk",
 )
@@ -120,7 +121,10 @@ def validate_manifest(manifest: object) -> dict:
         "invalid previous_release_tag",
     )
     packages = manifest.get("packages")
-    require(isinstance(packages, list) and len(packages) == 8, "release must contain eight components")
+    require(
+        isinstance(packages, list) and len(packages) == len(EXPECTED_PACKAGES),
+        f"release must contain {len(EXPECTED_PACKAGES)} components",
+    )
     require(
         [package.get("name") for package in packages] == list(EXPECTED_PACKAGES),
         "release component set or order is invalid",
