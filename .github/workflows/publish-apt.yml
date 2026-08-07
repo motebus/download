@@ -51,6 +51,9 @@ jobs:
           python3 scripts/publish_apt.py validate-bundle release-input/current
           printf 'CURRENT_TAG=%s\n' "$TAG" >> "$GITHUB_ENV"
 
+      - name: Validate Ubuntu 24.04 and 26.04 package compatibility
+        run: scripts/validate-ubuntu-compatibility.sh release-input/current
+
       - name: Import protected archive key
         env:
           MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}

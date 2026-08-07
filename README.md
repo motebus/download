@@ -1,7 +1,7 @@
 # MEdge Binary Packages
 
 This public repository distributes install-only MEdge Debian packages for
-Ubuntu 24.04 amd64.
+Ubuntu 24.04 and 26.04 amd64.
 
 It contains distribution documentation, the public APT key, release
 manifests, and GitHub Pages automation. Component source code and Debian
@@ -10,7 +10,7 @@ private build-system URL.
 
 ## Install
 
-Install MEdge on Ubuntu 24.04 amd64 with one command:
+Install MEdge on Ubuntu 24.04 or 26.04 amd64 with one command:
 
 ```bash
 curl -fsSLo /tmp/medge-install.sh \

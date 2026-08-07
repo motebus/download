@@ -52,8 +52,10 @@ system_unit_failed() {
 [ -r /etc/os-release ] || fail "cannot identify the operating system"
 # shellcheck disable=SC1091
 . /etc/os-release
-[ "${ID:-}" = "ubuntu" ] && [ "${VERSION_ID:-}" = "24.04" ] ||
-    fail "Ubuntu 24.04 is required"
+case "${ID:-}:${VERSION_ID:-}" in
+    ubuntu:24.04|ubuntu:26.04) ;;
+    *) fail "Ubuntu 24.04 or 26.04 is required" ;;
+esac
 
 command -v dpkg >/dev/null 2>&1 || fail "dpkg is unavailable"
 [ "$(dpkg --print-architecture)" = "amd64" ] ||

@@ -309,6 +309,7 @@ def validate_tree(root: Path) -> None:
     for required_text in (
         "https://motebus.github.io/medge-deb",
         fingerprint,
+        "ubuntu:24.04|ubuntu:26.04)",
         "apt-get install -y medge",
         "apt-get --print-uris -y install medge",
         "forbidden GitLab URL",
@@ -339,6 +340,24 @@ def validate_tree(root: Path) -> None:
             forbidden_text not in installer_text,
             f"install.sh contains forbidden content: {forbidden_text}",
         )
+
+    compatibility = root / "scripts/validate-ubuntu-compatibility.sh"
+    require(compatibility.is_file(), "public repository is missing Ubuntu compatibility validation")
+    require(
+        compatibility.stat().st_mode & 0o111 != 0,
+        "Ubuntu compatibility validation must be executable",
+    )
+    run("bash", "-n", str(compatibility))
+    compatibility_text = compatibility.read_text(encoding="utf-8")
+    for release in ("24.04", "26.04"):
+        require(
+            f"run_target {release}" in compatibility_text,
+            f"Ubuntu {release} compatibility target is missing",
+        )
+    require(
+        len(re.findall(r"docker\.io/library/ubuntu@sha256:[0-9a-f]{64}", compatibility_text)) == 2,
+        "Ubuntu compatibility images must be digest-pinned",
+    )
 
 
 def copy_package(asset: Path, site: Path) -> None:
@@ -392,7 +411,7 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
 <meta charset="utf-8">
 <title>MEdge Debian Repository</title>
 <h1>MEdge Debian Repository</h1>
-<p>Stable Ubuntu 24.04 amd64 binary packages.</p>
+<p>Stable Ubuntu 24.04 and 26.04 amd64 binary packages.</p>
 <p>Current meta-package: <code>medge {current_manifest['medge_version']}</code></p>
 <p>Signing fingerprint: <code>{fingerprint}</code></p>
 <pre>curl -fsSLo /tmp/medge-install.sh \
