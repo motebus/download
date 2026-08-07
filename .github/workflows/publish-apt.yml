@@ -28,7 +28,7 @@ jobs:
 
       - name: Validate binary-only public tree
         run: |
-          python3 -m unittest discover -s tests
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests
           python3 scripts/publish_apt.py validate-tree .
 
       - name: Install APT repository tools
