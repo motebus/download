@@ -22,6 +22,7 @@ class InstallContractTest(unittest.TestCase):
         self.assertNotIn("ubuntu:22.04", case_body)
         self.assertNotIn("ubuntu:25.10", case_body)
         self.assertIn("Ubuntu 24.04 or 26.04 is required", text)
+        self.assertIn("/usr/libexec/ss-webos/install-desktop-shortcut", text)
 
     def test_shell_contracts_parse(self) -> None:
         subprocess.run(["sh", "-n", str(INSTALLER)], check=True)

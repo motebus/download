@@ -53,8 +53,10 @@ to remain active without increasing its systemd restart count during a
 30-second stability window; a transient `active` state inside a restart loop
 does not pass installation.
 When exactly one local graphical session is active, it also reloads and
-starts the Desk and SS-WebOS user-session helpers. On a headless install,
-those helpers remain enabled and start at graphical login. If a system service
+starts the Desk and SS-WebOS user-session helpers and creates a trusted
+`SmartScreen.desktop` shortcut using the packaged SmartScreen icon. On a
+headless install, the shortcut is created and the helpers start at graphical
+login. If a system service
 fails its health check, the installer prints its status and recent journal,
 then stops, disables, and resets that unit so it does not remain in a failed
 state or restart loop.

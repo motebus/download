@@ -322,6 +322,7 @@ def validate_tree(root: Path) -> None:
         'systemctl show "$unit" -p NRestarts --value',
         'sleep "$SERVICE_STABILITY_SECONDS"',
         'systemctl reset-failed "$failed_unit"',
+        "/usr/libexec/ss-webos/install-desktop-shortcut",
     ):
         require(
             required_text in installer_text,

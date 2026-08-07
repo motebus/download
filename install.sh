@@ -220,6 +220,12 @@ if [ -n "$DESKTOP_SESSION" ]; then
             systemctl --user "$@"
     }
     user_systemctl daemon-reload
+    runuser -u "$DESKTOP_USER" -- env \
+        "HOME=$DESKTOP_HOME" \
+        "XDG_RUNTIME_DIR=/run/user/$DESKTOP_UID" \
+        "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$DESKTOP_UID/bus" \
+        /usr/libexec/ss-webos/install-desktop-shortcut ||
+        fail "SmartScreen desktop shortcut could not be installed for $DESKTOP_USER"
     for unit in $DESKTOP_UNITS; do
         user_systemctl reset-failed "$unit" 2>/dev/null || true
         user_systemctl restart "$unit" ||
@@ -234,7 +240,7 @@ if [ -n "$DESKTOP_SESSION" ]; then
         "$DESKTOP_USER" "$DESKTOP_SESSION"
 else
     printf '%s\n' \
-        'No active local graphical session; desktop helpers will start at login.'
+        'No active local graphical session; the SmartScreen shortcut and desktop helpers will start at login.'
 fi
 
 INSTALLED_VERSION="$(dpkg-query -W -f='${Version}' medge)"
