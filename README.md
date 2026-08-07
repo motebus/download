@@ -91,3 +91,8 @@ The `medge` package installs the exact coordinated versions of `sphered`,
 
 Every stable publication requires explicit owner approval. Existing release
 tags and assets are immutable.
+
+The publisher may validate the exact v3.1.0-8 eight-package bundle only as
+immutable previous-release lineage. It never copies that historical package
+set into the active APT index; the current index contains only the approved
+nine-package release.

@@ -26,6 +26,18 @@ EXPECTED_PACKAGES = (
     "mote",
     "desk",
 )
+LEGACY_PACKAGE_SETS = {
+    "3.1.0-8": (
+        "sphered",
+        "mgate",
+        "ss-webos",
+        "moted",
+        "agos",
+        "qbix-wasm",
+        "mote",
+        "desk",
+    ),
+}
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 FINGERPRINT_RE = re.compile(r"^[0-9A-F]{40}$")
 TAG_RE = re.compile(r"^medge-v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$")
@@ -102,6 +114,11 @@ def expected_depends(manifest: dict) -> str:
     )
 
 
+def expected_packages(manifest: dict) -> tuple[str, ...]:
+    version = manifest.get("medge_version")
+    return LEGACY_PACKAGE_SETS.get(version, EXPECTED_PACKAGES)
+
+
 def validate_manifest(manifest: object) -> dict:
     require(isinstance(manifest, dict), "release-manifest.json must contain an object")
     require(manifest.get("schema") == "medge-release/v1", "invalid release manifest schema")
@@ -121,12 +138,13 @@ def validate_manifest(manifest: object) -> dict:
         "invalid previous_release_tag",
     )
     packages = manifest.get("packages")
+    expected = expected_packages(manifest)
     require(
-        isinstance(packages, list) and len(packages) == len(EXPECTED_PACKAGES),
-        f"release must contain {len(EXPECTED_PACKAGES)} components",
+        isinstance(packages, list) and len(packages) == len(expected),
+        f"release must contain {len(expected)} components",
     )
     require(
-        [package.get("name") for package in packages] == list(EXPECTED_PACKAGES),
+        [package.get("name") for package in packages] == list(expected),
         "release component set or order is invalid",
     )
     return manifest
