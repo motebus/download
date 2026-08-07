@@ -41,6 +41,12 @@ LEGACY_PACKAGE_SETS = {
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 FINGERPRINT_RE = re.compile(r"^[0-9A-F]{40}$")
 TAG_RE = re.compile(r"^medge-v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$")
+VERSION_RE = re.compile(r"^[0-9][0-9A-Za-z.+:~]*-[0-9]+$")
+SOURCE_REF_RE = re.compile(r"^refs/(?:heads/main|tags/[0-9A-Za-z][0-9A-Za-z._-]*)$")
+GITLAB_URL_RE = re.compile(
+    rb"(?:https?|ssh|git)://[^\x00-\x20\"'<>]*gitlab[^\x00-\x20\"'<>]*",
+    re.IGNORECASE,
+)
 ALLOWED_ROOT_FILES = {
     ".gitignore",
     "github-setup.sh",
@@ -52,7 +58,7 @@ ALLOWED_ROOT_FILES = {
     "medge-archive-keyring.fingerprint",
     "medge-archive-keyring.gpg",
 }
-ALLOWED_ROOT_DIRS = {".git", ".github", "scripts"}
+ALLOWED_ROOT_DIRS = {".git", ".github", "scripts", "tests"}
 
 
 class PublishError(RuntimeError):
@@ -96,6 +102,32 @@ def package_field(asset: Path, field: str) -> str:
     return run("dpkg-deb", "-f", str(asset), field, capture=True)
 
 
+def require_no_gitlab_url_bytes(value: bytes, subject: str) -> None:
+    require(GITLAB_URL_RE.search(value) is None, f"{subject}: GitLab URL is forbidden")
+
+
+def validate_public_deb_content(asset: Path) -> None:
+    with tempfile.TemporaryDirectory(prefix="medge-public-deb-") as temp_name:
+        extracted = Path(temp_name)
+        run("dpkg-deb", "--raw-extract", str(asset), str(extracted))
+        for candidate in extracted.rglob("*"):
+            if candidate.is_file() and not candidate.is_symlink():
+                require_no_gitlab_url_bytes(
+                    candidate.read_bytes(),
+                    f"{asset.name}:{candidate.relative_to(extracted)}",
+                )
+
+
+def validate_no_gitlab_urls(root: Path) -> None:
+    for candidate in root.rglob("*"):
+        if not candidate.is_file() or candidate.is_symlink() or ".git" in candidate.parts:
+            continue
+        if candidate.suffix == ".deb":
+            validate_public_deb_content(candidate)
+        else:
+            require_no_gitlab_url_bytes(candidate.read_bytes(), str(candidate.relative_to(root)))
+
+
 def archive_fingerprint(repository_root: Path) -> str:
     formatted = (
         repository_root / "medge-archive-keyring.fingerprint"
@@ -121,8 +153,20 @@ def expected_packages(manifest: dict) -> tuple[str, ...]:
 
 def validate_manifest(manifest: object) -> dict:
     require(isinstance(manifest, dict), "release-manifest.json must contain an object")
-    require(manifest.get("schema") == "medge-release/v1", "invalid release manifest schema")
+    expected_keys = {
+        "schema", "status", "medge_version", "suite", "component", "architecture",
+        "generated_at", "previous_release_tag", "approval", "packages",
+    }
+    if "rollback" in manifest:
+        expected_keys.add("rollback")
+    require(set(manifest) == expected_keys, "public release manifest fields are invalid")
+    require(manifest.get("schema") == "medge-public-release/v1", "invalid public release manifest schema")
     require(manifest.get("status") == "approved", "release manifest is not approved")
+    require(
+        isinstance(manifest.get("medge_version"), str)
+        and VERSION_RE.fullmatch(manifest["medge_version"]),
+        "invalid medge_version",
+    )
     require(manifest.get("suite") == "stable", "only stable suite is allowed")
     require(manifest.get("component") == "main", "only main component is allowed")
     require(manifest.get("architecture") == "amd64", "only amd64 is allowed")
@@ -146,6 +190,22 @@ def validate_manifest(manifest: object) -> dict:
     require(
         [package.get("name") for package in packages] == list(expected),
         "release component set or order is invalid",
+    )
+    for package in packages:
+        name = package["name"]
+        require(
+            set(package) == {"name", "version", "architecture", "asset", "source_commit", "source_ref", "sha256"},
+            f"{name}: public package fields are invalid",
+        )
+        require(isinstance(package["version"], str) and VERSION_RE.fullmatch(package["version"]), f"{name}: invalid version")
+        require(package["architecture"] in {"amd64", "all"}, f"{name}: invalid architecture")
+        require(package["asset"] == f"{name}_{package['version']}_{package['architecture']}.deb", f"{name}: invalid asset")
+        require(re.fullmatch(r"[0-9a-f]{40}", package["source_commit"]) is not None, f"{name}: invalid source_commit")
+        require(SOURCE_REF_RE.fullmatch(package["source_ref"]) is not None, f"{name}: invalid source_ref")
+        require(HEX64_RE.fullmatch(package["sha256"]) is not None, f"{name}: invalid sha256")
+    require_no_gitlab_url_bytes(
+        json.dumps(manifest, sort_keys=True).encode("utf-8"),
+        "release-manifest.json",
     )
     return manifest
 
@@ -203,6 +263,7 @@ def validate_bundle(bundle: Path) -> dict:
         )
     ]
     require(forbidden == [], f"source packages are forbidden: {forbidden}")
+    validate_no_gitlab_urls(bundle)
     return manifest
 
 
@@ -226,6 +287,7 @@ def validate_tree(root: Path) -> None:
         )
     ]
     require(tracked_forbidden == [], f"binary/source package leaked into Git tree: {tracked_forbidden}")
+    validate_no_gitlab_urls(root)
     fingerprint = archive_fingerprint(root)
     public_keys = run(
         "gpg",
@@ -248,6 +310,8 @@ def validate_tree(root: Path) -> None:
         "https://motebus.github.io/medge-deb",
         fingerprint,
         "apt-get install -y medge",
+        "apt-get --print-uris -y install medge",
+        "forbidden GitLab URL",
         "STOP_SYSTEM_UNITS=",
         'systemctl disable "$unit"',
         'systemctl stop "$unit"',
@@ -269,6 +333,7 @@ def validate_tree(root: Path) -> None:
         "systemctl edit",
         "systemctl enable --now",
         "MCHAT_",
+        "gitlab.",
     ):
         require(
             forbidden_text not in installer_text,
@@ -372,20 +437,9 @@ def sign_release(site: Path, repository_root: Path) -> None:
 
 
 def build_site(repository_root: Path, site: Path, bundles: list[Path]) -> None:
-    require(len(bundles) in {1, 2}, "build requires the current bundle and at most one previous bundle")
+    require(len(bundles) == 1, "build requires exactly one current public bundle")
     manifests = [validate_bundle(bundle) for bundle in bundles]
     current = manifests[0]
-    previous_tag = current["previous_release_tag"]
-    require(
-        (previous_tag == "" and len(bundles) == 1)
-        or (previous_tag != "" and len(bundles) == 2),
-        "previous release bundle does not match the current manifest",
-    )
-    if len(manifests) == 2:
-        require(
-            previous_tag == f"medge-v{manifests[1]['medge_version']}",
-            "previous release version does not match previous_release_tag",
-        )
 
     if site.exists():
         shutil.rmtree(site)
@@ -397,6 +451,7 @@ def build_site(repository_root: Path, site: Path, bundles: list[Path]) -> None:
         site,
     )
     write_index(site, repository_root, current)
+    validate_no_gitlab_urls(site)
     sign_release(site, repository_root)
 
 

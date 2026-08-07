@@ -5,8 +5,8 @@ Ubuntu 24.04 amd64.
 
 It contains distribution documentation, the public APT key, release
 manifests, and GitHub Pages automation. Component source code and Debian
-source packages are intentionally absent. Canonical source and builds remain
-on GitLab.
+source packages are intentionally absent. Public install artifacts contain no
+private build-system URL.
 
 ## Install
 
@@ -42,6 +42,9 @@ architecture: amd64
 ```
 
 It does not use `apt-key`, `trusted=yes`, or a direct DEB URL.
+The installer rejects an APT transaction plan containing any GitLab URL, and
+publication rejects GitLab URLs in the public tree, release manifest, APT
+site, Debian control metadata, or installed package content.
 It does not create or modify MChat topology or service authorization policy.
 Before the package transaction, it stops and disables existing MEdge system
 units in reverse dependency order. It then enables, starts, and verifies each

@@ -119,6 +119,13 @@ install -m 0644 "$TEMP_DIR/medge.sources" "$SOURCES_PATH"
 
 apt-get update
 
+APT_INSTALL_PLAN="$(apt-get --print-uris -y install medge)" ||
+    fail "cannot resolve the MEdge APT transaction"
+if printf '%s\n' "$APT_INSTALL_PLAN" |
+    grep -Eiq "(https?|ssh|git)://[^[:space:]\"']*gitlab[.]"; then
+    fail "the MEdge APT transaction contains a forbidden GitLab URL"
+fi
+
 systemctl daemon-reload
 for unit in $STOP_SYSTEM_UNITS; do
     systemctl disable "$unit" >/dev/null 2>&1 || true

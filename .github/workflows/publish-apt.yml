@@ -27,7 +27,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Validate binary-only public tree
-        run: python3 scripts/publish_apt.py validate-tree .
+        run: |
+          python3 -m unittest discover -s tests
+          python3 scripts/publish_apt.py validate-tree .
 
       - name: Install APT repository tools
         run: |
@@ -47,14 +49,7 @@ jobs:
           mkdir -p release-input/current
           gh release download "$TAG" --dir release-input/current
           python3 scripts/publish_apt.py validate-bundle release-input/current
-          PREVIOUS_TAG="$(python3 scripts/publish_apt.py previous-tag release-input/current)"
           printf 'CURRENT_TAG=%s\n' "$TAG" >> "$GITHUB_ENV"
-          printf 'PREVIOUS_TAG=%s\n' "$PREVIOUS_TAG" >> "$GITHUB_ENV"
-          if [ -n "$PREVIOUS_TAG" ]; then
-            mkdir -p release-input/previous
-            gh release download "$PREVIOUS_TAG" --dir release-input/previous
-            python3 scripts/publish_apt.py validate-bundle release-input/previous
-          fi
 
       - name: Import protected archive key
         env:
@@ -69,11 +64,7 @@ jobs:
           MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
         run: |
           set -euo pipefail
-          BUNDLES=(release-input/current)
-          if [ -n "$PREVIOUS_TAG" ]; then
-            BUNDLES+=(release-input/previous)
-          fi
-          python3 scripts/publish_apt.py build . apt-site "${BUNDLES[@]}"
+          python3 scripts/publish_apt.py build . apt-site release-input/current
           test "$(du -sb apt-site | cut -f1)" -lt 1000000000
 
       - uses: actions/upload-pages-artifact@v3
