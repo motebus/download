@@ -28,6 +28,22 @@ class InstallContractTest(unittest.TestCase):
         subprocess.run(["sh", "-n", str(INSTALLER)], check=True)
         subprocess.run(["bash", "-n", str(COMPATIBILITY)], check=True)
 
+    def test_device_helper_is_started_after_and_stopped_before_desk(self) -> None:
+        text = INSTALLER.read_text(encoding="utf-8")
+        system_units = re.search(r'SYSTEM_UNITS="(.*?)"', text, re.S)
+        stop_units = re.search(r'STOP_SYSTEM_UNITS="(.*?)"', text, re.S)
+        self.assertIsNotNone(system_units)
+        self.assertIsNotNone(stop_units)
+        assert system_units is not None and stop_units is not None
+        self.assertLess(
+            system_units.group(1).index("deskd.service"),
+            system_units.group(1).index("deskd-device.service"),
+        )
+        self.assertLess(
+            stop_units.group(1).index("deskd-device.service"),
+            stop_units.group(1).index("deskd.service"),
+        )
+
     def test_compatibility_images_are_digest_pinned(self) -> None:
         text = COMPATIBILITY.read_text(encoding="utf-8")
         images = re.findall(r"docker\.io/library/ubuntu@sha256:[0-9a-f]{64}", text)

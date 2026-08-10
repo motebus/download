@@ -56,7 +56,10 @@ When exactly one local graphical session is active, it also reloads and
 starts the Desk and SS-WebOS user-session helpers and creates a trusted
 `SmartScreen.desktop` shortcut using the packaged SmartScreen icon. On a
 headless install, the shortcut is created and the helpers start at graphical
-login. If a system service
+login. The hardened `deskd-device.service` handles admitted USB NFC readers,
+USB QR readers, QR cameras, and IoT buttons and forwards normalized input
+events through Desk; it is started and health-checked after `deskd.service`.
+If a system service
 fails its health check, the installer prints its status and recent journal,
 then stops, disables, and resets that unit so it does not remain in a failed
 state or restart loop.

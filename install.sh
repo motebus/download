@@ -13,8 +13,10 @@ moted.service
 qbix.service
 agosd.service
 deskd.service
+deskd-device.service
 "
 STOP_SYSTEM_UNITS="
+deskd-device.service
 deskd.service
 agosd.service
 qbix.service
