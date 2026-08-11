@@ -91,6 +91,8 @@ publication.
 
 ## Releases
 
+Current approved stable release: `medge-v3.1.0-12`.
+
 Each approved GitHub Release contains:
 
 - nine component binary DEBs;
