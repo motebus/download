@@ -46,6 +46,11 @@ The installer rejects an APT transaction plan containing any GitLab URL, and
 publication rejects GitLab URLs in the public tree, release manifest, APT
 site, Debian control metadata, or installed package content.
 It does not create or modify MChat topology or service authorization policy.
+If an older dependency-only `medge` meta-package leaves APT broken after a
+component version changes, the installer verifies that the installed meta
+contains no maintainer scripts, removes only that meta-package, confirms that
+APT is otherwise consistent, and then installs the current coordinated
+release. Component packages, configuration, and runtime data are preserved.
 Before the package transaction, it stops and disables existing MEdge system
 units in reverse dependency order. It then enables, starts, and verifies each
 unit individually in dependency order. It then requires every system service

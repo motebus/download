@@ -69,6 +69,29 @@ command -v systemctl >/dev/null 2>&1 ||
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
+
+if ! apt-get check; then
+    MEDGE_DPKG_STATUS="$(
+        dpkg-query -W -f='${db:Status-Status}' medge 2>/dev/null || true
+    )"
+    case "$MEDGE_DPKG_STATUS" in
+        installed|unpacked|half-configured|half-installed|triggers-awaited|triggers-pending) ;;
+        *)
+            fail "APT has broken dependencies unrelated to an installed MEdge meta-package; repair them before retrying"
+            ;;
+    esac
+    for maintainer_script in preinst postinst prerm postrm config; do
+        [ ! -e "/var/lib/dpkg/info/medge.$maintainer_script" ] ||
+            fail "refusing to remove a medge package that contains maintainer scripts"
+    done
+    printf '%s\n' \
+        'Removing the stale dependency-only MEdge meta-package; installed components are preserved.'
+    dpkg --remove medge ||
+        fail "the stale dependency-only MEdge meta-package could not be removed"
+    apt-get check ||
+        fail "APT remains broken after removing the stale MEdge meta-package"
+fi
+
 apt-get install -y --no-install-recommends ca-certificates curl gnupg
 
 TEMP_DIR="$(mktemp -d /tmp/medge-install.XXXXXX)"

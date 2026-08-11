@@ -44,6 +44,20 @@ class InstallContractTest(unittest.TestCase):
             stop_units.group(1).index("deskd.service"),
         )
 
+    def test_stale_meta_recovery_precedes_prerequisite_install(self) -> None:
+        text = INSTALLER.read_text(encoding="utf-8")
+        first_update = text.index("apt-get update")
+        dependency_check = text.index("if ! apt-get check", first_update)
+        meta_removal = text.index("dpkg --remove medge", dependency_check)
+        prerequisite_install = text.index(
+            "apt-get install -y --no-install-recommends ca-certificates curl gnupg"
+        )
+        self.assertLess(first_update, dependency_check)
+        self.assertLess(dependency_check, meta_removal)
+        self.assertLess(meta_removal, prerequisite_install)
+        self.assertIn("/var/lib/dpkg/info/medge.$maintainer_script", text)
+        self.assertIn("installed components are preserved", text)
+
     def test_compatibility_images_are_digest_pinned(self) -> None:
         text = COMPATIBILITY.read_text(encoding="utf-8")
         images = re.findall(r"docker\.io/library/ubuntu@sha256:[0-9a-f]{64}", text)
