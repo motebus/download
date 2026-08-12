@@ -35,14 +35,14 @@ class PublicAptTest(unittest.TestCase):
             )
         now = dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
         return {
-            "schema": "medge-public-release/v1",
+            "schema": "medge-public-release/v3",
             "status": "approved",
-            "medge_version": "3.1.0-9",
+            "medge_version": "3.2.0-1",
             "suite": "stable",
             "component": "main",
             "architecture": "amd64",
             "generated_at": now,
-            "previous_release_tag": "medge-v3.1.0-8",
+            "previous_release_tag": "medge-v3.1.0-15",
             "approval": {"id": "approval-9", "approved_by": "owner", "approved_at": now},
             "packages": packages,
         }

@@ -20,14 +20,12 @@ BUNDLE_DIR="$(realpath "$1")"
 
 EXPECTED_PACKAGES=(
     sphered
-    mgate
-    ss-webos
     moted
     agos
     qbix
-    qbix-func
-    mote
+    mbox
     desk
+    ss-webos
     medge
 )
 
@@ -65,7 +63,7 @@ run_target() {
             apt-get check
 
             for package_name in \
-                sphered mgate ss-webos moted agos qbix qbix-func mote desk medge
+                sphered moted agos qbix mbox desk ss-webos medge
             do
                 dpkg-query -W -f="\${db:Status-Status} \${binary:Package} \${Version}\n" \
                     "$package_name"

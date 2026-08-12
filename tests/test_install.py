@@ -30,11 +30,14 @@ class InstallContractTest(unittest.TestCase):
 
     def test_device_helper_is_started_after_and_stopped_before_desk(self) -> None:
         text = INSTALLER.read_text(encoding="utf-8")
-        system_units = re.search(r'SYSTEM_UNITS="(.*?)"', text, re.S)
-        stop_units = re.search(r'STOP_SYSTEM_UNITS="(.*?)"', text, re.S)
-        self.assertIsNotNone(system_units)
-        self.assertIsNotNone(stop_units)
-        assert system_units is not None and stop_units is not None
+        system_units = next(
+            match for match in re.finditer(r'SYSTEM_UNITS="(.*?)"', text, re.S)
+            if "deskd.service" in match.group(1)
+        )
+        stop_units = next(
+            match for match in re.finditer(r'STOP_SYSTEM_UNITS="(.*?)"', text, re.S)
+            if "deskd.service" in match.group(1)
+        )
         self.assertLess(
             system_units.group(1).index("deskd.service"),
             system_units.group(1).index("deskd-device.service"),
@@ -47,7 +50,7 @@ class InstallContractTest(unittest.TestCase):
     def test_stale_meta_recovery_precedes_prerequisite_install(self) -> None:
         text = INSTALLER.read_text(encoding="utf-8")
         first_update = text.index("apt-get update")
-        dependency_check = text.index("if ! apt-get check", first_update)
+        dependency_check = text.index("&& ! apt-get check", first_update)
         meta_removal = text.index("dpkg --remove medge", dependency_check)
         prerequisite_install = text.index(
             "apt-get install -y --no-install-recommends ca-certificates curl gnupg"

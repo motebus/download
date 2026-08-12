@@ -2,29 +2,44 @@
 set -eu
 
 BASE_URL="https://motebus.github.io/medge-deb"
+INSTALL_PROFILE="${MEDGE_INSTALL_PROFILE:-medge}"
 EXPECTED_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 KEYRING_PATH="/etc/apt/keyrings/medge-archive-keyring.gpg"
 SOURCES_PATH="/etc/apt/sources.list.d/medge.sources"
+case "$INSTALL_PROFILE" in
+medge)
 SYSTEM_UNITS="
 sphered.service
-mgated.service
-ss-webosd.service
+mbox.service
 moted.service
 qbix.service
 agosd.service
+"
+STOP_SYSTEM_UNITS="
+agosd.service
+qbix.service
+moted.service
+mbox.service
+sphered.service
+"
+APT_PACKAGES="medge"
+;;
+webos)
+SYSTEM_UNITS="
+ss-webosd.service
 deskd.service
 deskd-device.service
 "
 STOP_SYSTEM_UNITS="
 deskd-device.service
 deskd.service
-agosd.service
-qbix.service
-moted.service
 ss-webosd.service
-mgated.service
-sphered.service
 "
+APT_PACKAGES="desk ss-webos"
+;;
+*) printf 'MEdge install failed: unknown install profile: %s\n' "$INSTALL_PROFILE" >&2; exit 1 ;;
+esac
+
 DESKTOP_UNITS="
 deskd-session.service
 ss-webos-session.service
@@ -70,7 +85,7 @@ command -v systemctl >/dev/null 2>&1 ||
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 
-if ! apt-get check; then
+if [ "$INSTALL_PROFILE" = medge ] && ! apt-get check; then
     MEDGE_DPKG_STATUS="$(
         dpkg-query -W -f='${db:Status-Status}' medge 2>/dev/null || true
     )"
@@ -146,7 +161,7 @@ install -m 0644 "$TEMP_DIR/medge.sources" "$SOURCES_PATH"
 
 apt-get update
 
-APT_INSTALL_PLAN="$(apt-get --print-uris -y install medge)" ||
+APT_INSTALL_PLAN="$(apt-get --print-uris -y install $APT_PACKAGES)" ||
     fail "cannot resolve the MEdge APT transaction"
 if printf '%s\n' "$APT_INSTALL_PLAN" |
     grep -Eiq "(https?|ssh|git)://[^[:space:]\"']*gitlab[.]"; then
@@ -160,7 +175,7 @@ for unit in $STOP_SYSTEM_UNITS; do
     systemctl reset-failed "$unit" 2>/dev/null || true
 done
 
-apt-get install -y medge
+apt-get install -y $APT_PACKAGES
 
 for command_name in awk getent loginctl runuser systemctl; do
     command -v "$command_name" >/dev/null 2>&1 ||
@@ -205,6 +220,7 @@ while read -r unit before_restarts; do
     }
 done <"$TEMP_DIR/service-restarts"
 
+if [ "$INSTALL_PROFILE" = webos ]; then
 DESKTOP_SESSION=""
 DESKTOP_USER=""
 for session_id in $(loginctl list-sessions --no-legend | awk '{print $1}'); do
@@ -268,6 +284,8 @@ else
         'No active local graphical session; the SmartScreen shortcut and desktop helpers will start at login.'
 fi
 
-INSTALLED_VERSION="$(dpkg-query -W -f='${Version}' medge)"
-printf 'MEdge %s installed and running successfully from %s\n' \
-    "$INSTALLED_VERSION" "$BASE_URL"
+fi
+
+INSTALLED_VERSIONS="$(dpkg-query -W -f='${Package}=${Version}\n' $APT_PACKAGES)"
+printf '%s profile installed and running successfully from %s:\n%s\n' \
+    "$INSTALL_PROFILE" "$BASE_URL" "$INSTALLED_VERSIONS"

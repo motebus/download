@@ -14,7 +14,7 @@ Install MEdge on Ubuntu 24.04 or 26.04 amd64 with one command:
 
 ```bash
 curl -fsSLo /tmp/medge-install.sh \
-  https://motebus.github.io/medge-deb/install.sh &&
+  https://motebus.github.io/medge-deb/medge-install.sh &&
 sudo sh /tmp/medge-install.sh
 ```
 
@@ -30,7 +30,7 @@ AECA A1DC DAF1 9C7B 7FEA  F0C0 82A0 E180 EDAE A7A0
 To inspect it before installation:
 
 ```bash
-curl -fsSL https://motebus.github.io/medge-deb/install.sh
+curl -fsSL https://motebus.github.io/medge-deb/medge-install.sh
 ```
 
 The repository uses:
@@ -91,23 +91,23 @@ publication.
 
 ## Releases
 
-Current approved stable release: `medge-v3.1.0-15`.
+Current approved stable release: `medge-v3.2.0-1`.
 
 Each approved GitHub Release contains:
 
-- nine component binary DEBs;
+- seven component binary DEBs;
 - one dependency-only `medge` meta-package DEB;
 - `release-manifest.json`;
 - `SHA256SUMS`;
+- `medge-install.sh` and `webos-install.sh`;
 - optional binary `.changes` and `.buildinfo` provenance.
 
-The `medge` package installs the exact coordinated versions of `sphered`,
-`mgate`, `ss-webos`, `moted`, `agos`, `qbix`, `qbix-func`, `mote`, and `desk`.
+The `medge` package installs the headless `sphered`, `moted`, `agos`, `qbix`,
+and `mbox` set. `webos-install.sh` installs `desk + ss-webos`. MBox includes
+the former MGate/UCLI roles and Qbix includes QFunc runtimes.
 
 Every stable publication requires explicit owner approval. Existing release
 tags and assets are immutable.
 
-The publisher may validate the exact v3.1.0-8 eight-package bundle only as
-immutable previous-release lineage. It never copies that historical package
-set into the active APT index; the current index contains only the approved
-nine-package release.
+Historical bundles remain immutable lineage only. They never contribute
+packages to the active APT index, which contains only the approved v3 release.

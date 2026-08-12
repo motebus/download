@@ -17,15 +17,14 @@ import tempfile
 
 EXPECTED_PACKAGES = (
     "sphered",
-    "mgate",
-    "ss-webos",
     "moted",
     "agos",
     "qbix",
-    "qbix-func",
-    "mote",
+    "mbox",
     "desk",
+    "ss-webos",
 )
+HEADLESS_PACKAGES = ("sphered", "moted", "agos", "qbix", "mbox")
 LEGACY_PACKAGE_SETS = {
     "3.1.0-8": (
         "sphered",
@@ -51,6 +50,8 @@ ALLOWED_ROOT_FILES = {
     ".gitignore",
     "github-setup.sh",
     "install.sh",
+    "medge-install.sh",
+    "webos-install.sh",
     "LICENSE",
     "README.md",
     "medge-deb.env",
@@ -141,8 +142,9 @@ def archive_fingerprint(repository_root: Path) -> str:
 
 
 def expected_depends(manifest: dict) -> str:
+    packages = {package["name"]: package for package in manifest["packages"]}
     return ", ".join(
-        f"{package['name']} (= {package['version']})" for package in manifest["packages"]
+        f"{name} (= {packages[name]['version']})" for name in HEADLESS_PACKAGES
     )
 
 
@@ -160,7 +162,7 @@ def validate_manifest(manifest: object) -> dict:
     if "rollback" in manifest:
         expected_keys.add("rollback")
     require(set(manifest) == expected_keys, "public release manifest fields are invalid")
-    require(manifest.get("schema") == "medge-public-release/v1", "invalid public release manifest schema")
+    require(manifest.get("schema") == "medge-public-release/v3", "invalid public release manifest schema")
     require(manifest.get("status") == "approved", "release manifest is not approved")
     require(
         isinstance(manifest.get("medge_version"), str)
@@ -264,6 +266,12 @@ def validate_bundle(bundle: Path) -> dict:
     ]
     require(forbidden == [], f"source packages are forbidden: {forbidden}")
     validate_no_gitlab_urls(bundle)
+    for name in ("medge-install.sh", "webos-install.sh"):
+        installer = bundle / name
+        require(installer.is_file(), f"bundle is missing {name}")
+        require(installer.stat().st_mode & 0o111 != 0, f"{name} must be executable")
+        run("sh", "-n", str(installer))
+    require(not (bundle / "install.sh").exists(), "v3 bundle must not contain install.sh")
     return manifest
 
 
@@ -305,13 +313,18 @@ def validate_tree(root: Path) -> None:
     require(installer.is_file(), "public repository is missing install.sh")
     require(installer.stat().st_mode & 0o111 != 0, "install.sh must be executable")
     run("sh", "-n", str(installer))
+    for name in ("medge-install.sh", "webos-install.sh"):
+        wrapper = root / name
+        require(wrapper.is_file(), f"public repository is missing {name}")
+        require(wrapper.stat().st_mode & 0o111 != 0, f"{name} must be executable")
+        run("sh", "-n", str(wrapper))
     installer_text = installer.read_text(encoding="utf-8")
     for required_text in (
         "https://motebus.github.io/medge-deb",
         fingerprint,
         "ubuntu:24.04|ubuntu:26.04)",
-        "apt-get install -y medge",
-        "apt-get --print-uris -y install medge",
+        "apt-get install -y $APT_PACKAGES",
+        "apt-get --print-uris -y install $APT_PACKAGES",
         "if ! apt-get check",
         "dpkg --remove medge",
         "forbidden GitLab URL",
@@ -407,6 +420,8 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
     shutil.copy2(repository_root / "medge-archive-keyring.gpg", site)
     shutil.copy2(repository_root / "medge.sources", site)
     shutil.copy2(repository_root / "install.sh", site)
+    shutil.copy2(repository_root / "medge-install.sh", site)
+    shutil.copy2(repository_root / "webos-install.sh", site)
     (site / ".nojekyll").write_text("", encoding="utf-8")
     fingerprint = archive_fingerprint(repository_root)
     index = f"""<!doctype html>
@@ -418,7 +433,7 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
 <p>Current meta-package: <code>medge {current_manifest['medge_version']}</code></p>
 <p>Signing fingerprint: <code>{fingerprint}</code></p>
 <pre>curl -fsSLo /tmp/medge-install.sh \
-https://motebus.github.io/medge-deb/install.sh &amp;&amp;
+https://motebus.github.io/medge-deb/medge-install.sh &amp;&amp;
 sudo sh /tmp/medge-install.sh</pre>
 </html>
 """
