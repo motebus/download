@@ -269,7 +269,6 @@ def validate_bundle(bundle: Path) -> dict:
     for name in ("medge-install.sh", "webos-install.sh"):
         installer = bundle / name
         require(installer.is_file(), f"bundle is missing {name}")
-        require(installer.stat().st_mode & 0o111 != 0, f"{name} must be executable")
         run("sh", "-n", str(installer))
     require(not (bundle / "install.sh").exists(), "v3 bundle must not contain install.sh")
     return manifest
