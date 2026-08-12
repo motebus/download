@@ -92,7 +92,7 @@ publication.
 
 ## Releases
 
-Current approved stable release: `medge-v3.2.0-2`.
+Current approved stable release: `medge-v4.0.0-1`.
 
 Each approved GitHub Release contains:
 
