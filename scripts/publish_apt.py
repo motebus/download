@@ -18,13 +18,14 @@ import tempfile
 EXPECTED_PACKAGES = (
     "sphered",
     "moted",
-    "agos",
+    "aport",
     "qbix",
     "mbox",
+    "motessh",
     "desk",
     "ss-webos",
 )
-HEADLESS_PACKAGES = ("sphered", "moted", "agos", "qbix", "mbox")
+HEADLESS_PACKAGES = ("sphered", "moted", "aport", "qbix", "mbox", "motessh")
 LEGACY_PACKAGE_SETS = {
     "3.1.0-8": (
         "sphered",
@@ -423,7 +424,7 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
 <title>MEdge Debian Repository</title>
 <h1>MEdge Debian Repository</h1>
 <p>Stable Ubuntu 24.04 and 26.04 amd64 binary packages.</p>
-<p>Current seven-package release: <code>{current_manifest['medge_version']}</code></p>
+<p>Current eight-package release: <code>{current_manifest['medge_version']}</code></p>
 <p>Signing fingerprint: <code>{fingerprint}</code></p>
 <pre>curl -fsSLo /tmp/medge-install.sh \
 https://motebus.github.io/medge-deb/medge-install.sh &amp;&amp;

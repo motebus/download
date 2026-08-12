@@ -22,7 +22,7 @@ moted.service
 mbox.service
 sphered.service
 "
-APT_PACKAGES="sphered moted agos qbix mbox"
+APT_PACKAGES="sphered moted aport qbix mbox motessh"
 ;;
 webos)
 SYSTEM_UNITS="
