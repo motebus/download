@@ -325,7 +325,7 @@ def validate_tree(root: Path) -> None:
         "ubuntu:24.04|ubuntu:26.04)",
         "apt-get install -y $APT_PACKAGES",
         "apt-get --print-uris -y install $APT_PACKAGES",
-        "if ! apt-get check",
+        "&& ! apt-get check",
         "dpkg --remove medge",
         "forbidden GitLab URL",
         "STOP_SYSTEM_UNITS=",
