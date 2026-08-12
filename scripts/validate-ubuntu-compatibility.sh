@@ -26,7 +26,6 @@ EXPECTED_PACKAGES=(
     mbox
     desk
     ss-webos
-    medge
 )
 
 for package_name in "${EXPECTED_PACKAGES[@]}"; do
@@ -63,7 +62,7 @@ run_target() {
             apt-get check
 
             for package_name in \
-                sphered moted agos qbix mbox desk ss-webos medge
+                sphered moted agos qbix mbox desk ss-webos
             do
                 dpkg-query -W -f="\${db:Status-Status} \${binary:Package} \${Version}\n" \
                     "$package_name"

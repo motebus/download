@@ -22,7 +22,7 @@ moted.service
 mbox.service
 sphered.service
 "
-APT_PACKAGES="medge"
+APT_PACKAGES="sphered moted agos qbix mbox"
 ;;
 webos)
 SYSTEM_UNITS="

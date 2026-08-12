@@ -162,7 +162,7 @@ def validate_manifest(manifest: object) -> dict:
     if "rollback" in manifest:
         expected_keys.add("rollback")
     require(set(manifest) == expected_keys, "public release manifest fields are invalid")
-    require(manifest.get("schema") == "medge-public-release/v3", "invalid public release manifest schema")
+    require(manifest.get("schema") == "medge-public-release/v4", "invalid public release manifest schema")
     require(manifest.get("status") == "approved", "release manifest is not approved")
     require(
         isinstance(manifest.get("medge_version"), str)
@@ -243,16 +243,10 @@ def validate_bundle(bundle: Path) -> dict:
             f"architecture mismatch: {asset.name}",
         )
 
-    meta = bundle / f"medge_{manifest['medge_version']}_all.deb"
-    require(meta.is_file(), "bundle is missing the medge meta-package")
-    require(package_field(meta, "Package") == "medge", "invalid meta-package name")
-    require(package_field(meta, "Architecture") == "all", "medge must be Architecture: all")
-    require(package_field(meta, "Version") == manifest["medge_version"], "medge version mismatch")
-    require(package_field(meta, "Depends") == expected_depends(manifest), "medge dependency closure mismatch")
-    with tempfile.TemporaryDirectory(prefix="medge-control-") as temp_name:
-        run("dpkg-deb", "-e", str(meta), temp_name)
-        for name in ("preinst", "postinst", "prerm", "postrm", "config"):
-            require(not (Path(temp_name) / name).exists(), f"medge contains forbidden {name}")
+    require(
+        list(bundle.glob("medge_*_all.deb")) == [],
+        "v4 bundle must not contain retired medge.deb",
+    )
 
     forbidden = [
         path.name
@@ -270,7 +264,7 @@ def validate_bundle(bundle: Path) -> dict:
         installer = bundle / name
         require(installer.is_file(), f"bundle is missing {name}")
         run("sh", "-n", str(installer))
-    require(not (bundle / "install.sh").exists(), "v3 bundle must not contain install.sh")
+    require(not (bundle / "install.sh").exists(), "v4 bundle must not contain install.sh")
     return manifest
 
 
@@ -429,7 +423,7 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
 <title>MEdge Debian Repository</title>
 <h1>MEdge Debian Repository</h1>
 <p>Stable Ubuntu 24.04 and 26.04 amd64 binary packages.</p>
-<p>Current meta-package: <code>medge {current_manifest['medge_version']}</code></p>
+<p>Current seven-package release: <code>{current_manifest['medge_version']}</code></p>
 <p>Signing fingerprint: <code>{fingerprint}</code></p>
 <pre>curl -fsSLo /tmp/medge-install.sh \
 https://motebus.github.io/medge-deb/medge-install.sh &amp;&amp;
@@ -482,10 +476,6 @@ def build_site(repository_root: Path, site: Path, bundles: list[Path]) -> None:
     site.mkdir(parents=True)
     for package in current["packages"]:
         copy_package(bundles[0] / package["asset"], site)
-    copy_package(
-        bundles[0] / f"medge_{current['medge_version']}_all.deb",
-        site,
-    )
     write_index(site, repository_root, current)
     validate_no_gitlab_urls(site)
     sign_release(site, repository_root)

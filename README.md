@@ -20,7 +20,8 @@ sudo sh /tmp/medge-install.sh
 
 The public installer checks the operating system and architecture, verifies
 the downloaded archive key against this fingerprint, configures the signed
-APT source, runs `apt-get install medge`, starts the MEdge system services,
+APT source, installs the five physical server packages in one transaction,
+starts the MEdge system services,
 and verifies that they are active:
 
 ```text
@@ -91,23 +92,24 @@ publication.
 
 ## Releases
 
-Current approved stable release: `medge-v3.2.0-1`.
+Current approved stable release: `medge-v3.2.0-2`.
 
 Each approved GitHub Release contains:
 
 - seven component binary DEBs;
-- one dependency-only `medge` meta-package DEB;
 - `release-manifest.json`;
 - `SHA256SUMS`;
 - `medge-install.sh` and `webos-install.sh`;
 - optional binary `.changes` and `.buildinfo` provenance.
 
-The `medge` package installs the headless `sphered`, `moted`, `agos`, `qbix`,
-and `mbox` set. `webos-install.sh` installs `desk + ss-webos`. MBox includes
+`medge.deb` is retired. `medge-install.sh` directly installs the headless
+`sphered`, `moted`, `agos`, `qbix`, and `mbox` set. `webos-install.sh`
+installs `desk + ss-webos`. MBox includes
 the former MGate/UCLI roles and Qbix includes QFunc runtimes.
 
 Every stable publication requires explicit owner approval. Existing release
 tags and assets are immutable.
 
 Historical bundles remain immutable lineage only. They never contribute
-packages to the active APT index, which contains only the approved v3 release.
+packages to the active APT index, which contains only the approved current
+seven-package release.

@@ -61,6 +61,12 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn("/var/lib/dpkg/info/medge.$maintainer_script", text)
         self.assertIn("installed components are preserved", text)
 
+    def test_server_profile_installs_physical_packages_without_meta(self) -> None:
+        text = INSTALLER.read_text(encoding="utf-8")
+        server_case = text.split("medge)", 1)[1].split(";;", 1)[0]
+        self.assertIn('APT_PACKAGES="sphered moted agos qbix mbox"', server_case)
+        self.assertNotIn('APT_PACKAGES="medge"', server_case)
+
     def test_compatibility_images_are_digest_pinned(self) -> None:
         text = COMPATIBILITY.read_text(encoding="utf-8")
         images = re.findall(r"docker\.io/library/ubuntu@sha256:[0-9a-f]{64}", text)
