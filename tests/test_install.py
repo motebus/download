@@ -93,6 +93,15 @@ class InstallContractTest(unittest.TestCase):
         self.assertNotIn("apt-get autoremove", text)
         self.assertNotIn("apt-get purge", text)
 
+    def test_server_profile_stops_loaded_retired_mgate_daemon(self) -> None:
+        text = INSTALLER.read_text(encoding="utf-8")
+        server_case = text.split("medge)", 1)[1].split(";;", 1)[0]
+        self.assertIn("mgated.service", server_case)
+        self.assertLess(
+            server_case.index("mbox.service"),
+            server_case.index("mgated.service"),
+        )
+
     def test_compatibility_images_are_digest_pinned(self) -> None:
         text = COMPATIBILITY.read_text(encoding="utf-8")
         images = re.findall(r"docker\.io/library/ubuntu@sha256:[0-9a-f]{64}", text)

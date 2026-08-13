@@ -20,6 +20,7 @@ agosd.service
 qbix.service
 moted.service
 mbox.service
+mgated.service
 sphered.service
 "
 APT_PACKAGES="sphered moted aport qbix mbox motessh"
