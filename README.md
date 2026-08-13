@@ -20,7 +20,7 @@ sudo sh /tmp/medge-install.sh
 
 The public installer checks the operating system and architecture, verifies
 the downloaded archive key against this fingerprint, configures the signed
-APT source, installs the six physical server packages in one transaction,
+APT source, installs the eight MEdge packages in one transaction,
 starts the MEdge system services,
 and verifies that they are active:
 
@@ -92,19 +92,20 @@ publication.
 
 ## Releases
 
-Current approved stable release: `medge-v4.0.0-10`.
+Current approved stable release: `medge-v4.1.0-2`.
 
 Each approved GitHub Release contains:
 
-- eight component binary DEBs;
+- ten component binary DEBs;
 - `release-manifest.json`;
 - `SHA256SUMS`;
 - `medge-install.sh` and `webos-install.sh`;
 - optional binary `.changes` and `.buildinfo` provenance.
 
 `medge.deb` is retired. `medge-install.sh` directly installs the headless
-`sphered`, `moted`, `aport`, `qbix`, `mbox`, and `motessh` set. `webos-install.sh`
-installs `desk + ss-webos`. MBox includes
+`sphered`, `moted`, `aport`, `qbix`, `mbox`, `motestream`, `motessh`, and
+`moterdp` set. `webos-install.sh` installs `desk + ss-webos`. MoteStream is the
+shared EdgeOS stream layer used independently by MOTESSH and MOTERDP. MBox includes
 the former MGate/UCLI roles and Qbix includes QFunc runtimes.
 
 Every stable publication requires explicit owner approval. Existing release
@@ -112,4 +113,4 @@ tags and assets are immutable.
 
 Historical bundles remain immutable lineage only. They never contribute
 packages to the active APT index, which contains only the approved current
-eight-package release.
+ten-package release.

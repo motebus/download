@@ -24,7 +24,7 @@ mbox.service
 mgated.service
 sphered.service
 "
-APT_PACKAGES="sphered moted aport qbix mbox motessh"
+APT_PACKAGES="sphered moted aport qbix mbox motestream motessh moterdp"
 RETIRED_PACKAGES="agos mote mgate ucli qbix-func qbix-wasm moteos"
 ;;
 webos)

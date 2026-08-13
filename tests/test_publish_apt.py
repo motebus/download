@@ -18,9 +18,14 @@ SPEC.loader.exec_module(publish_apt)
 
 
 class PublicAptTest(unittest.TestCase):
-    def manifest(self, schema: str = "medge-public-release/v4") -> dict:
+    def manifest(self, schema: str = "medge-public-release/v6") -> dict:
+        package_names = (
+            publish_apt.LEGACY_PACKAGES
+            if schema in {"medge-public-release/v4", "medge-public-release/v5"}
+            else publish_apt.EXPECTED_PACKAGES
+        )
         packages = []
-        for index, name in enumerate(publish_apt.EXPECTED_PACKAGES, start=1):
+        for index, name in enumerate(package_names, start=1):
             version = f"1.0.0-{index}"
             packages.append(
                 {
@@ -37,7 +42,7 @@ class PublicAptTest(unittest.TestCase):
         manifest = {
             "schema": schema,
             "status": "approved",
-            "medge_version": "3.2.0-1",
+            "medge_version": "4.1.0-2" if schema == "medge-public-release/v6" else "3.2.0-1",
             "suite": "stable",
             "component": "main",
             "architecture": "amd64",
@@ -46,7 +51,7 @@ class PublicAptTest(unittest.TestCase):
             "approval": {"id": "approval-9", "approved_by": "owner", "approved_at": now},
             "packages": packages,
         }
-        if schema == "medge-public-release/v5":
+        if schema in {"medge-public-release/v5", "medge-public-release/v6"}:
             for package in manifest["packages"]:
                 package["env_inputs"] = [
                     {"path": path, "sha256": package["sha256"]}
@@ -96,6 +101,22 @@ class PublicAptTest(unittest.TestCase):
         manifest["packages"][1]["env_inputs"].reverse()
         with self.assertRaisesRegex(publish_apt.PublishError, "env_inputs must be"):
             publish_apt.validate_manifest(manifest)
+
+    def test_v6_manifest_has_exact_agentic_io_package_set(self) -> None:
+        manifest = self.manifest("medge-public-release/v6")
+        self.assertEqual(
+            [package["name"] for package in manifest["packages"]],
+            list(publish_apt.EXPECTED_PACKAGES),
+        )
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v5_manifest_keeps_historical_eight_package_set(self) -> None:
+        manifest = self.manifest("medge-public-release/v5")
+        self.assertEqual(
+            [package["name"] for package in manifest["packages"]],
+            list(publish_apt.LEGACY_PACKAGES),
+        )
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
     def test_deb_with_gitlab_url_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:

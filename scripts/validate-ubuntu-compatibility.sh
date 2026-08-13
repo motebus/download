@@ -24,7 +24,9 @@ EXPECTED_PACKAGES=(
     aport
     qbix
     mbox
+    motestream
     motessh
+    moterdp
     desk
     ss-webos
 )
@@ -63,7 +65,7 @@ run_target() {
             apt-get check
 
             for package_name in \
-                sphered moted aport qbix mbox motessh desk ss-webos
+                sphered moted aport qbix mbox motestream motessh moterdp desk ss-webos
             do
                 dpkg-query -W -f="\${db:Status-Status} \${binary:Package} \${Version}\n" \
                     "$package_name"

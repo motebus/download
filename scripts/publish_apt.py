@@ -15,7 +15,7 @@ import subprocess
 import tempfile
 
 
-EXPECTED_PACKAGES = (
+LEGACY_PACKAGES = (
     "sphered",
     "moted",
     "aport",
@@ -25,7 +25,28 @@ EXPECTED_PACKAGES = (
     "desk",
     "ss-webos",
 )
-HEADLESS_PACKAGES = ("sphered", "moted", "aport", "qbix", "mbox", "motessh")
+EXPECTED_PACKAGES = (
+    "sphered",
+    "moted",
+    "aport",
+    "qbix",
+    "mbox",
+    "motestream",
+    "motessh",
+    "moterdp",
+    "desk",
+    "ss-webos",
+)
+HEADLESS_PACKAGES = (
+    "sphered",
+    "moted",
+    "aport",
+    "qbix",
+    "mbox",
+    "motestream",
+    "motessh",
+    "moterdp",
+)
 LEGACY_PACKAGE_SETS = {
     "3.1.0-8": (
         "sphered",
@@ -48,7 +69,9 @@ GITLAB_URL_RE = re.compile(
     rb"(?:https?|ssh|git)://[^\x00-\x20\"'<>]*gitlab[^\x00-\x20\"'<>]*",
     re.IGNORECASE,
 )
-MCHAT_ENV_PACKAGES = {"moted", "aport", "qbix", "mbox", "motessh", "desk"}
+MCHAT_ENV_PACKAGES = {
+    "moted", "aport", "qbix", "mbox", "motessh", "moterdp", "desk",
+}
 ALLOWED_ROOT_FILES = {
     ".gitignore",
     "github-setup.sh",
@@ -153,7 +176,11 @@ def expected_depends(manifest: dict) -> str:
 
 def expected_packages(manifest: dict) -> tuple[str, ...]:
     version = manifest.get("medge_version")
-    return LEGACY_PACKAGE_SETS.get(version, EXPECTED_PACKAGES)
+    if version in LEGACY_PACKAGE_SETS:
+        return LEGACY_PACKAGE_SETS[version]
+    if manifest.get("schema") in {"medge-public-release/v4", "medge-public-release/v5"}:
+        return LEGACY_PACKAGES
+    return EXPECTED_PACKAGES
 
 
 def expected_env_paths(package_name: str) -> list[str]:
@@ -197,7 +224,11 @@ def validate_manifest(manifest: object) -> dict:
         expected_keys.add("rollback")
     require(set(manifest) == expected_keys, "public release manifest fields are invalid")
     require(
-        manifest.get("schema") in {"medge-public-release/v4", "medge-public-release/v5"},
+        manifest.get("schema") in {
+            "medge-public-release/v4",
+            "medge-public-release/v5",
+            "medge-public-release/v6",
+        },
         "invalid public release manifest schema",
     )
     require(manifest.get("status") == "approved", "release manifest is not approved")
@@ -236,7 +267,7 @@ def validate_manifest(manifest: object) -> dict:
             "name", "version", "architecture", "asset", "source_commit",
             "source_ref", "sha256",
         }
-        if manifest["schema"] == "medge-public-release/v5":
+        if manifest["schema"] in {"medge-public-release/v5", "medge-public-release/v6"}:
             package_fields.add("env_inputs")
         require(
             set(package) == package_fields,
@@ -248,7 +279,7 @@ def validate_manifest(manifest: object) -> dict:
         require(re.fullmatch(r"[0-9a-f]{40}", package["source_commit"]) is not None, f"{name}: invalid source_commit")
         require(SOURCE_REF_RE.fullmatch(package["source_ref"]) is not None, f"{name}: invalid source_ref")
         require(HEX64_RE.fullmatch(package["sha256"]) is not None, f"{name}: invalid sha256")
-        if manifest["schema"] == "medge-public-release/v5":
+        if manifest["schema"] in {"medge-public-release/v5", "medge-public-release/v6"}:
             validate_env_inputs(package)
     require_no_gitlab_url_bytes(
         json.dumps(manifest, sort_keys=True).encode("utf-8"),
@@ -470,7 +501,7 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
 <title>MEdge Debian Repository</title>
 <h1>MEdge Debian Repository</h1>
 <p>Stable Ubuntu 24.04 and 26.04 amd64 binary packages.</p>
-<p>Current eight-package release: <code>{current_manifest['medge_version']}</code></p>
+<p>Current ten-package release: <code>{current_manifest['medge_version']}</code></p>
 <p>Signing fingerprint: <code>{fingerprint}</code></p>
 <pre>curl -fsSLo /tmp/medge-install.sh \
 https://motebus.github.io/medge-release/medge-install.sh &amp;&amp;
