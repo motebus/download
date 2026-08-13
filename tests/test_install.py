@@ -69,6 +69,18 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn('APT_PACKAGES="sphered moted aport qbix mbox motessh"', server_case)
         self.assertNotIn('APT_PACKAGES="medge"', server_case)
 
+    def test_repository_refresh_bypasses_stale_intermediary_cache(self) -> None:
+        text = INSTALLER.read_text(encoding="utf-8")
+        source_install = text.index(
+            'install -m 0644 "$TEMP_DIR/medge.sources" "$SOURCES_PATH"'
+        )
+        forced_update = text.index(
+            "apt-get -o Acquire::http::No-Cache=true update"
+        )
+        transaction_plan = text.index('APT_INSTALL_PLAN="$(apt-get --print-uris')
+        self.assertLess(source_install, forced_update)
+        self.assertLess(forced_update, transaction_plan)
+
     def test_server_profile_removes_only_explicit_retired_packages(self) -> None:
         text = INSTALLER.read_text(encoding="utf-8")
         server_case = text.split("medge)", 1)[1].split(";;", 1)[0]

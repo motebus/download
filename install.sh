@@ -186,7 +186,10 @@ install -d -m 0755 /etc/apt/keyrings
 install -m 0644 "$TEMP_DIR/medge-archive-keyring.gpg" "$KEYRING_PATH"
 install -m 0644 "$TEMP_DIR/medge.sources" "$SOURCES_PATH"
 
-apt-get update
+# A newly published GitHub Pages repository can briefly share an intermediary
+# cache entry with the preceding release.  Force revalidation after installing
+# the canonical source so APT does not resolve against a stale Packages index.
+apt-get -o Acquire::http::No-Cache=true update
 
 APT_INSTALL_PLAN="$(apt-get --print-uris -y install $APT_PACKAGES)" ||
     fail "cannot resolve the MEdge APT transaction"
