@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-BASE_URL="https://motebus.github.io/medge-deb"
+BASE_URL="https://motebus.github.io/medge-release"
 INSTALL_PROFILE="${MEDGE_INSTALL_PROFILE:-medge}"
 EXPECTED_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 KEYRING_PATH="/etc/apt/keyrings/medge-archive-keyring.gpg"

@@ -14,7 +14,7 @@ Install MEdge on Ubuntu 24.04 or 26.04 amd64 with one command:
 
 ```bash
 curl -fsSLo /tmp/medge-install.sh \
-  https://motebus.github.io/medge-deb/medge-install.sh &&
+  https://motebus.github.io/medge-release/medge-install.sh &&
 sudo sh /tmp/medge-install.sh
 ```
 
@@ -31,7 +31,7 @@ AECA A1DC DAF1 9C7B 7FEA  F0C0 82A0 E180 EDAE A7A0
 To inspect it before installation:
 
 ```bash
-curl -fsSL https://motebus.github.io/medge-deb/medge-install.sh
+curl -fsSL https://motebus.github.io/medge-release/medge-install.sh
 ```
 
 The repository uses:

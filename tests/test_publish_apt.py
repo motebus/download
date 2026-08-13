@@ -88,7 +88,7 @@ class PublicAptTest(unittest.TestCase):
 
     def test_deb_without_gitlab_url_is_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
-            asset = self.make_deb(Path(temp_name), "https://github.com/motebus/medge-deb")
+            asset = self.make_deb(Path(temp_name), "https://github.com/motebus/medge-release")
             publish_apt.validate_public_deb_content(asset)
             self.assertEqual(len(hashlib.sha256(asset.read_bytes()).hexdigest()), 64)
 
