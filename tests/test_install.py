@@ -63,6 +63,18 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn("/var/lib/dpkg/info/medge.$maintainer_script", text)
         self.assertIn("installed components are preserved", text)
 
+    def test_retired_pages_source_is_migrated_before_first_apt_update(self) -> None:
+        text = INSTALLER.read_text(encoding="utf-8")
+        migration = text.index('grep -Fqx "URIs: $RETIRED_BASE_URL"')
+        rewrite = text.index('sed -i "s#^URIs: $RETIRED_BASE_URL')
+        first_update = text.index("apt-get update")
+        self.assertIn(
+            'RETIRED_BASE_URL="https://motebus.github.io/medge-deb"',
+            text,
+        )
+        self.assertLess(migration, rewrite)
+        self.assertLess(rewrite, first_update)
+
     def test_server_profile_installs_physical_packages_without_meta(self) -> None:
         text = INSTALLER.read_text(encoding="utf-8")
         server_case = text.split("medge)", 1)[1].split(";;", 1)[0]
