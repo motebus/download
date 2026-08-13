@@ -102,7 +102,7 @@ if [ "$INSTALL_PROFILE" = medge ]; then
             dpkg --remove medge ||
                 fail "the stale dependency-only MEdge meta-package could not be removed"
             ;;
-        '') ;;
+        ''|config-files|not-installed) ;;
         *) fail "unsupported installed state for the retired MEdge meta-package: $MEDGE_DPKG_STATUS" ;;
     esac
     INSTALLED_RETIRED=""
@@ -115,7 +115,7 @@ if [ "$INSTALL_PROFILE" = medge ]; then
             installed|unpacked|half-configured|half-installed|triggers-awaited|triggers-pending)
                 INSTALLED_RETIRED="$INSTALLED_RETIRED $retired_package"
                 ;;
-            '') ;;
+            ''|config-files|not-installed) ;;
             *) fail "unsupported installed state for retired package $retired_package: $retired_status" ;;
         esac
     done

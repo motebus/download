@@ -77,6 +77,7 @@ class InstallContractTest(unittest.TestCase):
             server_case,
         )
         self.assertIn("apt-get remove -y --no-auto-remove $INSTALLED_RETIRED", text)
+        self.assertGreaterEqual(text.count("''|config-files|not-installed) ;;"), 2)
         self.assertNotIn("apt-get autoremove", text)
         self.assertNotIn("apt-get purge", text)
 
