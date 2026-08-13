@@ -18,7 +18,7 @@ SPEC.loader.exec_module(publish_apt)
 
 
 class PublicAptTest(unittest.TestCase):
-    def manifest(self) -> dict:
+    def manifest(self, schema: str = "medge-public-release/v4") -> dict:
         packages = []
         for index, name in enumerate(publish_apt.EXPECTED_PACKAGES, start=1):
             version = f"1.0.0-{index}"
@@ -34,8 +34,8 @@ class PublicAptTest(unittest.TestCase):
                 }
             )
         now = dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
-        return {
-            "schema": "medge-public-release/v4",
+        manifest = {
+            "schema": schema,
             "status": "approved",
             "medge_version": "3.2.0-1",
             "suite": "stable",
@@ -46,6 +46,13 @@ class PublicAptTest(unittest.TestCase):
             "approval": {"id": "approval-9", "approved_by": "owner", "approved_at": now},
             "packages": packages,
         }
+        if schema == "medge-public-release/v5":
+            for package in manifest["packages"]:
+                package["env_inputs"] = [
+                    {"path": path, "sha256": package["sha256"]}
+                    for path in publish_apt.expected_env_paths(package["name"])
+                ]
+        return manifest
 
     def make_deb(self, root: Path, homepage: str = "") -> Path:
         package_root = root / "package"
@@ -75,6 +82,19 @@ class PublicAptTest(unittest.TestCase):
         forbidden_url = "https://" + "gitlab" + ".example.invalid/job/1"
         manifest["packages"][0]["artifact_url"] = forbidden_url
         with self.assertRaisesRegex(publish_apt.PublishError, "fields are invalid"):
+            publish_apt.validate_manifest(manifest)
+
+    def test_v5_manifest_requires_exact_git_env_provenance(self) -> None:
+        manifest = self.manifest("medge-public-release/v5")
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+        del manifest["packages"][0]["env_inputs"]
+        with self.assertRaisesRegex(publish_apt.PublishError, "fields are invalid"):
+            publish_apt.validate_manifest(manifest)
+
+        manifest = self.manifest("medge-public-release/v5")
+        manifest["packages"][1]["env_inputs"].reverse()
+        with self.assertRaisesRegex(publish_apt.PublishError, "env_inputs must be"):
             publish_apt.validate_manifest(manifest)
 
     def test_deb_with_gitlab_url_is_rejected(self) -> None:

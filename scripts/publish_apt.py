@@ -43,10 +43,12 @@ FINGERPRINT_RE = re.compile(r"^[0-9A-F]{40}$")
 TAG_RE = re.compile(r"^medge-v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$")
 VERSION_RE = re.compile(r"^[0-9][0-9A-Za-z.+:~]*-[0-9]+$")
 SOURCE_REF_RE = re.compile(r"^refs/(?:heads/main|tags/[0-9A-Za-z][0-9A-Za-z._-]*)$")
+ENV_PATH_RE = re.compile(r"^[a-z0-9][a-z0-9.-]*-(?:deb|mchat)\.env$")
 GITLAB_URL_RE = re.compile(
     rb"(?:https?|ssh|git)://[^\x00-\x20\"'<>]*gitlab[^\x00-\x20\"'<>]*",
     re.IGNORECASE,
 )
+MCHAT_ENV_PACKAGES = {"moted", "aport", "qbix", "mbox", "motessh", "desk"}
 ALLOWED_ROOT_FILES = {
     ".gitignore",
     "github-setup.sh",
@@ -154,6 +156,37 @@ def expected_packages(manifest: dict) -> tuple[str, ...]:
     return LEGACY_PACKAGE_SETS.get(version, EXPECTED_PACKAGES)
 
 
+def expected_env_paths(package_name: str) -> list[str]:
+    paths = [f"{package_name}-deb.env"]
+    if package_name in MCHAT_ENV_PACKAGES:
+        paths.append(f"{package_name}-mchat.env")
+    return paths
+
+
+def validate_env_inputs(package: dict) -> None:
+    name = package["name"]
+    env_inputs = package.get("env_inputs")
+    require(isinstance(env_inputs, list), f"{name}: env_inputs must be an array")
+    require(
+        [item.get("path") for item in env_inputs if isinstance(item, dict)]
+        == expected_env_paths(name),
+        f"{name}: env_inputs must be {expected_env_paths(name)}",
+    )
+    for item in env_inputs:
+        require(isinstance(item, dict), f"{name}: env input must be an object")
+        require(set(item) == {"path", "sha256"}, f"{name}: env input fields are invalid")
+        require(
+            isinstance(item.get("path"), str)
+            and ENV_PATH_RE.fullmatch(item["path"]),
+            f"{name}: env input path must be a repository-root DEB env file",
+        )
+        require(
+            isinstance(item.get("sha256"), str)
+            and HEX64_RE.fullmatch(item["sha256"]),
+            f"{name}: env input sha256 must be lowercase hexadecimal",
+        )
+
+
 def validate_manifest(manifest: object) -> dict:
     require(isinstance(manifest, dict), "release-manifest.json must contain an object")
     expected_keys = {
@@ -163,7 +196,10 @@ def validate_manifest(manifest: object) -> dict:
     if "rollback" in manifest:
         expected_keys.add("rollback")
     require(set(manifest) == expected_keys, "public release manifest fields are invalid")
-    require(manifest.get("schema") == "medge-public-release/v4", "invalid public release manifest schema")
+    require(
+        manifest.get("schema") in {"medge-public-release/v4", "medge-public-release/v5"},
+        "invalid public release manifest schema",
+    )
     require(manifest.get("status") == "approved", "release manifest is not approved")
     require(
         isinstance(manifest.get("medge_version"), str)
@@ -196,8 +232,14 @@ def validate_manifest(manifest: object) -> dict:
     )
     for package in packages:
         name = package["name"]
+        package_fields = {
+            "name", "version", "architecture", "asset", "source_commit",
+            "source_ref", "sha256",
+        }
+        if manifest["schema"] == "medge-public-release/v5":
+            package_fields.add("env_inputs")
         require(
-            set(package) == {"name", "version", "architecture", "asset", "source_commit", "source_ref", "sha256"},
+            set(package) == package_fields,
             f"{name}: public package fields are invalid",
         )
         require(isinstance(package["version"], str) and VERSION_RE.fullmatch(package["version"]), f"{name}: invalid version")
@@ -206,6 +248,8 @@ def validate_manifest(manifest: object) -> dict:
         require(re.fullmatch(r"[0-9a-f]{40}", package["source_commit"]) is not None, f"{name}: invalid source_commit")
         require(SOURCE_REF_RE.fullmatch(package["source_ref"]) is not None, f"{name}: invalid source_ref")
         require(HEX64_RE.fullmatch(package["sha256"]) is not None, f"{name}: invalid sha256")
+        if manifest["schema"] == "medge-public-release/v5":
+            validate_env_inputs(package)
     require_no_gitlab_url_bytes(
         json.dumps(manifest, sort_keys=True).encode("utf-8"),
         "release-manifest.json",
