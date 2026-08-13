@@ -89,7 +89,7 @@ done
 
 cd "$ROOT_DIR"
 [[ "$(git rev-parse --show-toplevel)" == "$ROOT_DIR" ]] \
-  || die "run this script from the medge-deb Git repository"
+  || die "run this script from the medge-release Git repository"
 [[ "$(git branch --show-current)" == "main" ]] \
   || die "the local branch must be main"
 [[ -z "$(git status --porcelain)" ]] \
@@ -97,8 +97,8 @@ cd "$ROOT_DIR"
 
 read -r -p "GitHub account or organization [motebus]: " GITHUB_OWNER
 GITHUB_OWNER="${GITHUB_OWNER:-motebus}"
-read -r -p "Repository name [medge-deb]: " GITHUB_REPOSITORY
-GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-medge-deb}"
+read -r -p "Repository name [medge-release]: " GITHUB_REPOSITORY
+GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-medge-release}"
 
 [[ "$GITHUB_OWNER" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,38}$ ]] \
   || die "invalid GitHub account or organization name"

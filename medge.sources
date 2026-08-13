@@ -1,5 +1,5 @@
 Types: deb
-URIs: https://motebus.github.io/medge-deb
+URIs: https://motebus.github.io/medge-release
 Suites: stable
 Components: main
 Architectures: amd64

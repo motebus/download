@@ -55,7 +55,7 @@ ALLOWED_ROOT_FILES = {
     "webos-install.sh",
     "LICENSE",
     "README.md",
-    "medge-deb.env",
+    "medge-release.env",
     "medge.sources",
     "medge-archive-keyring.fingerprint",
     "medge-archive-keyring.gpg",
@@ -314,7 +314,7 @@ def validate_tree(root: Path) -> None:
         run("sh", "-n", str(wrapper))
     installer_text = installer.read_text(encoding="utf-8")
     for required_text in (
-        "https://motebus.github.io/medge-deb",
+        "https://motebus.github.io/medge-release",
         fingerprint,
         "ubuntu:24.04|ubuntu:26.04)",
         "apt-get install -y $APT_PACKAGES",
@@ -428,7 +428,7 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
 <p>Current eight-package release: <code>{current_manifest['medge_version']}</code></p>
 <p>Signing fingerprint: <code>{fingerprint}</code></p>
 <pre>curl -fsSLo /tmp/medge-install.sh \
-https://motebus.github.io/medge-deb/medge-install.sh &amp;&amp;
+https://motebus.github.io/medge-release/medge-install.sh &amp;&amp;
 sudo sh /tmp/medge-install.sh</pre>
 </html>
 """
