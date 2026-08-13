@@ -102,6 +102,47 @@ fi
 apt-get update
 
 if [ "$INSTALL_PROFILE" = medge ]; then
+    QBIX_DPKG_STATUS="$(
+        dpkg-query -W -f='${db:Status-Status}' qbix 2>/dev/null || true
+    )"
+    QBIX_INSTALLED_VERSION="$(
+        dpkg-query -W -f='${Version}' qbix 2>/dev/null || true
+    )"
+    case "$QBIX_DPKG_STATUS:$QBIX_INSTALLED_VERSION" in
+        unpacked:2.0.0-2|half-configured:2.0.0-2|half-installed:2.0.0-2)
+            QBIX_CANDIDATE_VERSION="$(
+                apt-cache policy qbix |
+                    awk '/^[[:space:]]*Candidate:/ { print $2; exit }'
+            )"
+            [ -n "$QBIX_CANDIDATE_VERSION" ] &&
+                [ "$QBIX_CANDIDATE_VERSION" != '(none)' ] &&
+                [ "$QBIX_CANDIDATE_VERSION" != '2.0.0-2' ] ||
+                fail "Qbix 2.0.0-2 is interrupted and no repaired public package is available"
+            QBIX_RECOVERY_DIR="$(mktemp -d /tmp/qbix-recovery.XXXXXX)"
+            chmod 0755 "$QBIX_RECOVERY_DIR"
+            printf 'Recovering interrupted Qbix 2.0.0-2 with public package %s.\n' \
+                "$QBIX_CANDIDATE_VERSION"
+            (
+                cd "$QBIX_RECOVERY_DIR"
+                apt-get download "qbix=$QBIX_CANDIDATE_VERSION"
+            ) || fail "could not download the repaired Qbix package"
+            QBIX_RECOVERY_DEB="$(
+                find "$QBIX_RECOVERY_DIR" -maxdepth 1 -type f -name 'qbix_*.deb' -print
+            )"
+            [ -n "$QBIX_RECOVERY_DEB" ] &&
+                [ "$(printf '%s\n' "$QBIX_RECOVERY_DEB" | wc -l)" -eq 1 ] ||
+                fail "the Qbix recovery download is ambiguous"
+            [ "$(dpkg-deb -f "$QBIX_RECOVERY_DEB" Package)" = qbix ] &&
+                [ "$(dpkg-deb -f "$QBIX_RECOVERY_DEB" Version)" = "$QBIX_CANDIDATE_VERSION" ] &&
+                [ "$(dpkg-deb -f "$QBIX_RECOVERY_DEB" Architecture)" = amd64 ] ||
+                fail "the downloaded Qbix recovery package is invalid"
+            dpkg --install "$QBIX_RECOVERY_DEB" ||
+                fail "the repaired Qbix package could not be installed"
+            rm -f "$QBIX_RECOVERY_DEB"
+            rmdir "$QBIX_RECOVERY_DIR"
+            ;;
+    esac
+
     MEDGE_DPKG_STATUS="$(
         dpkg-query -W -f='${db:Status-Status}' medge 2>/dev/null || true
     )"
