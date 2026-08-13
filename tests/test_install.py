@@ -63,6 +63,25 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn("/var/lib/dpkg/info/medge.$maintainer_script", text)
         self.assertIn("installed components are preserved", text)
 
+    def test_interrupted_qbix_upgrade_is_recovered_before_any_apt_install(self) -> None:
+        text = INSTALLER.read_text(encoding="utf-8")
+        first_update = text.index("apt-get update")
+        broken_qbix = text.index("unpacked:2.0.0-2", first_update)
+        candidate = text.index("apt-cache policy qbix", broken_qbix)
+        download = text.index('apt-get download "qbix=$QBIX_CANDIDATE_VERSION"', candidate)
+        package_validation = text.index('dpkg-deb -f "$QBIX_RECOVERY_DEB" Package', download)
+        recovery_install = text.index('dpkg --install "$QBIX_RECOVERY_DEB"', package_validation)
+        prerequisite_install = text.index(
+            "apt-get install -y --no-install-recommends ca-certificates curl gnupg"
+        )
+        self.assertLess(first_update, broken_qbix)
+        self.assertLess(broken_qbix, candidate)
+        self.assertLess(candidate, download)
+        self.assertLess(download, package_validation)
+        self.assertLess(package_validation, recovery_install)
+        self.assertLess(recovery_install, prerequisite_install)
+        self.assertIn("Recovering interrupted Qbix 2.0.0-2", text)
+
     def test_retired_pages_source_is_migrated_before_first_apt_update(self) -> None:
         text = INSTALLER.read_text(encoding="utf-8")
         migration = text.index('grep -Fqx "URIs: $RETIRED_BASE_URL"')
