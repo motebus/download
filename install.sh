@@ -2,6 +2,7 @@
 set -eu
 
 BASE_URL="https://motebus.github.io/medge-release"
+RETIRED_BASE_URL="https://motebus.github.io/medge-deb"
 INSTALL_PROFILE="${MEDGE_INSTALL_PROFILE:-medge}"
 EXPECTED_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 KEYRING_PATH="/etc/apt/keyrings/medge-archive-keyring.gpg"
@@ -86,6 +87,18 @@ command -v systemctl >/dev/null 2>&1 ||
     fail "required runtime command is unavailable: systemctl"
 
 export DEBIAN_FRONTEND=noninteractive
+
+# The GitHub repository rename does not redirect the former Pages origin.
+# Migrate only the exact package-owned legacy URI before the first APT refresh;
+# the signed canonical source file is downloaded and installed again below.
+if [ -f "$SOURCES_PATH" ] &&
+    grep -Fqx "URIs: $RETIRED_BASE_URL" "$SOURCES_PATH"; then
+    [ "$(grep -c '^URIs:' "$SOURCES_PATH")" -eq 1 ] ||
+        fail "the retired MEdge source contains an unexpected additional URI"
+    sed -i "s#^URIs: $RETIRED_BASE_URL\$#URIs: $BASE_URL#" "$SOURCES_PATH"
+    printf 'Migrated retired MEdge APT source to %s\n' "$BASE_URL"
+fi
+
 apt-get update
 
 if [ "$INSTALL_PROFILE" = medge ]; then

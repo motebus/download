@@ -315,6 +315,7 @@ def validate_tree(root: Path) -> None:
     installer_text = installer.read_text(encoding="utf-8")
     for required_text in (
         "https://motebus.github.io/medge-release",
+        "RETIRED_BASE_URL=\"https://motebus.github.io/medge-deb\"",
         fingerprint,
         "ubuntu:24.04|ubuntu:26.04)",
         "apt-get install -y $APT_PACKAGES",
