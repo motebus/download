@@ -23,6 +23,7 @@ mbox.service
 sphered.service
 "
 APT_PACKAGES="sphered moted aport qbix mbox motessh"
+RETIRED_PACKAGES="agos mote mgate ucli qbix-func qbix-wasm moteos"
 ;;
 webos)
 SYSTEM_UNITS="
@@ -36,6 +37,7 @@ deskd.service
 ss-webosd.service
 "
 APT_PACKAGES="desk ss-webos"
+RETIRED_PACKAGES=""
 ;;
 *) printf 'MEdge install failed: unknown install profile: %s\n' "$INSTALL_PROFILE" >&2; exit 1 ;;
 esac
@@ -85,26 +87,51 @@ command -v systemctl >/dev/null 2>&1 ||
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 
-if [ "$INSTALL_PROFILE" = medge ] && ! apt-get check; then
+if [ "$INSTALL_PROFILE" = medge ]; then
     MEDGE_DPKG_STATUS="$(
         dpkg-query -W -f='${db:Status-Status}' medge 2>/dev/null || true
     )"
     case "$MEDGE_DPKG_STATUS" in
-        installed|unpacked|half-configured|half-installed|triggers-awaited|triggers-pending) ;;
-        *)
-            fail "APT has broken dependencies unrelated to an installed MEdge meta-package; repair them before retrying"
+        installed|unpacked|half-configured|half-installed|triggers-awaited|triggers-pending)
+            for maintainer_script in preinst postinst prerm postrm config; do
+                [ ! -e "/var/lib/dpkg/info/medge.$maintainer_script" ] ||
+                    fail "refusing to remove a medge package that contains maintainer scripts"
+            done
+            printf '%s\n' \
+                'Removing the stale dependency-only MEdge meta-package; installed components are preserved.'
+            dpkg --remove medge ||
+                fail "the stale dependency-only MEdge meta-package could not be removed"
             ;;
+        '') ;;
+        *) fail "unsupported installed state for the retired MEdge meta-package: $MEDGE_DPKG_STATUS" ;;
     esac
-    for maintainer_script in preinst postinst prerm postrm config; do
-        [ ! -e "/var/lib/dpkg/info/medge.$maintainer_script" ] ||
-            fail "refusing to remove a medge package that contains maintainer scripts"
+    INSTALLED_RETIRED=""
+    for retired_package in $RETIRED_PACKAGES; do
+        retired_status="$(
+            dpkg-query -W -f='${db:Status-Status}' "$retired_package" \
+                2>/dev/null || true
+        )"
+        case "$retired_status" in
+            installed|unpacked|half-configured|half-installed|triggers-awaited|triggers-pending)
+                INSTALLED_RETIRED="$INSTALLED_RETIRED $retired_package"
+                ;;
+            '') ;;
+            *) fail "unsupported installed state for retired package $retired_package: $retired_status" ;;
+        esac
     done
-    printf '%s\n' \
-        'Removing the stale dependency-only MEdge meta-package; installed components are preserved.'
-    dpkg --remove medge ||
-        fail "the stale dependency-only MEdge meta-package could not be removed"
+    if [ -n "$INSTALLED_RETIRED" ]; then
+        printf 'Removing retired MEdge packages (configuration and data are preserved):%s\n' \
+            "$INSTALLED_RETIRED"
+        # Intentionally omit purge and autoremove: only the explicit retired
+        # package set and any direct dependency-only blockers may be removed.
+        apt-get remove -y --no-auto-remove $INSTALLED_RETIRED ||
+            fail "retired MEdge packages could not be removed"
+    fi
     apt-get check ||
-        fail "APT remains broken after removing the stale MEdge meta-package"
+        fail "APT has broken dependencies after stale MEdge meta-package recovery; repair them before retrying"
+else
+    apt-get check ||
+        fail "APT has broken dependencies; repair them before retrying"
 fi
 
 apt-get install -y --no-install-recommends ca-certificates curl gnupg

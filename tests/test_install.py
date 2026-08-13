@@ -47,17 +47,19 @@ class InstallContractTest(unittest.TestCase):
             stop_units.group(1).index("deskd.service"),
         )
 
-    def test_stale_meta_recovery_precedes_prerequisite_install(self) -> None:
+    def test_stale_meta_recovery_is_unconditional_and_precedes_prerequisites(self) -> None:
         text = INSTALLER.read_text(encoding="utf-8")
         first_update = text.index("apt-get update")
-        dependency_check = text.index("&& ! apt-get check", first_update)
-        meta_removal = text.index("dpkg --remove medge", dependency_check)
+        status_check = text.index("dpkg-query -W", first_update)
+        meta_removal = text.index("dpkg --remove medge", status_check)
+        dependency_check = text.index("apt-get check", meta_removal)
         prerequisite_install = text.index(
             "apt-get install -y --no-install-recommends ca-certificates curl gnupg"
         )
-        self.assertLess(first_update, dependency_check)
-        self.assertLess(dependency_check, meta_removal)
+        self.assertNotIn("&& ! apt-get check", text)
+        self.assertLess(first_update, status_check)
         self.assertLess(meta_removal, prerequisite_install)
+        self.assertLess(dependency_check, prerequisite_install)
         self.assertIn("/var/lib/dpkg/info/medge.$maintainer_script", text)
         self.assertIn("installed components are preserved", text)
 
@@ -66,6 +68,17 @@ class InstallContractTest(unittest.TestCase):
         server_case = text.split("medge)", 1)[1].split(";;", 1)[0]
         self.assertIn('APT_PACKAGES="sphered moted aport qbix mbox motessh"', server_case)
         self.assertNotIn('APT_PACKAGES="medge"', server_case)
+
+    def test_server_profile_removes_only_explicit_retired_packages(self) -> None:
+        text = INSTALLER.read_text(encoding="utf-8")
+        server_case = text.split("medge)", 1)[1].split(";;", 1)[0]
+        self.assertIn(
+            'RETIRED_PACKAGES="agos mote mgate ucli qbix-func qbix-wasm moteos"',
+            server_case,
+        )
+        self.assertIn("apt-get remove -y --no-auto-remove $INSTALLED_RETIRED", text)
+        self.assertNotIn("apt-get autoremove", text)
+        self.assertNotIn("apt-get purge", text)
 
     def test_compatibility_images_are_digest_pinned(self) -> None:
         text = COMPATIBILITY.read_text(encoding="utf-8")
