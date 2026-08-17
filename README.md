@@ -92,7 +92,10 @@ publication.
 
 ## Releases
 
-Current approved stable release: `medge-v4.2.0-1`.
+Current approved stable release: `medge-v4.2.0-2`.
+
+This revision publishes the Hub-contract-compatible `cx-node 0.2.0-2` while
+preserving the immutable `medge-v4.2.0-1` lineage.
 
 Each approved GitHub Release contains:
 
