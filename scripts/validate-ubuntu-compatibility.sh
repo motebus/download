@@ -29,6 +29,7 @@ EXPECTED_PACKAGES=(
     moterdp
     desk
     ss-webos
+    cx-node
 )
 
 for package_name in "${EXPECTED_PACKAGES[@]}"; do
@@ -65,7 +66,7 @@ run_target() {
             apt-get check
 
             for package_name in \
-                sphered moted aport qbix mbox motestream motessh moterdp desk ss-webos
+                sphered moted aport qbix mbox motestream motessh moterdp desk ss-webos cx-node
             do
                 dpkg-query -W -f="\${db:Status-Status} \${binary:Package} \${Version}\n" \
                     "$package_name"
