@@ -152,6 +152,13 @@ class PublicAptTest(unittest.TestCase):
             publish_apt.validate_public_deb_content(asset)
             self.assertEqual(len(hashlib.sha256(asset.read_bytes()).hexdigest()), 64)
 
+    def test_site_publishes_signed_installer_checksum_contract(self) -> None:
+        text = MODULE_PATH.read_text(encoding="utf-8")
+        self.assertIn('site / "installer-SHA256SUMS"', text)
+        self.assertIn('site / "installer-SHA256SUMS.asc"', text)
+        self.assertIn('"cx-install.sh"', text)
+        self.assertIn('str(installer_signature), str(installer_checksums)', text)
+
 
 if __name__ == "__main__":
     unittest.main()

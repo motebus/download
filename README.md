@@ -107,7 +107,7 @@ Each approved GitHub Release contains:
 `medge.deb` is retired. `medge-install.sh` directly installs the headless
 `sphered`, `moted`, `aport`, `qbix`, `mbox`, `motestream`, `motessh`, and
 `moterdp` set. `webos-install.sh` installs `desk + ss-webos`. MoteStream is the
-shared EdgeOS stream layer used independently by MOTESSH and MOTERDP. MBox includes
+shared EdgeOS stream layer used independently by MoteSSH and MOTERDP. MBox includes
 the former MGate/UCLI roles and Qbix includes QFunc runtimes.
 
 Every stable publication requires explicit owner approval. Existing release
@@ -117,22 +117,71 @@ Historical bundles remain immutable lineage only. They never contribute
 packages to the active APT index, which contains only the approved current
 release.
 
-## CX Node install
+## CX Node one-installation
 
-CX Node is not installed by the MEdge server profile. Download and inspect the
-dedicated installer, then provide a platform-owner-approved `CX<number>` node
-identity, the admitted CX Hub MMA, and an absolute bootstrap file containing
-only the canonical MoteChat topology keys. The node's separately approved
-`*.mote` identity is also mandatory:
+CX Node is not installed by the MEdge server profile. The dedicated
+one-installation installs the full headless MEdge package set, CX Node,
+MoteSSH, and the OpenSSH client/server runtime from the signed stable APT
+channel. It requires a platform-owner-approved `CX<number>` identity, admitted
+CX Hub MMA, approved `*.mote` identity, and separate absolute bootstrap files
+for the locked CX Node and MoteSSH MoteChat topology contracts.
+
+Do not pipe a downloaded script to a shell. After a release containing this
+contract is published, download the installer, its checksum list, detached
+signature, and archive public key; verify the pinned key fingerprint, signature,
+and installer checksum before running it:
 
 ```bash
-curl -fsSLo /tmp/cx-install.sh \
+set -Eeuo pipefail
+cx_verify_dir="$(mktemp -d)"
+trap 'rm -rf "$cx_verify_dir"' EXIT
+curl --proto '=https' --tlsv1.2 -fsSLo "$cx_verify_dir/key.gpg" \
+  https://motebus.github.io/medge-release/medge-archive-keyring.gpg
+curl --proto '=https' --tlsv1.2 -fsSLo "$cx_verify_dir/installer-SHA256SUMS" \
+  https://motebus.github.io/medge-release/installer-SHA256SUMS
+curl --proto '=https' --tlsv1.2 -fsSLo "$cx_verify_dir/installer-SHA256SUMS.asc" \
+  https://motebus.github.io/medge-release/installer-SHA256SUMS.asc
+curl --proto '=https' --tlsv1.2 -fsSLo "$cx_verify_dir/cx-install.sh" \
   https://motebus.github.io/medge-release/cx-install.sh
-sudo sh /tmp/cx-install.sh --node-id CX1 --node-mote cx1.edge.mote \
+test "$(gpg --batch --show-keys --with-colons "$cx_verify_dir/key.gpg" | \
+  awk -F: '$1=="fpr" {print $10; exit}')" = \
+  AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0
+mkdir -m 700 "$cx_verify_dir/gnupg"
+GNUPGHOME="$cx_verify_dir/gnupg" gpg --batch --import "$cx_verify_dir/key.gpg"
+GNUPGHOME="$cx_verify_dir/gnupg" gpg --batch --verify \
+  "$cx_verify_dir/installer-SHA256SUMS.asc" "$cx_verify_dir/installer-SHA256SUMS"
+(cd "$cx_verify_dir" && grep '  cx-install.sh$' installer-SHA256SUMS | sha256sum -c -)
+sudo sh "$cx_verify_dir/cx-install.sh" install \
+  --node-id CX1 --node-mote cx1.edge.mote \
   --hub-mma j22/rc/cx-hub-app \
-  --bootstrap /absolute/path/cx-node-bootstrap.env
+  --cx-bootstrap /absolute/path/cx-node-bootstrap.env \
+  --motessh-bootstrap /absolute/path/motessh-bootstrap.env
 ```
 
-The installer verifies the archive-key fingerprint, uses only the signed APT
-source, preserves an existing locked topology file byte-for-byte, and does not
-generate SSH keys or modify OpenSSH policy.
+The installer rejects a conflicting locked topology file, performs CX Node,
+MoteSSH, OpenSSH configuration and service health checks, and prints unit
+status plus recent journal evidence on a service failure. It never transports,
+copies, or stores an SSH private key and does not weaken host-key verification
+or OpenSSH policy.
+
+MoteSSH｜Mote 安全连接 owns discovery, short-lived authorization, and the
+MoteBus/SSH channel handoff. MoteBus remains the continuous CX control plane.
+OpenSSH remains the actual SSH implementation and owns execution,
+authentication, host-key verification, encryption, and machine-local host and
+user private keys. MoteSSH replaces neither MoteBus nor SSH.
+
+Re-run the same verified `install` command with identical identities and
+byte-identical bootstrap files to perform an idempotent signed-channel upgrade.
+Post-install health can be checked at any time with:
+
+```bash
+sudo /usr/libexec/cx-node/cx-install.sh doctor
+```
+
+The bounded uninstall removes only `cx-node`; it deliberately preserves the
+shared MEdge, MoteSSH, OpenSSH, locked topology, normal configuration, and
+runtime state:
+
+```bash
+sudo /usr/libexec/cx-node/cx-install.sh uninstall
+```

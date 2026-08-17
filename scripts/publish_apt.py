@@ -516,6 +516,11 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
     shutil.copy2(repository_root / "medge-install.sh", site)
     shutil.copy2(repository_root / "webos-install.sh", site)
     shutil.copy2(repository_root / "cx-install.sh", site)
+    installer_names = ("install.sh", "medge-install.sh", "webos-install.sh", "cx-install.sh")
+    (site / "installer-SHA256SUMS").write_text(
+        "".join(f"{sha256(site / name)}  {name}\n" for name in installer_names),
+        encoding="utf-8",
+    )
     (site / ".nojekyll").write_text("", encoding="utf-8")
     fingerprint = archive_fingerprint(repository_root)
     index = f"""<!doctype html>
@@ -529,8 +534,9 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
 <pre>curl -fsSLo /tmp/medge-install.sh \
 https://motebus.github.io/medge-release/medge-install.sh &amp;&amp;
 sudo sh /tmp/medge-install.sh</pre>
-<pre>curl -fsSLo /tmp/cx-install.sh \
-https://motebus.github.io/medge-release/cx-install.sh</pre>
+<p>CX Node installers must be verified against
+<code>installer-SHA256SUMS.asc</code> and the pinned archive-key fingerprint
+before execution. See the repository README for the complete command.</p>
 </html>
 """
     (site / "index.html").write_text(index, encoding="utf-8")
@@ -560,6 +566,17 @@ def sign_release(site: Path, repository_root: Path) -> None:
     )
     run(*common, "--armor", "--detach-sign", "--output", str(detached), str(release), input_text=passphrase + "\n")
     run(*common, "--armor", "--clearsign", "--output", str(inline), str(release), input_text=passphrase + "\n")
+    installer_checksums = site / "installer-SHA256SUMS"
+    installer_signature = site / "installer-SHA256SUMS.asc"
+    run(
+        *common,
+        "--armor",
+        "--detach-sign",
+        "--output",
+        str(installer_signature),
+        str(installer_checksums),
+        input_text=passphrase + "\n",
+    )
 
     with tempfile.TemporaryDirectory(prefix="medge-public-gnupg-") as temp_name:
         env = {**os.environ, "GNUPGHOME": temp_name}
@@ -567,6 +584,7 @@ def sign_release(site: Path, repository_root: Path) -> None:
         run("gpg", "--batch", "--import", str(repository_root / "medge-archive-keyring.gpg"), env=env)
         run("gpg", "--batch", "--verify", str(detached), str(release), env=env)
         run("gpg", "--batch", "--verify", str(inline), env=env)
+        run("gpg", "--batch", "--verify", str(installer_signature), str(installer_checksums), env=env)
 
 
 def build_site(repository_root: Path, site: Path, bundles: list[Path]) -> None:
