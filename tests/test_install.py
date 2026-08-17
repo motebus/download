@@ -33,11 +33,13 @@ class InstallContractTest(unittest.TestCase):
     def test_cx_installer_requires_explicit_admission_and_pinned_key(self) -> None:
         text = CX_INSTALLER.read_text(encoding="utf-8")
         self.assertIn("--node-id CX<number>", text)
+        self.assertIn("--node-mote <name.mote>", text)
         self.assertIn("--hub-mma <mma>", text)
         self.assertIn("--bootstrap <absolute-file>", text)
         self.assertIn("AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0", text)
         self.assertIn("Signed-By: /etc/apt/keyrings/medge-archive-keyring.gpg", text)
         self.assertIn('cmp -s "$BOOTSTRAP" "$target"', text)
+        self.assertIn("CX_NODE_MOTE=%s", text)
         self.assertNotIn("ssh-keygen", text)
         self.assertNotIn("sshd_config", text)
         self.assertNotIn("authorized_keys", text)

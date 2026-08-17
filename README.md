@@ -92,7 +92,7 @@ publication.
 
 ## Releases
 
-Current approved stable release: `medge-v4.1.0-2`.
+Current approved stable release: `medge-v4.2.0-1`.
 
 Each approved GitHub Release contains:
 
@@ -122,12 +122,13 @@ release.
 CX Node is not installed by the MEdge server profile. Download and inspect the
 dedicated installer, then provide a platform-owner-approved `CX<number>` node
 identity, the admitted CX Hub MMA, and an absolute bootstrap file containing
-only the canonical MoteChat topology keys:
+only the canonical MoteChat topology keys. The node's separately approved
+`*.mote` identity is also mandatory:
 
 ```bash
 curl -fsSLo /tmp/cx-install.sh \
   https://motebus.github.io/medge-release/cx-install.sh
-sudo sh /tmp/cx-install.sh --node-id CX1 \
+sudo sh /tmp/cx-install.sh --node-id CX1 --node-mote cx1.edge.mote \
   --hub-mma j22/rc/cx-hub-app \
   --bootstrap /absolute/path/cx-node-bootstrap.env
 ```
