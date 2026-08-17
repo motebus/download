@@ -44,6 +44,28 @@ class InstallContractTest(unittest.TestCase):
         self.assertNotIn("sshd_config", text)
         self.assertNotIn("authorized_keys", text)
 
+    def test_cx_installer_has_safe_idempotent_lifecycle(self) -> None:
+        text = CX_INSTALLER.read_text(encoding="utf-8")
+        self.assertIn("install|doctor|upgrade|uninstall", text)
+        self.assertIn(
+            'REQUIRED_PACKAGES="sphered moted motestream motessh openssh-client openssh-server cx-node"',
+            text,
+        )
+        self.assertIn("existing node configuration differs", text)
+        self.assertIn("dpkg-query", text)
+        self.assertIn("sshd -t", text)
+        self.assertIn("shared transport/security packages are never auto-removed", text)
+        self.assertNotIn("apt-get autoremove", text)
+        self.assertNotIn("apt-get purge", text)
+
+    def test_cx_installer_exposes_the_security_product_boundary(self) -> None:
+        text = CX_INSTALLER.read_text(encoding="utf-8")
+        self.assertIn("MoteSSH | Mote 安全连接", text)
+        self.assertIn("Continuous CX control uses MoteBus", text)
+        self.assertIn("standard OpenSSH owns execution", text)
+        self.assertNotIn("StrictHostKeyChecking=no", text)
+        self.assertNotIn("UserKnownHostsFile=/dev/null", text)
+
     def test_device_helper_is_started_after_and_stopped_before_desk(self) -> None:
         text = INSTALLER.read_text(encoding="utf-8")
         system_units = next(

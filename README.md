@@ -117,22 +117,46 @@ Historical bundles remain immutable lineage only. They never contribute
 packages to the active APT index, which contains only the approved current
 release.
 
-## CX Node install
+## Unified CX Node installation
 
 CX Node is not installed by the MEdge server profile. Download and inspect the
 dedicated installer, then provide a platform-owner-approved `CX<number>` node
 identity, the admitted CX Hub MMA, and an absolute bootstrap file containing
 only the canonical MoteChat topology keys. The node's separately approved
-`*.mote` identity is also mandatory:
+`*.mote` identity is also mandatory. Do not pipe a remote script into a
+privileged shell: download and inspect the installer first.
 
 ```bash
-curl -fsSLo /tmp/cx-install.sh \
+curl --proto '=https' --tlsv1.2 -fsSLo /tmp/cx-install.sh \
   https://motebus.github.io/medge-release/cx-install.sh
-sudo sh /tmp/cx-install.sh --node-id CX1 --node-mote cx1.edge.mote \
+sudo sh /tmp/cx-install.sh install \
+  --node-id CX1 --node-mote cx1.edge.mote \
   --hub-mma j22/rc/cx-hub-app \
   --bootstrap /absolute/path/cx-node-bootstrap.env
 ```
 
 The installer verifies the archive-key fingerprint, uses only the signed APT
-source, preserves an existing locked topology file byte-for-byte, and does not
-generate SSH keys or modify OpenSSH policy.
+source, preserves an existing locked topology file byte-for-byte, refuses a
+silent node-identity change, and does not generate SSH keys or weaken OpenSSH
+policy. It installs exactly `sphered`, `moted`, `motestream`, `motessh`,
+`openssh-client`, `openssh-server`, and `cx-node` for this profile.
+
+MoteSSH｜Mote 安全连接 owns discovery, short-lived authorization, and the
+MoteBus/SSH channel handoff. MoteBus remains the continuous CX control plane.
+Standard OpenSSH owns actual command execution, authentication, host-key
+verification, encryption, and SSH session semantics. MoteSSH never transports
+or stores an SSH private key and replaces neither MoteBus nor SSH.
+
+```bash
+sudo sh /tmp/cx-install.sh doctor
+sudo sh /tmp/cx-install.sh upgrade
+sudo sh /tmp/cx-install.sh uninstall
+```
+
+`doctor` verifies packages, commands, topology/config shape, OpenSSH syntax,
+and service health. This is local package health, not node admission: approved
+SSH trust and CX Hub enrollment must independently reach `ACTIVE`, otherwise
+remote execution is `BLOCKED`. `upgrade` reuses the same signed APT path and preserves
+admission state. `uninstall` removes only `cx-node`; shared MoteSSH/OpenSSH,
+signed APT trust, node configuration, and locked topology are retained for
+audit and safe reinstall.
