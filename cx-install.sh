@@ -4,16 +4,18 @@ set -eu
 BASE_URL="https://motebus.github.io/medge-release"
 EXPECTED_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 NODE_ID=""
+NODE_MOTE=""
 HUB_MMA=""
 BOOTSTRAP=""
 
 fail() { printf 'CX Install failed: %s\n' "$*" >&2; exit 1; }
 usage() {
-    printf '%s\n' "Usage: sudo sh cx-install.sh --node-id CX<number> --hub-mma <mma> --bootstrap <absolute-file>"
+    printf '%s\n' "Usage: sudo sh cx-install.sh --node-id CX<number> --node-mote <name.mote> --hub-mma <mma> --bootstrap <absolute-file>"
 }
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --node-id) [ "$#" -ge 2 ] || fail "--node-id requires a value"; NODE_ID=$2; shift 2 ;;
+        --node-mote) [ "$#" -ge 2 ] || fail "--node-mote requires a value"; NODE_MOTE=$2; shift 2 ;;
         --hub-mma) [ "$#" -ge 2 ] || fail "--hub-mma requires a value"; HUB_MMA=$2; shift 2 ;;
         --bootstrap) [ "$#" -ge 2 ] || fail "--bootstrap requires a value"; BOOTSTRAP=$2; shift 2 ;;
         --help) usage; exit 0 ;;
@@ -22,6 +24,7 @@ while [ "$#" -gt 0 ]; do
 done
 [ "$(id -u)" -eq 0 ] || fail "run as root"
 printf '%s' "$NODE_ID" | grep -Eq '^CX[1-9][0-9]*$' || fail "node identity must be CX<number>"
+printf '%s' "$NODE_MOTE" | grep -Eq '^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+mote$' || fail "node mote must be an approved *.mote identity"
 printf '%s' "$HUB_MMA" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$' || fail "Hub MMA must have three explicit segments"
 case "$BOOTSTRAP" in /*) ;; *) fail "bootstrap path must be absolute" ;; esac
 [ -f "$BOOTSTRAP" ] && [ ! -L "$BOOTSTRAP" ] || fail "bootstrap must be a regular non-symlink file"
@@ -76,7 +79,7 @@ else
     install -o root -g cx-node -m 0640 "$BOOTSTRAP" "$target"
 fi
 umask 027
-printf 'CX_NODE_ID=%s\nCX_CONTROLLER_TARGET=%s\nCX_HEARTBEAT_SECONDS=30\n' "$NODE_ID" "$HUB_MMA" > /etc/mote/cx-node/cx-node.env
+printf 'CX_NODE_ID=%s\nCX_NODE_MOTE=%s\nCX_CONTROLLER_TARGET=%s\nCX_HEARTBEAT_SECONDS=30\n' "$NODE_ID" "$NODE_MOTE" "$HUB_MMA" > /etc/mote/cx-node/cx-node.env
 chown root:cx-node /etc/mote/cx-node/cx-node.env
 systemctl daemon-reload
 systemctl enable --now cx-node.service
