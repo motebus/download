@@ -40,6 +40,18 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn("Signed-By: /etc/apt/keyrings/medge-archive-keyring.gpg", text)
         self.assertIn('cmp -s "$BOOTSTRAP" "$target"', text)
         self.assertIn("CX_NODE_MOTE=%s", text)
+        self.assertIn(
+            "^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$",
+            text,
+        )
+        self.assertIn("CX_REGISTRATION_ACCEPTANCE_FILE=/var/lib/cx-node/registration-acceptance.json", text)
+        self.assertIn("/usr/bin/cx-node --doctor /etc/mote/cx-node/cx-node.env", text)
+        self.assertIn("local runtime is active but Hub enrollment was not accepted", text)
+        self.assertIn("local_runtime=healthy hub_enrollment=enrolled", text)
+        self.assertLess(
+            text.index("locked topology target must be a regular non-symlink file"),
+            text.index("apt-get update"),
+        )
         self.assertNotIn("ssh-keygen", text)
         self.assertNotIn("sshd_config", text)
         self.assertNotIn("authorized_keys", text)

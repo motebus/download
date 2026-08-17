@@ -138,4 +138,6 @@ sudo sh /tmp/cx-install.sh --node-id CX1 --node-mote cx1.edge.mote \
 
 The installer verifies the archive-key fingerprint, uses only the signed APT
 source, preserves an existing locked topology file byte-for-byte, and does not
-generate SSH keys or modify OpenSSH policy.
+generate SSH keys or modify OpenSSH policy. It accepts only one exact lowercase
+three-segment Hub MMA and reports completion only after `cx-node --doctor`
+confirms a nonce-bound application-level enrollment acceptance from that Hub.

@@ -23,9 +23,12 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 [ "$(id -u)" -eq 0 ] || fail "run as root"
+[ "${#NODE_ID}" -le 32 ] || fail "node identity is too long"
+[ "${#NODE_MOTE}" -le 253 ] || fail "node mote identity is too long"
+[ "${#HUB_MMA}" -le 255 ] || fail "Hub MMA is too long"
 printf '%s' "$NODE_ID" | grep -Eq '^CX[1-9][0-9]*$' || fail "node identity must be CX<number>"
 printf '%s' "$NODE_MOTE" | grep -Eq '^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+mote$' || fail "node mote must be an approved *.mote identity"
-printf '%s' "$HUB_MMA" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$' || fail "Hub MMA must have three explicit segments"
+printf '%s' "$HUB_MMA" | grep -Eq '^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$' || fail "Hub MMA must be a canonical three-segment identity"
 case "$BOOTSTRAP" in /*) ;; *) fail "bootstrap path must be absolute" ;; esac
 [ -f "$BOOTSTRAP" ] && [ ! -L "$BOOTSTRAP" ] || fail "bootstrap must be a regular non-symlink file"
 [ -r /etc/os-release ] || fail "cannot identify operating system"
@@ -74,14 +77,22 @@ apt-get install -y sphered moted aport qbix mbox motestream motessh moterdp cx-n
 
 install -d -o root -g cx-node -m 0750 /etc/mote/cx-node
 if [ -e "$target" ]; then
+    [ -f "$target" ] && [ ! -L "$target" ] || fail "locked topology target changed to a non-regular file during installation"
     cmp -s "$BOOTSTRAP" "$target" || fail "locked topology changed during installation"
 else
     install -o root -g cx-node -m 0640 "$BOOTSTRAP" "$target"
 fi
 umask 027
-printf 'CX_NODE_ID=%s\nCX_NODE_MOTE=%s\nCX_CONTROLLER_TARGET=%s\nCX_HEARTBEAT_SECONDS=30\n' "$NODE_ID" "$NODE_MOTE" "$HUB_MMA" > /etc/mote/cx-node/cx-node.env
+printf 'CX_NODE_ID=%s\nCX_NODE_MOTE=%s\nCX_CONTROLLER_TARGET=%s\nCX_HEARTBEAT_SECONDS=30\nCX_REGISTRATION_TIMEOUT_SECONDS=15\nCX_REGISTRATION_ATTEMPT_FILE=/var/lib/cx-node/registration-attempt.json\nCX_REGISTRATION_ACCEPTANCE_FILE=/var/lib/cx-node/registration-acceptance.json\n' "$NODE_ID" "$NODE_MOTE" "$HUB_MMA" > /etc/mote/cx-node/cx-node.env
 chown root:cx-node /etc/mote/cx-node/cx-node.env
 systemctl daemon-reload
 systemctl enable --now cx-node.service
 systemctl is-active --quiet cx-node.service || fail "cx-node service did not become active"
-printf 'CX Install complete: node=%s hub=%s\n' "$NODE_ID" "$HUB_MMA"
+printf 'CX Node local runtime active; waiting for Hub enrollment acceptance\n'
+doctor_attempt=0
+until /usr/bin/cx-node --doctor /etc/mote/cx-node/cx-node.env; do
+    doctor_attempt=$((doctor_attempt + 1))
+    [ "$doctor_attempt" -lt 20 ] || fail "local runtime is active but Hub enrollment was not accepted"
+    sleep 1
+done
+printf 'CX Install complete: local_runtime=healthy hub_enrollment=enrolled node=%s hub=%s\n' "$NODE_ID" "$HUB_MMA"
