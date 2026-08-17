@@ -160,6 +160,13 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn("run_target 24.04", text)
         self.assertIn("run_target 26.04", text)
 
+    def test_compatibility_uses_the_approved_manifest_package_set(self) -> None:
+        text = COMPATIBILITY.read_text(encoding="utf-8")
+        self.assertIn('release-manifest.json', text)
+        self.assertIn('manifest.get("packages", [])', text)
+        self.assertIn('EXPECTED_PACKAGE_NAMES=${EXPECTED_PACKAGES[*]}', text)
+        self.assertIn('for package_name in $EXPECTED_PACKAGE_NAMES', text)
+
 
 if __name__ == "__main__":
     unittest.main()

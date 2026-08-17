@@ -18,19 +18,24 @@ BUNDLE_DIR="$(realpath "$1")"
     exit 1
 }
 
-EXPECTED_PACKAGES=(
-    sphered
-    moted
-    aport
-    qbix
-    mbox
-    motestream
-    motessh
-    moterdp
-    desk
-    ss-webos
-    cx-node
+mapfile -t EXPECTED_PACKAGES < <(
+    python3 - "$BUNDLE_DIR/release-manifest.json" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+for package in manifest.get("packages", []):
+    name = package.get("name")
+    if not isinstance(name, str) or not name:
+        raise SystemExit("release manifest contains an invalid package name")
+    print(name)
+PY
 )
+[[ ${#EXPECTED_PACKAGES[@]} -gt 0 ]] || {
+    printf 'release manifest contains no packages: %s\n' "$BUNDLE_DIR" >&2
+    exit 1
+}
 
 for package_name in "${EXPECTED_PACKAGES[@]}"; do
     mapfile -t matches < <(
@@ -50,6 +55,7 @@ run_target() {
 
     docker run --rm --pull=always --platform linux/amd64 --log-driver none \
         -e "EXPECTED_UBUNTU_RELEASE=$release" \
+        -e "EXPECTED_PACKAGE_NAMES=${EXPECTED_PACKAGES[*]}" \
         -v "$BUNDLE_DIR:/bundle:ro" \
         "$image_ref" \
         bash -ceu '
@@ -65,9 +71,7 @@ run_target() {
             apt-get install -y --no-install-recommends /bundle/*.deb
             apt-get check
 
-            for package_name in \
-                sphered moted aport qbix mbox motestream motessh moterdp desk ss-webos cx-node
-            do
+            for package_name in $EXPECTED_PACKAGE_NAMES; do
                 dpkg-query -W -f="\${db:Status-Status} \${binary:Package} \${Version}\n" \
                     "$package_name"
             done
