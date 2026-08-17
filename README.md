@@ -1,7 +1,7 @@
 # MEdge Binary Packages
 
-This public repository distributes install-only MEdge Debian packages for
-Ubuntu 24.04 and 26.04 amd64.
+This public repository distributes install-only MEdge and CX Node Debian
+packages for supported amd64 hosts.
 
 It contains distribution documentation, the public APT key, release
 manifests, and GitHub Pages automation. Component source code and Debian
@@ -96,10 +96,12 @@ Current approved stable release: `medge-v4.1.0-2`.
 
 Each approved GitHub Release contains:
 
-- ten component binary DEBs;
+- the coordinated MEdge component DEBs and, beginning with schema v7, the
+  separately admitted `cx-node` DEB;
 - `release-manifest.json`;
 - `SHA256SUMS`;
 - `medge-install.sh` and `webos-install.sh`;
+- `cx-install.sh` when the release contains `cx-node`;
 - optional binary `.changes` and `.buildinfo` provenance.
 
 `medge.deb` is retired. `medge-install.sh` directly installs the headless
@@ -113,4 +115,23 @@ tags and assets are immutable.
 
 Historical bundles remain immutable lineage only. They never contribute
 packages to the active APT index, which contains only the approved current
-ten-package release.
+release.
+
+## CX Node install
+
+CX Node is not installed by the MEdge server profile. Download and inspect the
+dedicated installer, then provide a platform-owner-approved `CX<number>` node
+identity, the admitted CX Hub MMA, and an absolute bootstrap file containing
+only the canonical MoteChat topology keys:
+
+```bash
+curl -fsSLo /tmp/cx-install.sh \
+  https://motebus.github.io/medge-release/cx-install.sh
+sudo sh /tmp/cx-install.sh --node-id CX1 \
+  --hub-mma j22/rc/cx-hub-app \
+  --bootstrap /absolute/path/cx-node-bootstrap.env
+```
+
+The installer verifies the archive-key fingerprint, uses only the signed APT
+source, preserves an existing locked topology file byte-for-byte, and does not
+generate SSH keys or modify OpenSSH policy.

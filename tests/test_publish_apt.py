@@ -18,11 +18,15 @@ SPEC.loader.exec_module(publish_apt)
 
 
 class PublicAptTest(unittest.TestCase):
-    def manifest(self, schema: str = "medge-public-release/v6") -> dict:
+    def manifest(self, schema: str = "medge-public-release/v7") -> dict:
         package_names = (
             publish_apt.LEGACY_PACKAGES
             if schema in {"medge-public-release/v4", "medge-public-release/v5"}
-            else publish_apt.EXPECTED_PACKAGES
+            else (
+                publish_apt.AGENTIC_IO_PACKAGES
+                if schema == "medge-public-release/v6"
+                else publish_apt.EXPECTED_PACKAGES
+            )
         )
         packages = []
         for index, name in enumerate(package_names, start=1):
@@ -42,7 +46,7 @@ class PublicAptTest(unittest.TestCase):
         manifest = {
             "schema": schema,
             "status": "approved",
-            "medge_version": "4.1.0-2" if schema == "medge-public-release/v6" else "3.2.0-1",
+            "medge_version": "4.2.0-1" if schema == "medge-public-release/v7" else "3.2.0-1",
             "suite": "stable",
             "component": "main",
             "architecture": "amd64",
@@ -51,7 +55,11 @@ class PublicAptTest(unittest.TestCase):
             "approval": {"id": "approval-9", "approved_by": "owner", "approved_at": now},
             "packages": packages,
         }
-        if schema in {"medge-public-release/v5", "medge-public-release/v6"}:
+        if schema in {
+            "medge-public-release/v5",
+            "medge-public-release/v6",
+            "medge-public-release/v7",
+        }:
             for package in manifest["packages"]:
                 package["env_inputs"] = [
                     {"path": path, "sha256": package["sha256"]}
@@ -106,8 +114,19 @@ class PublicAptTest(unittest.TestCase):
         manifest = self.manifest("medge-public-release/v6")
         self.assertEqual(
             [package["name"] for package in manifest["packages"]],
+            list(publish_apt.AGENTIC_IO_PACKAGES),
+        )
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v7_manifest_adds_cx_node_without_private_env_inputs(self) -> None:
+        manifest = self.manifest("medge-public-release/v7")
+        self.assertEqual(
+            [package["name"] for package in manifest["packages"]],
             list(publish_apt.EXPECTED_PACKAGES),
         )
+        cx_node = manifest["packages"][-1]
+        self.assertEqual(cx_node["name"], "cx-node")
+        self.assertEqual(cx_node["env_inputs"], [])
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
     def test_v5_manifest_keeps_historical_eight_package_set(self) -> None:

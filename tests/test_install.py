@@ -9,6 +9,7 @@ import unittest
 ROOT = Path(__file__).parents[1]
 INSTALLER = ROOT / "install.sh"
 COMPATIBILITY = ROOT / "scripts/validate-ubuntu-compatibility.sh"
+CX_INSTALLER = ROOT / "cx-install.sh"
 
 
 class InstallContractTest(unittest.TestCase):
@@ -26,7 +27,20 @@ class InstallContractTest(unittest.TestCase):
 
     def test_shell_contracts_parse(self) -> None:
         subprocess.run(["sh", "-n", str(INSTALLER)], check=True)
+        subprocess.run(["sh", "-n", str(CX_INSTALLER)], check=True)
         subprocess.run(["bash", "-n", str(COMPATIBILITY)], check=True)
+
+    def test_cx_installer_requires_explicit_admission_and_pinned_key(self) -> None:
+        text = CX_INSTALLER.read_text(encoding="utf-8")
+        self.assertIn("--node-id CX<number>", text)
+        self.assertIn("--hub-mma <mma>", text)
+        self.assertIn("--bootstrap <absolute-file>", text)
+        self.assertIn("AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0", text)
+        self.assertIn("Signed-By: /etc/apt/keyrings/medge-archive-keyring.gpg", text)
+        self.assertIn('cmp -s "$BOOTSTRAP" "$target"', text)
+        self.assertNotIn("ssh-keygen", text)
+        self.assertNotIn("sshd_config", text)
+        self.assertNotIn("authorized_keys", text)
 
     def test_device_helper_is_started_after_and_stopped_before_desk(self) -> None:
         text = INSTALLER.read_text(encoding="utf-8")
