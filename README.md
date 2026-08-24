@@ -70,6 +70,25 @@ fails its health check, the installer prints its status and recent journal,
 then stops, disables, and resets that unit so it does not remain in a failed
 state or restart loop.
 
+## Standalone Debian assets
+
+Package-only releases use the `deb-v<date>-<revision>` tag namespace. They
+provide immutable, checksummed GitLab-CI-built `.deb` assets for direct
+inspection or installation without changing the active coordinated MEdge APT
+catalog.
+
+Download the required assets from the release, verify `SHA256SUMS`, then use
+one APT transaction so Ubuntu can resolve ordinary distribution dependencies:
+
+```bash
+sha256sum -c SHA256SUMS
+sudo apt install ./sphere_*.deb ./moted_*.deb ./medge_*.deb
+```
+
+`mote-proxy` is intentionally fail-closed until its versioned MoteBus SSH
+wire contract is admitted. `mlink` and `vdevice` are independent optional
+packages. MDesk is excluded until its package and runtime identity agree.
+
 ## GitHub Account Setup
 
 An owner can create or verify the public install repository and push this
