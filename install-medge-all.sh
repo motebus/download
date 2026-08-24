@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-release_tag="deb-v2026.08.24-3"
+release_tag="deb-v2026.08.24-4"
 release_base="https://github.com/motebus/medge-release/releases/download/${release_tag}"
 
 if (( EUID != 0 )); then
@@ -31,12 +31,6 @@ for command_name in curl dpkg dpkg-query grep sha256sum apt-get; do
   }
 done
 
-dpkg-query -W -f='${Status}\n' codex 2>/dev/null |
-  grep -qx 'install ok installed' || {
-    echo "The codex package must be installed because cx-node depends on it." >&2
-    exit 1
-  }
-
 package_dir="$(mktemp -d /var/tmp/medge-all.XXXXXX)"
 chmod 0755 "$package_dir"
 trap 'find "$package_dir" -depth -delete' EXIT
@@ -50,7 +44,7 @@ packages=(
   medge-core_1.0.0-3_all.deb
   mdesk_2.1.0-9_amd64.deb
   ss-webos_2.0.0-8_amd64.deb
-  cx-node_0.3.1-1_amd64.deb
+  cx-node_0.3.1-2_amd64.deb
   medge-all_1.0.0-3_all.deb
 )
 
