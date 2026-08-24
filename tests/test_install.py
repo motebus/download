@@ -10,6 +10,7 @@ ROOT = Path(__file__).parents[1]
 INSTALLER = ROOT / "install.sh"
 COMPATIBILITY = ROOT / "scripts/validate-ubuntu-compatibility.sh"
 CX_INSTALLER = ROOT / "cx-install.sh"
+MEDGE_ALL_INSTALLER = ROOT / "install-medge-all.sh"
 
 
 class InstallContractTest(unittest.TestCase):
@@ -29,6 +30,29 @@ class InstallContractTest(unittest.TestCase):
         subprocess.run(["sh", "-n", str(INSTALLER)], check=True)
         subprocess.run(["sh", "-n", str(CX_INSTALLER)], check=True)
         subprocess.run(["bash", "-n", str(COMPATIBILITY)], check=True)
+        subprocess.run(["bash", "-n", str(MEDGE_ALL_INSTALLER)], check=True)
+
+    def test_release_asset_medge_all_installer_has_exact_package_set(self) -> None:
+        text = MEDGE_ALL_INSTALLER.read_text(encoding="utf-8")
+        self.assertIn('release_tag="deb-v2026.08.24-3"', text)
+        for package in (
+            "sphere_4.0.0-1_amd64.deb",
+            "moted_3.0.0-2_amd64.deb",
+            "medge_1.0.0-3_all.deb",
+            "mote-proxy_1.0.0-2_all.deb",
+            "motemcp_1.0.0-2_all.deb",
+            "medge-core_1.0.0-3_all.deb",
+            "mdesk_2.1.0-9_amd64.deb",
+            "ss-webos_2.0.0-8_amd64.deb",
+            "cx-node_0.3.1-1_amd64.deb",
+            "medge-all_1.0.0-3_all.deb",
+        ):
+            self.assertIn(package, text)
+        self.assertNotIn("vdevice_", text)
+        self.assertNotIn("mlink_", text)
+        self.assertIn("sha256sum --ignore-missing --check SHA256SUMS", text)
+        self.assertIn("ubuntu:24.04|ubuntu:26.04", text)
+        self.assertIn("The codex package must be installed", text)
 
     def test_cx_installer_requires_explicit_admission_and_pinned_key(self) -> None:
         text = CX_INSTALLER.read_text(encoding="utf-8")

@@ -78,6 +78,7 @@ ALLOWED_ROOT_FILES = {
     "github-setup.sh",
     "install.sh",
     "medge-install.sh",
+    "install-medge-all.sh",
     "webos-install.sh",
     "cx-install.sh",
     "LICENSE",
