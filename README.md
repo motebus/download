@@ -87,7 +87,27 @@ sudo apt install ./sphere_*.deb ./moted_*.deb ./medge_*.deb
 
 `mote-proxy` is intentionally fail-closed until its versioned MoteBus SSH
 wire contract is admitted. `mlink` and `vdevice` are independent optional
-packages. MDesk is excluded until its package and runtime identity agree.
+packages. Revision 3 includes the owner-aligned `mdesk` package.
+
+Install the verified revision-3 MEdge All bundle directly from its immutable
+GitHub release assets:
+
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/motebus/medge-release/main/install-medge-all.sh |
+sudo bash
+```
+
+The installer verifies `SHA256SUMS` and installs this exact composition in one
+APT transaction:
+
+```text
+medge-core = medge + moted + mote-proxy + motemcp
+medge-all  = medge-core + mdesk + ss-webos + cx-node
+```
+
+The `codex` package must already be installed because `cx-node` depends on it.
+`vdevice` and `mlink` are not installed by this command.
 
 ## GitHub Account Setup
 
