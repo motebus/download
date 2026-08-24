@@ -89,7 +89,7 @@ sudo apt install ./sphere_*.deb ./moted_*.deb ./medge_*.deb
 wire contract is admitted. `mlink` and `vdevice` are independent optional
 packages. Revision 3 includes the owner-aligned `mdesk` package.
 
-Install the verified revision-3 MEdge All bundle directly from its immutable
+Install the verified revision-4 MEdge All bundle directly from its immutable
 GitHub release assets:
 
 ```bash
@@ -106,7 +106,9 @@ medge-core = medge + moted + mote-proxy + motemcp
 medge-all  = medge-core + mdesk + ss-webos + cx-node
 ```
 
-The `codex` package must already be installed because `cx-node` depends on it.
+The installer submits the complete bundle to APT as one transaction so Debian
+can resolve package dependencies together. `cx-node` depends on the `chatgpt`
+desktop package, which provides its Codex app-server executable.
 `vdevice` and `mlink` are not installed by this command.
 
 ## GitHub Account Setup

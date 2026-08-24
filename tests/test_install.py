@@ -34,7 +34,7 @@ class InstallContractTest(unittest.TestCase):
 
     def test_release_asset_medge_all_installer_has_exact_package_set(self) -> None:
         text = MEDGE_ALL_INSTALLER.read_text(encoding="utf-8")
-        self.assertIn('release_tag="deb-v2026.08.24-3"', text)
+        self.assertIn('release_tag="deb-v2026.08.24-4"', text)
         for package in (
             "sphere_4.0.0-1_amd64.deb",
             "moted_3.0.0-2_amd64.deb",
@@ -44,7 +44,7 @@ class InstallContractTest(unittest.TestCase):
             "medge-core_1.0.0-3_all.deb",
             "mdesk_2.1.0-9_amd64.deb",
             "ss-webos_2.0.0-8_amd64.deb",
-            "cx-node_0.3.1-1_amd64.deb",
+            "cx-node_0.3.1-2_amd64.deb",
             "medge-all_1.0.0-3_all.deb",
         ):
             self.assertIn(package, text)
@@ -52,7 +52,10 @@ class InstallContractTest(unittest.TestCase):
         self.assertNotIn("mlink_", text)
         self.assertIn("sha256sum --ignore-missing --check SHA256SUMS", text)
         self.assertIn("ubuntu:24.04|ubuntu:26.04", text)
-        self.assertIn("The codex package must be installed", text)
+        self.assertNotIn("dpkg-query -W -f='${Status}\\n' chatgpt", text)
+        self.assertNotIn("dpkg-query -W -f='${Status}\\n' codex", text)
+        self.assertNotIn("must be installed because", text)
+        self.assertIn('apt-get install -y --no-install-recommends \\\n  "${package_paths[@]}"', text)
 
     def test_cx_installer_requires_explicit_admission_and_pinned_key(self) -> None:
         text = CX_INSTALLER.read_text(encoding="utf-8")
