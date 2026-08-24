@@ -111,6 +111,10 @@ can resolve package dependencies together. `cx-node` depends on the `chatgpt`
 desktop package, which provides its Codex app-server executable.
 `vdevice` and `mlink` are not installed by this command.
 
+When PackageKit or another package manager temporarily owns an APT lock, the
+installer waits and retries for up to five minutes. It never deletes an APT or
+dpkg lock file.
+
 ## GitHub Account Setup
 
 An owner can create or verify the public install repository and push this
