@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-release_tag="deb-v2026.08.24-4"
+release_tag="deb-v2026.08.24-5"
 release_base="https://github.com/motebus/medge-release/releases/download/${release_tag}"
 
 if (( EUID != 0 )); then
@@ -75,7 +75,7 @@ packages=(
   medge-core_1.0.0-3_all.deb
   mdesk_2.1.0-9_amd64.deb
   ss-webos_2.0.0-8_amd64.deb
-  cx-node_0.3.1-2_amd64.deb
+  cx-node_0.3.1-3_amd64.deb
   medge-all_1.0.0-3_all.deb
 )
 

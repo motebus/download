@@ -89,7 +89,7 @@ sudo apt install ./sphere_*.deb ./moted_*.deb ./medge_*.deb
 wire contract is admitted. `mlink` and `vdevice` are independent optional
 packages. Revision 3 includes the owner-aligned `mdesk` package.
 
-Install the verified revision-4 MEdge All bundle directly from its immutable
+Install the verified revision-5 MEdge All bundle directly from its immutable
 GitHub release assets:
 
 ```bash
@@ -108,7 +108,9 @@ medge-all  = medge-core + mdesk + ss-webos + cx-node
 
 The installer submits the complete bundle to APT as one transaction so Debian
 can resolve package dependencies together. `cx-node` depends on the `chatgpt`
-desktop package, which provides its Codex app-server executable.
+desktop package, which provides its Codex app-server executable, and on the
+separate `motemcp` package for Mote agentic-I/O operations. `agent-exec` is
+retired without an alias; `cx-exec` is the active execution boundary.
 `vdevice` and `mlink` are not installed by this command.
 
 When PackageKit or another package manager temporarily owns an APT lock, the
