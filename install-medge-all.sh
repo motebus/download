@@ -24,7 +24,7 @@ if [[ "$(dpkg --print-architecture)" != "amd64" ]]; then
   exit 1
 fi
 
-for command_name in curl dpkg dpkg-query grep sha256sum apt-get; do
+for command_name in cat curl dpkg dpkg-query grep sha256sum apt-get; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Required command is missing: $command_name" >&2
     exit 1
@@ -34,6 +34,37 @@ done
 package_dir="$(mktemp -d /var/tmp/medge-all.XXXXXX)"
 chmod 0755 "$package_dir"
 trap 'find "$package_dir" -depth -delete' EXIT
+
+apt_with_lock_retry() {
+  local attempt=1
+  local command_status
+  local error_log="${package_dir}/apt-error.log"
+
+  while true; do
+    : >"$error_log"
+    if "$@" 2>"$error_log"; then
+      if [[ -s "$error_log" ]]; then
+        cat "$error_log" >&2
+      fi
+      return 0
+    else
+      command_status=$?
+    fi
+
+    cat "$error_log" >&2
+    if ! grep -Eq 'Could not get lock|Unable to (acquire|lock)' "$error_log"; then
+      return "$command_status"
+    fi
+    if (( attempt >= 60 )); then
+      echo "APT remained locked after five minutes; no lock file was removed." >&2
+      return "$command_status"
+    fi
+
+    echo "APT is busy; waiting five seconds before retry ${attempt}/60." >&2
+    ((attempt += 1))
+    sleep 5
+  done
+}
 
 packages=(
   sphere_4.0.0-1_amd64.deb
@@ -66,8 +97,9 @@ chmod 0644 "${package_dir}/SHA256SUMS"
   sha256sum --ignore-missing --check SHA256SUMS
 )
 
-apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+apt_with_lock_retry apt-get update
+DEBIAN_FRONTEND=noninteractive apt_with_lock_retry \
+  apt-get install -y --no-install-recommends \
   "${package_paths[@]}"
 
 dpkg-query -W -f='${Package}\t${Version}\t${Status}\n' \

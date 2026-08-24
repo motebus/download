@@ -55,6 +55,11 @@ class InstallContractTest(unittest.TestCase):
         self.assertNotIn("dpkg-query -W -f='${Status}\\n' chatgpt", text)
         self.assertNotIn("dpkg-query -W -f='${Status}\\n' codex", text)
         self.assertNotIn("must be installed because", text)
+        self.assertIn("apt_with_lock_retry apt-get update", text)
+        self.assertIn("Could not get lock", text)
+        self.assertIn("Unable to (acquire|lock)", text)
+        self.assertIn("APT remained locked after five minutes", text)
+        self.assertIn("no lock file was removed", text)
         self.assertIn('apt-get install -y --no-install-recommends \\\n  "${package_paths[@]}"', text)
 
     def test_cx_installer_requires_explicit_admission_and_pinned_key(self) -> None:
