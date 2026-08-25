@@ -87,9 +87,9 @@ sudo apt install ./sphere_*.deb ./moted_*.deb ./medge_*.deb
 
 `mote-proxy` is intentionally fail-closed until its versioned MoteBus SSH
 wire contract is admitted. `mlink` and `vdevice` are independent optional
-packages. Revision 3 includes the owner-aligned `mdesk` package.
+packages. Revision 2 completes the MDesk runtime rename.
 
-Install the verified 2026.08.25 revision-1 MEdge All bundle directly from its immutable
+Install the verified 2026.08.25 revision-2 MEdge All bundle directly from its immutable
 GitHub release assets:
 
 ```bash
@@ -118,10 +118,11 @@ temporarily stops `packagekit.service`, completes the APT transaction, and
 restores PackageKit on exit. Other temporary lock owners are retried for up to
 five minutes. The installer never deletes an APT or dpkg lock file.
 
-The installer never downgrades a newer installed package. It also stops before
-APT when an existing locked Desk topology is incompatible with the bundled
-MDesk identity, `MCHAT_APPNAME=mdesk-app`; it reports the mismatch without
-editing the topology file.
+The installer never downgrades a newer installed package. It validates only
+the active locked `/etc/mote/mdesk/mdesk-mchat.env` topology and requires
+`MCHAT_APPNAME=mdesk-app`; the retired `/etc/mote/desk/desk-mchat.env` is
+ignored and left untouched. A missing active MDesk topology is created once
+from the package's reviewed seed.
 
 ## GitHub Account Setup
 

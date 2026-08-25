@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-release_tag="deb-v2026.08.25-1"
+release_tag="deb-v2026.08.25-2"
 release_base="https://github.com/motebus/medge-release/releases/download/${release_tag}"
 
 if (( EUID != 0 )); then
@@ -31,16 +31,16 @@ for command_name in awk cat curl dpkg dpkg-deb dpkg-query grep sha256sum apt-get
   }
 done
 
-desk_topology=/etc/mote/desk/desk-mchat.env
-if [[ -e "$desk_topology" ]]; then
-  if [[ ! -f "$desk_topology" || -L "$desk_topology" ]]; then
-    echo "MDesk locked topology is not a regular non-symlink file: $desk_topology" >&2
+mdesk_topology=/etc/mote/mdesk/mdesk-mchat.env
+if [[ -e "$mdesk_topology" ]]; then
+  if [[ ! -f "$mdesk_topology" || -L "$mdesk_topology" ]]; then
+    echo "MDesk locked topology is not a regular non-symlink file: $mdesk_topology" >&2
     exit 1
   fi
-  desk_appname="$(awk -F= '$1 == "MCHAT_APPNAME" { print substr($0, index($0, "=") + 1) }' "$desk_topology")"
-  if [[ "$desk_appname" != mdesk-app ]]; then
-    echo "MDesk cannot be installed: locked topology uses MCHAT_APPNAME=${desk_appname:-missing}, but mdesk 2.1.0-9 requires mdesk-app." >&2
-    echo "The installer will not alter the locked file. Remove any half-configured mdesk and medge-all packages; do not rerun this bundle until the desktop migration is released." >&2
+  mdesk_appname="$(awk -F= '$1 == "MCHAT_APPNAME" { print substr($0, index($0, "=") + 1) }' "$mdesk_topology")"
+  if [[ "$mdesk_appname" != mdesk-app ]]; then
+    echo "MDesk cannot be installed: locked topology uses MCHAT_APPNAME=${mdesk_appname:-missing}, but mdesk 3.0.0-1 requires mdesk-app." >&2
+    echo "The installer will not alter the locked file. The platform owner must correct the MDesk topology before retrying." >&2
     exit 1
   fi
 fi
@@ -113,7 +113,7 @@ packages=(
   mote-proxy_1.0.0-2_all.deb
   motemcp_1.0.0-2_all.deb
   medge-core_1.0.0-3_all.deb
-  mdesk_2.1.0-9_amd64.deb
+  mdesk_3.0.0-1_amd64.deb
   ss-webos_2.0.0-8_amd64.deb
   cx-node_0.3.1-4_amd64.deb
   medge-all_1.0.0-3_all.deb
