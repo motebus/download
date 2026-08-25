@@ -37,16 +37,22 @@ AGENTIC_IO_PACKAGES = (
     "desk",
     "ss-webos",
 )
-EXPECTED_PACKAGES = AGENTIC_IO_PACKAGES + ("cx-node",)
+CX_AGENTIC_IO_PACKAGES = AGENTIC_IO_PACKAGES + ("cx-node",)
+EXPECTED_PACKAGES = (
+    "sphered",
+    "moted",
+    "aport",
+    "qbix",
+    "mbox",
+    "desk",
+    "ss-webos",
+)
 HEADLESS_PACKAGES = (
     "sphered",
     "moted",
     "aport",
     "qbix",
     "mbox",
-    "motestream",
-    "motessh",
-    "moterdp",
 )
 LEGACY_PACKAGE_SETS = {
     "3.1.0-8": (
@@ -70,17 +76,13 @@ GITLAB_URL_RE = re.compile(
     rb"(?:https?|ssh|git)://[^\x00-\x20\"'<>]*gitlab[^\x00-\x20\"'<>]*",
     re.IGNORECASE,
 )
-MCHAT_ENV_PACKAGES = {
-    "moted", "aport", "qbix", "mbox", "motessh", "moterdp", "desk",
-}
+MCHAT_ENV_PACKAGES = {"moted", "aport", "qbix", "mbox", "desk"}
 ALLOWED_ROOT_FILES = {
     ".gitignore",
     "github-setup.sh",
     "install.sh",
     "medge-install.sh",
-    "install-medge-all.sh",
     "webos-install.sh",
-    "cx-install.sh",
     "LICENSE",
     "README.md",
     "medge-release.env",
@@ -185,6 +187,8 @@ def expected_packages(manifest: dict) -> tuple[str, ...]:
         return LEGACY_PACKAGES
     if manifest.get("schema") == "medge-public-release/v6":
         return AGENTIC_IO_PACKAGES
+    if manifest.get("schema") == "medge-public-release/v7":
+        return CX_AGENTIC_IO_PACKAGES
     return EXPECTED_PACKAGES
 
 
@@ -236,6 +240,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v5",
             "medge-public-release/v6",
             "medge-public-release/v7",
+            "medge-public-release/v8",
         },
         "invalid public release manifest schema",
     )
@@ -279,6 +284,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v5",
             "medge-public-release/v6",
             "medge-public-release/v7",
+            "medge-public-release/v8",
         }:
             package_fields.add("env_inputs")
         require(
@@ -295,6 +301,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v5",
             "medge-public-release/v6",
             "medge-public-release/v7",
+            "medge-public-release/v8",
         }:
             validate_env_inputs(package)
     require_no_gitlab_url_bytes(
@@ -353,8 +360,6 @@ def validate_bundle(bundle: Path) -> dict:
     require(forbidden == [], f"source packages are forbidden: {forbidden}")
     validate_no_gitlab_urls(bundle)
     required_installers = ["medge-install.sh", "webos-install.sh"]
-    if "cx-node" in expected_packages(manifest):
-        required_installers.append("cx-install.sh")
     for name in required_installers:
         installer = bundle / name
         require(installer.is_file(), f"bundle is missing {name}")
@@ -406,10 +411,6 @@ def validate_tree(root: Path) -> None:
         require(wrapper.is_file(), f"public repository is missing {name}")
         require(wrapper.stat().st_mode & 0o111 != 0, f"{name} must be executable")
         run("sh", "-n", str(wrapper))
-    cx_installer = root / "cx-install.sh"
-    require(cx_installer.is_file(), "public repository is missing cx-install.sh")
-    require(cx_installer.stat().st_mode & 0o111 != 0, "cx-install.sh must be executable")
-    run("sh", "-n", str(cx_installer))
     installer_text = installer.read_text(encoding="utf-8")
     for required_text in (
         "https://motebus.github.io/medge-release",
@@ -516,7 +517,6 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
     shutil.copy2(repository_root / "install.sh", site)
     shutil.copy2(repository_root / "medge-install.sh", site)
     shutil.copy2(repository_root / "webos-install.sh", site)
-    shutil.copy2(repository_root / "cx-install.sh", site)
     (site / ".nojekyll").write_text("", encoding="utf-8")
     fingerprint = archive_fingerprint(repository_root)
     index = f"""<!doctype html>
@@ -524,14 +524,12 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
 <meta charset="utf-8">
 <title>MEdge Debian Repository</title>
 <h1>MEdge Debian Repository</h1>
-<p>Stable amd64 MEdge and CX Node binary packages.</p>
+<p>Stable amd64 MEdge binary packages.</p>
 <p>Current {len(current_manifest['packages'])}-package release: <code>{current_manifest['medge_version']}</code></p>
 <p>Signing fingerprint: <code>{fingerprint}</code></p>
 <pre>curl -fsSLo /tmp/medge-install.sh \
 https://motebus.github.io/medge-release/medge-install.sh &amp;&amp;
 sudo sh /tmp/medge-install.sh</pre>
-<pre>curl -fsSLo /tmp/cx-install.sh \
-https://motebus.github.io/medge-release/cx-install.sh</pre>
 </html>
 """
     (site / "index.html").write_text(index, encoding="utf-8")
