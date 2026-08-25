@@ -113,9 +113,10 @@ separate `motemcp` package for Mote agentic-I/O operations. `agent-exec` is
 retired without an alias; `cx-exec` is the active execution boundary.
 `vdevice` and `mlink` are not installed by this command.
 
-When PackageKit or another package manager temporarily owns an APT lock, the
-installer waits and retries for up to five minutes. It never deletes an APT or
-dpkg lock file.
+When APT explicitly reports `packagekitd` as its lock owner, the installer
+temporarily stops `packagekit.service`, completes the APT transaction, and
+restores PackageKit on exit. Other temporary lock owners are retried for up to
+five minutes. The installer never deletes an APT or dpkg lock file.
 
 ## GitHub Account Setup
 

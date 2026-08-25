@@ -60,6 +60,11 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn("Unable to (acquire|lock)", text)
         self.assertIn("APT remained locked after five minutes", text)
         self.assertIn("no lock file was removed", text)
+        self.assertIn("held by process [0-9]+ \\(packagekitd\\)", text)
+        self.assertIn("systemctl stop packagekit.service", text)
+        self.assertIn("systemctl start packagekit.service", text)
+        self.assertIn("temporarily stopping packagekit.service", text)
+        self.assertIn("Restoring packagekit.service", text)
         self.assertIn('apt-get install -y --no-install-recommends \\\n  "${package_paths[@]}"', text)
 
     def test_cx_installer_requires_explicit_admission_and_pinned_key(self) -> None:
