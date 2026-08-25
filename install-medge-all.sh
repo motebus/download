@@ -24,12 +24,26 @@ if [[ "$(dpkg --print-architecture)" != "amd64" ]]; then
   exit 1
 fi
 
-for command_name in cat curl dpkg dpkg-query grep sha256sum apt-get; do
+for command_name in awk cat curl dpkg dpkg-deb dpkg-query grep sha256sum apt-get; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Required command is missing: $command_name" >&2
     exit 1
   }
 done
+
+desk_topology=/etc/mote/desk/desk-mchat.env
+if [[ -e "$desk_topology" ]]; then
+  if [[ ! -f "$desk_topology" || -L "$desk_topology" ]]; then
+    echo "MDesk locked topology is not a regular non-symlink file: $desk_topology" >&2
+    exit 1
+  fi
+  desk_appname="$(awk -F= '$1 == "MCHAT_APPNAME" { print substr($0, index($0, "=") + 1) }' "$desk_topology")"
+  if [[ "$desk_appname" != mdesk-app ]]; then
+    echo "MDesk cannot be installed: locked topology uses MCHAT_APPNAME=${desk_appname:-missing}, but mdesk 2.1.0-9 requires mdesk-app." >&2
+    echo "The installer will not alter the locked file. Remove any half-configured mdesk and medge-all packages; do not rerun this bundle until the desktop migration is released." >&2
+    exit 1
+  fi
+fi
 
 package_dir="$(mktemp -d /var/tmp/medge-all.XXXXXX)"
 chmod 0755 "$package_dir"
@@ -111,7 +125,16 @@ for package_name in "${packages[@]}"; do
   curl --proto '=https' --tlsv1.2 --fail --location --retry 3 \
     --output "$package_path" "${release_base}/${package_name}"
   chmod 0644 "$package_path"
-  package_paths+=("$package_path")
+  package_id="$(dpkg-deb -f "$package_path" Package)"
+  candidate_version="$(dpkg-deb -f "$package_path" Version)"
+  installed_status="$(dpkg-query -W -f='${Status}' "$package_id" 2>/dev/null || true)"
+  installed_version="$(dpkg-query -W -f='${Version}' "$package_id" 2>/dev/null || true)"
+  if [[ "$installed_status" == "install ok installed" ]] &&
+    dpkg --compare-versions "$installed_version" gt "$candidate_version"; then
+    echo "Keeping newer installed ${package_id} ${installed_version}; bundled version is ${candidate_version}." >&2
+  else
+    package_paths+=("$package_path")
+  fi
 done
 
 curl --proto '=https' --tlsv1.2 --fail --location --retry 3 \

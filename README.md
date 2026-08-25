@@ -118,6 +118,10 @@ temporarily stops `packagekit.service`, completes the APT transaction, and
 restores PackageKit on exit. Other temporary lock owners are retried for up to
 five minutes. The installer never deletes an APT or dpkg lock file.
 
+The installer never downgrades a newer installed package. It also stops before
+APT when an existing locked Desk topology is incompatible with the bundled
+MDesk identity; it reports the mismatch without editing the topology file.
+
 ## GitHub Account Setup
 
 An owner can create or verify the public install repository and push this
