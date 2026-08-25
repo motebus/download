@@ -89,7 +89,7 @@ sudo apt install ./sphere_*.deb ./moted_*.deb ./medge_*.deb
 wire contract is admitted. `mlink` and `vdevice` are independent optional
 packages. Revision 3 includes the owner-aligned `mdesk` package.
 
-Install the verified revision-5 MEdge All bundle directly from its immutable
+Install the verified 2026.08.25 revision-1 MEdge All bundle directly from its immutable
 GitHub release assets:
 
 ```bash
@@ -120,7 +120,8 @@ five minutes. The installer never deletes an APT or dpkg lock file.
 
 The installer never downgrades a newer installed package. It also stops before
 APT when an existing locked Desk topology is incompatible with the bundled
-MDesk identity; it reports the mismatch without editing the topology file.
+MDesk identity, `MCHAT_APPNAME=mdesk-app`; it reports the mismatch without
+editing the topology file.
 
 ## GitHub Account Setup
 
