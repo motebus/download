@@ -72,7 +72,7 @@ published by these installers.
 
 ## Releases
 
-Current approved stable release: `medge-v5.0.0-1`.
+Current approved stable release: `medge-v5.0.0-2`.
 
 Each approved release contains:
 
