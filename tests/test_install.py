@@ -65,6 +65,14 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn("systemctl start packagekit.service", text)
         self.assertIn("temporarily stopping packagekit.service", text)
         self.assertIn("Restoring packagekit.service", text)
+        self.assertIn("desk_topology=/etc/mote/desk/desk-mchat.env", text)
+        self.assertIn('desk_appname" != mdesk-app', text)
+        self.assertIn("The installer will not alter the locked file", text)
+        self.assertIn('dpkg-deb -f "$package_path" Package', text)
+        self.assertIn('dpkg-deb -f "$package_path" Version', text)
+        self.assertIn('dpkg --compare-versions "$installed_version" gt "$candidate_version"', text)
+        self.assertIn("Keeping newer installed", text)
+        self.assertNotIn("--allow-downgrades", text)
         self.assertIn('apt-get install -y --no-install-recommends \\\n  "${package_paths[@]}"', text)
 
     def test_cx_installer_requires_explicit_admission_and_pinned_key(self) -> None:
