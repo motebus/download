@@ -34,7 +34,7 @@ class InstallContractTest(unittest.TestCase):
 
     def test_release_asset_medge_all_installer_has_exact_package_set(self) -> None:
         text = MEDGE_ALL_INSTALLER.read_text(encoding="utf-8")
-        self.assertIn('release_tag="deb-v2026.08.25-1"', text)
+        self.assertIn('release_tag="deb-v2026.08.25-2"', text)
         for package in (
             "sphere_4.0.0-1_amd64.deb",
             "moted_3.0.0-2_amd64.deb",
@@ -42,7 +42,7 @@ class InstallContractTest(unittest.TestCase):
             "mote-proxy_1.0.0-2_all.deb",
             "motemcp_1.0.0-2_all.deb",
             "medge-core_1.0.0-3_all.deb",
-            "mdesk_2.1.0-9_amd64.deb",
+            "mdesk_3.0.0-1_amd64.deb",
             "ss-webos_2.0.0-8_amd64.deb",
             "cx-node_0.3.1-4_amd64.deb",
             "medge-all_1.0.0-3_all.deb",
@@ -65,9 +65,11 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn("systemctl start packagekit.service", text)
         self.assertIn("temporarily stopping packagekit.service", text)
         self.assertIn("Restoring packagekit.service", text)
-        self.assertIn("desk_topology=/etc/mote/desk/desk-mchat.env", text)
-        self.assertIn('desk_appname" != mdesk-app', text)
+        self.assertIn("mdesk_topology=/etc/mote/mdesk/mdesk-mchat.env", text)
+        self.assertIn('mdesk_appname" != mdesk-app', text)
         self.assertIn("The installer will not alter the locked file", text)
+        self.assertNotIn("/etc/mote/desk/", text)
+        self.assertNotIn("deskd", text)
         self.assertIn('dpkg-deb -f "$package_path" Package', text)
         self.assertIn('dpkg-deb -f "$package_path" Version', text)
         self.assertIn('dpkg --compare-versions "$installed_version" gt "$candidate_version"', text)
