@@ -33,7 +33,22 @@ done
 
 package_dir="$(mktemp -d /var/tmp/medge-all.XXXXXX)"
 chmod 0755 "$package_dir"
-trap 'find "$package_dir" -depth -delete' EXIT
+packagekit_stopped=0
+
+cleanup() {
+  local command_status=$?
+
+  find "$package_dir" -depth -delete
+  if (( packagekit_stopped == 1 )); then
+    echo "Restoring packagekit.service." >&2
+    systemctl start packagekit.service ||
+      echo "Warning: packagekit.service could not be restarted." >&2
+  fi
+
+  trap - EXIT
+  exit "$command_status"
+}
+trap cleanup EXIT
 
 apt_with_lock_retry() {
   local attempt=1
@@ -54,6 +69,17 @@ apt_with_lock_retry() {
     cat "$error_log" >&2
     if ! grep -Eq 'Could not get lock|Unable to (acquire|lock)' "$error_log"; then
       return "$command_status"
+    fi
+    if (( packagekit_stopped == 0 )) &&
+      grep -Eq 'held by process [0-9]+ \(packagekitd\)' "$error_log" &&
+      command -v systemctl >/dev/null 2>&1; then
+      echo "APT is locked by packagekitd; temporarily stopping packagekit.service." >&2
+      if systemctl stop packagekit.service; then
+        packagekit_stopped=1
+        sleep 2
+        continue
+      fi
+      echo "packagekit.service could not be stopped; continuing bounded retries." >&2
     fi
     if (( attempt >= 60 )); then
       echo "APT remained locked after five minutes; no lock file was removed." >&2
