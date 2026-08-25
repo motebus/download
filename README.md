@@ -1,16 +1,19 @@
 # MEdge Binary Packages
 
-This public repository distributes install-only MEdge and CX Node Debian
-packages for supported amd64 hosts.
+This public repository distributes install-only MEdge Debian packages for
+supported amd64 hosts. It contains public release metadata, the APT signing
+key, install scripts, and GitHub Pages automation. Private implementation
+source, Debian source packages, private topology, and private build-system
+addresses are not published here.
 
-It contains distribution documentation, the public APT key, release
-manifests, and GitHub Pages automation. Component source code and Debian
-source packages are intentionally absent. Public install artifacts contain no
-private build-system URL.
+The current coordinated release contains exactly seven packages:
 
-## Install
+- headless MEdge: `sphered`, `moted`, `aport`, `qbix`, and `mbox`;
+- WebOS desktop: `desk` and `ss-webos`.
 
-Install MEdge on Ubuntu 24.04 or 26.04 amd64 with one command:
+## Install MEdge
+
+Install the headless profile on Ubuntu 24.04 or 26.04 amd64:
 
 ```bash
 curl -fsSLo /tmp/medge-install.sh \
@@ -18,23 +21,21 @@ curl -fsSLo /tmp/medge-install.sh \
 sudo sh /tmp/medge-install.sh
 ```
 
-The public installer checks the operating system and architecture, verifies
-the downloaded archive key against this fingerprint, configures the signed
-APT source, installs the eight MEdge packages in one transaction,
-starts the MEdge system services,
-and verifies that they are active:
-
-```text
-AECA A1DC DAF1 9C7B 7FEA  F0C0 82A0 E180 EDAE A7A0
-```
-
-To inspect it before installation:
+To inspect the installer first:
 
 ```bash
 curl -fsSL https://motebus.github.io/medge-release/medge-install.sh
 ```
 
-The repository uses:
+The installer validates the host, verifies the archive key fingerprint,
+configures the signed APT source, installs the five headless packages in one
+transaction, and verifies their system services:
+
+```text
+AECA A1DC DAF1 9C7B 7FEA  F0C0 82A0 E180 EDAE A7A0
+```
+
+The public repository uses:
 
 ```text
 suite:        stable
@@ -42,156 +43,62 @@ component:    main
 architecture: amd64
 ```
 
-It does not use `apt-key`, `trusted=yes`, or a direct DEB URL.
-The installer rejects an APT transaction plan containing any GitLab URL, and
-publication rejects GitLab URLs in the public tree, release manifest, APT
-site, Debian control metadata, or installed package content.
-It does not create or modify MChat topology or service authorization policy.
-If an older dependency-only `medge` meta-package leaves APT broken after a
-component version changes, the installer verifies that the installed meta
-contains no maintainer scripts, removes only that meta-package, confirms that
-APT is otherwise consistent, and then installs the current coordinated
-release. Component packages, configuration, and runtime data are preserved.
-Before the package transaction, it stops and disables existing MEdge system
-units in reverse dependency order. It then enables, starts, and verifies each
-unit individually in dependency order. It then requires every system service
-to remain active without increasing its systemd restart count during a
-30-second stability window; a transient `active` state inside a restart loop
-does not pass installation.
-When exactly one local graphical session is active, it also reloads and
-starts the Desk and SS-WebOS user-session helpers and creates a trusted
-`SmartScreen.desktop` shortcut using the packaged SmartScreen icon. On a
-headless install, the shortcut is created and the helpers start at graphical
-login. The hardened `deskd-device.service` handles admitted USB NFC readers,
-USB QR readers, QR cameras, and IoT buttons and forwards normalized input
-events through Desk; it is started and health-checked after `deskd.service`.
-If a system service
-fails its health check, the installer prints its status and recent journal,
-then stops, disables, and resets that unit so it does not remain in a failed
-state or restart loop.
+It does not use `apt-key`, `trusted=yes`, or direct package URLs. Publication
+rejects private GitLab URLs in the public tree, manifest, APT metadata, Debian
+control metadata, and installed package content. The installer also rejects
+an APT transaction plan containing a GitLab URL.
 
-## Standalone Debian assets
+The installer does not create or modify locked MoteChat topology. Before an
+upgrade it stops existing MEdge units in reverse dependency order; afterward
+it enables, starts, and verifies each current unit in dependency order. It
+requires services to remain active without increasing their restart count
+during a stability window and prints focused systemd evidence on failure.
 
-Package-only releases use the `deb-v<date>-<revision>` tag namespace. They
-provide immutable, checksummed GitLab-CI-built `.deb` assets for direct
-inspection or installation without changing the active coordinated MEdge APT
-catalog.
+## Install WebOS desktop components
 
-Download the required assets from the release, verify `SHA256SUMS`, then use
-one APT transaction so Ubuntu can resolve ordinary distribution dependencies:
+The release also publishes `webos-install.sh`, which installs the coordinated
+`desk` and `ss-webos` packages from the same signed APT release. Desk handles
+admitted local device input and SS-WebOS provides the user-facing runtime.
 
-```bash
-sha256sum -c SHA256SUMS
-sudo apt install ./sphere_*.deb ./moted_*.deb ./medge_*.deb
-```
+## Retired transports
 
-`mote-proxy` is intentionally fail-closed until its versioned MoteBus SSH
-wire contract is admitted. `mlink` and `vdevice` are independent optional
-packages. Revision 2 completes the MDesk runtime rename.
+SSH, RDP, PTY, and raw-byte forwarding are not MoteD capabilities. The former
+`motestream`, `motessh`, `moterdp`, and `mote-proxy` package paths are retired
+and excluded from the active package index. Ordinary host administration SSH
+remains an operating-system service outside MoteD and MoteBus.
 
-Install the verified 2026.08.25 revision-2 MEdge All bundle directly from its immutable
-GitHub release assets:
+CX Node is also outside this MEdge public package set. It is not installed or
+published by these installers.
 
-```bash
-curl -fsSL \
-  https://raw.githubusercontent.com/motebus/medge-release/main/install-medge-all.sh |
-sudo bash
-```
+## Releases
 
-The installer verifies `SHA256SUMS` and installs this exact composition in one
-APT transaction:
+Current approved stable release: `medge-v5.0.0-1`.
 
-```text
-medge-core = medge + moted + mote-proxy + motemcp
-medge-all  = medge-core + mdesk + ss-webos + cx-node
-```
+Each approved release contains:
 
-The installer submits the complete bundle to APT as one transaction so Debian
-can resolve package dependencies together. `cx-node` depends on the `chatgpt`
-desktop package, which provides its Codex app-server executable, and on the
-separate `motemcp` package for Mote agentic-I/O operations. `agent-exec` is
-retired without an alias; `cx-exec` is the active execution boundary.
-`vdevice` and `mlink` are not installed by this command.
+- the seven coordinated binary Debian packages;
+- `release-manifest.json` with package hashes and source provenance;
+- `SHA256SUMS`;
+- `medge-install.sh` and `webos-install.sh`.
 
-When APT explicitly reports `packagekitd` as its lock owner, the installer
-temporarily stops `packagekit.service`, completes the APT transaction, and
-restores PackageKit on exit. Other temporary lock owners are retried for up to
-five minutes. The installer never deletes an APT or dpkg lock file.
+Existing release tags and assets are immutable. Historical bundles remain
+lineage only and do not contribute packages to the active APT index.
 
-The installer never downgrades a newer installed package. It validates only
-the active locked `/etc/mote/mdesk/mdesk-mchat.env` topology and requires
-`MCHAT_APPNAME=mdesk-app`; the retired `/etc/mote/desk/desk-mchat.env` is
-ignored and left untouched. A missing active MDesk topology is created once
-from the package's reviewed seed.
+Every stable publication requires explicit repository-owner approval. The
+release workflow validates the exact package set and manifest before rebuilding
+the signed GitHub Pages APT repository.
 
-## GitHub Account Setup
+## GitHub account setup
 
-An owner can create or verify the public install repository and push this
-checkout's `main` branch with:
+An owner can create or verify this public install repository and push a clean
+`main` branch with:
 
 ```bash
 ./github-setup.sh
 ```
 
-The script interactively asks for the GitHub account or organization,
-repository name, and token. Token input is hidden and is not stored in the
-repository, remote URL, Git configuration, or a persistent credential helper.
-The token must be able to create or administer the target public repository
-and write repository contents. For an organization target, the account must
-also be allowed to create repositories in that organization.
-
-The script refuses a dirty worktree or a branch other than `main`, never
-force-pushes, and does not create a tag, GitHub Release, or stable APT
-publication.
-
-## Releases
-
-Current approved stable release: `medge-v4.2.0-2`.
-
-This revision publishes the Hub-contract-compatible `cx-node 0.2.0-2` while
-preserving the immutable `medge-v4.2.0-1` lineage.
-
-Each approved GitHub Release contains:
-
-- the coordinated MEdge component DEBs and, beginning with schema v7, the
-  separately admitted `cx-node` DEB;
-- `release-manifest.json`;
-- `SHA256SUMS`;
-- `medge-install.sh` and `webos-install.sh`;
-- `cx-install.sh` when the release contains `cx-node`;
-- optional binary `.changes` and `.buildinfo` provenance.
-
-`medge.deb` is retired. `medge-install.sh` directly installs the headless
-`sphered`, `moted`, `aport`, `qbix`, `mbox`, `motestream`, `motessh`, and
-`moterdp` set. `webos-install.sh` installs `desk + ss-webos`. MoteStream is the
-shared EdgeOS stream layer used independently by MOTESSH and MOTERDP. MBox includes
-the former MGate/UCLI roles and Qbix includes QFunc runtimes.
-
-Every stable publication requires explicit owner approval. Existing release
-tags and assets are immutable.
-
-Historical bundles remain immutable lineage only. They never contribute
-packages to the active APT index, which contains only the approved current
-release.
-
-## CX Node install
-
-CX Node is not installed by the MEdge server profile. Download and inspect the
-dedicated installer, then provide a platform-owner-approved `CX<number>` node
-identity, the admitted CX Hub MMA, and an absolute bootstrap file containing
-only the canonical MoteChat topology keys. The node's separately approved
-`*.mote` identity is also mandatory:
-
-```bash
-curl -fsSLo /tmp/cx-install.sh \
-  https://motebus.github.io/medge-release/cx-install.sh
-sudo sh /tmp/cx-install.sh --node-id CX1 --node-mote cx1.edge.mote \
-  --hub-mma j22/rc/cx-hub-app \
-  --bootstrap /absolute/path/cx-node-bootstrap.env
-```
-
-The installer verifies the archive-key fingerprint, uses only the signed APT
-source, preserves an existing locked topology file byte-for-byte, and does not
-generate SSH keys or modify OpenSSH policy. It accepts only one exact lowercase
-three-segment Hub MMA and reports completion only after `cx-node --doctor`
-confirms a nonce-bound application-level enrollment acceptance from that Hub.
+The setup script asks interactively for the GitHub owner, repository name,
+and token. Token input is hidden and is not stored in repository files, the
+remote URL, Git configuration, or a persistent credential helper. The script
+refuses a dirty worktree or a branch other than `main`, never force-pushes,
+and does not create a release tag or publish the stable APT repository.
