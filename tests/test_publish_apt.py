@@ -138,7 +138,7 @@ class PublicAptTest(unittest.TestCase):
         manifest = self.manifest("medge-public-release/v8")
         self.assertEqual(
             [package["name"] for package in manifest["packages"]],
-            ["sphered", "moted", "aport", "qbix", "mbox", "desk", "ss-webos"],
+            ["sphere", "moted", "aport", "qbix", "mbox", "desk", "ss-webos"],
         )
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
