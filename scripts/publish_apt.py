@@ -39,7 +39,7 @@ AGENTIC_IO_PACKAGES = (
 )
 CX_AGENTIC_IO_PACKAGES = AGENTIC_IO_PACKAGES + ("cx-node",)
 EXPECTED_PACKAGES = (
-    "sphered",
+    "sphere",
     "moted",
     "aport",
     "qbix",
@@ -48,7 +48,7 @@ EXPECTED_PACKAGES = (
     "ss-webos",
 )
 HEADLESS_PACKAGES = (
-    "sphered",
+    "sphere",
     "moted",
     "aport",
     "qbix",

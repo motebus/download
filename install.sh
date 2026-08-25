@@ -10,7 +10,7 @@ SOURCES_PATH="/etc/apt/sources.list.d/medge.sources"
 case "$INSTALL_PROFILE" in
 medge)
 SYSTEM_UNITS="
-sphered.service
+sphere.service
 mbox.service
 moted.service
 qbix.service
@@ -22,9 +22,9 @@ qbix.service
 moted.service
 mbox.service
 mgated.service
-sphered.service
+sphere.service
 "
-APT_PACKAGES="sphered moted aport qbix mbox"
+APT_PACKAGES="sphere moted aport qbix mbox"
 RETIRED_PACKAGES="agos mote mgate ucli qbix-func qbix-wasm moteos motestream motessh moterdp mote-proxy"
 ;;
 webos)

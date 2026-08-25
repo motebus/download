@@ -8,7 +8,7 @@ addresses are not published here.
 
 The current coordinated release contains exactly seven packages:
 
-- headless MEdge: `sphered`, `moted`, `aport`, `qbix`, and `mbox`;
+- headless MEdge: `sphere`, `moted`, `aport`, `qbix`, and `mbox`;
 - WebOS desktop: `desk` and `ss-webos`.
 
 ## Install MEdge

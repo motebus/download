@@ -94,7 +94,7 @@ class InstallContractTest(unittest.TestCase):
     def test_server_profile_installs_only_current_physical_packages(self) -> None:
         text = INSTALLER.read_text(encoding="utf-8")
         server_case = text.split("medge)", 1)[1].split(";;", 1)[0]
-        self.assertIn('APT_PACKAGES="sphered moted aport qbix mbox"', server_case)
+        self.assertIn('APT_PACKAGES="sphere moted aport qbix mbox"', server_case)
         self.assertNotIn('APT_PACKAGES="medge"', server_case)
         for retired in ("motestream", "motessh", "moterdp", "mote-proxy", "cx-node"):
             self.assertNotIn(retired, server_case.split("RETIRED_PACKAGES=", 1)[0])
