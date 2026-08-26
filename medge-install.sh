@@ -1,5 +1,5 @@
-#!/bin/sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 
 RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.26-3"
 ASSETS="

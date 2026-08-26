@@ -1,5 +1,5 @@
-#!/bin/sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 
 BASE_URL="https://motebus.github.io/medge-release"
 EXPECTED_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
