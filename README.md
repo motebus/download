@@ -39,16 +39,16 @@ sphere + moted + medge + mdesk + ss-webos + mote-proxy + motemcp
 `desk`, `mote-desk`, `ultra-desk`, and the proposed `ss-desk` package are
 retired without aliases. `ss-webos` remains active and separate from MDesk.
 
-Two dependency-only meta-packages are also defined: `medge-core` installs
-`medge + moted + mote-proxy + motemcp`; `medge-all` adds `mdesk + ss-webos +
-cx-node`. `vdevice` and `mlink` remain separate optional packages.
+There is no `medge-core` or `medge-all` Debian package. Complete composition is
+owned by `medge-install.sh`, which installs the reviewed component DEBs
+directly. `vdevice` and `mlink` remain separate optional packages.
 
 ## Required installers
 
 A compliant release publishes exactly these self-contained installers:
 
 ```text
-medge-install.sh      -> medge-all (complete reviewed bundle)
+medge-install.sh      -> complete reviewed component bundle
 mdesk-install.sh      -> sphere + moted + mdesk
 ss-webos-install.sh   -> ss-webos only
 mote-proxy-install.sh -> sphere + mote-proxy
@@ -86,8 +86,9 @@ curl -fsSLo /tmp/mdesk-install.sh \
 sudo sh /tmp/mdesk-install.sh
 ```
 
-Install the complete reviewed MEdge bundle, including MEdge Core, MDesk,
-SS-WebOS, and CX Node:
+Install the complete reviewed MEdge component bundle, including the MEdge
+runtime, MDesk, SS-WebOS, and CX Node. There is no `medge-core.deb` or
+`medge-all.deb`; the script installs the component DEBs directly:
 
 ```bash
 curl -fsSLo /tmp/medge-install.sh \

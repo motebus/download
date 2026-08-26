@@ -54,11 +54,9 @@ class InstallContractTest(unittest.TestCase):
             "medge_1.0.0-3_all.deb",
             "mote-proxy_1.3.0-2_all.deb",
             "motemcp_1.0.0-3_all.deb",
-            "medge-core_1.0.0-3_all.deb",
             "mdesk_3.0.0-2_amd64.deb",
             "ss-webos_2.0.0-8_amd64.deb",
             "cx-node_0.3.1-7_amd64.deb",
-            "medge-all_1.0.0-3_all.deb",
         ):
             self.assertIn(asset, text)
         self.assertEqual(text.count("sha256sum --check"), 1)
@@ -68,6 +66,8 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn('apt-get install -y "$@"', text)
         self.assertIn('chmod 0755 "$PACKAGE_DIR"', text)
         self.assertIn('chmod 0644 "$PACKAGE_DIR/$asset"', text)
+        self.assertNotIn("medge-core", text)
+        self.assertNotIn("medge-all", text)
 
     def test_installers_never_remove_packages_or_topology(self) -> None:
         dispatcher = INSTALLER.read_text(encoding="utf-8")
