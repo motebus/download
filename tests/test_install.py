@@ -34,9 +34,9 @@ class InstallContractTest(unittest.TestCase):
 
     def test_mdesk_installer_is_self_contained_and_digest_pinned(self) -> None:
         text = (ROOT / "mdesk-install.sh").read_text(encoding="utf-8")
-        self.assertIn("deb-v2026.08.26-2", text)
+        self.assertIn("deb-v2026.08.26-3", text)
         self.assertIn("sphere_4.0.0-1_amd64.deb", text)
-        self.assertIn("moted_3.2.0-3_amd64.deb", text)
+        self.assertIn("moted_3.2.0-6_amd64.deb", text)
         self.assertIn("mdesk_3.0.0-2_amd64.deb", text)
         self.assertEqual(text.count("sha256sum --check"), 1)
         self.assertNotIn("motebus.github.io", text)

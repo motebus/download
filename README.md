@@ -60,15 +60,18 @@ named entry points; running it without an explicit profile fails closed. No
 installer removes `desk` or `ss-desk` without a separately approved migration
 and rollback plan.
 
-The immutable public release `deb-v2026.08.26-2` contains the current reviewed
-`moted_3.2.0-3_amd64.deb` and `mdesk_3.0.0-2_amd64.deb` built by the canonical
+The immutable public release `deb-v2026.08.26-3` contains the current reviewed
+`moted_3.2.0-6_amd64.deb` and `mdesk_3.0.0-2_amd64.deb` built by the canonical
 `main` pipelines. MoteD is the failure-isolated MEdge kernel/control plane;
 MDesk and other optional leaf modules cannot propagate stop, restart, or
-failure into it. The MDesk package now binds to canonical `sphere.service`.
+failure into it. MoteD requests an exact 300-second MoteC lease, refreshes it
+every 90 seconds after success, and retries transport failures after 30 seconds
+without overlapping registration requests. The MDesk package binds to
+canonical `sphere.service`.
 
 The MoteD artifact comes from commit
-`5084e34325ea1095dc633c1942dfdf469f5a9019` with SHA-256
-`a36b6d68e595efa9dd98c1327656d53c49172ca7a2d5a33fc6a1afddfb439c95`.
+`643d651ad4343d56dddab568f287250ef26054eb` with SHA-256
+`3cd1d0457c91fe038649fb7d861bcdc2a41e92b723b4a189b8d2a16487d05790`.
 The MDesk artifact comes from commit
 `e36bb2ed70dd40925497b40e395e9c01ce7fe74d` with SHA-256
 `af4bf7493c962ba29c19712e9c12e4df3c08315a5464b53f74949906799942d4`.
