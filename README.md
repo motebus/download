@@ -91,7 +91,8 @@ sudo bash /tmp/mdesk-install.sh
 ```
 
 Install the complete reviewed MEdge component bundle, including the MEdge
-runtime, MDesk, SS-WebOS, and CX Node. There is no `medge-core.deb` or
+runtime, MDesk, and SS-WebOS. CX Node is an independent runtime and is not
+part of the public MEdge installer. There is no `medge-core.deb` or
 `medge-all.deb`; the script installs the component DEBs directly:
 
 ```bash

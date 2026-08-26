@@ -66,7 +66,6 @@ class InstallContractTest(unittest.TestCase):
             "mlink_0.1.0-2_amd64.deb",
             "mdesk_3.0.0-2_amd64.deb",
             "ss-webos_2.0.0-8_amd64.deb",
-            "cx-node_0.3.1-7_amd64.deb",
         ):
             self.assertIn(asset, text)
         self.assertEqual(text.count("sha256sum --check"), 1)
@@ -82,6 +81,8 @@ class InstallContractTest(unittest.TestCase):
         )
         self.assertNotIn("medge-core", text)
         self.assertNotIn("medge-all", text)
+        self.assertNotIn("cx-node", text)
+        self.assertNotIn("chatgpt", text)
 
     def test_installers_never_remove_packages_or_topology(self) -> None:
         dispatcher = INSTALLER.read_text(encoding="utf-8")
