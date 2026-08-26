@@ -20,12 +20,13 @@ case "${ID:-}:${VERSION_ID:-}" in
     *) fail "Ubuntu 24.04 or 26.04 is required" ;;
 esac
 [ "$(dpkg --print-architecture)" = amd64 ] || fail "amd64 is required"
-for command_name in apt-get curl dpkg sha256sum; do
+for command_name in apt-get chmod curl dpkg sha256sum; do
     command -v "$command_name" >/dev/null 2>&1 ||
         fail "required command is unavailable: $command_name"
 done
 
 PACKAGE_DIR="$(mktemp -d /tmp/mdesk-install.XXXXXX)"
+chmod 0755 "$PACKAGE_DIR"
 cleanup() {
     rm -f "$PACKAGE_DIR/$SPHERE_ASSET" \
         "$PACKAGE_DIR/$MOTED_ASSET" \
@@ -38,6 +39,7 @@ trap cleanup EXIT HUP INT TERM
 for asset in "$SPHERE_ASSET" "$MOTED_ASSET" "$MDESK_ASSET"; do
     curl --proto '=https' --tlsv1.2 -fL \
         "$RELEASE_URL/$asset" -o "$PACKAGE_DIR/$asset"
+    chmod 0644 "$PACKAGE_DIR/$asset"
 done
 
 cat >"$PACKAGE_DIR/SHA256SUMS" <<EOF
