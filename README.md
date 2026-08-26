@@ -48,17 +48,18 @@ cx-node`. `vdevice` and `mlink` remain separate optional packages.
 A compliant release publishes exactly these self-contained installers:
 
 ```text
-medge-install.sh      -> sphere + moted + medge
+medge-install.sh      -> medge-all (complete reviewed bundle)
 mdesk-install.sh      -> sphere + moted + mdesk
 ss-webos-install.sh   -> ss-webos only
 mote-proxy-install.sh -> sphere + mote-proxy
 motemcp-install.sh    -> sphere + moted + motemcp
 ```
 
-The shared `install.sh` is an internal component dispatcher used by those
-named entry points; running it without an explicit profile fails closed. No
-installer removes `desk` or `ss-desk` without a separately approved migration
-and rollback plan.
+`medge-install.sh` and `mdesk-install.sh` download their exact immutable GitHub
+release assets directly. The shared `install.sh` remains the internal component
+dispatcher for the narrower APT-backed entry points and fails closed without an
+explicit profile. No installer removes `desk` or `ss-desk` without a separately
+approved migration and rollback plan.
 
 The immutable public release `deb-v2026.08.26-3` contains the current reviewed
 `moted_3.2.0-6_amd64.deb` and `mdesk_3.0.0-2_amd64.deb` built by the canonical
@@ -83,6 +84,15 @@ release. A newer installed package is never downgraded:
 curl -fsSLo /tmp/mdesk-install.sh \
   https://raw.githubusercontent.com/motebus/medge-release/main/mdesk-install.sh
 sudo sh /tmp/mdesk-install.sh
+```
+
+Install the complete reviewed MEdge bundle, including MEdge Core, MDesk,
+SS-WebOS, and CX Node:
+
+```bash
+curl -fsSLo /tmp/medge-install.sh \
+  https://raw.githubusercontent.com/motebus/medge-release/main/medge-install.sh
+sudo sh /tmp/medge-install.sh
 ```
 
 ## Release requirements
