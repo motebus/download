@@ -33,7 +33,7 @@ class InstallContractTest(unittest.TestCase):
 
     def test_desktop_package_names_are_canonical(self) -> None:
         dispatcher = INSTALLER.read_text(encoding="utf-8")
-        self.assertIn('mdesk)      APT_PACKAGES="sphere moted mdesk"', dispatcher)
+        self.assertIn('mdesk)      APT_PACKAGES="sphere moted mlink mdesk"', dispatcher)
         self.assertIn('ss-webos)   APT_PACKAGES="ss-webos"', dispatcher)
         self.assertNotIn("ss-desk", dispatcher)
         self.assertNotIn('APT_PACKAGES="desk', dispatcher)
@@ -41,9 +41,10 @@ class InstallContractTest(unittest.TestCase):
 
     def test_mdesk_installer_is_self_contained_and_digest_pinned(self) -> None:
         text = (ROOT / "mdesk-install.sh").read_text(encoding="utf-8")
-        self.assertIn("deb-v2026.08.26-3", text)
+        self.assertIn("deb-v2026.08.26-5", text)
         self.assertIn("sphere_4.0.0-1_amd64.deb", text)
         self.assertIn("moted_3.2.0-6_amd64.deb", text)
+        self.assertIn("mlink_0.1.0-2_amd64.deb", text)
         self.assertIn("mdesk_3.0.0-2_amd64.deb", text)
         self.assertEqual(text.count("sha256sum --check"), 1)
         self.assertNotIn("motebus.github.io", text)
@@ -55,13 +56,14 @@ class InstallContractTest(unittest.TestCase):
 
     def test_medge_installer_is_complete_self_contained_and_digest_pinned(self) -> None:
         text = (ROOT / "medge-install.sh").read_text(encoding="utf-8")
-        self.assertIn("deb-v2026.08.26-3", text)
+        self.assertIn("deb-v2026.08.26-5", text)
         for asset in (
             "sphere_4.0.0-1_amd64.deb",
             "moted_3.2.0-6_amd64.deb",
             "medge_1.0.0-3_all.deb",
             "mote-proxy_1.3.0-2_all.deb",
             "motemcp_1.0.0-3_all.deb",
+            "mlink_0.1.0-2_amd64.deb",
             "mdesk_3.0.0-2_amd64.deb",
             "ss-webos_2.0.0-8_amd64.deb",
             "cx-node_0.3.1-7_amd64.deb",

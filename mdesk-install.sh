@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.26-3"
+RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.26-5"
 SPHERE_ASSET="sphere_4.0.0-1_amd64.deb"
 MOTED_ASSET="moted_3.2.0-6_amd64.deb"
+MLINK_ASSET="mlink_0.1.0-2_amd64.deb"
 MDESK_ASSET="mdesk_3.0.0-2_amd64.deb"
 
 fail() {
@@ -30,13 +31,14 @@ chmod 0755 "$PACKAGE_DIR"
 cleanup() {
     rm -f "$PACKAGE_DIR/$SPHERE_ASSET" \
         "$PACKAGE_DIR/$MOTED_ASSET" \
+        "$PACKAGE_DIR/$MLINK_ASSET" \
         "$PACKAGE_DIR/$MDESK_ASSET" \
         "$PACKAGE_DIR/SHA256SUMS"
     rmdir "$PACKAGE_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT HUP INT TERM
 
-for asset in "$SPHERE_ASSET" "$MOTED_ASSET" "$MDESK_ASSET"; do
+for asset in "$SPHERE_ASSET" "$MOTED_ASSET" "$MLINK_ASSET" "$MDESK_ASSET"; do
     curl --proto '=https' --tlsv1.2 -fL \
         "$RELEASE_URL/$asset" -o "$PACKAGE_DIR/$asset"
     chmod 0644 "$PACKAGE_DIR/$asset"
@@ -45,6 +47,7 @@ done
 cat >"$PACKAGE_DIR/SHA256SUMS" <<EOF
 7e0be26927afa349001caee54cf46117587386f7d42ce82a9611fa50ea1e7065  $SPHERE_ASSET
 3cd1d0457c91fe038649fb7d861bcdc2a41e92b723b4a189b8d2a16487d05790  $MOTED_ASSET
+63905693cab16dde8a4e472431010051f9297835c8d730a02e2db4ff5cba9d5d  $MLINK_ASSET
 af4bf7493c962ba29c19712e9c12e4df3c08315a5464b53f74949906799942d4  $MDESK_ASSET
 EOF
 (
@@ -52,10 +55,11 @@ EOF
     sha256sum --check SHA256SUMS
 )
 
-for asset in "$SPHERE_ASSET" "$MOTED_ASSET" "$MDESK_ASSET"; do
+for asset in "$SPHERE_ASSET" "$MOTED_ASSET" "$MLINK_ASSET" "$MDESK_ASSET"; do
     package_name="$(dpkg-deb -f "$PACKAGE_DIR/$asset" Package)"
     case "$asset:$package_name" in
-        "$SPHERE_ASSET:sphere"|"$MOTED_ASSET:moted"|"$MDESK_ASSET:mdesk") ;;
+        "$SPHERE_ASSET:sphere"|"$MOTED_ASSET:moted"|\
+        "$MLINK_ASSET:mlink"|"$MDESK_ASSET:mdesk") ;;
         *) fail "unexpected package identity in $asset: $package_name" ;;
     esac
 done
@@ -66,6 +70,7 @@ set --
 for package_spec in \
     "sphere:4.0.0-1:$SPHERE_ASSET" \
     "moted:3.2.0-6:$MOTED_ASSET" \
+    "mlink:0.1.0-2:$MLINK_ASSET" \
     "mdesk:3.0.0-2:$MDESK_ASSET"; do
     package_name="${package_spec%%:*}"
     package_rest="${package_spec#*:}"
@@ -89,4 +94,4 @@ if [ "$#" -gt 0 ]; then
     apt-get install -y "$@"
 fi
 
-dpkg-query -W -f='${Package}=${Version}\n' sphere moted mdesk
+dpkg-query -W -f='${Package}=${Version}\n' sphere moted mlink mdesk

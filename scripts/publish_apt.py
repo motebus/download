@@ -434,7 +434,7 @@ def validate_tree(root: Path) -> None:
         "apt-get install -y $APT_PACKAGES",
         "apt-get --print-uris -y install $APT_PACKAGES",
         "forbidden GitLab URL",
-        'mdesk)      APT_PACKAGES="sphere moted mdesk"',
+        'mdesk)      APT_PACKAGES="sphere moted mlink mdesk"',
         'ss-webos)   APT_PACKAGES="ss-webos"',
         'mote-proxy) APT_PACKAGES="sphere mote-proxy"',
         'motemcp)    APT_PACKAGES="sphere moted motemcp"',
