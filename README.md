@@ -60,13 +60,13 @@ named entry points; running it without an explicit profile fails closed. No
 installer removes `desk` or `ss-desk` without a separately approved migration
 and rollback plan.
 
-The immutable public release `deb-v2026.08.25-2` already contains the reviewed
+The immutable public release `deb-v2026.08.26-1` contains the current reviewed
 `mdesk_3.0.0-1_amd64.deb` built from canonical `mdesk-deb` main commit
 `3bf4455c2f6b60729d2bc40f0e28b934312e0d14` with SHA-256
 `6228537734a19026eed5dde0435c2d913392aedb01d188980393b46fbbc436ae`.
 
 Install the exact reviewed MDesk package set directly from that immutable
-release:
+release. A newer installed package is never downgraded:
 
 ```bash
 curl -fsSLo /tmp/mdesk-install.sh \
