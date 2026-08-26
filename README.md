@@ -7,7 +7,7 @@ addresses are not published here.
 
 ## Publication status
 
-No AgentSpec-v5 release is currently deployed. `medge-v5.0.0-1` is retained
+No current coordinated MEdge release is deployed. `medge-v5.0.0-1` is retained
 as a prerelease compatibility-failure record; its failed workflow did not
 change the live APT repository. A corrected release remains withheld until
 every canonical package passes source, disclosure, bundle, and Ubuntu 24.04 /
@@ -22,7 +22,7 @@ restore retired packages or transports.
 The exact active Debian catalog is:
 
 ```text
-sphere + medge + moted + ss-desk + motemcp
+sphere + moted + medge + mdesk + ss-webos + mote-proxy + motemcp
 ```
 
 - `sphere` provides native local MoteBus and DC.
@@ -30,28 +30,40 @@ sphere + medge + moted + ss-desk + motemcp
   daemonless QFunc modules.
 - `moted` owns MoteData, profiles, registration, resolution, typed sessions,
   and the common `mote` CLI.
-- `ss-desk` is the unified SmartScreen WebOS and Linux desktop runtime.
+- `mdesk` is the sole Linux desktop-integration package and owns
+  `mdesk://mms`.
+- `ss-webos` is the independent SmartScreen/WebOS browser runtime.
+- `mote-proxy` is the independent SSH proxy boundary.
 - `motemcp` is the optional on-demand MCP provider through MoteD.
 
-The former independent `sphered`, `mbox`, `aport`, `qbix`, `qbix-func`,
-`motestream`, `motessh`, `moterdp`, `mote-proxy`, `desk`, `ss-webos`, and
-`cx-node` paths are excluded from a current MEdge release. SSH, RDP, PTY, and
-raw-byte forwarding are not MoteD capabilities. Ordinary host administration
-SSH remains outside MoteD and MoteBus.
+`desk`, `mote-desk`, `ultra-desk`, and the proposed `ss-desk` package are
+retired without aliases. `ss-webos` remains active and separate from MDesk.
+
+Two dependency-only meta-packages are also defined: `medge-core` installs
+`medge + moted + mote-proxy + motemcp`; `medge-all` adds `mdesk + ss-webos +
+cx-node`. `vdevice` and `mlink` remain separate optional packages.
 
 ## Required installers
 
 A compliant release publishes exactly these self-contained installers:
 
 ```text
-medge-install.sh    -> sphere + moted + medge
-ss-desk-install.sh  -> sphere + moted + ss-desk
-motemcp-install.sh  -> sphere + moted + motemcp
+medge-install.sh      -> sphere + moted + medge
+mdesk-install.sh      -> sphere + moted + mdesk
+ss-webos-install.sh   -> ss-webos only
+mote-proxy-install.sh -> sphere + mote-proxy
+motemcp-install.sh    -> sphere + moted + motemcp
 ```
 
-There is no approved generic `install.sh`, `webos-install.sh`, CX installer,
-or MEdge-All installer. Do not treat files retained in repository history or
-an older Pages deployment as current installation authority.
+The shared `install.sh` is an internal component dispatcher used by those
+named entry points; running it without an explicit profile fails closed. No
+installer removes `desk` or `ss-desk` without a separately approved migration
+and rollback plan.
+
+The immutable public release `deb-v2026.08.25-2` already contains the reviewed
+`mdesk_3.0.0-1_amd64.deb` built from canonical `mdesk-deb` main commit
+`3bf4455c2f6b60729d2bc40f0e28b934312e0d14` with SHA-256
+`6228537734a19026eed5dde0435c2d913392aedb01d188980393b46fbbc436ae`.
 
 ## Release requirements
 
