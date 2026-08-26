@@ -1,10 +1,10 @@
 #!/bin/sh
 set -eu
 
-RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.26-1"
+RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.26-2"
 SPHERE_ASSET="sphere_4.0.0-1_amd64.deb"
-MOTED_ASSET="moted_3.2.0-2_amd64.deb"
-MDESK_ASSET="mdesk_3.0.0-1_amd64.deb"
+MOTED_ASSET="moted_3.2.0-3_amd64.deb"
+MDESK_ASSET="mdesk_3.0.0-2_amd64.deb"
 
 fail() {
     printf 'MDesk install failed: %s\n' "$*" >&2
@@ -44,8 +44,8 @@ done
 
 cat >"$PACKAGE_DIR/SHA256SUMS" <<EOF
 7e0be26927afa349001caee54cf46117587386f7d42ce82a9611fa50ea1e7065  $SPHERE_ASSET
-d162a144c35b218f6c0a08280373da4707d3f6cf4805536601c2acd921dbc37f  $MOTED_ASSET
-6228537734a19026eed5dde0435c2d913392aedb01d188980393b46fbbc436ae  $MDESK_ASSET
+a36b6d68e595efa9dd98c1327656d53c49172ca7a2d5a33fc6a1afddfb439c95  $MOTED_ASSET
+af4bf7493c962ba29c19712e9c12e4df3c08315a5464b53f74949906799942d4  $MDESK_ASSET
 EOF
 (
     cd "$PACKAGE_DIR"
@@ -65,8 +65,8 @@ done
 set --
 for package_spec in \
     "sphere:4.0.0-1:$SPHERE_ASSET" \
-    "moted:3.2.0-2:$MOTED_ASSET" \
-    "mdesk:3.0.0-1:$MDESK_ASSET"; do
+    "moted:3.2.0-3:$MOTED_ASSET" \
+    "mdesk:3.0.0-2:$MDESK_ASSET"; do
     package_name="${package_spec%%:*}"
     package_rest="${package_spec#*:}"
     package_version="${package_rest%%:*}"
