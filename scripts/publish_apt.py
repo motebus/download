@@ -82,7 +82,10 @@ ALLOWED_ROOT_FILES = {
     "github-setup.sh",
     "install.sh",
     "medge-install.sh",
-    "webos-install.sh",
+    "mdesk-install.sh",
+    "ss-webos-install.sh",
+    "mote-proxy-install.sh",
+    "motemcp-install.sh",
     "LICENSE",
     "README.md",
     "medge-release.env",
@@ -359,7 +362,13 @@ def validate_bundle(bundle: Path) -> dict:
     ]
     require(forbidden == [], f"source packages are forbidden: {forbidden}")
     validate_no_gitlab_urls(bundle)
-    required_installers = ["medge-install.sh", "webos-install.sh"]
+    required_installers = [
+        "medge-install.sh",
+        "mdesk-install.sh",
+        "ss-webos-install.sh",
+        "mote-proxy-install.sh",
+        "motemcp-install.sh",
+    ]
     for name in required_installers:
         installer = bundle / name
         require(installer.is_file(), f"bundle is missing {name}")
@@ -406,7 +415,13 @@ def validate_tree(root: Path) -> None:
     require(installer.is_file(), "public repository is missing install.sh")
     require(installer.stat().st_mode & 0o111 != 0, "install.sh must be executable")
     run("sh", "-n", str(installer))
-    for name in ("medge-install.sh", "webos-install.sh"):
+    for name in (
+        "medge-install.sh",
+        "mdesk-install.sh",
+        "ss-webos-install.sh",
+        "mote-proxy-install.sh",
+        "motemcp-install.sh",
+    ):
         wrapper = root / name
         require(wrapper.is_file(), f"public repository is missing {name}")
         require(wrapper.stat().st_mode & 0o111 != 0, f"{name} must be executable")
@@ -414,25 +429,15 @@ def validate_tree(root: Path) -> None:
     installer_text = installer.read_text(encoding="utf-8")
     for required_text in (
         "https://motebus.github.io/medge-release",
-        "RETIRED_BASE_URL=\"https://motebus.github.io/medge-deb\"",
         fingerprint,
         "ubuntu:24.04|ubuntu:26.04)",
         "apt-get install -y $APT_PACKAGES",
         "apt-get --print-uris -y install $APT_PACKAGES",
-        "apt-get remove -y --no-auto-remove $INSTALLED_RETIRED",
-        "APT has broken dependencies after stale MEdge meta-package recovery",
-        "dpkg --remove medge",
         "forbidden GitLab URL",
-        "STOP_SYSTEM_UNITS=",
-        'systemctl disable "$unit"',
-        'systemctl stop "$unit"',
-        'systemctl enable "$unit"',
-        'systemctl start "$unit"',
-        "systemctl is-active --quiet",
-        'systemctl show "$unit" -p NRestarts --value',
-        'sleep "$SERVICE_STABILITY_SECONDS"',
-        'systemctl reset-failed "$failed_unit"',
-        "/usr/libexec/ss-webos/install-desktop-shortcut",
+        'mdesk)      APT_PACKAGES="sphere moted mdesk"',
+        'ss-webos)   APT_PACKAGES="ss-webos"',
+        'mote-proxy) APT_PACKAGES="sphere mote-proxy"',
+        'motemcp)    APT_PACKAGES="sphere moted motemcp"',
     ):
         require(
             required_text in installer_text,
@@ -516,7 +521,13 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
     shutil.copy2(repository_root / "medge.sources", site)
     shutil.copy2(repository_root / "install.sh", site)
     shutil.copy2(repository_root / "medge-install.sh", site)
-    shutil.copy2(repository_root / "webos-install.sh", site)
+    for installer_name in (
+        "mdesk-install.sh",
+        "ss-webos-install.sh",
+        "mote-proxy-install.sh",
+        "motemcp-install.sh",
+    ):
+        shutil.copy2(repository_root / installer_name, site)
     (site / ".nojekyll").write_text("", encoding="utf-8")
     fingerprint = archive_fingerprint(repository_root)
     index = f"""<!doctype html>
