@@ -43,6 +43,8 @@ class InstallContractTest(unittest.TestCase):
         self.assertNotIn("ss-desk_", text)
         self.assertIn("dpkg --compare-versions", text)
         self.assertIn("Keeping %s=%s", text)
+        self.assertIn('chmod 0755 "$PACKAGE_DIR"', text)
+        self.assertIn('chmod 0644 "$PACKAGE_DIR/$asset"', text)
 
     def test_installers_never_remove_packages_or_topology(self) -> None:
         dispatcher = INSTALLER.read_text(encoding="utf-8")
