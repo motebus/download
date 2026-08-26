@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.26-3"
+RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.26-5"
 ASSETS="
 sphere_4.0.0-1_amd64.deb
 moted_3.2.0-6_amd64.deb
 medge_1.0.0-3_all.deb
 mote-proxy_1.3.0-2_all.deb
 motemcp_1.0.0-3_all.deb
+mlink_0.1.0-2_amd64.deb
 mdesk_3.0.0-2_amd64.deb
 ss-webos_2.0.0-8_amd64.deb
 cx-node_0.3.1-7_amd64.deb
@@ -55,6 +56,7 @@ cat >"$PACKAGE_DIR/SHA256SUMS" <<EOF
 ee5afa4a2c91d23aa67d21593ee5953cce70112c0ff76ff947704c1d554b140f  medge_1.0.0-3_all.deb
 7cb24140a812ff8c59c4d6f165996e47f3b2136a39434305edaeb9ed62e9c762  mote-proxy_1.3.0-2_all.deb
 173734eb1cbc50a16a033a6566d0ad9743392c74b79c677f3524faf514d140bd  motemcp_1.0.0-3_all.deb
+63905693cab16dde8a4e472431010051f9297835c8d730a02e2db4ff5cba9d5d  mlink_0.1.0-2_amd64.deb
 af4bf7493c962ba29c19712e9c12e4df3c08315a5464b53f74949906799942d4  mdesk_3.0.0-2_amd64.deb
 803119844bbc3d4f01c578080e94ed365574e63cb4fcc32c5c004b00eb9f14b0  ss-webos_2.0.0-8_amd64.deb
 7a3657a6e159dd82d5af4f7ff921dee132142aa6a27804f314a740ad2efd8a12  cx-node_0.3.1-7_amd64.deb
@@ -72,6 +74,7 @@ for asset in $ASSETS; do
         medge_1.0.0-3_all.deb:medge|\
         mote-proxy_1.3.0-2_all.deb:mote-proxy|\
         motemcp_1.0.0-3_all.deb:motemcp|\
+        mlink_0.1.0-2_amd64.deb:mlink|\
         mdesk_3.0.0-2_amd64.deb:mdesk|\
         ss-webos_2.0.0-8_amd64.deb:ss-webos|\
         cx-node_0.3.1-7_amd64.deb:cx-node) ;;
@@ -88,6 +91,7 @@ for package_spec in \
     "medge:1.0.0-3:medge_1.0.0-3_all.deb" \
     "mote-proxy:1.3.0-2:mote-proxy_1.3.0-2_all.deb" \
     "motemcp:1.0.0-3:motemcp_1.0.0-3_all.deb" \
+    "mlink:0.1.0-2:mlink_0.1.0-2_amd64.deb" \
     "mdesk:3.0.0-2:mdesk_3.0.0-2_amd64.deb" \
     "ss-webos:2.0.0-8:ss-webos_2.0.0-8_amd64.deb" \
     "cx-node:0.3.1-7:cx-node_0.3.1-7_amd64.deb"; do
@@ -115,4 +119,4 @@ else
 fi
 
 dpkg-query -W -f='${Package}=${Version}\n' \
-    sphere moted medge mote-proxy motemcp mdesk ss-webos cx-node
+    sphere moted medge mote-proxy motemcp mlink mdesk ss-webos cx-node

@@ -22,7 +22,7 @@ restore retired packages or transports.
 The exact active Debian catalog is:
 
 ```text
-sphere + moted + medge + mdesk + ss-webos + mote-proxy + motemcp
+sphere + moted + medge + mlink + mdesk + ss-webos + mote-proxy + motemcp
 ```
 
 - `sphere` provides native local MoteBus and DC.
@@ -30,8 +30,9 @@ sphere + moted + medge + mdesk + ss-webos + mote-proxy + motemcp
   daemonless QFunc modules.
 - `moted` owns MoteData, profiles, registration, resolution, typed sessions,
   and the common `mote` CLI.
+- `mlink` owns all physical and local I/O, including NFC and QR devices.
 - `mdesk` is the sole Linux desktop-integration package and owns
-  `mdesk://mms`.
+  `mdesk://mms`; it consumes MLink I/O and does not own device drivers.
 - `ss-webos` is the independent SmartScreen/WebOS browser runtime.
 - `mote-proxy` is the independent SSH proxy boundary.
 - `motemcp` is the optional on-demand MCP provider through MoteD.
@@ -41,7 +42,8 @@ retired without aliases. `ss-webos` remains active and separate from MDesk.
 
 There is no `medge-core` or `medge-all` Debian package. Complete composition is
 owned by `medge-install.sh`, which installs the reviewed component DEBs
-directly. `vdevice` and `mlink` remain separate optional packages.
+directly. `vdevice` remains a separate optional package. MLink is included in
+the complete bundle and in every MDesk installation.
 
 ## Required installers
 
@@ -49,7 +51,7 @@ A compliant release publishes exactly these self-contained installers:
 
 ```text
 medge-install.sh      -> complete reviewed component bundle
-mdesk-install.sh      -> sphere + moted + mdesk
+mdesk-install.sh      -> sphere + moted + mlink + mdesk
 ss-webos-install.sh   -> ss-webos only
 mote-proxy-install.sh -> sphere + mote-proxy
 motemcp-install.sh    -> sphere + moted + motemcp
@@ -61,8 +63,9 @@ dispatcher for the narrower APT-backed entry points and fails closed without an
 explicit profile. No installer removes `desk` or `ss-desk` without a separately
 approved migration and rollback plan.
 
-The immutable public release `deb-v2026.08.26-3` contains the current reviewed
-`moted_3.2.0-6_amd64.deb` and `mdesk_3.0.0-2_amd64.deb` built by the canonical
+The immutable public release `deb-v2026.08.26-5` contains the current reviewed
+`moted_3.2.0-6_amd64.deb`, `mlink_0.1.0-2_amd64.deb`, and
+`mdesk_3.0.0-2_amd64.deb` built by the canonical
 `main` pipelines. MoteD is the failure-isolated MEdge kernel/control plane;
 MDesk and other optional leaf modules cannot propagate stop, restart, or
 failure into it. MoteD requests an exact 300-second MoteC lease, refreshes it

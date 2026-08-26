@@ -9,7 +9,7 @@ INSTALL_PROFILE="${MEDGE_INSTALL_PROFILE:-}"
 
 case "$INSTALL_PROFILE" in
     medge)      APT_PACKAGES="sphere moted medge" ;;
-    mdesk)      APT_PACKAGES="sphere moted mdesk" ;;
+    mdesk)      APT_PACKAGES="sphere moted mlink mdesk" ;;
     ss-webos)   APT_PACKAGES="ss-webos" ;;
     mote-proxy) APT_PACKAGES="sphere mote-proxy" ;;
     motemcp)    APT_PACKAGES="sphere moted motemcp" ;;
