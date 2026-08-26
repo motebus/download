@@ -9,7 +9,6 @@ ROOT = Path(__file__).parents[1]
 INSTALLER = ROOT / "install.sh"
 COMPATIBILITY = ROOT / "scripts/validate-ubuntu-compatibility.sh"
 WRAPPERS = {
-    "medge-install.sh": ("medge", "sphere moted medge"),
     "ss-webos-install.sh": ("ss-webos", "ss-webos"),
     "mote-proxy-install.sh": ("mote-proxy", "sphere mote-proxy"),
     "motemcp-install.sh": ("motemcp", "sphere moted motemcp"),
@@ -46,10 +45,40 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn('chmod 0755 "$PACKAGE_DIR"', text)
         self.assertIn('chmod 0644 "$PACKAGE_DIR/$asset"', text)
 
+    def test_medge_installer_is_complete_self_contained_and_digest_pinned(self) -> None:
+        text = (ROOT / "medge-install.sh").read_text(encoding="utf-8")
+        self.assertIn("deb-v2026.08.26-3", text)
+        for asset in (
+            "sphere_4.0.0-1_amd64.deb",
+            "moted_3.2.0-6_amd64.deb",
+            "medge_1.0.0-3_all.deb",
+            "mote-proxy_1.3.0-2_all.deb",
+            "motemcp_1.0.0-3_all.deb",
+            "medge-core_1.0.0-3_all.deb",
+            "mdesk_3.0.0-2_amd64.deb",
+            "ss-webos_2.0.0-8_amd64.deb",
+            "cx-node_0.3.1-7_amd64.deb",
+            "medge-all_1.0.0-3_all.deb",
+        ):
+            self.assertIn(asset, text)
+        self.assertEqual(text.count("sha256sum --check"), 1)
+        self.assertNotIn("motebus.github.io", text)
+        self.assertNotIn("MEDGE_INSTALL_PROFILE", text)
+        self.assertIn("dpkg --compare-versions", text)
+        self.assertIn('apt-get install -y "$@"', text)
+        self.assertIn('chmod 0755 "$PACKAGE_DIR"', text)
+        self.assertIn('chmod 0644 "$PACKAGE_DIR/$asset"', text)
+
     def test_installers_never_remove_packages_or_topology(self) -> None:
         dispatcher = INSTALLER.read_text(encoding="utf-8")
-        for forbidden in ("apt-get remove", "apt-get purge", "dpkg --remove", "MCHAT_"):
-            self.assertNotIn(forbidden, dispatcher)
+        installers = [dispatcher]
+        installers.extend(
+            (ROOT / filename).read_text(encoding="utf-8")
+            for filename in ("medge-install.sh", "mdesk-install.sh", *WRAPPERS)
+        )
+        for text in installers:
+            for forbidden in ("apt-get remove", "apt-get purge", "dpkg --remove", "MCHAT_"):
+                self.assertNotIn(forbidden, text)
         self.assertEqual(dispatcher.count("apt-get install -y $APT_PACKAGES"), 1)
 
     def test_dispatcher_fails_closed_without_a_named_profile(self) -> None:
@@ -59,6 +88,7 @@ class InstallContractTest(unittest.TestCase):
 
     def test_shell_contracts_parse(self) -> None:
         subprocess.run(["sh", "-n", str(INSTALLER)], check=True)
+        subprocess.run(["sh", "-n", str(ROOT / "medge-install.sh")], check=True)
         subprocess.run(["sh", "-n", str(ROOT / "mdesk-install.sh")], check=True)
         for filename in WRAPPERS:
             subprocess.run(["sh", "-n", str(ROOT / filename)], check=True)
