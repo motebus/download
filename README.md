@@ -7,11 +7,9 @@ addresses are not published here.
 
 ## Publication status
 
-No current coordinated MEdge release is deployed. `medge-v5.0.0-1` is retained
-as a prerelease compatibility-failure record; its failed workflow did not
-change the live APT repository. A corrected release remains withheld until
-every canonical package passes source, disclosure, bundle, and Ubuntu 24.04 /
-26.04 compatibility gates.
+The immutable public release `deb-v2026.08.26-6` is the current complete
+MEdge installer bundle. It contains the reviewed component packages directly;
+there is no `medge-core.deb` or `medge-all.deb`.
 
 Historical releases and the current Pages index are immutable migration
 evidence. They are not the active package architecture and must not be used to
@@ -63,9 +61,9 @@ dispatcher for the narrower APT-backed entry points and fails closed without an
 explicit profile. No installer removes `desk` or `ss-desk` without a separately
 approved migration and rollback plan.
 
-The immutable public release `deb-v2026.08.26-5` contains the current reviewed
-`moted_3.2.0-6_amd64.deb`, `mlink_0.1.0-2_amd64.deb`, and
-`mdesk_3.0.0-2_amd64.deb` built by the canonical
+The immutable public release `deb-v2026.08.26-6` contains the current reviewed
+`medge_1.1.0-3_all.deb`, `moted_3.2.0-6_amd64.deb`,
+`mlink_0.1.0-2_amd64.deb`, and `mdesk_3.0.0-2_amd64.deb` built by the canonical
 `main` pipelines. MoteD is the failure-isolated MEdge kernel/control plane;
 MDesk and other optional leaf modules cannot propagate stop, restart, or
 failure into it. MoteD requests an exact 300-second MoteC lease, refreshes it
@@ -79,6 +77,9 @@ The MoteD artifact comes from commit
 The MDesk artifact comes from commit
 `e36bb2ed70dd40925497b40e395e9c01ce7fe74d` with SHA-256
 `af4bf7493c962ba29c19712e9c12e4df3c08315a5464b53f74949906799942d4`.
+The MEdge artifact comes from main commit
+`6286cb8c7ac9d5ef064a2c837c3c1e29632a447d` with SHA-256
+`332f927952bcb1bc68ee3ce6ee860c347d2000d26dbc8fc30963c68bf1bb964f`.
 
 Install the exact reviewed MDesk package set directly from that immutable
 release. A newer installed package is never downgraded:
