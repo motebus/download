@@ -1,7 +1,68 @@
 #!/bin/sh
 set -eu
-BASE_URL="https://motebus.github.io/medge-release"
-TEMP_INSTALLER="$(mktemp /tmp/mdesk-bootstrap.XXXXXX)"
-trap 'rm -f "$TEMP_INSTALLER"' EXIT HUP INT TERM
-curl --proto '=https' --tlsv1.2 -fsSLo "$TEMP_INSTALLER" "$BASE_URL/install.sh"
-MEDGE_INSTALL_PROFILE=mdesk sh "$TEMP_INSTALLER"
+
+RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.25-2"
+SPHERE_ASSET="sphere_4.0.0-1_amd64.deb"
+MOTED_ASSET="moted_3.0.0-2_amd64.deb"
+MDESK_ASSET="mdesk_3.0.0-1_amd64.deb"
+
+fail() {
+    printf 'MDesk install failed: %s\n' "$*" >&2
+    exit 1
+}
+
+[ "$(id -u)" -eq 0 ] || fail "run this installer as root"
+[ -r /etc/os-release ] || fail "cannot identify the operating system"
+# shellcheck disable=SC1091
+. /etc/os-release
+case "${ID:-}:${VERSION_ID:-}" in
+    ubuntu:24.04|ubuntu:26.04) ;;
+    *) fail "Ubuntu 24.04 or 26.04 is required" ;;
+esac
+[ "$(dpkg --print-architecture)" = amd64 ] || fail "amd64 is required"
+for command_name in apt-get curl dpkg sha256sum; do
+    command -v "$command_name" >/dev/null 2>&1 ||
+        fail "required command is unavailable: $command_name"
+done
+
+PACKAGE_DIR="$(mktemp -d /tmp/mdesk-install.XXXXXX)"
+cleanup() {
+    rm -f "$PACKAGE_DIR/$SPHERE_ASSET" \
+        "$PACKAGE_DIR/$MOTED_ASSET" \
+        "$PACKAGE_DIR/$MDESK_ASSET" \
+        "$PACKAGE_DIR/SHA256SUMS"
+    rmdir "$PACKAGE_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT HUP INT TERM
+
+for asset in "$SPHERE_ASSET" "$MOTED_ASSET" "$MDESK_ASSET"; do
+    curl --proto '=https' --tlsv1.2 -fL \
+        "$RELEASE_URL/$asset" -o "$PACKAGE_DIR/$asset"
+done
+
+cat >"$PACKAGE_DIR/SHA256SUMS" <<EOF
+7e0be26927afa349001caee54cf46117587386f7d42ce82a9611fa50ea1e7065  $SPHERE_ASSET
+3cefa3f979c58f50d073eae7a434bf8890b6f8aaa703238e1052716d6da77baf  $MOTED_ASSET
+6228537734a19026eed5dde0435c2d913392aedb01d188980393b46fbbc436ae  $MDESK_ASSET
+EOF
+(
+    cd "$PACKAGE_DIR"
+    sha256sum --check SHA256SUMS
+)
+
+for asset in "$SPHERE_ASSET" "$MOTED_ASSET" "$MDESK_ASSET"; do
+    package_name="$(dpkg-deb -f "$PACKAGE_DIR/$asset" Package)"
+    case "$asset:$package_name" in
+        "$SPHERE_ASSET:sphere"|"$MOTED_ASSET:moted"|"$MDESK_ASSET:mdesk") ;;
+        *) fail "unexpected package identity in $asset: $package_name" ;;
+    esac
+done
+
+# One APT transaction installs the exact MDesk boundary and its dependencies.
+# It never removes desk/ss-desk or writes a locked MChat topology file.
+apt-get install -y \
+    "$PACKAGE_DIR/$SPHERE_ASSET" \
+    "$PACKAGE_DIR/$MOTED_ASSET" \
+    "$PACKAGE_DIR/$MDESK_ASSET"
+
+dpkg-query -W -f='${Package}=${Version}\n' sphere moted mdesk

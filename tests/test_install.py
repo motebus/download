@@ -10,7 +10,6 @@ INSTALLER = ROOT / "install.sh"
 COMPATIBILITY = ROOT / "scripts/validate-ubuntu-compatibility.sh"
 WRAPPERS = {
     "medge-install.sh": ("medge", "sphere moted medge"),
-    "mdesk-install.sh": ("mdesk", "sphere moted mdesk"),
     "ss-webos-install.sh": ("ss-webos", "ss-webos"),
     "mote-proxy-install.sh": ("mote-proxy", "sphere mote-proxy"),
     "motemcp-install.sh": ("motemcp", "sphere moted motemcp"),
@@ -33,6 +32,16 @@ class InstallContractTest(unittest.TestCase):
         self.assertNotIn('APT_PACKAGES="desk', dispatcher)
         self.assertFalse((ROOT / "webos-install.sh").exists())
 
+    def test_mdesk_installer_is_self_contained_and_digest_pinned(self) -> None:
+        text = (ROOT / "mdesk-install.sh").read_text(encoding="utf-8")
+        self.assertIn("deb-v2026.08.25-2", text)
+        self.assertIn("sphere_4.0.0-1_amd64.deb", text)
+        self.assertIn("moted_3.0.0-2_amd64.deb", text)
+        self.assertIn("mdesk_3.0.0-1_amd64.deb", text)
+        self.assertEqual(text.count("sha256sum --check"), 1)
+        self.assertNotIn("motebus.github.io", text)
+        self.assertNotIn("ss-desk_", text)
+
     def test_installers_never_remove_packages_or_topology(self) -> None:
         dispatcher = INSTALLER.read_text(encoding="utf-8")
         for forbidden in ("apt-get remove", "apt-get purge", "dpkg --remove", "MCHAT_"):
@@ -46,6 +55,7 @@ class InstallContractTest(unittest.TestCase):
 
     def test_shell_contracts_parse(self) -> None:
         subprocess.run(["sh", "-n", str(INSTALLER)], check=True)
+        subprocess.run(["sh", "-n", str(ROOT / "mdesk-install.sh")], check=True)
         for filename in WRAPPERS:
             subprocess.run(["sh", "-n", str(ROOT / filename)], check=True)
         subprocess.run(["bash", "-n", str(COMPATIBILITY)], check=True)

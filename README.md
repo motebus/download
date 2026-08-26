@@ -65,6 +65,15 @@ The immutable public release `deb-v2026.08.25-2` already contains the reviewed
 `3bf4455c2f6b60729d2bc40f0e28b934312e0d14` with SHA-256
 `6228537734a19026eed5dde0435c2d913392aedb01d188980393b46fbbc436ae`.
 
+Install the exact reviewed MDesk package set directly from that immutable
+release:
+
+```bash
+curl -fsSLo /tmp/mdesk-install.sh \
+  https://raw.githubusercontent.com/motebus/medge-release/main/mdesk-install.sh
+sudo sh /tmp/mdesk-install.sh
+```
+
 ## Release requirements
 
 Every stable publication requires explicit repository-owner approval and:
