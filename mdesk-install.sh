@@ -1,5 +1,5 @@
-#!/bin/sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 
 RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.26-3"
 SPHERE_ASSET="sphere_4.0.0-1_amd64.deb"

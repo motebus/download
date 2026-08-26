@@ -83,7 +83,7 @@ release. A newer installed package is never downgraded:
 ```bash
 curl -fsSLo /tmp/mdesk-install.sh \
   https://raw.githubusercontent.com/motebus/medge-release/main/mdesk-install.sh
-sudo sh /tmp/mdesk-install.sh
+sudo bash /tmp/mdesk-install.sh
 ```
 
 Install the complete reviewed MEdge component bundle, including the MEdge
@@ -93,7 +93,7 @@ runtime, MDesk, SS-WebOS, and CX Node. There is no `medge-core.deb` or
 ```bash
 curl -fsSLo /tmp/medge-install.sh \
   https://raw.githubusercontent.com/motebus/medge-release/main/medge-install.sh
-sudo sh /tmp/medge-install.sh
+sudo bash /tmp/medge-install.sh
 ```
 
 ## Release requirements

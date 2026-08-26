@@ -540,7 +540,7 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
 <p>Signing fingerprint: <code>{fingerprint}</code></p>
 <pre>curl -fsSLo /tmp/medge-install.sh \
 https://motebus.github.io/medge-release/medge-install.sh &amp;&amp;
-sudo sh /tmp/medge-install.sh</pre>
+sudo bash /tmp/medge-install.sh</pre>
 </html>
 """
     (site / "index.html").write_text(index, encoding="utf-8")

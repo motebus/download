@@ -16,6 +16,14 @@ WRAPPERS = {
 
 
 class InstallContractTest(unittest.TestCase):
+    def test_all_installers_require_bash(self) -> None:
+        for filename in ("install.sh", "medge-install.sh", "mdesk-install.sh", *WRAPPERS):
+            text = (ROOT / filename).read_text(encoding="utf-8")
+            self.assertTrue(text.startswith("#!/usr/bin/env bash\nset -euo pipefail\n"))
+            self.assertNotIn("#!/bin/sh", text)
+        for filename in WRAPPERS:
+            self.assertIn('bash "$TEMP_INSTALLER"', (ROOT / filename).read_text(encoding="utf-8"))
+
     def test_named_installers_select_exact_boundaries(self) -> None:
         dispatcher = INSTALLER.read_text(encoding="utf-8")
         for filename, (profile, packages) in WRAPPERS.items():
@@ -87,11 +95,11 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn("use a named component installer", dispatcher)
 
     def test_shell_contracts_parse(self) -> None:
-        subprocess.run(["sh", "-n", str(INSTALLER)], check=True)
-        subprocess.run(["sh", "-n", str(ROOT / "medge-install.sh")], check=True)
-        subprocess.run(["sh", "-n", str(ROOT / "mdesk-install.sh")], check=True)
+        subprocess.run(["bash", "-n", str(INSTALLER)], check=True)
+        subprocess.run(["bash", "-n", str(ROOT / "medge-install.sh")], check=True)
+        subprocess.run(["bash", "-n", str(ROOT / "mdesk-install.sh")], check=True)
         for filename in WRAPPERS:
-            subprocess.run(["sh", "-n", str(ROOT / filename)], check=True)
+            subprocess.run(["bash", "-n", str(ROOT / filename)], check=True)
         subprocess.run(["bash", "-n", str(COMPATIBILITY)], check=True)
 
     def test_supported_ubuntu_targets_are_exact(self) -> None:
