@@ -7,7 +7,7 @@ addresses are not published here.
 
 ## Publication status
 
-The immutable public release `deb-v2026.08.27-1` is the current `medge-all`
+The immutable public release `deb-v2026.08.27-2` is the current `medge-all`
 Total System installer bundle. It contains the reviewed component packages
 directly; there is no `medge-core.deb` or `medge-all.deb`.
 
@@ -66,19 +66,24 @@ dispatcher for the narrower APT-backed entry points and fails closed without an
 explicit profile. No installer removes `desk` or `ss-desk` without a separately
 approved migration and rollback plan.
 
-The immutable public release `deb-v2026.08.27-1` contains the current reviewed
-`medge_1.1.0-3_all.deb`, `moted_3.2.0-6_amd64.deb`,
+The immutable public release `deb-v2026.08.27-2` contains the current reviewed
+`medge_1.1.0-3_all.deb`, `moted_3.2.0-16_amd64.deb`,
 `mlink_0.1.0-2_amd64.deb`, and `mdesk_3.0.0-2_amd64.deb` built by the canonical
 `main` pipelines. MoteD is the failure-isolated MEdge kernel/control plane;
 MDesk and other optional leaf modules cannot propagate stop, restart, or
 failure into it. MoteD requests an exact 300-second MoteC lease, refreshes it
 every 90 seconds after success, and retries transport failures after 30 seconds
-without overlapping registration requests. The MDesk package binds to
-canonical `sphere.service`.
+without overlapping registration requests. Registration uses xMsg with one
+bounded native reply (`WaitReply=12`); SSH session open uses bounded xMsg and
+SSH stream frames use no-reply xMsg. The MDesk package binds to canonical
+`sphere.service`.
 
 The MoteD artifact comes from commit
-`643d651ad4343d56dddab568f287250ef26054eb` with SHA-256
-`3cd1d0457c91fe038649fb7d861bcdc2a41e92b723b4a189b8d2a16487d05790`.
+`570eb89f6c34cb47c4899fa9d40712d51ceb52cf` with SHA-256
+`15ed56099dd9f3f0272dbd71e301678c5a059b72c0658779b5117b19189c3298`.
+The Mote Proxy artifact comes from commit
+`11b360db9d85ede393b6dbd83a578bdc592f639a` with SHA-256
+`34d50f97c8dfe0306191895b9f493efa585a3c43b68622d03209f6ba7d08820f`.
 The MDesk artifact comes from commit
 `e36bb2ed70dd40925497b40e395e9c01ce7fe74d` with SHA-256
 `af4bf7493c962ba29c19712e9c12e4df3c08315a5464b53f74949906799942d4`.
