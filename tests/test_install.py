@@ -56,7 +56,7 @@ class InstallContractTest(unittest.TestCase):
 
     def test_medge_installer_is_complete_self_contained_and_digest_pinned(self) -> None:
         text = (ROOT / "medge-install.sh").read_text(encoding="utf-8")
-        self.assertIn("deb-v2026.08.26-6", text)
+        self.assertIn("deb-v2026.08.27-1", text)
         for asset in (
             "sphere_4.0.0-1_amd64.deb",
             "moted_3.2.0-6_amd64.deb",
@@ -66,6 +66,7 @@ class InstallContractTest(unittest.TestCase):
             "mlink_0.1.0-2_amd64.deb",
             "mdesk_3.0.0-2_amd64.deb",
             "ss-webos_2.0.0-8_amd64.deb",
+            "cx-node_0.3.1-11_amd64.deb",
         ):
             self.assertIn(asset, text)
         self.assertEqual(text.count("sha256sum --check"), 1)
@@ -80,9 +81,11 @@ class InstallContractTest(unittest.TestCase):
             text,
         )
         self.assertNotIn("medge-core", text)
-        self.assertNotIn("medge-all", text)
-        self.assertNotIn("cx-node", text)
-        self.assertNotIn("chatgpt", text)
+        self.assertIn('PROFILE_NAME="medge-all"', text)
+        self.assertNotIn("medge-all.deb", text)
+        self.assertIn("cx-node:0.3.1-11", text)
+        self.assertIn("Codex is unavailable", text)
+        self.assertIn("CX Node is installed and enabled but remains inactive", text)
 
     def test_installers_never_remove_packages_or_topology(self) -> None:
         dispatcher = INSTALLER.read_text(encoding="utf-8")
