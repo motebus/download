@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.26-5"
+RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.27-2"
 SPHERE_ASSET="sphere_4.0.0-1_amd64.deb"
-MOTED_ASSET="moted_3.2.0-6_amd64.deb"
+MOTED_ASSET="moted_3.2.0-16_amd64.deb"
 MLINK_ASSET="mlink_0.1.0-2_amd64.deb"
 MDESK_ASSET="mdesk_3.0.0-2_amd64.deb"
 
@@ -46,7 +46,7 @@ done
 
 cat >"$PACKAGE_DIR/SHA256SUMS" <<EOF
 7e0be26927afa349001caee54cf46117587386f7d42ce82a9611fa50ea1e7065  $SPHERE_ASSET
-3cd1d0457c91fe038649fb7d861bcdc2a41e92b723b4a189b8d2a16487d05790  $MOTED_ASSET
+15ed56099dd9f3f0272dbd71e301678c5a059b72c0658779b5117b19189c3298  $MOTED_ASSET
 63905693cab16dde8a4e472431010051f9297835c8d730a02e2db4ff5cba9d5d  $MLINK_ASSET
 af4bf7493c962ba29c19712e9c12e4df3c08315a5464b53f74949906799942d4  $MDESK_ASSET
 EOF
@@ -69,7 +69,7 @@ done
 set --
 for package_spec in \
     "sphere:4.0.0-1:$SPHERE_ASSET" \
-    "moted:3.2.0-6:$MOTED_ASSET" \
+    "moted:3.2.0-16:$MOTED_ASSET" \
     "mlink:0.1.0-2:$MLINK_ASSET" \
     "mdesk:3.0.0-2:$MDESK_ASSET"; do
     package_name="${package_spec%%:*}"

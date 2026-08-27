@@ -2,12 +2,12 @@
 set -euo pipefail
 
 PROFILE_NAME="medge-all"
-RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.27-1"
+RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.27-2"
 ASSETS="
 sphere_4.0.0-1_amd64.deb
-moted_3.2.0-6_amd64.deb
+moted_3.2.0-16_amd64.deb
 medge_1.1.0-3_all.deb
-mote-proxy_1.3.0-2_all.deb
+mote-proxy_1.3.0-18_all.deb
 motemcp_1.0.0-3_all.deb
 mlink_0.1.0-2_amd64.deb
 mdesk_3.0.0-2_amd64.deb
@@ -53,9 +53,9 @@ done
 
 cat >"$PACKAGE_DIR/SHA256SUMS" <<EOF
 7e0be26927afa349001caee54cf46117587386f7d42ce82a9611fa50ea1e7065  sphere_4.0.0-1_amd64.deb
-3cd1d0457c91fe038649fb7d861bcdc2a41e92b723b4a189b8d2a16487d05790  moted_3.2.0-6_amd64.deb
+15ed56099dd9f3f0272dbd71e301678c5a059b72c0658779b5117b19189c3298  moted_3.2.0-16_amd64.deb
 332f927952bcb1bc68ee3ce6ee860c347d2000d26dbc8fc30963c68bf1bb964f  medge_1.1.0-3_all.deb
-7cb24140a812ff8c59c4d6f165996e47f3b2136a39434305edaeb9ed62e9c762  mote-proxy_1.3.0-2_all.deb
+34d50f97c8dfe0306191895b9f493efa585a3c43b68622d03209f6ba7d08820f  mote-proxy_1.3.0-18_all.deb
 173734eb1cbc50a16a033a6566d0ad9743392c74b79c677f3524faf514d140bd  motemcp_1.0.0-3_all.deb
 63905693cab16dde8a4e472431010051f9297835c8d730a02e2db4ff5cba9d5d  mlink_0.1.0-2_amd64.deb
 af4bf7493c962ba29c19712e9c12e4df3c08315a5464b53f74949906799942d4  mdesk_3.0.0-2_amd64.deb
@@ -71,9 +71,9 @@ for asset in $ASSETS; do
     package_name="$(dpkg-deb -f "$PACKAGE_DIR/$asset" Package)"
     case "$asset:$package_name" in
         sphere_4.0.0-1_amd64.deb:sphere|\
-        moted_3.2.0-6_amd64.deb:moted|\
+        moted_3.2.0-16_amd64.deb:moted|\
         medge_1.1.0-3_all.deb:medge|\
-        mote-proxy_1.3.0-2_all.deb:mote-proxy|\
+        mote-proxy_1.3.0-18_all.deb:mote-proxy|\
         motemcp_1.0.0-3_all.deb:motemcp|\
         mlink_0.1.0-2_amd64.deb:mlink|\
         mdesk_3.0.0-2_amd64.deb:mdesk|\
@@ -88,9 +88,9 @@ done
 set --
 for package_spec in \
     "sphere:4.0.0-1:sphere_4.0.0-1_amd64.deb" \
-    "moted:3.2.0-6:moted_3.2.0-6_amd64.deb" \
+    "moted:3.2.0-16:moted_3.2.0-16_amd64.deb" \
     "medge:1.1.0-3:medge_1.1.0-3_all.deb" \
-    "mote-proxy:1.3.0-2:mote-proxy_1.3.0-2_all.deb" \
+    "mote-proxy:1.3.0-18:mote-proxy_1.3.0-18_all.deb" \
     "motemcp:1.0.0-3:motemcp_1.0.0-3_all.deb" \
     "mlink:0.1.0-2:mlink_0.1.0-2_amd64.deb" \
     "mdesk:3.0.0-2:mdesk_3.0.0-2_amd64.deb" \
