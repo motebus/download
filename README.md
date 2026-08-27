@@ -7,9 +7,9 @@ addresses are not published here.
 
 ## Publication status
 
-The immutable public release `deb-v2026.08.26-6` is the current complete
-MEdge installer bundle. It contains the reviewed component packages directly;
-there is no `medge-core.deb` or `medge-all.deb`.
+The immutable public release `deb-v2026.08.27-1` is the current `medge-all`
+Total System installer bundle. It contains the reviewed component packages
+directly; there is no `medge-core.deb` or `medge-all.deb`.
 
 Historical releases and the current Pages index are immutable migration
 evidence. They are not the active package architecture and must not be used to
@@ -17,11 +17,15 @@ restore retired packages or transports.
 
 ## Canonical catalog
 
-The exact active Debian catalog is:
+The exact active MEdge component catalog is:
 
 ```text
 sphere + moted + medge + mlink + mdesk + ss-webos + mote-proxy + motemcp
 ```
+
+The `medge-all` Total System profile adds the independently owned `cx-node`
+package to that catalog at installation time. It is a profile implemented by
+`medge-install.sh`, not an aggregate Debian package.
 
 - `sphere` provides native local MoteBus and DC.
 - `medge` contains the MEdge manager and assembled EdgeOS, APort, Qbix, and
@@ -38,17 +42,18 @@ sphere + moted + medge + mlink + mdesk + ss-webos + mote-proxy + motemcp
 `desk`, `mote-desk`, `ultra-desk`, and the proposed `ss-desk` package are
 retired without aliases. `ss-webos` remains active and separate from MDesk.
 
-There is no `medge-core` or `medge-all` Debian package. Complete composition is
-owned by `medge-install.sh`, which installs the reviewed component DEBs
-directly. `vdevice` remains a separate optional package. MLink is included in
-the complete bundle and in every MDesk installation.
+There is no `medge-core` or `medge-all` Debian package. Total System composition
+is owned by `medge-install.sh`, which installs the reviewed component DEBs and
+the independent CX Node DEB directly. `vdevice` remains a separate optional
+package. MLink is included in the complete bundle and in every MDesk
+installation.
 
 ## Required installers
 
 A compliant release publishes exactly these self-contained installers:
 
 ```text
-medge-install.sh      -> complete reviewed component bundle
+medge-install.sh      -> medge-all Total System profile, including cx-node
 mdesk-install.sh      -> sphere + moted + mlink + mdesk
 ss-webos-install.sh   -> ss-webos only
 mote-proxy-install.sh -> sphere + mote-proxy
@@ -61,7 +66,7 @@ dispatcher for the narrower APT-backed entry points and fails closed without an
 explicit profile. No installer removes `desk` or `ss-desk` without a separately
 approved migration and rollback plan.
 
-The immutable public release `deb-v2026.08.26-6` contains the current reviewed
+The immutable public release `deb-v2026.08.27-1` contains the current reviewed
 `medge_1.1.0-3_all.deb`, `moted_3.2.0-6_amd64.deb`,
 `mlink_0.1.0-2_amd64.deb`, and `mdesk_3.0.0-2_amd64.deb` built by the canonical
 `main` pipelines. MoteD is the failure-isolated MEdge kernel/control plane;
@@ -90,10 +95,12 @@ curl -fsSLo /tmp/mdesk-install.sh \
 sudo bash /tmp/mdesk-install.sh
 ```
 
-Install the complete reviewed MEdge component bundle, including the MEdge
-runtime, MDesk, and SS-WebOS. CX Node is an independent runtime and is not
-part of the public MEdge installer. There is no `medge-core.deb` or
-`medge-all.deb`; the script installs the component DEBs directly:
+Install the `medge-all` Total System profile, including the MEdge runtime,
+MDesk, SS-WebOS, and the independently owned CX Node. There is no
+`medge-core.deb` or `medge-all.deb`; the script installs the component DEBs
+directly. CX Node is always installed and enabled. When Codex is available its
+adapter starts automatically; without Codex it remains installed and inactive
+without failing the installation:
 
 ```bash
 curl -fsSLo /tmp/medge-install.sh \

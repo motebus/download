@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.26-6"
+PROFILE_NAME="medge-all"
+RELEASE_URL="https://github.com/motebus/medge-release/releases/download/deb-v2026.08.27-1"
 ASSETS="
 sphere_4.0.0-1_amd64.deb
 moted_3.2.0-6_amd64.deb
@@ -11,6 +12,7 @@ motemcp_1.0.0-3_all.deb
 mlink_0.1.0-2_amd64.deb
 mdesk_3.0.0-2_amd64.deb
 ss-webos_2.0.0-8_amd64.deb
+cx-node_0.3.1-11_amd64.deb
 "
 
 fail() {
@@ -58,6 +60,7 @@ cat >"$PACKAGE_DIR/SHA256SUMS" <<EOF
 63905693cab16dde8a4e472431010051f9297835c8d730a02e2db4ff5cba9d5d  mlink_0.1.0-2_amd64.deb
 af4bf7493c962ba29c19712e9c12e4df3c08315a5464b53f74949906799942d4  mdesk_3.0.0-2_amd64.deb
 803119844bbc3d4f01c578080e94ed365574e63cb4fcc32c5c004b00eb9f14b0  ss-webos_2.0.0-8_amd64.deb
+5b5c2903600b532e0bc7db9a8ef920119b39517682fcb964725af2ae84c2a2b5  cx-node_0.3.1-11_amd64.deb
 EOF
 (
     cd "$PACKAGE_DIR"
@@ -74,7 +77,8 @@ for asset in $ASSETS; do
         motemcp_1.0.0-3_all.deb:motemcp|\
         mlink_0.1.0-2_amd64.deb:mlink|\
         mdesk_3.0.0-2_amd64.deb:mdesk|\
-        ss-webos_2.0.0-8_amd64.deb:ss-webos) ;;
+        ss-webos_2.0.0-8_amd64.deb:ss-webos|\
+        cx-node_0.3.1-11_amd64.deb:cx-node) ;;
         *) fail "unexpected package identity in $asset: $package_name" ;;
     esac
 done
@@ -90,7 +94,8 @@ for package_spec in \
     "motemcp:1.0.0-3:motemcp_1.0.0-3_all.deb" \
     "mlink:0.1.0-2:mlink_0.1.0-2_amd64.deb" \
     "mdesk:3.0.0-2:mdesk_3.0.0-2_amd64.deb" \
-    "ss-webos:2.0.0-8:ss-webos_2.0.0-8_amd64.deb"; do
+    "ss-webos:2.0.0-8:ss-webos_2.0.0-8_amd64.deb" \
+    "cx-node:0.3.1-11:cx-node_0.3.1-11_amd64.deb"; do
     package_name="${package_spec%%:*}"
     package_rest="${package_spec#*:}"
     package_version="${package_rest%%:*}"
@@ -111,8 +116,14 @@ if [ "$#" -gt 0 ]; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get install -y "$@"
 else
-    printf 'MEdge complete bundle is already current.\n'
+    printf '%s Total System profile is already current.\n' "$PROFILE_NAME"
 fi
 
 dpkg-query -W -f='${Package}=${Version}\n' \
-    sphere moted medge mote-proxy motemcp mlink mdesk ss-webos
+    sphere moted medge mote-proxy motemcp mlink mdesk ss-webos cx-node
+
+if [ -x /usr/lib/chatgpt/resources/codex ]; then
+    printf 'Codex is available; CX Adapter is eligible for automatic start.\n'
+else
+    printf 'Codex is unavailable; CX Node is installed and enabled but remains inactive.\n'
+fi
