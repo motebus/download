@@ -76,11 +76,12 @@ class InstallContractTest(unittest.TestCase):
     def test_medge_installer_is_complete_self_contained_and_digest_pinned(self) -> None:
         text = (ROOT / "medge-install.sh").read_text(encoding="utf-8")
         self.assertIn("deb-v2026.08.27-2", text)
+        self.assertIn("mote-transport-v2026.08.28-1", text)
         for asset in (
             "sphere_4.0.0-1_amd64.deb",
-            "moted_3.2.0-16_amd64.deb",
+            "moted_3.2.0-26_amd64.deb",
             "medge_1.1.0-3_all.deb",
-            "mote-proxy_1.3.0-18_all.deb",
+            "mote-proxy_1.3.0-35_all.deb",
             "motemcp_1.0.0-3_all.deb",
             "mlink_0.1.0-2_amd64.deb",
             "mdesk_3.0.0-2_amd64.deb",
@@ -97,6 +98,14 @@ class InstallContractTest(unittest.TestCase):
         self.assertIn('chmod 0644 "$PACKAGE_DIR/$asset"', text)
         self.assertIn(
             "332f927952bcb1bc68ee3ce6ee860c347d2000d26dbc8fc30963c68bf1bb964f  medge_1.1.0-3_all.deb",
+            text,
+        )
+        self.assertIn(
+            "cf1ee92aaad8ba06e63532667dcc420f279b53d16bc1b73a87d5093bce946a63  moted_3.2.0-26_amd64.deb",
+            text,
+        )
+        self.assertIn(
+            "e158cb68d7888074dd90b263d8ce262ba1d136cc3193553b021bf0768926daaa  mote-proxy_1.3.0-35_all.deb",
             text,
         )
         self.assertNotIn("medge-core", text)
