@@ -17,7 +17,11 @@ WRAPPERS = {
 
 class InstallContractTest(unittest.TestCase):
     def test_all_installers_require_bash(self) -> None:
-        for filename in ("install.sh", "medge-install.sh", "mdesk-install.sh", *WRAPPERS):
+        for filename in (
+            "install.sh", "install-mote-transport.sh", "medge-install.sh",
+            "install-medge.sh", "install-medge-all.sh", "mdesk-install.sh",
+            *WRAPPERS,
+        ):
             text = (ROOT / filename).read_text(encoding="utf-8")
             self.assertTrue(text.startswith("#!/usr/bin/env bash\nset -euo pipefail\n"))
             self.assertNotIn("#!/bin/sh", text)
@@ -38,6 +42,21 @@ class InstallContractTest(unittest.TestCase):
         self.assertNotIn("ss-desk", dispatcher)
         self.assertNotIn('APT_PACKAGES="desk', dispatcher)
         self.assertFalse((ROOT / "webos-install.sh").exists())
+
+    def test_mote_transport_installer_is_self_contained_and_digest_pinned(self) -> None:
+        text = (ROOT / "install-mote-transport.sh").read_text(encoding="utf-8")
+        self.assertIn("mote-transport-v2026.08.28-1", text)
+        self.assertIn("sphere_4.0.0-1_amd64.deb", text)
+        self.assertIn("moted_3.2.0-26_amd64.deb", text)
+        self.assertIn("mote-proxy_1.3.0-35_all.deb", text)
+        self.assertEqual(text.count("sha256sum --check"), 1)
+        self.assertIn("dpkg --compare-versions", text)
+        self.assertIn('apt-get install -y "$@"', text)
+        self.assertIn("systemctl enable --now", text)
+        self.assertIn("registration continues asynchronously", text)
+        self.assertNotIn("MEDGE_INSTALL_PROFILE", text)
+        self.assertNotIn("motebus.github.io", text)
+        self.assertNotIn("MCHAT_", text)
 
     def test_mdesk_installer_is_self_contained_and_digest_pinned(self) -> None:
         text = (ROOT / "mdesk-install.sh").read_text(encoding="utf-8")
@@ -92,7 +111,11 @@ class InstallContractTest(unittest.TestCase):
         installers = [dispatcher]
         installers.extend(
             (ROOT / filename).read_text(encoding="utf-8")
-            for filename in ("medge-install.sh", "mdesk-install.sh", *WRAPPERS)
+            for filename in (
+                "install-mote-transport.sh", "medge-install.sh",
+                "install-medge.sh", "install-medge-all.sh",
+                "mdesk-install.sh", *WRAPPERS,
+            )
         )
         for text in installers:
             for forbidden in ("apt-get remove", "apt-get purge", "dpkg --remove", "MCHAT_"):
@@ -106,6 +129,9 @@ class InstallContractTest(unittest.TestCase):
 
     def test_shell_contracts_parse(self) -> None:
         subprocess.run(["bash", "-n", str(INSTALLER)], check=True)
+        subprocess.run(["bash", "-n", str(ROOT / "install-mote-transport.sh")], check=True)
+        subprocess.run(["bash", "-n", str(ROOT / "install-medge.sh")], check=True)
+        subprocess.run(["bash", "-n", str(ROOT / "install-medge-all.sh")], check=True)
         subprocess.run(["bash", "-n", str(ROOT / "medge-install.sh")], check=True)
         subprocess.run(["bash", "-n", str(ROOT / "mdesk-install.sh")], check=True)
         for filename in WRAPPERS:

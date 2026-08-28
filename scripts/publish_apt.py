@@ -77,10 +77,22 @@ GITLAB_URL_RE = re.compile(
     re.IGNORECASE,
 )
 MCHAT_ENV_PACKAGES = {"moted", "aport", "qbix", "mbox", "desk"}
+MOTE_TRANSPORT_SCHEMA = "mote-transport-public-release/v1"
+MOTE_TRANSPORT_TAG_RE = re.compile(
+    r"^mote-transport-v[0-9]{4}\.[0-9]{2}\.[0-9]{2}-[0-9]+$"
+)
+MOTE_TRANSPORT_PACKAGES = (
+    ("sphere", "4.0.0-1", "amd64"),
+    ("moted", "3.2.0-26", "amd64"),
+    ("mote-proxy", "1.3.0-35", "all"),
+)
 ALLOWED_ROOT_FILES = {
     ".gitignore",
     "github-setup.sh",
     "install.sh",
+    "install-mote-transport.sh",
+    "install-medge.sh",
+    "install-medge-all.sh",
     "medge-install.sh",
     "mdesk-install.sh",
     "ss-webos-install.sh",
@@ -199,7 +211,7 @@ def expected_env_paths(package_name: str) -> list[str]:
     if package_name == "cx-node":
         return []
     paths = [f"{package_name}-deb.env"]
-    if package_name in MCHAT_ENV_PACKAGES:
+    if package_name in MCHAT_ENV_PACKAGES or package_name == "mote-proxy":
         paths.append(f"{package_name}-mchat.env")
     return paths
 
@@ -314,7 +326,7 @@ def validate_manifest(manifest: object) -> dict:
     return manifest
 
 
-def verify_checksums(bundle: Path) -> None:
+def verify_checksums(bundle: Path) -> set[str]:
     checksum_file = bundle / "SHA256SUMS"
     require(checksum_file.is_file(), "bundle is missing SHA256SUMS")
     seen: set[str] = set()
@@ -326,6 +338,133 @@ def verify_checksums(bundle: Path) -> None:
         target = bundle / name
         require(target.is_file(), f"checksum target is missing: {name}")
         require(sha256(target) == digest, f"checksum mismatch: {name}")
+    return seen
+
+
+def validate_transport_manifest(manifest: object) -> dict:
+    require(isinstance(manifest, dict), "release-manifest.json must contain an object")
+    require(
+        set(manifest) == {
+            "schema", "tag", "status", "generated_at", "source_ref",
+            "source_commit", "distribution", "approval", "packages", "installer",
+        },
+        "Mote Transport manifest fields are invalid",
+    )
+    require(manifest.get("schema") == MOTE_TRANSPORT_SCHEMA, "invalid Mote Transport schema")
+    require(
+        isinstance(manifest.get("tag"), str)
+        and MOTE_TRANSPORT_TAG_RE.fullmatch(manifest["tag"]),
+        "invalid Mote Transport release tag",
+    )
+    require(manifest.get("status") == "approved", "Mote Transport release is not approved")
+    require(
+        isinstance(manifest.get("generated_at"), str) and manifest["generated_at"],
+        "Mote Transport generated_at is required",
+    )
+    require(manifest.get("source_ref") == "refs/heads/main", "Mote Transport source must be main")
+    require(
+        isinstance(manifest.get("source_commit"), str)
+        and re.fullmatch(r"[0-9a-f]{40}", manifest["source_commit"]),
+        "invalid Mote Transport source commit",
+    )
+    require(
+        manifest.get("distribution") == "github-release-assets",
+        "invalid Mote Transport distribution",
+    )
+    approval = manifest.get("approval")
+    require(
+        isinstance(approval, dict)
+        and set(approval) == {"approved_by", "approved_at", "request"}
+        and all(isinstance(approval[key], str) and approval[key] for key in approval),
+        "Mote Transport approval evidence is incomplete",
+    )
+    installer = manifest.get("installer")
+    require(
+        isinstance(installer, dict)
+        and set(installer) == {"asset", "sha256"}
+        and installer.get("asset") == "install-mote-transport.sh"
+        and isinstance(installer.get("sha256"), str)
+        and HEX64_RE.fullmatch(installer["sha256"]),
+        "invalid Mote Transport installer record",
+    )
+    packages = manifest.get("packages")
+    require(
+        isinstance(packages, list) and len(packages) == len(MOTE_TRANSPORT_PACKAGES),
+        "Mote Transport must contain exactly three packages",
+    )
+    for package, (name, version, architecture) in zip(packages, MOTE_TRANSPORT_PACKAGES):
+        require(isinstance(package, dict), "Mote Transport package record must be an object")
+        require(
+            set(package) == {
+                "name", "version", "architecture", "asset", "sha256",
+                "source_ref", "source_commit", "pipeline_id", "env_inputs",
+            },
+            f"{name}: Mote Transport package fields are invalid",
+        )
+        require(
+            (package["name"], package["version"], package["architecture"])
+            == (name, version, architecture),
+            f"{name}: Mote Transport package identity is invalid",
+        )
+        require(
+            package["asset"] == f"{name}_{version}_{architecture}.deb",
+            f"{name}: Mote Transport asset name is invalid",
+        )
+        require(
+            isinstance(package["sha256"], str) and HEX64_RE.fullmatch(package["sha256"]),
+            f"{name}: invalid Mote Transport package checksum",
+        )
+        require(package["source_ref"] == "refs/heads/main", f"{name}: source must be main")
+        require(
+            isinstance(package["source_commit"], str)
+            and re.fullmatch(r"[0-9a-f]{40}", package["source_commit"]),
+            f"{name}: invalid source commit",
+        )
+        require(
+            isinstance(package["pipeline_id"], int) and package["pipeline_id"] > 0,
+            f"{name}: invalid pipeline id",
+        )
+        validate_env_inputs(package)
+    require_no_gitlab_url_bytes(
+        json.dumps(manifest, sort_keys=True).encode("utf-8"),
+        "Mote Transport release-manifest.json",
+    )
+    return manifest
+
+
+def validate_transport_bundle(bundle: Path) -> dict:
+    manifest_path = bundle / "release-manifest.json"
+    require(manifest_path.is_file(), f"{bundle}: missing release-manifest.json")
+    manifest = validate_transport_manifest(json.loads(manifest_path.read_text(encoding="utf-8")))
+    checksum_targets = verify_checksums(bundle)
+    expected_targets = {
+        "release-manifest.json",
+        manifest["installer"]["asset"],
+        *(package["asset"] for package in manifest["packages"]),
+    }
+    require(checksum_targets == expected_targets, "Mote Transport checksum targets are invalid")
+    require(
+        sha256(bundle / manifest["installer"]["asset"]) == manifest["installer"]["sha256"],
+        "Mote Transport installer checksum mismatch",
+    )
+    run("bash", "-n", str(bundle / manifest["installer"]["asset"]))
+    for package in manifest["packages"]:
+        asset = bundle / package["asset"]
+        require(asset.is_file(), f"missing Mote Transport package: {asset.name}")
+        require(sha256(asset) == package["sha256"], f"checksum mismatch: {asset.name}")
+        require(package_field(asset, "Package") == package["name"], f"package mismatch: {asset.name}")
+        require(package_field(asset, "Version") == package["version"], f"version mismatch: {asset.name}")
+        require(
+            package_field(asset, "Architecture") == package["architecture"],
+            f"architecture mismatch: {asset.name}",
+        )
+    actual_files = {path.name for path in bundle.iterdir() if path.is_file()}
+    require(
+        actual_files == expected_targets | {"SHA256SUMS"},
+        "Mote Transport bundle contains unexpected files",
+    )
+    validate_no_gitlab_urls(bundle)
+    return manifest
 
 
 def validate_bundle(bundle: Path) -> dict:
@@ -363,6 +502,7 @@ def validate_bundle(bundle: Path) -> dict:
     require(forbidden == [], f"source packages are forbidden: {forbidden}")
     validate_no_gitlab_urls(bundle)
     required_installers = [
+        "install-mote-transport.sh",
         "medge-install.sh",
         "mdesk-install.sh",
         "ss-webos-install.sh",
@@ -416,6 +556,9 @@ def validate_tree(root: Path) -> None:
     require(installer.stat().st_mode & 0o111 != 0, "install.sh must be executable")
     run("sh", "-n", str(installer))
     for name in (
+        "install-mote-transport.sh",
+        "install-medge.sh",
+        "install-medge-all.sh",
         "medge-install.sh",
         "mdesk-install.sh",
         "ss-webos-install.sh",
@@ -455,6 +598,33 @@ def validate_tree(root: Path) -> None:
         require(
             forbidden_text not in installer_text,
             f"install.sh contains forbidden content: {forbidden_text}",
+        )
+
+    transport_installer_text = (
+        root / "install-mote-transport.sh"
+    ).read_text(encoding="utf-8")
+    for required_text in (
+        "mote-transport-v2026.08.28-1",
+        "sphere_4.0.0-1_amd64.deb",
+        "moted_3.2.0-26_amd64.deb",
+        "mote-proxy_1.3.0-35_all.deb",
+        "sha256sum --check SHA256SUMS",
+        "systemctl enable --now",
+        "registration continues asynchronously",
+    ):
+        require(
+            required_text in transport_installer_text,
+            f"install-mote-transport.sh is missing required contract: {required_text}",
+        )
+    for forbidden_text in (
+        "MOTED_SHA256_PLACEHOLDER",
+        "MOTE_PROXY_SHA256_PLACEHOLDER",
+        "MCHAT_",
+        "motebus.github.io",
+    ):
+        require(
+            forbidden_text not in transport_installer_text,
+            f"install-mote-transport.sh contains forbidden content: {forbidden_text}",
         )
 
     compatibility = root / "scripts/validate-ubuntu-compatibility.sh"
@@ -520,6 +690,9 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
     shutil.copy2(repository_root / "medge-archive-keyring.gpg", site)
     shutil.copy2(repository_root / "medge.sources", site)
     shutil.copy2(repository_root / "install.sh", site)
+    shutil.copy2(repository_root / "install-mote-transport.sh", site)
+    shutil.copy2(repository_root / "install-medge.sh", site)
+    shutil.copy2(repository_root / "install-medge-all.sh", site)
     shutil.copy2(repository_root / "medge-install.sh", site)
     for installer_name in (
         "mdesk-install.sh",
@@ -601,6 +774,8 @@ def main() -> int:
     tree_parser.add_argument("root", type=Path)
     bundle_parser = subparsers.add_parser("validate-bundle")
     bundle_parser.add_argument("bundle", type=Path)
+    transport_bundle_parser = subparsers.add_parser("validate-transport-bundle")
+    transport_bundle_parser.add_argument("bundle", type=Path)
     previous_parser = subparsers.add_parser("previous-tag")
     previous_parser.add_argument("bundle", type=Path)
     build_parser = subparsers.add_parser("build")
@@ -613,6 +788,8 @@ def main() -> int:
             validate_tree(args.root)
         elif args.command == "validate-bundle":
             validate_bundle(args.bundle)
+        elif args.command == "validate-transport-bundle":
+            validate_transport_bundle(args.bundle)
         elif args.command == "previous-tag":
             print(validate_bundle(args.bundle)["previous_release_tag"])
         elif args.command == "build":

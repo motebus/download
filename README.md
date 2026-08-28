@@ -53,12 +53,29 @@ installation.
 A compliant release publishes exactly these self-contained installers:
 
 ```text
-medge-install.sh      -> medge-all Total System profile, including cx-node
-mdesk-install.sh      -> sphere + moted + mlink + mdesk
-ss-webos-install.sh   -> ss-webos only
-mote-proxy-install.sh -> sphere + mote-proxy
-motemcp-install.sh    -> sphere + moted + motemcp
+install-mote-transport.sh -> sphere + moted + mote-proxy
+install-medge.sh          -> sphere + moted + medge
+install-medge-all.sh      -> medge-install.sh compatibility entry
+medge-install.sh           -> medge-all Total System profile, including cx-node
+mdesk-install.sh           -> sphere + moted + mlink + mdesk
+ss-webos-install.sh        -> ss-webos only
+mote-proxy-install.sh      -> sphere + mote-proxy
+motemcp-install.sh         -> sphere + moted + motemcp
 ```
+
+Mote Transport is exactly `mote-proxy + sphere + moted`. Sphere supplies the
+native MoteBus foundation; SSH/RDP endpoints and CX remain independent. Its
+installer downloads the three exact immutable release assets, verifies their
+SHA-256 digests and Debian identities, installs only missing or older versions,
+starts the standard services, and returns without waiting for asynchronous
+MoteD registration.
+
+The immutable Mote Transport release `mote-transport-v2026.08.28-1` pins
+`sphere_4.0.0-1_amd64.deb`, `moted_3.2.0-26_amd64.deb`, and
+`mote-proxy_1.3.0-35_all.deb`. MoteD requests a 30-minute MoteC lease and
+refreshes it every 10 minutes. Mote Proxy performs one on-demand MoteC lookup
+for the first SSH connection, keeps the successful MMA in memory, and
+coalesces client-to-target SSH ciphertext after 100 ms of input inactivity.
 
 `medge-install.sh` and `mdesk-install.sh` download their exact immutable GitHub
 release assets directly. The shared `install.sh` remains the internal component
@@ -71,12 +88,12 @@ The immutable public release `deb-v2026.08.27-2` contains the current reviewed
 `mlink_0.1.0-2_amd64.deb`, and `mdesk_3.0.0-2_amd64.deb` built by the canonical
 `main` pipelines. MoteD is the failure-isolated MEdge kernel/control plane;
 MDesk and other optional leaf modules cannot propagate stop, restart, or
-failure into it. MoteD requests an exact 300-second MoteC lease, refreshes it
-every 90 seconds after success, and retries transport failures after 30 seconds
-without overlapping registration requests. Registration uses xMsg with one
-bounded native reply (`WaitReply=12`); SSH session open uses bounded xMsg and
-SSH stream frames use no-reply xMsg. The MDesk package binds to canonical
-`sphere.service`.
+failure into it. The historical package in this release requests a 300-second
+MoteC lease, refreshes it every 90 seconds after success, and retries transport
+failures after 30 seconds without overlapping registration requests.
+Registration uses xMsg with one bounded native reply (`WaitReply=12`); SSH
+session open uses bounded xMsg and SSH stream frames use no-reply xMsg. The
+MDesk package binds to canonical `sphere.service`.
 
 The MoteD artifact comes from commit
 `570eb89f6c34cb47c4899fa9d40712d51ceb52cf` with SHA-256
@@ -111,6 +128,14 @@ without failing the installation:
 curl -fsSLo /tmp/medge-install.sh \
   https://raw.githubusercontent.com/motebus/medge-release/main/medge-install.sh
 sudo bash /tmp/medge-install.sh
+```
+
+Install the independent Mote Transport package set:
+
+```bash
+curl -fsSLo /tmp/install-mote-transport.sh \
+  https://raw.githubusercontent.com/motebus/medge-release/main/install-mote-transport.sh
+sudo bash /tmp/install-mote-transport.sh
 ```
 
 ## Release requirements

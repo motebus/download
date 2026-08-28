@@ -72,20 +72,27 @@ class PublicAptTest(unittest.TestCase):
                 ]
         return manifest
 
-    def make_deb(self, root: Path, homepage: str = "") -> Path:
-        package_root = root / "package"
+    def make_deb(
+        self,
+        root: Path,
+        homepage: str = "",
+        package: str = "test-public",
+        version: str = "1.0.0-1",
+        architecture: str = "amd64",
+    ) -> Path:
+        package_root = root / f"package-{package}"
         (package_root / "DEBIAN").mkdir(parents=True)
         fields = [
-            "Package: test-public",
-            "Version: 1.0.0-1",
-            "Architecture: amd64",
+            f"Package: {package}",
+            f"Version: {version}",
+            f"Architecture: {architecture}",
             "Maintainer: Test <test@example.invalid>",
         ]
         if homepage:
             fields.append(f"Homepage: {homepage}")
         fields.extend(("Description: public package", ""))
         (package_root / "DEBIAN/control").write_text("\n".join(fields), encoding="utf-8")
-        asset = root / "test-public_1.0.0-1_amd64.deb"
+        asset = root / f"{package}_{version}_{architecture}.deb"
         subprocess.run(
             ["dpkg-deb", "--build", "--root-owner-group", str(package_root), str(asset)],
             check=True,
@@ -164,6 +171,78 @@ class PublicAptTest(unittest.TestCase):
             asset = self.make_deb(Path(temp_name), "https://github.com/motebus/medge-release")
             publish_apt.validate_public_deb_content(asset)
             self.assertEqual(len(hashlib.sha256(asset.read_bytes()).hexdigest()), 64)
+
+    def test_mote_transport_bundle_is_exact_and_digest_pinned(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            bundle = Path(temp_name)
+            packages = []
+            for index, (name, version, architecture) in enumerate(
+                publish_apt.MOTE_TRANSPORT_PACKAGES, start=1
+            ):
+                asset = self.make_deb(
+                    bundle,
+                    package=name,
+                    version=version,
+                    architecture=architecture,
+                )
+                packages.append(
+                    {
+                        "name": name,
+                        "version": version,
+                        "architecture": architecture,
+                        "asset": asset.name,
+                        "sha256": publish_apt.sha256(asset),
+                        "source_ref": "refs/heads/main",
+                        "source_commit": f"{index:x}" * 40,
+                        "pipeline_id": index,
+                        "env_inputs": [
+                            {"path": path, "sha256": f"{index:x}" * 64}
+                            for path in publish_apt.expected_env_paths(name)
+                        ],
+                    }
+                )
+            installer = bundle / "install-mote-transport.sh"
+            installer.write_text("#!/usr/bin/env bash\nset -euo pipefail\n", encoding="utf-8")
+            manifest = {
+                "schema": publish_apt.MOTE_TRANSPORT_SCHEMA,
+                "tag": "mote-transport-v2026.08.28-1",
+                "status": "approved",
+                "generated_at": "2026-08-28T12:00:00Z",
+                "source_ref": "refs/heads/main",
+                "source_commit": "a" * 40,
+                "distribution": "github-release-assets",
+                "approval": {
+                    "approved_by": "repository-owner",
+                    "approved_at": "2026-08-28T12:00:00Z",
+                    "request": "push install to github",
+                },
+                "packages": packages,
+                "installer": {
+                    "asset": installer.name,
+                    "sha256": publish_apt.sha256(installer),
+                },
+            }
+            manifest_path = bundle / "release-manifest.json"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            checksum_targets = [
+                *(bundle / package["asset"] for package in packages),
+                installer,
+                manifest_path,
+            ]
+            (bundle / "SHA256SUMS").write_text(
+                "".join(
+                    f"{publish_apt.sha256(path)}  {path.name}\n"
+                    for path in checksum_targets
+                ),
+                encoding="utf-8",
+            )
+            self.assertEqual(publish_apt.validate_transport_bundle(bundle), manifest)
+
+            manifest["packages"][1]["version"] = "3.2.0-25"
+            with self.assertRaisesRegex(
+                publish_apt.PublishError, "Mote Transport package identity is invalid"
+            ):
+                publish_apt.validate_transport_manifest(manifest)
 
 
 if __name__ == "__main__":
