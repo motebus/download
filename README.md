@@ -8,8 +8,9 @@ addresses are not published here.
 ## Publication status
 
 The immutable public release `deb-v2026.08.27-2` is the current `medge-all`
-Total System installer bundle. It contains the reviewed component packages
-directly; there is no `medge-core.deb` or `medge-all.deb`.
+base bundle. The installer composes its current Sphere, MoteD, and Mote Proxy
+from `mote-transport-v2026.08.28-1` with the remaining reviewed components from
+that base bundle. There is no `medge-core.deb` or `medge-all.deb`.
 
 Historical releases and the current Pages index are immutable migration
 evidence. They are not the active package architecture and must not be used to
