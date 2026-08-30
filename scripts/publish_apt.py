@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate approved binary bundles and construct the signed MEdge APT site."""
+"""Validate approved binary bundles and construct the signed Sphere APT site."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ AGENTIC_IO_PACKAGES = (
     "ss-webos",
 )
 CX_AGENTIC_IO_PACKAGES = AGENTIC_IO_PACKAGES + ("cx-node",)
-EXPECTED_PACKAGES = (
+EXPECTED_PACKAGES_V8 = (
     "sphere",
     "moted",
     "aport",
@@ -46,6 +46,19 @@ EXPECTED_PACKAGES = (
     "mbox",
     "desk",
     "ss-webos",
+)
+EXPECTED_PACKAGES_V9 = (
+    "sphere",
+    "moted",
+    "medge",
+    "mlink",
+    "mdesk",
+    "ss-webos",
+    "mote-proxy",
+    "motemcp",
+    "cx-pivot",
+    "mote-sync",
+    "mote-syncd",
 )
 HEADLESS_PACKAGES = (
     "sphere",
@@ -77,6 +90,19 @@ GITLAB_URL_RE = re.compile(
     re.IGNORECASE,
 )
 MCHAT_ENV_PACKAGES = {"moted", "aport", "qbix", "mbox", "desk"}
+ENV_PATHS_V9 = {
+    "sphere": ("sphere-deb.env",),
+    "moted": ("moted-deb.env", "moted-mchat.env"),
+    "medge": ("medge-deb.env", "medge-mchat.env"),
+    "mlink": ("mlink-deb.env",),
+    "mdesk": ("mdesk-deb.env", "mdesk-mchat.env"),
+    "ss-webos": ("ss-webos-deb.env",),
+    "mote-proxy": ("mote-proxy-deb.env", "mote-proxy-mchat.env"),
+    "motemcp": ("motemcp-deb.env",),
+    "cx-pivot": ("cx-pivot-deb.env", "cx-pivot-mchat.env"),
+    "mote-sync": ("mote-sync-deb.env",),
+    "mote-syncd": ("mote-sync-deb.env",),
+}
 MOTE_TRANSPORT_SCHEMA = "mote-transport-public-release/v1"
 MOTE_TRANSPORT_TAG_RE = re.compile(
     r"^mote-transport-v[0-9]{4}\.[0-9]{2}\.[0-9]{2}-[0-9]+$"
@@ -92,8 +118,7 @@ ALLOWED_ROOT_FILES = {
     "install.sh",
     "install-mote-transport.sh",
     "install-medge.sh",
-    "install-medge-all.sh",
-    "medge-install.sh",
+    "install-sphere.sh",
     "mdesk-install.sh",
     "ss-webos-install.sh",
     "mote-proxy-install.sh",
@@ -204,12 +229,18 @@ def expected_packages(manifest: dict) -> tuple[str, ...]:
         return AGENTIC_IO_PACKAGES
     if manifest.get("schema") == "medge-public-release/v7":
         return CX_AGENTIC_IO_PACKAGES
-    return EXPECTED_PACKAGES
+    if manifest.get("schema") == "medge-public-release/v8":
+        return EXPECTED_PACKAGES_V8
+    if manifest.get("schema") == "medge-public-release/v9":
+        return EXPECTED_PACKAGES_V9
+    raise PublishError("unsupported public release manifest schema")
 
 
 def expected_env_paths(package_name: str) -> list[str]:
     if package_name == "cx-node":
         return []
+    if package_name in ENV_PATHS_V9:
+        return list(ENV_PATHS_V9[package_name])
     paths = [f"{package_name}-deb.env"]
     if package_name in MCHAT_ENV_PACKAGES or package_name == "mote-proxy":
         paths.append(f"{package_name}-mchat.env")
@@ -256,6 +287,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v6",
             "medge-public-release/v7",
             "medge-public-release/v8",
+            "medge-public-release/v9",
         },
         "invalid public release manifest schema",
     )
@@ -300,6 +332,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v6",
             "medge-public-release/v7",
             "medge-public-release/v8",
+            "medge-public-release/v9",
         }:
             package_fields.add("env_inputs")
         require(
@@ -317,6 +350,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v6",
             "medge-public-release/v7",
             "medge-public-release/v8",
+            "medge-public-release/v9",
         }:
             validate_env_inputs(package)
     require_no_gitlab_url_bytes(
@@ -471,7 +505,7 @@ def validate_bundle(bundle: Path) -> dict:
     manifest_path = bundle / "release-manifest.json"
     require(manifest_path.is_file(), f"{bundle}: missing release-manifest.json")
     manifest = validate_manifest(json.loads(manifest_path.read_text(encoding="utf-8")))
-    verify_checksums(bundle)
+    checksum_targets = verify_checksums(bundle)
 
     for package in manifest["packages"]:
         asset = bundle / package["asset"]
@@ -501,19 +535,38 @@ def validate_bundle(bundle: Path) -> dict:
     ]
     require(forbidden == [], f"source packages are forbidden: {forbidden}")
     validate_no_gitlab_urls(bundle)
-    required_installers = [
-        "install-mote-transport.sh",
-        "medge-install.sh",
-        "mdesk-install.sh",
-        "ss-webos-install.sh",
-        "mote-proxy-install.sh",
-        "motemcp-install.sh",
-    ]
-    for name in required_installers:
-        installer = bundle / name
-        require(installer.is_file(), f"bundle is missing {name}")
-        run("sh", "-n", str(installer))
-    require(not (bundle / "install.sh").exists(), "v4 bundle must not contain install.sh")
+    if manifest["schema"] == "medge-public-release/v9":
+        installer = bundle / "install-sphere.sh"
+        require(installer.is_file(), "v9 bundle is missing install-sphere.sh")
+        require(installer.stat().st_mode & 0o111 != 0, "install-sphere.sh must be executable")
+        run("bash", "-n", str(installer))
+        expected_targets = {
+            "release-manifest.json",
+            "install-sphere.sh",
+            *(package["asset"] for package in manifest["packages"]),
+        }
+        require(checksum_targets == expected_targets, "v9 checksum targets are invalid")
+        actual_files = {path.name for path in bundle.iterdir() if path.is_file()}
+        require(
+            actual_files == expected_targets | {"SHA256SUMS"},
+            "v9 bundle contains unexpected files",
+        )
+        for retired_name in ("install-medge-all.sh", "medge-install.sh", "install.sh"):
+            require(not (bundle / retired_name).exists(), f"v9 bundle contains retired {retired_name}")
+    else:
+        required_installers = [
+            "install-mote-transport.sh",
+            "medge-install.sh",
+            "mdesk-install.sh",
+            "ss-webos-install.sh",
+            "mote-proxy-install.sh",
+            "motemcp-install.sh",
+        ]
+        for name in required_installers:
+            installer = bundle / name
+            require(installer.is_file(), f"bundle is missing {name}")
+            run("sh", "-n", str(installer))
+        require(not (bundle / "install.sh").exists(), "legacy bundle must not contain install.sh")
     return manifest
 
 
@@ -551,15 +604,16 @@ def validate_tree(root: Path) -> None:
         f"fpr:::::::::{fingerprint}:" in public_keys,
         "public archive key does not match fingerprint",
     )
-    installer = root / "install.sh"
-    require(installer.is_file(), "public repository is missing install.sh")
-    require(installer.stat().st_mode & 0o111 != 0, "install.sh must be executable")
-    run("sh", "-n", str(installer))
+    sphere_installer = root / "install-sphere.sh"
+    require(sphere_installer.is_file(), "public repository is missing install-sphere.sh")
+    require(sphere_installer.stat().st_mode & 0o111 != 0, "install-sphere.sh must be executable")
+    run("bash", "-n", str(sphere_installer))
+    for retired_name in ("install-medge-all.sh", "medge-install.sh"):
+        require(not (root / retired_name).exists(), f"public repository contains retired {retired_name}")
     for name in (
+        "install.sh",
         "install-mote-transport.sh",
         "install-medge.sh",
-        "install-medge-all.sh",
-        "medge-install.sh",
         "mdesk-install.sh",
         "ss-webos-install.sh",
         "mote-proxy-install.sh",
@@ -569,6 +623,7 @@ def validate_tree(root: Path) -> None:
         require(wrapper.is_file(), f"public repository is missing {name}")
         require(wrapper.stat().st_mode & 0o111 != 0, f"{name} must be executable")
         run("sh", "-n", str(wrapper))
+    installer = root / "install.sh"
     installer_text = installer.read_text(encoding="utf-8")
     for required_text in (
         "https://motebus.github.io/medge-release",
@@ -598,6 +653,19 @@ def validate_tree(root: Path) -> None:
         require(
             forbidden_text not in installer_text,
             f"install.sh contains forbidden content: {forbidden_text}",
+        )
+
+    sphere_installer_text = sphere_installer.read_text(encoding="utf-8")
+    for required_text in (
+        "medge-public-release/v9",
+        fingerprint,
+        "release-manifest.json.asc",
+        "gpgv --keyring",
+        'apt-get install -y "${PACKAGE_ARGS[@]}"',
+    ):
+        require(
+            required_text in sphere_installer_text,
+            f"install-sphere.sh is missing required contract: {required_text}",
         )
 
     transport_installer_text = (
@@ -658,7 +726,12 @@ def copy_package(asset: Path, site: Path) -> None:
         shutil.copy2(asset, destination)
 
 
-def write_index(site: Path, repository_root: Path, current_manifest: dict) -> None:
+def write_index(
+    site: Path,
+    repository_root: Path,
+    current_manifest: dict,
+    current_bundle: Path,
+) -> None:
     packages_dir = site / "dists/stable/main/binary-amd64"
     packages_dir.mkdir(parents=True, exist_ok=True)
     packages_text = run("apt-ftparchive", "packages", "pool", cwd=site, capture=True) + "\n"
@@ -669,12 +742,12 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
 
     release_options = (
         "-o", "APT::FTPArchive::Release::Origin=MoteBus",
-        "-o", "APT::FTPArchive::Release::Label=MEdge",
+        "-o", "APT::FTPArchive::Release::Label=Sphere",
         "-o", "APT::FTPArchive::Release::Suite=stable",
         "-o", "APT::FTPArchive::Release::Codename=stable",
         "-o", "APT::FTPArchive::Release::Architectures=amd64",
         "-o", "APT::FTPArchive::Release::Components=main",
-        "-o", "APT::FTPArchive::Release::Description=MEdge binary packages",
+        "-o", "APT::FTPArchive::Release::Description=Install Sphere binary packages",
     )
     release_text = run(
         "apt-ftparchive",
@@ -689,31 +762,25 @@ def write_index(site: Path, repository_root: Path, current_manifest: dict) -> No
 
     shutil.copy2(repository_root / "medge-archive-keyring.gpg", site)
     shutil.copy2(repository_root / "medge.sources", site)
-    shutil.copy2(repository_root / "install.sh", site)
-    shutil.copy2(repository_root / "install-mote-transport.sh", site)
-    shutil.copy2(repository_root / "install-medge.sh", site)
-    shutil.copy2(repository_root / "install-medge-all.sh", site)
-    shutil.copy2(repository_root / "medge-install.sh", site)
-    for installer_name in (
-        "mdesk-install.sh",
-        "ss-webos-install.sh",
-        "mote-proxy-install.sh",
-        "motemcp-install.sh",
-    ):
-        shutil.copy2(repository_root / installer_name, site)
+    shutil.copy2(current_bundle / "install-sphere.sh", site)
+    shutil.copy2(current_bundle / "release-manifest.json", site)
     (site / ".nojekyll").write_text("", encoding="utf-8")
     fingerprint = archive_fingerprint(repository_root)
     index = f"""<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
-<title>MEdge Debian Repository</title>
-<h1>MEdge Debian Repository</h1>
-<p>Stable amd64 MEdge binary packages.</p>
+<title>Install Sphere Debian Repository</title>
+<h1>Install Sphere Debian Repository</h1>
+<p>Stable amd64 Sphere and Mote Transport Debian packages.</p>
 <p>Current {len(current_manifest['packages'])}-package release: <code>{current_manifest['medge_version']}</code></p>
 <p>Signing fingerprint: <code>{fingerprint}</code></p>
-<pre>curl -fsSLo /tmp/medge-install.sh \
-https://motebus.github.io/medge-release/medge-install.sh &amp;&amp;
-sudo bash /tmp/medge-install.sh</pre>
+<pre>curl -fsSLo /tmp/install-sphere.sh \
+https://motebus.github.io/medge-release/install-sphere.sh &amp;&amp;
+curl -fsSLo /tmp/release-manifest.json \
+https://motebus.github.io/medge-release/release-manifest.json &amp;&amp;
+curl -fsSLo /tmp/release-manifest.json.asc \
+https://motebus.github.io/medge-release/release-manifest.json.asc &amp;&amp;
+sudo bash /tmp/install-sphere.sh</pre>
 </html>
 """
     (site / "index.html").write_text(index, encoding="utf-8")
@@ -728,6 +795,8 @@ def sign_release(site: Path, repository_root: Path) -> None:
     release = site / "dists/stable/Release"
     detached = site / "dists/stable/Release.gpg"
     inline = site / "dists/stable/InRelease"
+    manifest = site / "release-manifest.json"
+    manifest_signature = site / "release-manifest.json.asc"
     common = (
         "gpg",
         "--batch",
@@ -743,6 +812,15 @@ def sign_release(site: Path, repository_root: Path) -> None:
     )
     run(*common, "--armor", "--detach-sign", "--output", str(detached), str(release), input_text=passphrase + "\n")
     run(*common, "--armor", "--clearsign", "--output", str(inline), str(release), input_text=passphrase + "\n")
+    run(
+        *common,
+        "--armor",
+        "--detach-sign",
+        "--output",
+        str(manifest_signature),
+        str(manifest),
+        input_text=passphrase + "\n",
+    )
 
     with tempfile.TemporaryDirectory(prefix="medge-public-gnupg-") as temp_name:
         env = {**os.environ, "GNUPGHOME": temp_name}
@@ -750,6 +828,7 @@ def sign_release(site: Path, repository_root: Path) -> None:
         run("gpg", "--batch", "--import", str(repository_root / "medge-archive-keyring.gpg"), env=env)
         run("gpg", "--batch", "--verify", str(detached), str(release), env=env)
         run("gpg", "--batch", "--verify", str(inline), env=env)
+        run("gpg", "--batch", "--verify", str(manifest_signature), str(manifest), env=env)
 
 
 def build_site(repository_root: Path, site: Path, bundles: list[Path]) -> None:
@@ -762,7 +841,7 @@ def build_site(repository_root: Path, site: Path, bundles: list[Path]) -> None:
     site.mkdir(parents=True)
     for package in current["packages"]:
         copy_package(bundles[0] / package["asset"], site)
-    write_index(site, repository_root, current)
+    write_index(site, repository_root, current, bundles[0])
     validate_no_gitlab_urls(site)
     sign_release(site, repository_root)
 

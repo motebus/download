@@ -4,10 +4,12 @@ import datetime as dt
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 
 MODULE_PATH = Path(__file__).parents[1] / "scripts/publish_apt.py"
@@ -18,20 +20,15 @@ SPEC.loader.exec_module(publish_apt)
 
 
 class PublicAptTest(unittest.TestCase):
-    def manifest(self, schema: str = "medge-public-release/v8") -> dict:
-        package_names = (
-            publish_apt.LEGACY_PACKAGES
-            if schema in {"medge-public-release/v4", "medge-public-release/v5"}
-            else (
-                publish_apt.AGENTIC_IO_PACKAGES
-                if schema == "medge-public-release/v6"
-                else (
-                    publish_apt.CX_AGENTIC_IO_PACKAGES
-                    if schema == "medge-public-release/v7"
-                    else publish_apt.EXPECTED_PACKAGES
-                )
-            )
-        )
+    def manifest(self, schema: str = "medge-public-release/v9") -> dict:
+        package_names = {
+            "medge-public-release/v4": publish_apt.LEGACY_PACKAGES,
+            "medge-public-release/v5": publish_apt.LEGACY_PACKAGES,
+            "medge-public-release/v6": publish_apt.AGENTIC_IO_PACKAGES,
+            "medge-public-release/v7": publish_apt.CX_AGENTIC_IO_PACKAGES,
+            "medge-public-release/v8": publish_apt.EXPECTED_PACKAGES_V8,
+            "medge-public-release/v9": publish_apt.EXPECTED_PACKAGES_V9,
+        }[schema]
         packages = []
         for index, name in enumerate(package_names, start=1):
             version = f"1.0.0-{index}"
@@ -50,7 +47,7 @@ class PublicAptTest(unittest.TestCase):
         manifest = {
             "schema": schema,
             "status": "approved",
-            "medge_version": "5.0.0-1" if schema == "medge-public-release/v8" else "4.2.0-1",
+            "medge_version": "5.1.0-1" if schema == "medge-public-release/v9" else "4.2.0-1",
             "suite": "stable",
             "component": "main",
             "architecture": "amd64",
@@ -64,6 +61,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v6",
             "medge-public-release/v7",
             "medge-public-release/v8",
+            "medge-public-release/v9",
         }:
             for package in manifest["packages"]:
                 package["env_inputs"] = [
@@ -148,6 +146,185 @@ class PublicAptTest(unittest.TestCase):
             ["sphere", "moted", "aport", "qbix", "mbox", "desk", "ss-webos"],
         )
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v9_manifest_has_exact_install_sphere_package_set(self) -> None:
+        manifest = self.manifest("medge-public-release/v9")
+        self.assertEqual(
+            [package["name"] for package in manifest["packages"]],
+            list(publish_apt.EXPECTED_PACKAGES_V9),
+        )
+        syncd = manifest["packages"][-1]
+        self.assertEqual(syncd["name"], "mote-syncd")
+        self.assertEqual(
+            [item["path"] for item in syncd["env_inputs"]],
+            ["mote-sync-deb.env"],
+        )
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v9_bundle_is_exact_and_has_only_install_sphere(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            bundle = Path(temp_name)
+            manifest = self.manifest("medge-public-release/v9")
+            for package in manifest["packages"]:
+                asset = self.make_deb(
+                    bundle,
+                    package=package["name"],
+                    version=package["version"],
+                    architecture=package["architecture"],
+                )
+                package["sha256"] = publish_apt.sha256(asset)
+            installer = bundle / "install-sphere.sh"
+            installer.write_text(
+                "#!/usr/bin/env bash\nset -euo pipefail\n",
+                encoding="utf-8",
+            )
+            installer.chmod(0o755)
+            manifest_path = bundle / "release-manifest.json"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            checksum_targets = [
+                *(bundle / package["asset"] for package in manifest["packages"]),
+                installer,
+                manifest_path,
+            ]
+            (bundle / "SHA256SUMS").write_text(
+                "".join(
+                    f"{publish_apt.sha256(path)}  {path.name}\n"
+                    for path in checksum_targets
+                ),
+                encoding="utf-8",
+            )
+            self.assertEqual(publish_apt.validate_bundle(bundle), manifest)
+
+            retired = bundle / "install-medge-all.sh"
+            retired.write_text("#!/bin/sh\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                publish_apt.PublishError,
+                "unexpected files",
+            ):
+                publish_apt.validate_bundle(bundle)
+
+    def test_sign_release_signs_apt_and_v9_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            root = Path(temp_name)
+            repository = root / "repository"
+            site = root / "site"
+            gnupg = root / "gnupg"
+            repository.mkdir()
+            (site / "dists/stable").mkdir(parents=True)
+            gnupg.mkdir(mode=0o700)
+            passphrase = "test-passphrase"
+            environment = {**os.environ, "GNUPGHOME": str(gnupg)}
+            subprocess.run(
+                [
+                    "gpg",
+                    "--batch",
+                    "--pinentry-mode",
+                    "loopback",
+                    "--passphrase",
+                    passphrase,
+                    "--quick-gen-key",
+                    "Install Sphere Test <sphere-test@example.invalid>",
+                    "rsa2048",
+                    "sign",
+                    "1d",
+                ],
+                check=True,
+                env=environment,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            key_listing = subprocess.run(
+                ["gpg", "--batch", "--with-colons", "--list-secret-keys"],
+                check=True,
+                env=environment,
+                text=True,
+                capture_output=True,
+            ).stdout
+            fingerprint = next(
+                line.split(":")[9]
+                for line in key_listing.splitlines()
+                if line.startswith("fpr:")
+            )
+            with (repository / "medge-archive-keyring.gpg").open("wb") as handle:
+                subprocess.run(
+                    ["gpg", "--batch", "--export", fingerprint],
+                    check=True,
+                    env=environment,
+                    stdout=handle,
+                )
+            (repository / "medge-archive-keyring.fingerprint").write_text(
+                fingerprint + "\n",
+                encoding="utf-8",
+            )
+            (site / "dists/stable/Release").write_text(
+                "Suite: stable\n",
+                encoding="utf-8",
+            )
+            (site / "release-manifest.json").write_text(
+                json.dumps(self.manifest("medge-public-release/v9")),
+                encoding="utf-8",
+            )
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "GNUPGHOME": str(gnupg),
+                    "MEDGE_APT_SIGNING_PASSPHRASE": passphrase,
+                },
+            ):
+                publish_apt.sign_release(site, repository)
+            self.assertTrue((site / "dists/stable/Release.gpg").is_file())
+            self.assertTrue((site / "dists/stable/InRelease").is_file())
+            signature = site / "release-manifest.json.asc"
+            self.assertTrue(signature.is_file())
+            subprocess.run(
+                [
+                    "gpgv",
+                    "--keyring",
+                    str(repository / "medge-archive-keyring.gpg"),
+                    str(signature),
+                    str(site / "release-manifest.json"),
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+    def test_v9_pages_index_exposes_only_install_sphere_entry(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            root = Path(temp_name)
+            site = root / "site"
+            bundle = root / "bundle"
+            site.mkdir()
+            bundle.mkdir()
+            package = self.make_deb(bundle, package="sphere")
+            publish_apt.copy_package(package, site)
+            manifest = self.manifest("medge-public-release/v9")
+            (bundle / "release-manifest.json").write_text(
+                json.dumps(manifest),
+                encoding="utf-8",
+            )
+            (bundle / "install-sphere.sh").write_text(
+                "#!/usr/bin/env bash\nset -euo pipefail\n",
+                encoding="utf-8",
+            )
+            publish_apt.write_index(
+                site,
+                Path(__file__).parents[1],
+                manifest,
+                bundle,
+            )
+            self.assertTrue((site / "install-sphere.sh").is_file())
+            self.assertTrue((site / "release-manifest.json").is_file())
+            self.assertFalse((site / "install-medge-all.sh").exists())
+            self.assertFalse((site / "medge-install.sh").exists())
+            self.assertIn(
+                "Label: Sphere",
+                (site / "dists/stable/Release").read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                "release-manifest.json.asc",
+                (site / "index.html").read_text(encoding="utf-8"),
+            )
 
     def test_v5_manifest_keeps_historical_eight_package_set(self) -> None:
         manifest = self.manifest("medge-public-release/v5")

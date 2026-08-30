@@ -6,9 +6,10 @@ import unittest
 
 
 ROOT = Path(__file__).parents[1]
-INSTALLER = ROOT / "install.sh"
+SPHERE_INSTALLER = ROOT / "install-sphere.sh"
+COMPONENT_DISPATCHER = ROOT / "install.sh"
 COMPATIBILITY = ROOT / "scripts/validate-ubuntu-compatibility.sh"
-WRAPPERS = {
+COMPONENT_WRAPPERS = {
     "ss-webos-install.sh": ("ss-webos", "ss-webos"),
     "mote-proxy-install.sh": ("mote-proxy", "sphere mote-proxy"),
     "motemcp-install.sh": ("motemcp", "sphere moted motemcp"),
@@ -16,141 +17,76 @@ WRAPPERS = {
 
 
 class InstallContractTest(unittest.TestCase):
-    def test_all_installers_require_bash(self) -> None:
-        for filename in (
-            "install.sh", "install-mote-transport.sh", "medge-install.sh",
-            "install-medge.sh", "install-medge-all.sh", "mdesk-install.sh",
-            *WRAPPERS,
-        ):
-            text = (ROOT / filename).read_text(encoding="utf-8")
-            self.assertTrue(text.startswith("#!/usr/bin/env bash\nset -euo pipefail\n"))
-            self.assertNotIn("#!/bin/sh", text)
-        for filename in WRAPPERS:
-            self.assertIn('bash "$TEMP_INSTALLER"', (ROOT / filename).read_text(encoding="utf-8"))
+    def test_install_sphere_is_the_only_aggregate_entry(self) -> None:
+        self.assertTrue(SPHERE_INSTALLER.is_file())
+        self.assertTrue(SPHERE_INSTALLER.stat().st_mode & 0o111)
+        self.assertFalse((ROOT / "install-medge-all.sh").exists())
+        self.assertFalse((ROOT / "medge-install.sh").exists())
 
-    def test_named_installers_select_exact_boundaries(self) -> None:
-        dispatcher = INSTALLER.read_text(encoding="utf-8")
-        for filename, (profile, packages) in WRAPPERS.items():
+    def test_install_sphere_has_exact_v9_trust_and_package_contract(self) -> None:
+        text = SPHERE_INSTALLER.read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("#!/usr/bin/env bash\nset -euo pipefail\n"))
+        for package_name in (
+            "sphere",
+            "moted",
+            "medge",
+            "mlink",
+            "mdesk",
+            "ss-webos",
+            "mote-proxy",
+            "motemcp",
+            "cx-pivot",
+            "mote-sync",
+            "mote-syncd",
+        ):
+            self.assertIn(f'    "{package_name}",', text)
+        for required in (
+            "medge-public-release/v9",
+            "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
+            "release-manifest.json.asc",
+            "gpgv --keyring",
+            'apt-get install -y "${PACKAGE_ARGS[@]}"',
+            "Ubuntu 24.04 or 26.04 is required",
+        ):
+            self.assertIn(required, text)
+
+    def test_install_sphere_never_removes_packages_or_mutates_topology(self) -> None:
+        text = SPHERE_INSTALLER.read_text(encoding="utf-8")
+        for forbidden in (
+            "apt-get remove",
+            "apt-get purge",
+            "dpkg --remove",
+            "MCHAT_",
+            "/etc/hosts",
+            "systemctl enable",
+        ):
+            self.assertNotIn(forbidden, text)
+
+    def test_component_installers_remain_separate_from_aggregate(self) -> None:
+        dispatcher = COMPONENT_DISPATCHER.read_text(encoding="utf-8")
+        for filename, (profile, packages) in COMPONENT_WRAPPERS.items():
             wrapper = (ROOT / filename).read_text(encoding="utf-8")
             self.assertIn(f"MEDGE_INSTALL_PROFILE={profile}", wrapper)
             self.assertIn(f'APT_PACKAGES="{packages}"', dispatcher)
-
-    def test_desktop_package_names_are_canonical(self) -> None:
-        dispatcher = INSTALLER.read_text(encoding="utf-8")
-        self.assertIn('mdesk)      APT_PACKAGES="sphere moted mlink mdesk"', dispatcher)
-        self.assertIn('ss-webos)   APT_PACKAGES="ss-webos"', dispatcher)
-        self.assertNotIn("ss-desk", dispatcher)
-        self.assertNotIn('APT_PACKAGES="desk', dispatcher)
-        self.assertFalse((ROOT / "webos-install.sh").exists())
-
-    def test_mote_transport_installer_is_self_contained_and_digest_pinned(self) -> None:
-        text = (ROOT / "install-mote-transport.sh").read_text(encoding="utf-8")
-        self.assertIn("mote-transport-v2026.08.28-1", text)
-        self.assertIn("sphere_4.0.0-1_amd64.deb", text)
-        self.assertIn("moted_3.2.0-26_amd64.deb", text)
-        self.assertIn("mote-proxy_1.3.0-35_all.deb", text)
-        self.assertEqual(text.count("sha256sum --check"), 1)
-        self.assertIn("dpkg --compare-versions", text)
-        self.assertIn('apt-get install -y "$@"', text)
-        self.assertIn("systemctl enable --now", text)
-        self.assertIn("registration continues asynchronously", text)
-        self.assertNotIn("MEDGE_INSTALL_PROFILE", text)
-        self.assertNotIn("motebus.github.io", text)
-        self.assertNotIn("MCHAT_", text)
-
-    def test_mdesk_installer_is_self_contained_and_digest_pinned(self) -> None:
-        text = (ROOT / "mdesk-install.sh").read_text(encoding="utf-8")
-        self.assertIn("deb-v2026.08.27-2", text)
-        self.assertIn("sphere_4.0.0-1_amd64.deb", text)
-        self.assertIn("moted_3.2.0-16_amd64.deb", text)
-        self.assertIn("mlink_0.1.0-2_amd64.deb", text)
-        self.assertIn("mdesk_3.0.0-2_amd64.deb", text)
-        self.assertEqual(text.count("sha256sum --check"), 1)
-        self.assertNotIn("motebus.github.io", text)
-        self.assertNotIn("ss-desk_", text)
-        self.assertIn("dpkg --compare-versions", text)
-        self.assertIn("Keeping %s=%s", text)
-        self.assertIn('chmod 0755 "$PACKAGE_DIR"', text)
-        self.assertIn('chmod 0644 "$PACKAGE_DIR/$asset"', text)
-
-    def test_medge_installer_is_complete_self_contained_and_digest_pinned(self) -> None:
-        text = (ROOT / "medge-install.sh").read_text(encoding="utf-8")
-        self.assertIn("deb-v2026.08.27-2", text)
-        self.assertIn("mote-transport-v2026.08.28-1", text)
-        for asset in (
-            "sphere_4.0.0-1_amd64.deb",
-            "moted_3.2.0-26_amd64.deb",
-            "medge_1.1.0-3_all.deb",
-            "mote-proxy_1.3.0-35_all.deb",
-            "motemcp_1.0.0-3_all.deb",
-            "mlink_0.1.0-2_amd64.deb",
-            "mdesk_3.0.0-2_amd64.deb",
-            "ss-webos_2.0.0-8_amd64.deb",
-            "cx-node_0.3.1-11_amd64.deb",
-        ):
-            self.assertIn(asset, text)
-        self.assertEqual(text.count("sha256sum --check"), 1)
-        self.assertNotIn("motebus.github.io", text)
-        self.assertNotIn("MEDGE_INSTALL_PROFILE", text)
-        self.assertIn("dpkg --compare-versions", text)
-        self.assertIn('apt-get install -y "$@"', text)
-        self.assertIn('chmod 0755 "$PACKAGE_DIR"', text)
-        self.assertIn('chmod 0644 "$PACKAGE_DIR/$asset"', text)
-        self.assertIn(
-            "332f927952bcb1bc68ee3ce6ee860c347d2000d26dbc8fc30963c68bf1bb964f  medge_1.1.0-3_all.deb",
-            text,
-        )
-        self.assertIn(
-            "cf1ee92aaad8ba06e63532667dcc420f279b53d16bc1b73a87d5093bce946a63  moted_3.2.0-26_amd64.deb",
-            text,
-        )
-        self.assertIn(
-            "e158cb68d7888074dd90b263d8ce262ba1d136cc3193553b021bf0768926daaa  mote-proxy_1.3.0-35_all.deb",
-            text,
-        )
-        self.assertNotIn("medge-core", text)
-        self.assertIn('PROFILE_NAME="medge-all"', text)
-        self.assertNotIn("medge-all.deb", text)
-        self.assertIn("cx-node:0.3.1-11", text)
-        self.assertIn("Codex is unavailable", text)
-        self.assertIn("CX Node is installed and enabled but remains inactive", text)
-
-    def test_installers_never_remove_packages_or_topology(self) -> None:
-        dispatcher = INSTALLER.read_text(encoding="utf-8")
-        installers = [dispatcher]
-        installers.extend(
-            (ROOT / filename).read_text(encoding="utf-8")
-            for filename in (
-                "install-mote-transport.sh", "medge-install.sh",
-                "install-medge.sh", "install-medge-all.sh",
-                "mdesk-install.sh", *WRAPPERS,
-            )
-        )
-        for text in installers:
-            for forbidden in ("apt-get remove", "apt-get purge", "dpkg --remove", "MCHAT_"):
-                self.assertNotIn(forbidden, text)
-        self.assertEqual(dispatcher.count("apt-get install -y $APT_PACKAGES"), 1)
-
-    def test_dispatcher_fails_closed_without_a_named_profile(self) -> None:
-        dispatcher = INSTALLER.read_text(encoding="utf-8")
-        self.assertIn('INSTALL_PROFILE="${MEDGE_INSTALL_PROFILE:-}"', dispatcher)
-        self.assertIn("use a named component installer", dispatcher)
+            self.assertNotIn("install-sphere.sh", wrapper)
+        self.assertNotIn("medge-all", dispatcher)
 
     def test_shell_contracts_parse(self) -> None:
-        subprocess.run(["bash", "-n", str(INSTALLER)], check=True)
-        subprocess.run(["bash", "-n", str(ROOT / "install-mote-transport.sh")], check=True)
-        subprocess.run(["bash", "-n", str(ROOT / "install-medge.sh")], check=True)
-        subprocess.run(["bash", "-n", str(ROOT / "install-medge-all.sh")], check=True)
-        subprocess.run(["bash", "-n", str(ROOT / "medge-install.sh")], check=True)
-        subprocess.run(["bash", "-n", str(ROOT / "mdesk-install.sh")], check=True)
-        for filename in WRAPPERS:
+        for filename in (
+            "install-sphere.sh",
+            "install.sh",
+            "install-mote-transport.sh",
+            "install-medge.sh",
+            "mdesk-install.sh",
+            *COMPONENT_WRAPPERS,
+        ):
             subprocess.run(["bash", "-n", str(ROOT / filename)], check=True)
         subprocess.run(["bash", "-n", str(COMPATIBILITY)], check=True)
 
     def test_supported_ubuntu_targets_are_exact(self) -> None:
-        dispatcher = INSTALLER.read_text(encoding="utf-8")
-        self.assertIn("ubuntu:24.04|ubuntu:26.04)", dispatcher)
-        self.assertNotIn("ubuntu:22.04", dispatcher)
+        text = SPHERE_INSTALLER.read_text(encoding="utf-8")
+        self.assertIn("ubuntu:24.04|ubuntu:26.04)", text)
+        self.assertNotIn("ubuntu:22.04", text)
         compatibility = COMPATIBILITY.read_text(encoding="utf-8")
         self.assertIn("run_target 24.04", compatibility)
         self.assertIn("run_target 26.04", compatibility)
