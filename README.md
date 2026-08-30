@@ -30,6 +30,12 @@ endpoint packages used by the Sync-service acceptance row. WebOS Server, SS
 Server, Redixs, and every other OCI-only service are excluded; `ss-webos` is
 the independent Debian client runtime and remains included.
 
+The five Mote Transport service rows are SSH, SFTP, Git, MCP over SSH, and
+Sync for an Obsidian Vault. Install Sphere provides their approved Debian
+package prerequisites, but it never discovers, creates, selects, modifies, or
+copies a Vault. Vault pairing and runtime Sync acceptance remain separate
+post-install operations owned by `mote-sync` and `mote-syncd`.
+
 `medge` and `cx-pivot` are independent package boundaries. Their publication
 and installation do not depend on or query UltraMap. Historical `cx-node`
 release evidence does not create an UltraMap relationship.
