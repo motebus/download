@@ -518,9 +518,10 @@ def validate_bundle(bundle: Path) -> dict:
             f"architecture mismatch: {asset.name}",
         )
 
+    retired_meta = bundle / f"medge_{manifest['medge_version']}_all.deb"
     require(
-        list(bundle.glob("medge_*_all.deb")) == [],
-        "v4 bundle must not contain retired medge.deb",
+        not retired_meta.exists(),
+        "current bundle must not contain retired medge.deb",
     )
 
     forbidden = [
