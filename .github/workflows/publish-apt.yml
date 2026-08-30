@@ -71,7 +71,7 @@ jobs:
           set -euo pipefail
           python3 scripts/publish_apt.py build . apt-site release-input/current
           test -s apt-site/release-manifest.json.asc
-          gpgv --keyring medge-archive-keyring.gpg \
+          gpgv --keyring ./medge-archive-keyring.gpg \
             apt-site/release-manifest.json.asc apt-site/release-manifest.json
           test "$(du -sb apt-site | cut -f1)" -lt 1000000000
 
