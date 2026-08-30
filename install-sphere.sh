@@ -6,9 +6,6 @@ readonly BASE_URL="https://motebus.github.io/medge-release"
 readonly EXPECTED_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 readonly KEYRING_PATH="/etc/apt/keyrings/medge-archive-keyring.gpg"
 readonly SOURCES_PATH="/etc/apt/sources.list.d/medge.sources"
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly MANIFEST_PATH="${SPHERE_RELEASE_MANIFEST:-${SCRIPT_DIR}/release-manifest.json}"
-readonly MANIFEST_SIGNATURE_PATH="${SPHERE_RELEASE_MANIFEST_SIGNATURE:-${MANIFEST_PATH}.asc}"
 
 fail() {
     printf 'Sphere install failed: %s\n' "$*" >&2
@@ -24,9 +21,6 @@ case "${ID:-}:${VERSION_ID:-}" in
     *) fail "Ubuntu 24.04 or 26.04 is required" ;;
 esac
 [[ "$(dpkg --print-architecture)" == amd64 ]] || fail "amd64 is required"
-[[ -r "$MANIFEST_PATH" ]] || fail "approved release-manifest.json is required beside the installer"
-[[ -r "$MANIFEST_SIGNATURE_PATH" ]] ||
-    fail "release-manifest.json.asc is required beside the approved manifest"
 
 for command_name in apt-cache apt-get awk cmp curl dpkg dpkg-query gpg gpgv install python3; do
     command -v "$command_name" >/dev/null 2>&1 ||
@@ -38,10 +32,43 @@ cleanup() {
     rm -f "$TEMP_DIR/medge-archive-keyring.gpg" \
         "$TEMP_DIR/medge.sources" \
         "$TEMP_DIR/expected.sources" \
-        "$TEMP_DIR/package-plan"
+        "$TEMP_DIR/package-plan" \
+        "$TEMP_DIR/release-manifest.json" \
+        "$TEMP_DIR/release-manifest.json.asc"
     rmdir "$TEMP_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT HUP INT TERM
+
+SCRIPT_SOURCE="${BASH_SOURCE[0]-}"
+FETCH_RELEASE_MANIFEST=0
+if [[ -n "${SPHERE_RELEASE_MANIFEST:-}" ]]; then
+    manifest_path="$SPHERE_RELEASE_MANIFEST"
+elif [[ -n "$SCRIPT_SOURCE" ]]; then
+    script_dir="$(cd -- "$(dirname -- "$SCRIPT_SOURCE")" && pwd)"
+    manifest_path="$script_dir/release-manifest.json"
+else
+    manifest_path="$TEMP_DIR/release-manifest.json"
+    FETCH_RELEASE_MANIFEST=1
+fi
+manifest_signature_path="${SPHERE_RELEASE_MANIFEST_SIGNATURE:-${manifest_path}.asc}"
+readonly MANIFEST_PATH="$manifest_path"
+readonly MANIFEST_SIGNATURE_PATH="$manifest_signature_path"
+
+if [[ "$FETCH_RELEASE_MANIFEST" -eq 1 ]]; then
+    curl --proto '=https' --tlsv1.2 -fsSLo \
+        "$MANIFEST_PATH" "$BASE_URL/release-manifest.json" ||
+        fail "approved Sphere release is not published at $BASE_URL"
+    if [[ -z "${SPHERE_RELEASE_MANIFEST_SIGNATURE:-}" ]]; then
+        curl --proto '=https' --tlsv1.2 -fsSLo \
+            "$MANIFEST_SIGNATURE_PATH" "$BASE_URL/release-manifest.json.asc" ||
+            fail "approved Sphere manifest signature is not published at $BASE_URL"
+    fi
+fi
+
+[[ -r "$MANIFEST_PATH" ]] ||
+    fail "approved release-manifest.json is required beside the installer"
+[[ -r "$MANIFEST_SIGNATURE_PATH" ]] ||
+    fail "release-manifest.json.asc is required beside the approved manifest"
 
 python3 - "$MANIFEST_PATH" >"$TEMP_DIR/package-plan" <<'PY'
 import json

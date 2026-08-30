@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
 
 
@@ -61,6 +63,32 @@ class InstallContractTest(unittest.TestCase):
             "systemctl enable",
         ):
             self.assertNotIn(forbidden, text)
+
+    def test_install_sphere_accepts_stdin_without_bash_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            fake_id = Path(temp_name) / "id"
+            fake_id.write_text("#!/bin/sh\necho 1000\n", encoding="utf-8")
+            fake_id.chmod(0o755)
+            environment = dict(os.environ)
+            environment["PATH"] = f"{temp_name}:{environment['PATH']}"
+            completed = subprocess.run(
+                ["bash"],
+                input=SPHERE_INSTALLER.read_text(encoding="utf-8"),
+                text=True,
+                capture_output=True,
+                env=environment,
+                check=False,
+            )
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("run this installer as root", completed.stderr)
+        self.assertNotIn("BASH_SOURCE", completed.stderr)
+
+    def test_install_sphere_pipeline_mode_uses_signed_pages_manifest(self) -> None:
+        text = SPHERE_INSTALLER.read_text(encoding="utf-8")
+        self.assertIn('${BASH_SOURCE[0]-}', text)
+        self.assertIn('$BASE_URL/release-manifest.json', text)
+        self.assertIn('$BASE_URL/release-manifest.json.asc', text)
+        self.assertIn("approved Sphere release is not published", text)
 
     def test_component_installers_remain_separate_from_aggregate(self) -> None:
         dispatcher = COMPONENT_DISPATCHER.read_text(encoding="utf-8")
