@@ -11,6 +11,7 @@ ROOT = Path(__file__).parents[1]
 SPHERE_INSTALLER = ROOT / "install-sphere.sh"
 COMPONENT_DISPATCHER = ROOT / "install.sh"
 COMPATIBILITY = ROOT / "scripts/validate-ubuntu-compatibility.sh"
+PUBLISH_WORKFLOW = ROOT / ".github/workflows/publish-apt.yml"
 COMPONENT_WRAPPERS = {
     "ss-webos-install.sh": ("ss-webos", "ss-webos"),
     "mote-proxy-install.sh": ("mote-proxy", "sphere mote-proxy"),
@@ -118,6 +119,11 @@ class InstallContractTest(unittest.TestCase):
         compatibility = COMPATIBILITY.read_text(encoding="utf-8")
         self.assertIn("run_target 24.04", compatibility)
         self.assertIn("run_target 26.04", compatibility)
+
+    def test_pages_signature_check_uses_explicit_local_keyring(self) -> None:
+        workflow = PUBLISH_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("gpgv --keyring ./medge-archive-keyring.gpg", workflow)
+        self.assertNotIn("gpgv --keyring medge-archive-keyring.gpg", workflow)
 
 
 if __name__ == "__main__":
