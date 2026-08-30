@@ -32,12 +32,17 @@ class PublicAptTest(unittest.TestCase):
         packages = []
         for index, name in enumerate(package_names, start=1):
             version = f"1.0.0-{index}"
+            architecture = (
+                "all"
+                if name in {"medge", "mote-proxy", "motemcp", "mote-sync", "mote-syncd"}
+                else "amd64"
+            )
             packages.append(
                 {
                     "name": name,
                     "version": version,
-                    "architecture": "amd64",
-                    "asset": f"{name}_{version}_amd64.deb",
+                    "architecture": architecture,
+                    "asset": f"{name}_{version}_{architecture}.deb",
                     "source_commit": f"{index:x}" * 40,
                     "source_ref": "refs/heads/main",
                     "sha256": f"{index:x}" * 64,
@@ -47,7 +52,7 @@ class PublicAptTest(unittest.TestCase):
         manifest = {
             "schema": schema,
             "status": "approved",
-            "medge_version": "5.1.0-1" if schema == "medge-public-release/v9" else "4.2.0-1",
+            "medge_version": "5.1.0-2" if schema == "medge-public-release/v9" else "4.2.0-1",
             "suite": "stable",
             "component": "main",
             "architecture": "amd64",
@@ -202,6 +207,15 @@ class PublicAptTest(unittest.TestCase):
                 "unexpected files",
             ):
                 publish_apt.validate_bundle(bundle)
+
+            medge_asset = next(
+                package["asset"] for package in manifest["packages"]
+                if package["name"] == "medge"
+            )
+            self.assertTrue((bundle / medge_asset).is_file())
+            self.assertFalse(
+                (bundle / f"medge_{manifest['medge_version']}_all.deb").exists()
+            )
 
     def test_sign_release_signs_apt_and_v9_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
