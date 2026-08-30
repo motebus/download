@@ -609,6 +609,13 @@ def validate_tree(root: Path) -> None:
     require(sphere_installer.is_file(), "public repository is missing install-sphere.sh")
     require(sphere_installer.stat().st_mode & 0o111 != 0, "install-sphere.sh must be executable")
     run("bash", "-n", str(sphere_installer))
+    publish_workflow = (root / ".github/workflows/publish-apt.yml").read_text(
+        encoding="utf-8"
+    )
+    require(
+        "chmod 0755 release-input/current/install-sphere.sh" in publish_workflow,
+        "publish workflow must restore the release-asset installer mode",
+    )
     for retired_name in ("install-medge-all.sh", "medge-install.sh"):
         require(not (root / retired_name).exists(), f"public repository contains retired {retired_name}")
     for name in (
