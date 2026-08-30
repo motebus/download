@@ -72,14 +72,13 @@ resolved package plan.
 After an approved v9 release has completed the Pages workflow, install with:
 
 ```bash
-curl -fsSLo /tmp/install-sphere.sh \
-  https://motebus.github.io/medge-release/install-sphere.sh
-curl -fsSLo /tmp/release-manifest.json \
-  https://motebus.github.io/medge-release/release-manifest.json
-curl -fsSLo /tmp/release-manifest.json.asc \
-  https://motebus.github.io/medge-release/release-manifest.json.asc
-sudo bash /tmp/install-sphere.sh
+curl --proto '=https' --tlsv1.2 -fsSL \
+  https://motebus.github.io/medge-release/install-sphere.sh | sudo bash
 ```
+
+In pipeline mode the installer fetches the manifest and detached signature from
+that same Pages origin before making any APT change. The raw `main` script on
+GitHub is source-review material, not an approved installation source.
 
 Do not install from a local checkout, a loose artifact copy, or a private
 GitLab URL.
