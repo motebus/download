@@ -60,6 +60,21 @@ EXPECTED_PACKAGES_V9 = (
     "mote-sync",
     "mote-syncd",
 )
+EXPECTED_PACKAGES_V10 = (
+    "sphere",
+    "moted",
+    "medge",
+    "mlink",
+    "mdesk",
+    "ss-webos",
+    "mote-proxy",
+    "motemcp",
+    "ultra-mcp-ssh",
+    "mcp-run",
+    "cx-pivot",
+    "mote-sync",
+    "mote-syncd",
+)
 INSTALLER_PROFILES_V9 = {
     "sphere.sh": EXPECTED_PACKAGES_V9,
     "sshpack.sh": (
@@ -67,6 +82,25 @@ INSTALLER_PROFILES_V9 = {
         "moted",
         "mote-proxy",
         "motemcp",
+        "mote-sync",
+        "mote-syncd",
+    ),
+    "webdesk.sh": (
+        "sphere",
+        "mlink",
+        "mdesk",
+        "ss-webos",
+    ),
+}
+INSTALLER_PROFILES_V10 = {
+    "sphere.sh": EXPECTED_PACKAGES_V10,
+    "sshpack.sh": (
+        "sphere",
+        "moted",
+        "mote-proxy",
+        "motemcp",
+        "ultra-mcp-ssh",
+        "mcp-run",
         "mote-sync",
         "mote-syncd",
     ),
@@ -119,6 +153,11 @@ ENV_PATHS_V9 = {
     "cx-pivot": ("cx-pivot-deb.env", "cx-pivot-mchat.env"),
     "mote-sync": ("mote-sync-deb.env",),
     "mote-syncd": ("mote-sync-deb.env",),
+}
+ENV_PATHS_V10 = {
+    **ENV_PATHS_V9,
+    "ultra-mcp-ssh": ("ultra-mcp-deb.env",),
+    "mcp-run": ("ultra-mcp-deb.env",),
 }
 MOTE_TRANSPORT_SCHEMA = "mote-transport-public-release/v1"
 MOTE_TRANSPORT_TAG_RE = re.compile(
@@ -245,14 +284,16 @@ def expected_packages(manifest: dict) -> tuple[str, ...]:
         return EXPECTED_PACKAGES_V8
     if manifest.get("schema") == "medge-public-release/v9":
         return EXPECTED_PACKAGES_V9
+    if manifest.get("schema") == "medge-public-release/v10":
+        return EXPECTED_PACKAGES_V10
     raise PublishError("unsupported public release manifest schema")
 
 
 def expected_env_paths(package_name: str) -> list[str]:
     if package_name == "cx-node":
         return []
-    if package_name in ENV_PATHS_V9:
-        return list(ENV_PATHS_V9[package_name])
+    if package_name in ENV_PATHS_V10:
+        return list(ENV_PATHS_V10[package_name])
     paths = [f"{package_name}-deb.env"]
     if package_name in MCHAT_ENV_PACKAGES or package_name == "mote-proxy":
         paths.append(f"{package_name}-mchat.env")
@@ -300,6 +341,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v7",
             "medge-public-release/v8",
             "medge-public-release/v9",
+            "medge-public-release/v10",
         },
         "invalid public release manifest schema",
     )
@@ -345,6 +387,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v7",
             "medge-public-release/v8",
             "medge-public-release/v9",
+            "medge-public-release/v10",
         }:
             package_fields.add("env_inputs")
         require(
@@ -363,6 +406,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v7",
             "medge-public-release/v8",
             "medge-public-release/v9",
+            "medge-public-release/v10",
         }:
             validate_env_inputs(package)
     require_no_gitlab_url_bytes(
@@ -548,10 +592,15 @@ def validate_bundle(bundle: Path) -> dict:
     ]
     require(forbidden == [], f"source packages are forbidden: {forbidden}")
     validate_no_gitlab_urls(bundle)
-    if manifest["schema"] == "medge-public-release/v9":
-        for installer_name in INSTALLER_PROFILES_V9:
+    if manifest["schema"] in {"medge-public-release/v9", "medge-public-release/v10"}:
+        installer_profiles = (
+            INSTALLER_PROFILES_V10
+            if manifest["schema"] == "medge-public-release/v10"
+            else INSTALLER_PROFILES_V9
+        )
+        for installer_name in installer_profiles:
             installer = bundle / installer_name
-            require(installer.is_file(), f"v9 bundle is missing {installer_name}")
+            require(installer.is_file(), f"current bundle is missing {installer_name}")
             require(
                 installer.stat().st_mode & 0o111 != 0,
                 f"{installer_name} must be executable",
@@ -559,14 +608,14 @@ def validate_bundle(bundle: Path) -> dict:
             run("bash", "-n", str(installer))
         expected_targets = {
             "release-manifest.json",
-            *INSTALLER_PROFILES_V9,
+            *installer_profiles,
             *(package["asset"] for package in manifest["packages"]),
         }
-        require(checksum_targets == expected_targets, "v9 checksum targets are invalid")
+        require(checksum_targets == expected_targets, "current checksum targets are invalid")
         actual_files = {path.name for path in bundle.iterdir() if path.is_file()}
         require(
             actual_files == expected_targets | {"SHA256SUMS"},
-            "v9 bundle contains unexpected files",
+            "current bundle contains unexpected files",
         )
         for retired_name in (
             "install-sphere.sh",
@@ -575,7 +624,7 @@ def validate_bundle(bundle: Path) -> dict:
             "medge-install.sh",
             "install.sh",
         ):
-            require(not (bundle / retired_name).exists(), f"v9 bundle contains retired {retired_name}")
+            require(not (bundle / retired_name).exists(), f"current bundle contains retired {retired_name}")
     else:
         required_installers = [
             "install-mote-transport.sh",
@@ -627,7 +676,7 @@ def validate_tree(root: Path) -> None:
         f"fpr:::::::::{fingerprint}:" in public_keys,
         "public archive key does not match fingerprint",
     )
-    for installer_name in INSTALLER_PROFILES_V9:
+    for installer_name in INSTALLER_PROFILES_V10:
         installer = root / installer_name
         require(installer.is_file(), f"public repository is missing {installer_name}")
         require(
@@ -642,7 +691,7 @@ def validate_tree(root: Path) -> None:
         and path.name != "github-setup.sh"
     }
     require(
-        actual_shell_entries == set(INSTALLER_PROFILES_V9),
+        actual_shell_entries == set(INSTALLER_PROFILES_V10),
         "public repository must contain exactly sphere.sh, sshpack.sh, and webdesk.sh",
     )
     publish_workflow = (root / ".github/workflows/publish-apt.yml").read_text(
@@ -654,10 +703,10 @@ def validate_tree(root: Path) -> None:
         and "release-input/current/webdesk.sh" in publish_workflow,
         "publish workflow must restore all release-asset installer modes",
     )
-    for installer_name in INSTALLER_PROFILES_V9:
+    for installer_name in INSTALLER_PROFILES_V10:
         installer_text = (root / installer_name).read_text(encoding="utf-8")
         for required_text in (
-            "medge-public-release/v9",
+            "medge-public-release/v10",
             fingerprint,
             "release-manifest.json.asc",
             "gpgv --keyring",
@@ -748,7 +797,7 @@ def write_index(
 
     shutil.copy2(repository_root / "medge-archive-keyring.gpg", site)
     shutil.copy2(repository_root / "medge.sources", site)
-    for installer_name in INSTALLER_PROFILES_V9:
+    for installer_name in INSTALLER_PROFILES_V10:
         shutil.copy2(current_bundle / installer_name, site)
     shutil.copy2(current_bundle / "release-manifest.json", site)
     (site / ".nojekyll").write_text("", encoding="utf-8")

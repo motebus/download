@@ -84,6 +84,8 @@ expected = (
     "ss-webos",
     "mote-proxy",
     "motemcp",
+    "ultra-mcp-ssh",
+    "mcp-run",
     "cx-pivot",
     "mote-sync",
     "mote-syncd",
@@ -97,8 +99,8 @@ selected = (
 version_re = re.compile(r"^[0-9][0-9A-Za-z.+:~]*-[0-9]+$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
-if manifest.get("schema") != "medge-public-release/v9":
-    raise SystemExit("release manifest schema is not medge-public-release/v9")
+if manifest.get("schema") != "medge-public-release/v10":
+    raise SystemExit("release manifest schema is not medge-public-release/v10")
 if manifest.get("status") != "approved":
     raise SystemExit("release manifest is not approved")
 if (

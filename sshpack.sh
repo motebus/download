@@ -84,6 +84,8 @@ expected = (
     "ss-webos",
     "mote-proxy",
     "motemcp",
+    "ultra-mcp-ssh",
+    "mcp-run",
     "cx-pivot",
     "mote-sync",
     "mote-syncd",
@@ -93,14 +95,16 @@ selected = (
     "moted",
     "mote-proxy",
     "motemcp",
+    "ultra-mcp-ssh",
+    "mcp-run",
     "mote-sync",
     "mote-syncd",
 )
 version_re = re.compile(r"^[0-9][0-9A-Za-z.+:~]*-[0-9]+$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
-if manifest.get("schema") != "medge-public-release/v9":
-    raise SystemExit("release manifest schema is not medge-public-release/v9")
+if manifest.get("schema") != "medge-public-release/v10":
+    raise SystemExit("release manifest schema is not medge-public-release/v10")
 if manifest.get("status") != "approved":
     raise SystemExit("release manifest is not approved")
 if (
@@ -128,7 +132,7 @@ for item in packages:
 PY
 
 mapfile -t PACKAGE_RECORDS <"$TEMP_DIR/package-plan"
-[[ "${#PACKAGE_RECORDS[@]}" -eq 6 ]] || fail "release manifest package plan is incomplete for $PROFILE_NAME"
+[[ "${#PACKAGE_RECORDS[@]}" -eq 8 ]] || fail "release manifest package plan is incomplete for $PROFILE_NAME"
 
 curl --proto '=https' --tlsv1.2 -fsSLo \
     "$TEMP_DIR/medge-archive-keyring.gpg" \

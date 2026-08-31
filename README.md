@@ -5,9 +5,9 @@ for the Sphere/Mote Transport Debian aggregate. Private implementation source,
 GitLab addresses, credentials, topology, source packages, and loose env files
 are forbidden here.
 
-## Current v9 package set
+## Current v10 package set
 
-An approved `medge-public-release/v9` bundle contains these independent Debian
+An approved `medge-public-release/v10` bundle contains these independent Debian
 packages in dependency-safe audit order:
 
 ```text
@@ -19,13 +19,17 @@ mdesk
 ss-webos
 mote-proxy
 motemcp
+ultra-mcp-ssh
+mcp-run
 cx-pivot
 mote-sync
 mote-syncd
 ```
 
-The first eight entries are the active Sphere runtime catalog. CX Pivot keeps
-its independent CX ownership. `mote-sync` and `mote-syncd` are the client and
+The bundle includes the active Sphere runtime catalog. `ultra-mcp-ssh` and
+`mcp-run` are the strict MCP-over-SSH client and target data-plane packages;
+they do not restore the retired MCP mode proxy. CX Pivot keeps its independent
+CX ownership. `mote-sync` and `mote-syncd` are the client and
 endpoint packages used by the Sync-service acceptance row. WebOS Server, SS
 Server, Redixs, and every other OCI-only service are excluded; `ss-webos` is
 the independent Debian client runtime and remains included.
@@ -46,8 +50,8 @@ There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 ## Clean break
 
 The current installation surface contains exactly three scripts:
-`sphere.sh` for all eleven packages, `sshpack.sh` for
-`sphere + moted + mote-proxy + motemcp + mote-sync + mote-syncd`, and
+`sphere.sh` for all thirteen packages, `sshpack.sh` for
+`sphere + moted + mote-proxy + motemcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd`, and
 `webdesk.sh` for `sphere + mlink + mdesk + ss-webos`. All former
 `install*.sh` and `*-install.sh` entries are retired without aliases.
 Existing tags and release assets remain immutable historical evidence; they
@@ -55,10 +59,10 @@ are not copied into the new Pages site.
 
 ## Trust chain
 
-The protected private owner creates a v9 bundle from exact GitLab `main` or an
+The protected private owner creates a v10 bundle from exact GitLab `main` or an
 explicitly approved immutable rollback tag. This repository then:
 
-1. validates the exact eleven-package manifest, assets, SHA-256 checksums, env
+1. validates the exact thirteen-package manifest, assets, SHA-256 checksums, env
    provenance, and the three executable installers;
 2. installs the bundle in pinned Ubuntu 24.04 and 26.04 amd64 containers;
 3. constructs the APT index from only that approved bundle;
@@ -73,7 +77,7 @@ manifest version is present in the signed APT source, performs one APT
 transaction, and verifies installed versions. It rejects any GitLab URL in the
 resolved package plan.
 
-After an approved v9 release has completed the Pages workflow, install with:
+After an approved v10 release has completed the Pages workflow, install with:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -fsSL \

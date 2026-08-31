@@ -19,6 +19,8 @@ EXPECTED_ALL = (
     "ss-webos",
     "mote-proxy",
     "motemcp",
+    "ultra-mcp-ssh",
+    "mcp-run",
     "cx-pivot",
     "mote-sync",
     "mote-syncd",
@@ -30,6 +32,8 @@ INSTALLERS = {
         "moted",
         "mote-proxy",
         "motemcp",
+        "ultra-mcp-ssh",
+        "mcp-run",
         "mote-sync",
         "mote-syncd",
     ),
@@ -55,14 +59,14 @@ class InstallContractTest(unittest.TestCase):
             installer = ROOT / filename
             self.assertTrue(installer.stat().st_mode & 0o111)
 
-    def test_installers_have_exact_v9_trust_and_profile_contract(self) -> None:
+    def test_installers_have_exact_v10_trust_and_profile_contract(self) -> None:
         for filename, selected in INSTALLERS.items():
             text = (ROOT / filename).read_text(encoding="utf-8")
             self.assertTrue(text.startswith("#!/usr/bin/env bash\nset -euo pipefail\n"))
             for package_name in EXPECTED_ALL:
                 self.assertIn(f'    "{package_name}",', text)
             for required in (
-                "medge-public-release/v9",
+                "medge-public-release/v10",
                 "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
                 "release-manifest.json.asc",
                 "gpgv --keyring",

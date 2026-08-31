@@ -20,7 +20,7 @@ SPEC.loader.exec_module(publish_apt)
 
 
 class PublicAptTest(unittest.TestCase):
-    def manifest(self, schema: str = "medge-public-release/v9") -> dict:
+    def manifest(self, schema: str = "medge-public-release/v10") -> dict:
         package_names = {
             "medge-public-release/v4": publish_apt.LEGACY_PACKAGES,
             "medge-public-release/v5": publish_apt.LEGACY_PACKAGES,
@@ -28,13 +28,17 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v7": publish_apt.CX_AGENTIC_IO_PACKAGES,
             "medge-public-release/v8": publish_apt.EXPECTED_PACKAGES_V8,
             "medge-public-release/v9": publish_apt.EXPECTED_PACKAGES_V9,
+            "medge-public-release/v10": publish_apt.EXPECTED_PACKAGES_V10,
         }[schema]
         packages = []
         for index, name in enumerate(package_names, start=1):
             version = f"1.0.0-{index}"
             architecture = (
                 "all"
-                if name in {"medge", "mote-proxy", "motemcp", "mote-sync", "mote-syncd"}
+                if name in {
+                    "medge", "mote-proxy", "motemcp", "ultra-mcp-ssh",
+                    "mcp-run", "mote-sync", "mote-syncd",
+                }
                 else "amd64"
             )
             packages.append(
@@ -52,7 +56,7 @@ class PublicAptTest(unittest.TestCase):
         manifest = {
             "schema": schema,
             "status": "approved",
-            "medge_version": "5.1.0-2" if schema == "medge-public-release/v9" else "4.2.0-1",
+            "medge_version": "5.1.0-5" if schema == "medge-public-release/v10" else "4.2.0-1",
             "suite": "stable",
             "component": "main",
             "architecture": "amd64",
@@ -67,6 +71,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v7",
             "medge-public-release/v8",
             "medge-public-release/v9",
+            "medge-public-release/v10",
         }:
             for package in manifest["packages"]:
                 package["env_inputs"] = [
@@ -166,10 +171,22 @@ class PublicAptTest(unittest.TestCase):
         )
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
-    def test_v9_bundle_is_exact_and_has_only_three_installers(self) -> None:
+    def test_v10_manifest_adds_mcp_over_ssh_data_plane(self) -> None:
+        manifest = self.manifest("medge-public-release/v10")
+        self.assertEqual(
+            [package["name"] for package in manifest["packages"]],
+            list(publish_apt.EXPECTED_PACKAGES_V10),
+        )
+        self.assertEqual(
+            [item["path"] for item in manifest["packages"][8]["env_inputs"]],
+            ["ultra-mcp-deb.env"],
+        )
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v10_bundle_is_exact_and_has_only_three_installers(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             bundle = Path(temp_name)
-            manifest = self.manifest("medge-public-release/v9")
+            manifest = self.manifest("medge-public-release/v10")
             for package in manifest["packages"]:
                 asset = self.make_deb(
                     bundle,
@@ -179,7 +196,7 @@ class PublicAptTest(unittest.TestCase):
                 )
                 package["sha256"] = publish_apt.sha256(asset)
             installers = []
-            for installer_name in publish_apt.INSTALLER_PROFILES_V9:
+            for installer_name in publish_apt.INSTALLER_PROFILES_V10:
                 installer = bundle / installer_name
                 installer.write_text(
                     "#!/usr/bin/env bash\nset -euo pipefail\n",
@@ -220,7 +237,7 @@ class PublicAptTest(unittest.TestCase):
                 (bundle / f"medge_{manifest['medge_version']}_all.deb").exists()
             )
 
-    def test_sign_release_signs_apt_and_v9_manifest(self) -> None:
+    def test_sign_release_signs_apt_and_v10_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             repository = root / "repository"
@@ -278,7 +295,7 @@ class PublicAptTest(unittest.TestCase):
                 encoding="utf-8",
             )
             (site / "release-manifest.json").write_text(
-                json.dumps(self.manifest("medge-public-release/v9")),
+                json.dumps(self.manifest("medge-public-release/v10")),
                 encoding="utf-8",
             )
             with mock.patch.dict(
@@ -306,7 +323,7 @@ class PublicAptTest(unittest.TestCase):
                 stderr=subprocess.DEVNULL,
             )
 
-    def test_v9_pages_index_exposes_exact_three_installers(self) -> None:
+    def test_v10_pages_index_exposes_exact_three_installers(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             site = root / "site"
@@ -315,12 +332,12 @@ class PublicAptTest(unittest.TestCase):
             bundle.mkdir()
             package = self.make_deb(bundle, package="sphere")
             publish_apt.copy_package(package, site)
-            manifest = self.manifest("medge-public-release/v9")
+            manifest = self.manifest("medge-public-release/v10")
             (bundle / "release-manifest.json").write_text(
                 json.dumps(manifest),
                 encoding="utf-8",
             )
-            for installer_name in publish_apt.INSTALLER_PROFILES_V9:
+            for installer_name in publish_apt.INSTALLER_PROFILES_V10:
                 (bundle / installer_name).write_text(
                     "#!/usr/bin/env bash\nset -euo pipefail\n",
                     encoding="utf-8",
@@ -331,7 +348,7 @@ class PublicAptTest(unittest.TestCase):
                 manifest,
                 bundle,
             )
-            for installer_name in publish_apt.INSTALLER_PROFILES_V9:
+            for installer_name in publish_apt.INSTALLER_PROFILES_V10:
                 self.assertTrue((site / installer_name).is_file())
             self.assertTrue((site / "release-manifest.json").is_file())
             self.assertFalse((site / "install-sphere.sh").exists())
