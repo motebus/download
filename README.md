@@ -45,15 +45,13 @@ There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 
 ## Clean break
 
-`install-sphere.sh` is the only current aggregate entry. The former
-`install-medge-all.sh` compatibility wrapper and its `medge-install.sh` target
-are retired without aliases. Existing tags and release assets remain immutable
-historical evidence; they are not copied into the new Pages site.
-
-The source tree still retains separately scoped component and historical Mote
-Transport installer sources where they are not aliases for the retired
-aggregate. A v9 release bundle and the generated Pages site admit only
-`install-sphere.sh` as their installation entry.
+The current installation surface contains exactly three scripts:
+`sphere.sh` for all eleven packages, `sshpack.sh` for
+`sphere + moted + mote-proxy + motemcp + mote-sync + mote-syncd`, and
+`webdesk.sh` for `sphere + mlink + mdesk + ss-webos`. All former
+`install*.sh` and `*-install.sh` entries are retired without aliases.
+Existing tags and release assets remain immutable historical evidence; they
+are not copied into the new Pages site.
 
 ## Trust chain
 
@@ -61,7 +59,7 @@ The protected private owner creates a v9 bundle from exact GitLab `main` or an
 explicitly approved immutable rollback tag. This repository then:
 
 1. validates the exact eleven-package manifest, assets, SHA-256 checksums, env
-   provenance, and the single executable installer;
+   provenance, and the three executable installers;
 2. installs the bundle in pinned Ubuntu 24.04 and 26.04 amd64 containers;
 3. constructs the APT index from only that approved bundle;
 4. signs `Release`, `InRelease`, and `release-manifest.json.asc` with the
@@ -79,10 +77,10 @@ After an approved v9 release has completed the Pages workflow, install with:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -fsSL \
-  https://motebus.github.io/medge-release/install-sphere.sh | sudo bash
+  https://motebus.github.io/medge-release/sphere.sh | sudo bash
 ```
 
-In pipeline mode the installer fetches the manifest and detached signature from
+In pipeline mode each installer fetches the manifest and detached signature from
 that same Pages origin before making any APT change. The raw `main` script on
 GitHub is source-review material, not an approved installation source.
 
