@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly PROFILE_NAME="sshpack"
-readonly BASE_URL="https://motebus.github.io/medge-release"
+readonly PROFILE_NAME="sshkit"
+readonly BASE_URL="https://motebus.github.io/download"
 readonly EXPECTED_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 readonly KEYRING_PATH="/etc/apt/keyrings/medge-archive-keyring.gpg"
 readonly SOURCES_PATH="/etc/apt/sources.list.d/medge.sources"

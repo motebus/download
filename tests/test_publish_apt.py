@@ -56,13 +56,26 @@ class PublicAptTest(unittest.TestCase):
         manifest = {
             "schema": schema,
             "status": "approved",
-            "medge_version": "5.1.0-5" if schema == "medge-public-release/v10" else "4.2.0-1",
+            "medge_version": "5.1.0-6" if schema == "medge-public-release/v10" else "4.2.0-1",
             "suite": "stable",
             "component": "main",
             "architecture": "amd64",
             "generated_at": now,
             "previous_release_tag": "medge-v3.1.0-15",
             "approval": {"id": "approval-9", "approved_by": "owner", "approved_at": now},
+            **(
+                {
+                    "installers": [
+                        {
+                            "name": name,
+                            "sha256": publish_apt.sha256(MODULE_PATH.parents[1] / name),
+                        }
+                        for name in publish_apt.INSTALLER_PROFILES_V10
+                    ]
+                }
+                if schema == "medge-public-release/v10"
+                else {}
+            ),
             "packages": packages,
         }
         if schema in {
@@ -183,6 +196,12 @@ class PublicAptTest(unittest.TestCase):
         )
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
+    def test_v10_manifest_rejects_retired_installer_name(self) -> None:
+        manifest = self.manifest("medge-public-release/v10")
+        manifest["installers"][2]["name"] = "sshpack.sh"
+        with self.assertRaisesRegex(publish_apt.PublishError, "installer order"):
+            publish_apt.validate_manifest(manifest)
+
     def test_v10_bundle_is_exact_and_has_only_three_installers(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             bundle = Path(temp_name)
@@ -204,6 +223,10 @@ class PublicAptTest(unittest.TestCase):
                 )
                 installer.chmod(0o755)
                 installers.append(installer)
+            manifest["installers"] = [
+                {"name": path.name, "sha256": publish_apt.sha256(path)}
+                for path in installers
+            ]
             manifest_path = bundle / "release-manifest.json"
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             checksum_targets = [
