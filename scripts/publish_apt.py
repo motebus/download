@@ -60,6 +60,23 @@ EXPECTED_PACKAGES_V9 = (
     "mote-sync",
     "mote-syncd",
 )
+INSTALLER_PROFILES_V9 = {
+    "sphere.sh": EXPECTED_PACKAGES_V9,
+    "sshpack.sh": (
+        "sphere",
+        "moted",
+        "mote-proxy",
+        "motemcp",
+        "mote-sync",
+        "mote-syncd",
+    ),
+    "webdesk.sh": (
+        "sphere",
+        "mlink",
+        "mdesk",
+        "ss-webos",
+    ),
+}
 HEADLESS_PACKAGES = (
     "sphere",
     "moted",
@@ -115,14 +132,9 @@ MOTE_TRANSPORT_PACKAGES = (
 ALLOWED_ROOT_FILES = {
     ".gitignore",
     "github-setup.sh",
-    "install.sh",
-    "install-mote-transport.sh",
-    "install-medge.sh",
-    "install-sphere.sh",
-    "mdesk-install.sh",
-    "ss-webos-install.sh",
-    "mote-proxy-install.sh",
-    "motemcp-install.sh",
+    "sphere.sh",
+    "sshpack.sh",
+    "webdesk.sh",
     "LICENSE",
     "README.md",
     "medge-release.env",
@@ -537,13 +549,17 @@ def validate_bundle(bundle: Path) -> dict:
     require(forbidden == [], f"source packages are forbidden: {forbidden}")
     validate_no_gitlab_urls(bundle)
     if manifest["schema"] == "medge-public-release/v9":
-        installer = bundle / "install-sphere.sh"
-        require(installer.is_file(), "v9 bundle is missing install-sphere.sh")
-        require(installer.stat().st_mode & 0o111 != 0, "install-sphere.sh must be executable")
-        run("bash", "-n", str(installer))
+        for installer_name in INSTALLER_PROFILES_V9:
+            installer = bundle / installer_name
+            require(installer.is_file(), f"v9 bundle is missing {installer_name}")
+            require(
+                installer.stat().st_mode & 0o111 != 0,
+                f"{installer_name} must be executable",
+            )
+            run("bash", "-n", str(installer))
         expected_targets = {
             "release-manifest.json",
-            "install-sphere.sh",
+            *INSTALLER_PROFILES_V9,
             *(package["asset"] for package in manifest["packages"]),
         }
         require(checksum_targets == expected_targets, "v9 checksum targets are invalid")
@@ -552,7 +568,13 @@ def validate_bundle(bundle: Path) -> dict:
             actual_files == expected_targets | {"SHA256SUMS"},
             "v9 bundle contains unexpected files",
         )
-        for retired_name in ("install-medge-all.sh", "medge-install.sh", "install.sh"):
+        for retired_name in (
+            "install-sphere.sh",
+            "install-mote-transport.sh",
+            "install-medge-all.sh",
+            "medge-install.sh",
+            "install.sh",
+        ):
             require(not (bundle / retired_name).exists(), f"v9 bundle contains retired {retired_name}")
     else:
         required_installers = [
@@ -605,103 +627,59 @@ def validate_tree(root: Path) -> None:
         f"fpr:::::::::{fingerprint}:" in public_keys,
         "public archive key does not match fingerprint",
     )
-    sphere_installer = root / "install-sphere.sh"
-    require(sphere_installer.is_file(), "public repository is missing install-sphere.sh")
-    require(sphere_installer.stat().st_mode & 0o111 != 0, "install-sphere.sh must be executable")
-    run("bash", "-n", str(sphere_installer))
+    for installer_name in INSTALLER_PROFILES_V9:
+        installer = root / installer_name
+        require(installer.is_file(), f"public repository is missing {installer_name}")
+        require(
+            installer.stat().st_mode & 0o111 != 0,
+            f"{installer_name} must be executable",
+        )
+        run("bash", "-n", str(installer))
+    actual_shell_entries = {
+        path.name for path in root.iterdir()
+        if path.is_file()
+        and path.name.endswith(".sh")
+        and path.name != "github-setup.sh"
+    }
+    require(
+        actual_shell_entries == set(INSTALLER_PROFILES_V9),
+        "public repository must contain exactly sphere.sh, sshpack.sh, and webdesk.sh",
+    )
     publish_workflow = (root / ".github/workflows/publish-apt.yml").read_text(
         encoding="utf-8"
     )
     require(
-        "chmod 0755 release-input/current/install-sphere.sh" in publish_workflow,
-        "publish workflow must restore the release-asset installer mode",
+        "chmod 0755 release-input/current/sphere.sh" in publish_workflow
+        and "release-input/current/sshpack.sh" in publish_workflow
+        and "release-input/current/webdesk.sh" in publish_workflow,
+        "publish workflow must restore all release-asset installer modes",
     )
-    for retired_name in ("install-medge-all.sh", "medge-install.sh"):
-        require(not (root / retired_name).exists(), f"public repository contains retired {retired_name}")
-    for name in (
-        "install.sh",
-        "install-mote-transport.sh",
-        "install-medge.sh",
-        "mdesk-install.sh",
-        "ss-webos-install.sh",
-        "mote-proxy-install.sh",
-        "motemcp-install.sh",
-    ):
-        wrapper = root / name
-        require(wrapper.is_file(), f"public repository is missing {name}")
-        require(wrapper.stat().st_mode & 0o111 != 0, f"{name} must be executable")
-        run("sh", "-n", str(wrapper))
-    installer = root / "install.sh"
-    installer_text = installer.read_text(encoding="utf-8")
-    for required_text in (
-        "https://motebus.github.io/medge-release",
-        fingerprint,
-        "ubuntu:24.04|ubuntu:26.04)",
-        "apt-get install -y $APT_PACKAGES",
-        "apt-get --print-uris -y install $APT_PACKAGES",
-        "forbidden GitLab URL",
-        'mdesk)      APT_PACKAGES="sphere moted mlink mdesk"',
-        'ss-webos)   APT_PACKAGES="ss-webos"',
-        'mote-proxy) APT_PACKAGES="sphere mote-proxy"',
-        'motemcp)    APT_PACKAGES="sphere moted motemcp"',
-    ):
-        require(
-            required_text in installer_text,
-            f"install.sh is missing required contract: {required_text}",
-        )
-    for forbidden_text in (
-        "apt-key",
-        "trusted=yes",
-        "/etc/hosts",
-        "systemctl edit",
-        "systemctl enable --now",
-        "MCHAT_",
-        "gitlab.",
-    ):
-        require(
-            forbidden_text not in installer_text,
-            f"install.sh contains forbidden content: {forbidden_text}",
-        )
-
-    sphere_installer_text = sphere_installer.read_text(encoding="utf-8")
-    for required_text in (
-        "medge-public-release/v9",
-        fingerprint,
-        "release-manifest.json.asc",
-        "gpgv --keyring",
-        'apt-get install -y "${PACKAGE_ARGS[@]}"',
-    ):
-        require(
-            required_text in sphere_installer_text,
-            f"install-sphere.sh is missing required contract: {required_text}",
-        )
-
-    transport_installer_text = (
-        root / "install-mote-transport.sh"
-    ).read_text(encoding="utf-8")
-    for required_text in (
-        "mote-transport-v2026.08.28-1",
-        "sphere_4.0.0-1_amd64.deb",
-        "moted_3.2.0-26_amd64.deb",
-        "mote-proxy_1.3.0-35_all.deb",
-        "sha256sum --check SHA256SUMS",
-        "systemctl enable --now",
-        "registration continues asynchronously",
-    ):
-        require(
-            required_text in transport_installer_text,
-            f"install-mote-transport.sh is missing required contract: {required_text}",
-        )
-    for forbidden_text in (
-        "MOTED_SHA256_PLACEHOLDER",
-        "MOTE_PROXY_SHA256_PLACEHOLDER",
-        "MCHAT_",
-        "motebus.github.io",
-    ):
-        require(
-            forbidden_text not in transport_installer_text,
-            f"install-mote-transport.sh contains forbidden content: {forbidden_text}",
-        )
+    for installer_name in INSTALLER_PROFILES_V9:
+        installer_text = (root / installer_name).read_text(encoding="utf-8")
+        for required_text in (
+            "medge-public-release/v9",
+            fingerprint,
+            "release-manifest.json.asc",
+            "gpgv --keyring",
+            'apt-get install -y "${PACKAGE_ARGS[@]}"',
+        ):
+            require(
+                required_text in installer_text,
+                f"{installer_name} is missing required contract: {required_text}",
+            )
+        for forbidden_text in (
+            "apt-key",
+            "trusted=yes",
+            "/etc/hosts",
+            "systemctl edit",
+            "systemctl enable --now",
+            "MCHAT_",
+            "gitlab.",
+        ):
+            require(
+                forbidden_text not in installer_text,
+                f"{installer_name} contains forbidden content: {forbidden_text}",
+            )
 
     compatibility = root / "scripts/validate-ubuntu-compatibility.sh"
     require(compatibility.is_file(), "public repository is missing Ubuntu compatibility validation")
@@ -770,7 +748,8 @@ def write_index(
 
     shutil.copy2(repository_root / "medge-archive-keyring.gpg", site)
     shutil.copy2(repository_root / "medge.sources", site)
-    shutil.copy2(current_bundle / "install-sphere.sh", site)
+    for installer_name in INSTALLER_PROFILES_V9:
+        shutil.copy2(current_bundle / installer_name, site)
     shutil.copy2(current_bundle / "release-manifest.json", site)
     (site / ".nojekyll").write_text("", encoding="utf-8")
     fingerprint = archive_fingerprint(repository_root)
@@ -782,13 +761,16 @@ def write_index(
 <p>Stable amd64 Sphere and Mote Transport Debian packages.</p>
 <p>Current {len(current_manifest['packages'])}-package release: <code>{current_manifest['medge_version']}</code></p>
 <p>Signing fingerprint: <code>{fingerprint}</code></p>
-<pre>curl -fsSLo /tmp/install-sphere.sh \
-https://motebus.github.io/medge-release/install-sphere.sh &amp;&amp;
+<pre>curl -fsSLo /tmp/sphere.sh \
+https://motebus.github.io/medge-release/sphere.sh &amp;&amp;
 curl -fsSLo /tmp/release-manifest.json \
 https://motebus.github.io/medge-release/release-manifest.json &amp;&amp;
 curl -fsSLo /tmp/release-manifest.json.asc \
 https://motebus.github.io/medge-release/release-manifest.json.asc &amp;&amp;
-sudo bash /tmp/install-sphere.sh</pre>
+sudo bash /tmp/sphere.sh</pre>
+<p>Profiles: <code>sphere.sh</code> (all), <code>sshpack.sh</code>
+(Mote Transport prerequisites), and <code>webdesk.sh</code>
+(sphere + ss-webos + mdesk + mlink).</p>
 </html>
 """
     (site / "index.html").write_text(index, encoding="utf-8")

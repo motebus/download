@@ -8,7 +8,7 @@ readonly KEYRING_PATH="/etc/apt/keyrings/medge-archive-keyring.gpg"
 readonly SOURCES_PATH="/etc/apt/sources.list.d/medge.sources"
 
 fail() {
-    printf 'Sphere install failed: %s\n' "$*" >&2
+    printf '%s install failed: %s\n' "$PROFILE_NAME" "$*" >&2
     exit 1
 }
 
@@ -27,7 +27,7 @@ for command_name in apt-cache apt-get awk cmp curl dpkg dpkg-query gpg gpgv inst
         fail "required command is unavailable: $command_name"
 done
 
-TEMP_DIR="$(mktemp -d /tmp/sphere-install.XXXXXX)"
+TEMP_DIR="$(mktemp -d "/tmp/${PROFILE_NAME}-install.XXXXXX")"
 cleanup() {
     rm -f "$TEMP_DIR/medge-archive-keyring.gpg" \
         "$TEMP_DIR/medge.sources" \
@@ -41,8 +41,8 @@ trap cleanup EXIT HUP INT TERM
 
 SCRIPT_SOURCE="${BASH_SOURCE[0]-}"
 FETCH_RELEASE_MANIFEST=0
-if [[ -n "${SPHERE_RELEASE_MANIFEST:-}" ]]; then
-    manifest_path="$SPHERE_RELEASE_MANIFEST"
+if [[ -n "${MEDGE_RELEASE_MANIFEST:-}" ]]; then
+    manifest_path="$MEDGE_RELEASE_MANIFEST"
 elif [[ -n "$SCRIPT_SOURCE" ]]; then
     script_dir="$(cd -- "$(dirname -- "$SCRIPT_SOURCE")" && pwd)"
     manifest_path="$script_dir/release-manifest.json"
@@ -50,7 +50,7 @@ else
     manifest_path="$TEMP_DIR/release-manifest.json"
     FETCH_RELEASE_MANIFEST=1
 fi
-manifest_signature_path="${SPHERE_RELEASE_MANIFEST_SIGNATURE:-${manifest_path}.asc}"
+manifest_signature_path="${MEDGE_RELEASE_MANIFEST_SIGNATURE:-${manifest_path}.asc}"
 readonly MANIFEST_PATH="$manifest_path"
 readonly MANIFEST_SIGNATURE_PATH="$manifest_signature_path"
 
@@ -58,7 +58,7 @@ if [[ "$FETCH_RELEASE_MANIFEST" -eq 1 ]]; then
     curl --proto '=https' --tlsv1.2 -fsSLo \
         "$MANIFEST_PATH" "$BASE_URL/release-manifest.json" ||
         fail "approved Sphere release is not published at $BASE_URL"
-    if [[ -z "${SPHERE_RELEASE_MANIFEST_SIGNATURE:-}" ]]; then
+    if [[ -z "${MEDGE_RELEASE_MANIFEST_SIGNATURE:-}" ]]; then
         curl --proto '=https' --tlsv1.2 -fsSLo \
             "$MANIFEST_SIGNATURE_PATH" "$BASE_URL/release-manifest.json.asc" ||
             fail "approved Sphere manifest signature is not published at $BASE_URL"
@@ -88,6 +88,7 @@ expected = (
     "mote-sync",
     "mote-syncd",
 )
+selected = expected
 version_re = re.compile(r"^[0-9][0-9A-Za-z.+:~]*-[0-9]+$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
@@ -115,11 +116,12 @@ for item in packages:
         raise SystemExit(f"{name}: invalid Debian architecture")
     if asset != f"{name}_{version}_{architecture}.deb":
         raise SystemExit(f"{name}: invalid release asset identity")
-    print(f"{name}\t{version}\t{asset}")
+    if name in selected:
+        print(f"{name}\t{version}\t{asset}")
 PY
 
 mapfile -t PACKAGE_RECORDS <"$TEMP_DIR/package-plan"
-[[ "${#PACKAGE_RECORDS[@]}" -eq 11 ]] || fail "release manifest package plan is incomplete"
+[[ "${#PACKAGE_RECORDS[@]}" -eq 11 ]] || fail "release manifest package plan is incomplete for $PROFILE_NAME"
 
 curl --proto '=https' --tlsv1.2 -fsSLo \
     "$TEMP_DIR/medge-archive-keyring.gpg" \

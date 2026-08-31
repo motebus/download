@@ -166,7 +166,7 @@ class PublicAptTest(unittest.TestCase):
         )
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
-    def test_v9_bundle_is_exact_and_has_only_install_sphere(self) -> None:
+    def test_v9_bundle_is_exact_and_has_only_three_installers(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             bundle = Path(temp_name)
             manifest = self.manifest("medge-public-release/v9")
@@ -178,17 +178,20 @@ class PublicAptTest(unittest.TestCase):
                     architecture=package["architecture"],
                 )
                 package["sha256"] = publish_apt.sha256(asset)
-            installer = bundle / "install-sphere.sh"
-            installer.write_text(
-                "#!/usr/bin/env bash\nset -euo pipefail\n",
-                encoding="utf-8",
-            )
-            installer.chmod(0o755)
+            installers = []
+            for installer_name in publish_apt.INSTALLER_PROFILES_V9:
+                installer = bundle / installer_name
+                installer.write_text(
+                    "#!/usr/bin/env bash\nset -euo pipefail\n",
+                    encoding="utf-8",
+                )
+                installer.chmod(0o755)
+                installers.append(installer)
             manifest_path = bundle / "release-manifest.json"
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             checksum_targets = [
                 *(bundle / package["asset"] for package in manifest["packages"]),
-                installer,
+                *installers,
                 manifest_path,
             ]
             (bundle / "SHA256SUMS").write_text(
@@ -303,7 +306,7 @@ class PublicAptTest(unittest.TestCase):
                 stderr=subprocess.DEVNULL,
             )
 
-    def test_v9_pages_index_exposes_only_install_sphere_entry(self) -> None:
+    def test_v9_pages_index_exposes_exact_three_installers(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             site = root / "site"
@@ -317,18 +320,21 @@ class PublicAptTest(unittest.TestCase):
                 json.dumps(manifest),
                 encoding="utf-8",
             )
-            (bundle / "install-sphere.sh").write_text(
-                "#!/usr/bin/env bash\nset -euo pipefail\n",
-                encoding="utf-8",
-            )
+            for installer_name in publish_apt.INSTALLER_PROFILES_V9:
+                (bundle / installer_name).write_text(
+                    "#!/usr/bin/env bash\nset -euo pipefail\n",
+                    encoding="utf-8",
+                )
             publish_apt.write_index(
                 site,
                 Path(__file__).parents[1],
                 manifest,
                 bundle,
             )
-            self.assertTrue((site / "install-sphere.sh").is_file())
+            for installer_name in publish_apt.INSTALLER_PROFILES_V9:
+                self.assertTrue((site / installer_name).is_file())
             self.assertTrue((site / "release-manifest.json").is_file())
+            self.assertFalse((site / "install-sphere.sh").exists())
             self.assertFalse((site / "install-medge-all.sh").exists())
             self.assertFalse((site / "medge-install.sh").exists())
             self.assertIn(
