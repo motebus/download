@@ -27,7 +27,13 @@ EXPECTED_ALL = (
 )
 INSTALLERS = {
     "sphere.sh": EXPECTED_ALL,
-    "sshpack.sh": (
+    "webdesk.sh": (
+        "sphere",
+        "mlink",
+        "mdesk",
+        "ss-webos",
+    ),
+    "sshkit.sh": (
         "sphere",
         "moted",
         "mote-proxy",
@@ -36,12 +42,6 @@ INSTALLERS = {
         "mcp-run",
         "mote-sync",
         "mote-syncd",
-    ),
-    "webdesk.sh": (
-        "sphere",
-        "mlink",
-        "mdesk",
-        "ss-webos",
     ),
 }
 

@@ -50,9 +50,9 @@ There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 ## Clean break
 
 The current installation surface contains exactly three scripts:
-`sphere.sh` for all thirteen packages, `sshpack.sh` for
-`sphere + moted + mote-proxy + motemcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd`, and
-`webdesk.sh` for `sphere + mlink + mdesk + ss-webos`. All former
+`sphere.sh` for all thirteen packages, `webdesk.sh` for
+`sphere + mlink + mdesk + ss-webos`, and `sshkit.sh` for
+`sphere + moted + mote-proxy + motemcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd`. All former
 `install*.sh` and `*-install.sh` entries are retired without aliases.
 Existing tags and release assets remain immutable historical evidence; they
 are not copied into the new Pages site.
@@ -81,7 +81,7 @@ After an approved v10 release has completed the Pages workflow, install with:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -fsSL \
-  https://motebus.github.io/medge-release/sphere.sh | sudo bash
+  https://motebus.github.io/download/sphere.sh | sudo bash
 ```
 
 In pipeline mode each installer fetches the manifest and detached signature from

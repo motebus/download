@@ -94,7 +94,13 @@ INSTALLER_PROFILES_V9 = {
 }
 INSTALLER_PROFILES_V10 = {
     "sphere.sh": EXPECTED_PACKAGES_V10,
-    "sshpack.sh": (
+    "webdesk.sh": (
+        "sphere",
+        "mlink",
+        "mdesk",
+        "ss-webos",
+    ),
+    "sshkit.sh": (
         "sphere",
         "moted",
         "mote-proxy",
@@ -103,12 +109,6 @@ INSTALLER_PROFILES_V10 = {
         "mcp-run",
         "mote-sync",
         "mote-syncd",
-    ),
-    "webdesk.sh": (
-        "sphere",
-        "mlink",
-        "mdesk",
-        "ss-webos",
     ),
 }
 HEADLESS_PACKAGES = (
@@ -172,8 +172,8 @@ ALLOWED_ROOT_FILES = {
     ".gitignore",
     "github-setup.sh",
     "sphere.sh",
-    "sshpack.sh",
     "webdesk.sh",
+    "sshkit.sh",
     "LICENSE",
     "README.md",
     "medge-release.env",
@@ -324,6 +324,29 @@ def validate_env_inputs(package: dict) -> None:
         )
 
 
+def validate_installer_records(manifest: dict) -> None:
+    if manifest.get("schema") != "medge-public-release/v10":
+        require("installers" not in manifest, "legacy manifest must not carry installers")
+        return
+    installers = manifest.get("installers")
+    if installers is None and manifest.get("medge_version") == "5.1.0-5":
+        return
+    expected_names = list(INSTALLER_PROFILES_V10)
+    require(isinstance(installers, list), "v10 installers must be an array")
+    require(
+        [item.get("name") for item in installers if isinstance(item, dict)]
+        == expected_names,
+        f"v10 installer order must be {expected_names}",
+    )
+    for item in installers:
+        require(isinstance(item, dict), "installer record must be an object")
+        require(set(item) == {"name", "sha256"}, "installer record fields are invalid")
+        require(
+            isinstance(item.get("sha256"), str) and HEX64_RE.fullmatch(item["sha256"]),
+            f"{item.get('name', '<unknown>')}: invalid installer sha256",
+        )
+
+
 def validate_manifest(manifest: object) -> dict:
     require(isinstance(manifest, dict), "release-manifest.json must contain an object")
     expected_keys = {
@@ -332,6 +355,8 @@ def validate_manifest(manifest: object) -> dict:
     }
     if "rollback" in manifest:
         expected_keys.add("rollback")
+    if "installers" in manifest:
+        expected_keys.add("installers")
     require(set(manifest) == expected_keys, "public release manifest fields are invalid")
     require(
         manifest.get("schema") in {
@@ -354,6 +379,7 @@ def validate_manifest(manifest: object) -> dict:
     require(manifest.get("suite") == "stable", "only stable suite is allowed")
     require(manifest.get("component") == "main", "only main component is allowed")
     require(manifest.get("architecture") == "amd64", "only amd64 is allowed")
+    validate_installer_records(manifest)
     approval = manifest.get("approval")
     require(
         isinstance(approval, dict)
@@ -606,6 +632,18 @@ def validate_bundle(bundle: Path) -> dict:
                 f"{installer_name} must be executable",
             )
             run("bash", "-n", str(installer))
+            installer_record = next(
+                (
+                    item for item in manifest.get("installers", [])
+                    if item.get("name") == installer_name
+                ),
+                None,
+            )
+            if installer_record is not None:
+                require(
+                    sha256(installer) == installer_record["sha256"],
+                    f"installer digest mismatch: {installer_name}",
+                )
         expected_targets = {
             "release-manifest.json",
             *installer_profiles,
@@ -692,15 +730,15 @@ def validate_tree(root: Path) -> None:
     }
     require(
         actual_shell_entries == set(INSTALLER_PROFILES_V10),
-        "public repository must contain exactly sphere.sh, sshpack.sh, and webdesk.sh",
+        "public repository must contain exactly sphere.sh, webdesk.sh, and sshkit.sh",
     )
     publish_workflow = (root / ".github/workflows/publish-apt.yml").read_text(
         encoding="utf-8"
     )
     require(
         "chmod 0755 release-input/current/sphere.sh" in publish_workflow
-        and "release-input/current/sshpack.sh" in publish_workflow
-        and "release-input/current/webdesk.sh" in publish_workflow,
+        and "release-input/current/webdesk.sh" in publish_workflow
+        and "release-input/current/sshkit.sh" in publish_workflow,
         "publish workflow must restore all release-asset installer modes",
     )
     for installer_name in INSTALLER_PROFILES_V10:
@@ -811,15 +849,15 @@ def write_index(
 <p>Current {len(current_manifest['packages'])}-package release: <code>{current_manifest['medge_version']}</code></p>
 <p>Signing fingerprint: <code>{fingerprint}</code></p>
 <pre>curl -fsSLo /tmp/sphere.sh \
-https://motebus.github.io/medge-release/sphere.sh &amp;&amp;
+https://motebus.github.io/download/sphere.sh &amp;&amp;
 curl -fsSLo /tmp/release-manifest.json \
-https://motebus.github.io/medge-release/release-manifest.json &amp;&amp;
+https://motebus.github.io/download/release-manifest.json &amp;&amp;
 curl -fsSLo /tmp/release-manifest.json.asc \
-https://motebus.github.io/medge-release/release-manifest.json.asc &amp;&amp;
+https://motebus.github.io/download/release-manifest.json.asc &amp;&amp;
 sudo bash /tmp/sphere.sh</pre>
-<p>Profiles: <code>sphere.sh</code> (all), <code>sshpack.sh</code>
-(Mote Transport prerequisites), and <code>webdesk.sh</code>
-(sphere + ss-webos + mdesk + mlink).</p>
+<p>Profiles: <code>sphere.sh</code> (all), <code>webdesk.sh</code>
+(sphere + ss-webos + mdesk + mlink), and <code>sshkit.sh</code>
+(Mote Transport prerequisites).</p>
 </html>
 """
     (site / "index.html").write_text(index, encoding="utf-8")

@@ -97,8 +97,8 @@ cd "$ROOT_DIR"
 
 read -r -p "GitHub account or organization [motebus]: " GITHUB_OWNER
 GITHUB_OWNER="${GITHUB_OWNER:-motebus}"
-read -r -p "Repository name [medge-release]: " GITHUB_REPOSITORY
-GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-medge-release}"
+read -r -p "Repository name [download]: " GITHUB_REPOSITORY
+GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-download}"
 
 [[ "$GITHUB_OWNER" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,38}$ ]] \
   || die "invalid GitHub account or organization name"
