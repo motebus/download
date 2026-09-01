@@ -6,6 +6,7 @@ readonly BASE_URL="https://motebus.github.io/download"
 readonly EXPECTED_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 readonly KEYRING_PATH="/etc/apt/keyrings/medge-archive-keyring.gpg"
 readonly SOURCES_PATH="/etc/apt/sources.list.d/medge.sources"
+readonly SSH_PROFILE_PATH="/etc/ssh/ssh_config.d/50-mote-proxy.conf"
 
 fail() {
     printf '%s uninstall failed: %s\n' "$PROFILE_NAME" "$*" >&2
@@ -34,6 +35,7 @@ cleanup() {
         "$TEMP_DIR/medge.sources" \
         "$TEMP_DIR/package-plan" \
         "$TEMP_DIR/purge-plan" \
+        "$TEMP_DIR/mote-proxy-ssh-profile" \
         "$TEMP_DIR/release-manifest.json" \
         "$TEMP_DIR/release-manifest.json.asc"
     rmdir "$TEMP_DIR" 2>/dev/null || true
@@ -208,10 +210,29 @@ for package_name in "${APPROVED_PACKAGES[@]}"; do
     esac
 done
 
+remove_managed_ssh_proxy_profile() {
+    [[ ! -e "$SSH_PROFILE_PATH" ]] && return 0
+    [[ -f "$SSH_PROFILE_PATH" && ! -L "$SSH_PROFILE_PATH" ]] ||
+        fail "package-owned SSH proxy profile is not a regular file"
+
+    printf '%s\n' \
+        'Host *.mote' \
+        '    ProxyCommand /usr/libexec/mote-proxy/ssh-proxy %h %p' \
+        >"$TEMP_DIR/mote-proxy-ssh-profile"
+    cmp -s "$SSH_PROFILE_PATH" "$TEMP_DIR/mote-proxy-ssh-profile" ||
+        fail "package-owned SSH proxy profile was modified; refusing removal"
+
+    rm -f -- "$SSH_PROFILE_PATH"
+    [[ ! -e "$SSH_PROFILE_PATH" ]] ||
+        fail "package-owned SSH proxy profile remains after cleanup"
+}
+
+remove_managed_ssh_proxy_profile
+
 [[ ! -e "$SOURCES_PATH" ]] || rm -f -- "$SOURCES_PATH"
 [[ ! -e "$KEYRING_PATH" ]] || rm -f -- "$KEYRING_PATH"
 
 printf '%s\n' \
-    "Sphere approved packages and installer-managed APT registration were removed"
+    "Sphere approved packages, SSH proxy profile, and installer-managed APT registration were removed"
 printf '%s\n' \
     "User data, SSH identities, unrelated packages, and non-Sphere services were preserved"

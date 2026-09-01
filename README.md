@@ -97,7 +97,9 @@ destructive action, requires an exact unmodified installer-managed source/key,
 and simulates APT purge first. It refuses a plan that would remove anything
 outside the thirteen signed package identities. It does not run `autoremove`,
 recursively delete paths, or remove user data, SSH identities, Obsidian vaults,
-unrelated packages, or non-Sphere services.
+unrelated packages, or non-Sphere services. After the package purge it removes
+the exact package-owned `/etc/ssh/ssh_config.d/50-mote-proxy.conf` profile; a
+modified or symlinked profile is preserved and causes a visible failure.
 
 After an approved v10 release has completed the Pages workflow, install with:
 

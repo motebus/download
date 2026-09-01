@@ -816,6 +816,10 @@ def validate_tree(root: Path) -> None:
         "apt-get --simulate purge",
         'apt-get purge -y "${PURGE_ARGS[@]}"',
         "purge plan would remove packages outside Sphere",
+        "/etc/ssh/ssh_config.d/50-mote-proxy.conf",
+        "package-owned SSH proxy profile",
+        "refusing removal",
+        "remove_managed_ssh_proxy_profile",
     ):
         require(
             required_text in uninstall_text,
