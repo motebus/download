@@ -75,6 +75,8 @@ class InstallContractTest(unittest.TestCase):
                 "Ubuntu 24.04 or 26.04 is required",
             ):
                 self.assertIn(required, text)
+            self.assertIn('manifest_path="$TEMP_DIR/release-manifest.json"', text)
+            self.assertNotIn('elif [[ -n "$SCRIPT_SOURCE" ]]', text)
             if filename == "sphere.sh":
                 self.assertIn("selected = expected", text)
             else:

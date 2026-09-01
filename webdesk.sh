@@ -43,9 +43,6 @@ SCRIPT_SOURCE="${BASH_SOURCE[0]-}"
 FETCH_RELEASE_MANIFEST=0
 if [[ -n "${MEDGE_RELEASE_MANIFEST:-}" ]]; then
     manifest_path="$MEDGE_RELEASE_MANIFEST"
-elif [[ -n "$SCRIPT_SOURCE" ]]; then
-    script_dir="$(cd -- "$(dirname -- "$SCRIPT_SOURCE")" && pwd)"
-    manifest_path="$script_dir/release-manifest.json"
 else
     manifest_path="$TEMP_DIR/release-manifest.json"
     FETCH_RELEASE_MANIFEST=1
