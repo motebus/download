@@ -108,11 +108,11 @@ curl --proto '=https' --tlsv1.2 -fsSL \
   https://motebus.github.io/download/sphere.sh | sudo bash
 ```
 
-Each installer fetches the manifest and detached signature from that same Pages
-origin before making any APT change unless an operator explicitly supplies a
-local signed pair through `MEDGE_RELEASE_MANIFEST` and
+Each release script fetches the manifest and detached signature from that same
+Pages origin before making any APT change unless an operator explicitly
+supplies a local signed pair through `MEDGE_RELEASE_MANIFEST` and
 `MEDGE_RELEASE_MANIFEST_SIGNATURE`. A stale manifest beside a downloaded
-`sphere.sh` is never reused. The raw `main` script on GitHub is source-review
+script is never reused. The raw `main` script on GitHub is source-review
 material, not an approved installation source.
 
 To remove only that bounded Sphere package surface from an admitted host:

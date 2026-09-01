@@ -160,6 +160,8 @@ class InstallContractTest(unittest.TestCase):
             "User data, SSH identities, unrelated packages, and non-Sphere services were preserved",
         ):
             self.assertIn(required, text)
+        self.assertIn('manifest_path="$TEMP_DIR/release-manifest.json"', text)
+        self.assertNotIn('elif [[ -n "$SCRIPT_SOURCE" ]]', text)
         for forbidden in (
             "apt-get autoremove",
             "apt-get remove",
