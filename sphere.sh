@@ -12,6 +12,49 @@ fail() {
     exit 1
 }
 
+verify_mote_proxy_ssh_setup() {
+    local profile_path="/etc/ssh/ssh_config.d/50-mote-proxy.conf"
+    local helper_path="/usr/libexec/mote-proxy/ssh-proxy"
+    local resolved_proxy_command
+
+    [[ -f "$profile_path" ]] ||
+        fail "mote-proxy did not install its system OpenSSH profile"
+    [[ "$(stat -c '%U:%G:%a' "$profile_path")" == "root:root:644" ]] ||
+        fail "mote-proxy system OpenSSH profile ownership or mode is invalid"
+    [[ -f "$helper_path" ]] ||
+        fail "mote-proxy did not install its OpenSSH ProxyCommand helper"
+    [[ "$(stat -c '%U:%G:%a' "$helper_path")" == "root:root:755" ]] ||
+        fail "mote-proxy OpenSSH ProxyCommand helper ownership or mode is invalid"
+    [[ -x /usr/bin/ssh ]] || fail "OpenSSH client is unavailable after installation"
+
+    resolved_proxy_command="$(
+        /usr/bin/ssh -G -F /etc/ssh/ssh_config \
+            sphere-installer-proxy-check.mote 2>/dev/null |
+            awk '
+                $1 == "proxycommand" {
+                    proxy_commands += 1
+                    $1 = ""
+                    sub(/^[[:space:]]+/, "")
+                    command = $0
+                }
+                END {
+                    if (proxy_commands != 1 || command == "") exit 1
+                    print command
+                }
+            '
+    )" || fail "OpenSSH does not activate the mote-proxy system profile"
+    [[ "$resolved_proxy_command" == "$helper_path %h %p" ]] ||
+        fail "OpenSSH selected an unexpected ProxyCommand for typed .mote targets"
+
+    printf '%s\n' "automatic *.mote SSH proxy setup is active"
+}
+
+verify_sphere_post_install() {
+    [[ -x /usr/sbin/sphere ]] || fail "Sphere health command is unavailable"
+    /usr/sbin/sphere post-install ||
+        fail "Sphere essential post-install health checks failed"
+}
+
 [[ "$(id -u)" -eq 0 ]] || fail "run this installer as root"
 [[ -r /etc/os-release ]] || fail "cannot identify the operating system"
 # shellcheck disable=SC1091
@@ -197,5 +240,8 @@ for record in "${PACKAGE_RECORDS[@]}"; do
         fail "$package_name installed as $installed_version instead of $package_version"
     printf '%s=%s\n' "$package_name" "$installed_version"
 done
+
+verify_mote_proxy_ssh_setup
+verify_sphere_post_install
 
 printf '%s profile installation completed from the signed APT source.\n' "$PROFILE_NAME"

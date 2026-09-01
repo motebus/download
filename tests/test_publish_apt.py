@@ -56,7 +56,7 @@ class PublicAptTest(unittest.TestCase):
         manifest = {
             "schema": schema,
             "status": "approved",
-            "medge_version": "5.1.0-6" if schema == "medge-public-release/v10" else "4.2.0-1",
+            "medge_version": "5.1.0-9" if schema == "medge-public-release/v10" else "4.2.0-1",
             "suite": "stable",
             "component": "main",
             "architecture": "amd64",
@@ -70,7 +70,7 @@ class PublicAptTest(unittest.TestCase):
                             "name": name,
                             "sha256": publish_apt.sha256(MODULE_PATH.parents[1] / name),
                         }
-                        for name in publish_apt.INSTALLER_PROFILES_V10
+                        for name in publish_apt.RELEASE_SCRIPTS_V10
                     ]
                 }
                 if schema == "medge-public-release/v10"
@@ -202,7 +202,13 @@ class PublicAptTest(unittest.TestCase):
         with self.assertRaisesRegex(publish_apt.PublishError, "installer order"):
             publish_apt.validate_manifest(manifest)
 
-    def test_v10_bundle_is_exact_and_has_only_three_installers(self) -> None:
+    def test_v10_historical_three_script_releases_remain_readable(self) -> None:
+        manifest = self.manifest("medge-public-release/v10")
+        manifest["medge_version"] = "5.1.0-8"
+        manifest["installers"] = manifest["installers"][:3]
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v10_bundle_is_exact_and_has_only_four_release_scripts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             bundle = Path(temp_name)
             manifest = self.manifest("medge-public-release/v10")
@@ -215,7 +221,7 @@ class PublicAptTest(unittest.TestCase):
                 )
                 package["sha256"] = publish_apt.sha256(asset)
             installers = []
-            for installer_name in publish_apt.INSTALLER_PROFILES_V10:
+            for installer_name in publish_apt.RELEASE_SCRIPTS_V10:
                 installer = bundle / installer_name
                 installer.write_text(
                     "#!/usr/bin/env bash\nset -euo pipefail\n",
@@ -346,7 +352,7 @@ class PublicAptTest(unittest.TestCase):
                 stderr=subprocess.DEVNULL,
             )
 
-    def test_v10_pages_index_exposes_exact_three_installers(self) -> None:
+    def test_v10_pages_index_exposes_exact_four_release_scripts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             site = root / "site"
@@ -360,7 +366,7 @@ class PublicAptTest(unittest.TestCase):
                 json.dumps(manifest),
                 encoding="utf-8",
             )
-            for installer_name in publish_apt.INSTALLER_PROFILES_V10:
+            for installer_name in publish_apt.RELEASE_SCRIPTS_V10:
                 (bundle / installer_name).write_text(
                     "#!/usr/bin/env bash\nset -euo pipefail\n",
                     encoding="utf-8",
@@ -371,7 +377,7 @@ class PublicAptTest(unittest.TestCase):
                 manifest,
                 bundle,
             )
-            for installer_name in publish_apt.INSTALLER_PROFILES_V10:
+            for installer_name in publish_apt.RELEASE_SCRIPTS_V10:
                 self.assertTrue((site / installer_name).is_file())
             self.assertTrue((site / "release-manifest.json").is_file())
             self.assertFalse((site / "install-sphere.sh").exists())
