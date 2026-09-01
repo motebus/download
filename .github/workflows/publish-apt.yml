@@ -51,7 +51,8 @@ jobs:
           gh release download "$TAG" --dir release-input/current
           chmod 0755 release-input/current/sphere.sh \
             release-input/current/webdesk.sh \
-            release-input/current/sshkit.sh
+            release-input/current/sshkit.sh \
+            release-input/current/uninstall.sh
           python3 scripts/publish_apt.py validate-bundle release-input/current
           printf 'CURRENT_TAG=%s\n' "$TAG" >> "$GITHUB_ENV"
 

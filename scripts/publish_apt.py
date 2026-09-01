@@ -111,6 +111,8 @@ INSTALLER_PROFILES_V10 = {
         "mote-syncd",
     ),
 }
+RELEASE_SCRIPTS_V10 = (*INSTALLER_PROFILES_V10, "uninstall.sh")
+V10_THREE_SCRIPT_RELEASES = {"5.1.0-6", "5.1.0-7", "5.1.0-8"}
 HEADLESS_PACKAGES = (
     "sphere",
     "moted",
@@ -174,6 +176,7 @@ ALLOWED_ROOT_FILES = {
     "sphere.sh",
     "webdesk.sh",
     "sshkit.sh",
+    "uninstall.sh",
     "LICENSE",
     "README.md",
     "medge-release.env",
@@ -331,7 +334,11 @@ def validate_installer_records(manifest: dict) -> None:
     installers = manifest.get("installers")
     if installers is None and manifest.get("medge_version") == "5.1.0-5":
         return
-    expected_names = list(INSTALLER_PROFILES_V10)
+    expected_names = list(
+        INSTALLER_PROFILES_V10
+        if manifest.get("medge_version") in V10_THREE_SCRIPT_RELEASES
+        else RELEASE_SCRIPTS_V10
+    )
     require(isinstance(installers, list), "v10 installers must be an array")
     require(
         [item.get("name") for item in installers if isinstance(item, dict)]
@@ -619,12 +626,14 @@ def validate_bundle(bundle: Path) -> dict:
     require(forbidden == [], f"source packages are forbidden: {forbidden}")
     validate_no_gitlab_urls(bundle)
     if manifest["schema"] in {"medge-public-release/v9", "medge-public-release/v10"}:
-        installer_profiles = (
-            INSTALLER_PROFILES_V10
+        release_scripts = (
+            RELEASE_SCRIPTS_V10
             if manifest["schema"] == "medge-public-release/v10"
             else INSTALLER_PROFILES_V9
         )
-        for installer_name in installer_profiles:
+        if manifest.get("medge_version") in V10_THREE_SCRIPT_RELEASES:
+            release_scripts = tuple(INSTALLER_PROFILES_V10)
+        for installer_name in release_scripts:
             installer = bundle / installer_name
             require(installer.is_file(), f"current bundle is missing {installer_name}")
             require(
@@ -646,7 +655,7 @@ def validate_bundle(bundle: Path) -> dict:
                 )
         expected_targets = {
             "release-manifest.json",
-            *installer_profiles,
+            *release_scripts,
             *(package["asset"] for package in manifest["packages"]),
         }
         require(checksum_targets == expected_targets, "current checksum targets are invalid")
@@ -714,7 +723,7 @@ def validate_tree(root: Path) -> None:
         f"fpr:::::::::{fingerprint}:" in public_keys,
         "public archive key does not match fingerprint",
     )
-    for installer_name in INSTALLER_PROFILES_V10:
+    for installer_name in RELEASE_SCRIPTS_V10:
         installer = root / installer_name
         require(installer.is_file(), f"public repository is missing {installer_name}")
         require(
@@ -729,8 +738,8 @@ def validate_tree(root: Path) -> None:
         and path.name != "github-setup.sh"
     }
     require(
-        actual_shell_entries == set(INSTALLER_PROFILES_V10),
-        "public repository must contain exactly sphere.sh, webdesk.sh, and sshkit.sh",
+        actual_shell_entries == set(RELEASE_SCRIPTS_V10),
+        "public repository must contain exactly the approved release scripts",
     )
     publish_workflow = (root / ".github/workflows/publish-apt.yml").read_text(
         encoding="utf-8"
@@ -738,7 +747,8 @@ def validate_tree(root: Path) -> None:
     require(
         "chmod 0755 release-input/current/sphere.sh" in publish_workflow
         and "release-input/current/webdesk.sh" in publish_workflow
-        and "release-input/current/sshkit.sh" in publish_workflow,
+        and "release-input/current/sshkit.sh" in publish_workflow
+        and "release-input/current/uninstall.sh" in publish_workflow,
         "publish workflow must restore all release-asset installer modes",
     )
     for installer_name in INSTALLER_PROFILES_V10:
@@ -767,6 +777,64 @@ def validate_tree(root: Path) -> None:
                 forbidden_text not in installer_text,
                 f"{installer_name} contains forbidden content: {forbidden_text}",
             )
+
+    for installer_name in ("sphere.sh", "sshkit.sh"):
+        installer_text = (root / installer_name).read_text(encoding="utf-8")
+        for required_text in (
+            "verify_mote_proxy_ssh_setup",
+            "/etc/ssh/ssh_config.d/50-mote-proxy.conf",
+            "/usr/libexec/mote-proxy/ssh-proxy",
+            "/usr/bin/ssh -G -F /etc/ssh/ssh_config",
+            "sphere-installer-proxy-check.mote",
+            "automatic *.mote SSH proxy setup is active",
+            "verify_sphere_post_install",
+            "/usr/sbin/sphere post-install",
+            "Sphere essential post-install health checks failed",
+        ):
+            require(
+                required_text in installer_text,
+                f"{installer_name} is missing automatic SSH proxy verification: {required_text}",
+            )
+        require(
+            "~/.ssh/config" not in installer_text,
+            f"{installer_name} must not write user SSH configuration",
+        )
+
+    webdesk_text = (root / "webdesk.sh").read_text(encoding="utf-8")
+    require(
+        "verify_mote_proxy_ssh_setup" not in webdesk_text
+        and "sphere-installer-proxy-check.mote" not in webdesk_text,
+        "webdesk.sh must not acquire an SSH proxy setup responsibility",
+    )
+
+    uninstall_text = (root / "uninstall.sh").read_text(encoding="utf-8")
+    for required_text in (
+        "medge-public-release/v10",
+        fingerprint,
+        "release-manifest.json.asc",
+        "gpgv --keyring",
+        "apt-get --simulate purge",
+        'apt-get purge -y "${PURGE_ARGS[@]}"',
+        "purge plan would remove packages outside Sphere",
+    ):
+        require(
+            required_text in uninstall_text,
+            f"uninstall.sh is missing required contract: {required_text}",
+        )
+    for forbidden_text in (
+        "apt-get autoremove",
+        "apt-get remove",
+        "rm -rf",
+        "/home/",
+        "~/.ssh",
+        "MCHAT_",
+        "medge-home.mote",
+        "gitlab.",
+    ):
+        require(
+            forbidden_text not in uninstall_text,
+            f"uninstall.sh contains forbidden content: {forbidden_text}",
+        )
 
     compatibility = root / "scripts/validate-ubuntu-compatibility.sh"
     require(compatibility.is_file(), "public repository is missing Ubuntu compatibility validation")
@@ -835,7 +903,12 @@ def write_index(
 
     shutil.copy2(repository_root / "medge-archive-keyring.gpg", site)
     shutil.copy2(repository_root / "medge.sources", site)
-    for installer_name in INSTALLER_PROFILES_V10:
+    release_scripts = (
+        tuple(INSTALLER_PROFILES_V10)
+        if current_manifest.get("medge_version") in V10_THREE_SCRIPT_RELEASES
+        else RELEASE_SCRIPTS_V10
+    )
+    for installer_name in release_scripts:
         shutil.copy2(current_bundle / installer_name, site)
     shutil.copy2(current_bundle / "release-manifest.json", site)
     (site / ".nojekyll").write_text("", encoding="utf-8")
@@ -857,7 +930,8 @@ https://motebus.github.io/download/release-manifest.json.asc &amp;&amp;
 sudo bash /tmp/sphere.sh</pre>
 <p>Profiles: <code>sphere.sh</code> (all), <code>webdesk.sh</code>
 (sphere + ss-webos + mdesk + mlink), and <code>sshkit.sh</code>
-(Mote Transport prerequisites).</p>
+(Mote Transport prerequisites). <code>uninstall.sh</code> performs bounded,
+signed cleanup of the Sphere package boundary.</p>
 </html>
 """
     (site / "index.html").write_text(index, encoding="utf-8")

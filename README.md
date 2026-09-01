@@ -49,10 +49,12 @@ There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 
 ## Clean break
 
-The current installation surface contains exactly three scripts:
+The current signed release surface contains exactly four scripts:
 `sphere.sh` for all thirteen packages, `webdesk.sh` for
 `sphere + mlink + mdesk + ss-webos`, and `sshkit.sh` for
-`sphere + moted + mote-proxy + motemcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd`. All former
+`sphere + moted + mote-proxy + motemcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd`.
+`uninstall.sh` performs a bounded purge of the approved thirteen-package set
+and the exact installer-managed APT source/key. All former
 `install*.sh` and `*-install.sh` entries are retired without aliases.
 Existing tags and release assets remain immutable historical evidence; they
 are not copied into the new Pages site.
@@ -63,7 +65,7 @@ The protected private owner creates a v10 bundle from exact GitLab `main` or an
 explicitly approved immutable rollback tag. This repository then:
 
 1. validates the exact thirteen-package manifest, assets, SHA-256 checksums, env
-   provenance, and the three executable installers;
+   provenance, and the four executable release scripts;
 2. installs the bundle in pinned Ubuntu 24.04 and 26.04 amd64 containers;
 3. constructs the APT index from only that approved bundle;
 4. signs `Release`, `InRelease`, and `release-manifest.json.asc` with the
@@ -74,8 +76,26 @@ The installer pins archive fingerprint
 `AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0`, verifies the manifest detached
 signature, accepts only the exact Pages `.sources` definition, proves every
 manifest version is present in the signed APT source, performs one APT
-transaction, and verifies installed versions. It rejects any GitLab URL in the
-resolved package plan.
+transaction, and verifies installed versions. Before `sphere.sh` or
+`sshkit.sh` reports success, it also proves the package-owned system OpenSSH
+profile and helper have their exact root ownership and modes and that `ssh -G`
+selects the helper for a typed `.mote` target. The installers do not write user
+SSH configuration or duplicate the package-owned proxy rule. They reject any
+GitLab URL in the resolved package plan.
+
+Those two profiles then run the manifest-pinned `sphere post-install` command.
+It emits deterministic PASS/WARN/FAIL results and returns non-zero for an
+essential unit, TCP/6262, relay socket, configuration, or `mote-proxy doctor`
+failure. Its bounded noninteractive `ssh local.mote` smoke uses strict
+host-key checking and is only a warning because registration and trust
+admission can be external to package correctness.
+
+`uninstall.sh` verifies the same signed manifest and fingerprint before any
+destructive action, requires an exact unmodified installer-managed source/key,
+and simulates APT purge first. It refuses a plan that would remove anything
+outside the thirteen signed package identities. It does not run `autoremove`,
+recursively delete paths, or remove user data, SSH identities, Obsidian vaults,
+unrelated packages, or non-Sphere services.
 
 After an approved v10 release has completed the Pages workflow, install with:
 
@@ -87,6 +107,31 @@ curl --proto '=https' --tlsv1.2 -fsSL \
 In pipeline mode each installer fetches the manifest and detached signature from
 that same Pages origin before making any APT change. The raw `main` script on
 GitHub is source-review material, not an approved installation source.
+
+To remove only that bounded Sphere package surface from an admitted host:
+
+```bash
+curl --proto '=https' --tlsv1.2 -fsSL \
+  https://motebus.github.io/download/uninstall.sh | sudo bash
+```
+
+## L5/L6 post-install support path
+
+A new L5 or L6 runs the signed `sphere.sh` locally, optionally launched by its
+local Codex CLI. Codex is not a runtime dependency of `mote-proxy`; only the
+independent `cx-pivot` integration may consume a Codex client when available.
+After MoteD has registered the new host and the operator has separately admitted
+L1 host-key and public-key authentication, a support session may use:
+
+```bash
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes medge-home.mote
+```
+
+The installer never starts that session automatically, accepts a first-use
+host key, provisions credentials, sends logs, or selects a support target. A
+future App Suite Supporting Center is a separate post-install consumer and
+requires its own owner contract, fixed operation, admission, report schema,
+retention policy, and tests; it is not a Sphere package or release asset.
 
 Do not install from a local checkout, a loose artifact copy, or a private
 GitLab URL.

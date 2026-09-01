@@ -44,18 +44,19 @@ INSTALLERS = {
         "mote-syncd",
     ),
 }
+RELEASE_SCRIPTS = (*INSTALLERS, "uninstall.sh")
 
 
 class InstallContractTest(unittest.TestCase):
-    def test_public_root_has_exact_three_installers(self) -> None:
+    def test_public_root_has_exact_four_release_scripts(self) -> None:
         actual = {
             path.name for path in ROOT.iterdir()
             if path.is_file()
             and path.name.endswith(".sh")
             and path.name != "github-setup.sh"
         }
-        self.assertEqual(actual, set(INSTALLERS))
-        for filename in INSTALLERS:
+        self.assertEqual(actual, set(RELEASE_SCRIPTS))
+        for filename in RELEASE_SCRIPTS:
             installer = ROOT / filename
             self.assertTrue(installer.stat().st_mode & 0o111)
 
@@ -97,8 +98,72 @@ class InstallContractTest(unittest.TestCase):
                 "/etc/hosts",
                 "systemctl enable",
                 "systemctl restart",
+                "medge-home.mote",
+                "Supporting Center",
             ):
                 self.assertNotIn(forbidden, text)
+
+    def test_mote_proxy_profiles_verify_automatic_system_ssh_setup(self) -> None:
+        required = (
+            "verify_mote_proxy_ssh_setup",
+            "/etc/ssh/ssh_config.d/50-mote-proxy.conf",
+            "/usr/libexec/mote-proxy/ssh-proxy",
+            "/usr/bin/ssh -G -F /etc/ssh/ssh_config",
+            "sphere-installer-proxy-check.mote",
+            "root:root:644",
+            "root:root:755",
+            "automatic *.mote SSH proxy setup is active",
+            "verify_sphere_post_install",
+            "/usr/sbin/sphere post-install",
+            "Sphere essential post-install health checks failed",
+        )
+        for filename in ("sphere.sh", "sshkit.sh"):
+            text = (ROOT / filename).read_text(encoding="utf-8")
+            for contract in required:
+                self.assertIn(contract, text)
+            for forbidden in (
+                "~/.ssh/config",
+                "cat >/etc/ssh/ssh_config",
+                "tee /etc/ssh/ssh_config",
+                "install /etc/ssh/ssh_config",
+            ):
+                self.assertNotIn(forbidden, text)
+
+        webdesk = (ROOT / "webdesk.sh").read_text(encoding="utf-8")
+        for excluded in (
+            "verify_mote_proxy_ssh_setup",
+            "/etc/ssh/ssh_config.d/50-mote-proxy.conf",
+            "sphere-installer-proxy-check.mote",
+        ):
+            self.assertNotIn(excluded, webdesk)
+
+    def test_uninstaller_is_signed_bounded_and_preserves_non_sphere_state(self) -> None:
+        text = (ROOT / "uninstall.sh").read_text(encoding="utf-8")
+        for package_name in EXPECTED_ALL:
+            self.assertIn(f'    "{package_name}",', text)
+        for required in (
+            "medge-public-release/v10",
+            "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
+            "release-manifest.json.asc",
+            "gpgv --keyring",
+            "apt-get --simulate purge",
+            'apt-get purge -y "${PURGE_ARGS[@]}"',
+            "purge plan would remove packages outside Sphere",
+            "this uninstaller accepts no arguments",
+            "User data, SSH identities, unrelated packages, and non-Sphere services were preserved",
+        ):
+            self.assertIn(required, text)
+        for forbidden in (
+            "apt-get autoremove",
+            "apt-get remove",
+            "rm -rf",
+            "/home/",
+            "~/.ssh",
+            "MCHAT_",
+            "medge-home.mote",
+            "Supporting Center",
+        ):
+            self.assertNotIn(forbidden, text)
 
     def test_installers_accept_stdin_without_bash_source(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
@@ -121,12 +186,12 @@ class InstallContractTest(unittest.TestCase):
                 self.assertNotIn("BASH_SOURCE", completed.stderr)
 
     def test_shell_contracts_parse(self) -> None:
-        for filename in INSTALLERS:
+        for filename in RELEASE_SCRIPTS:
             subprocess.run(["bash", "-n", str(ROOT / filename)], check=True)
         subprocess.run(["bash", "-n", str(COMPATIBILITY)], check=True)
 
     def test_supported_ubuntu_targets_are_exact(self) -> None:
-        for filename in INSTALLERS:
+        for filename in RELEASE_SCRIPTS:
             text = (ROOT / filename).read_text(encoding="utf-8")
             self.assertIn("ubuntu:24.04|ubuntu:26.04)", text)
             self.assertNotIn("ubuntu:22.04", text)

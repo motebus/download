@@ -75,6 +75,29 @@ run_target() {
                 dpkg-query -W -f="\${db:Status-Status} \${binary:Package} \${Version}\n" \
                     "$package_name"
             done
+
+            test "$(stat -c "%U:%G:%a" /etc/ssh/ssh_config.d/50-mote-proxy.conf)" \
+                = root:root:644
+            test "$(stat -c "%U:%G:%a" /usr/libexec/mote-proxy/ssh-proxy)" \
+                = root:root:755
+            resolved_proxy_command="$(
+                /usr/bin/ssh -G -F /etc/ssh/ssh_config \
+                    sphere-installer-proxy-check.mote 2>/dev/null |
+                    awk '\''
+                        $1 == "proxycommand" {
+                            proxy_commands += 1
+                            $1 = ""
+                            sub(/^[[:space:]]+/, "")
+                            command = $0
+                        }
+                        END {
+                            if (proxy_commands != 1 || command == "") exit 1
+                            print command
+                        }
+                    '\''
+            )"
+            test "$resolved_proxy_command" \
+                = "/usr/libexec/mote-proxy/ssh-proxy %h %p"
         '
     printf 'Ubuntu %s amd64 MEdge package compatibility passed\n' "$release"
 }
