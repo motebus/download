@@ -11,15 +11,18 @@ The standalone GitHub release `mote-transport-v2026.09.02-1` carries the
 first component-qualified Dual Channel binary bundle:
 
 ```text
-mote-proxy 1.5.0-1   B/SSH + D/MSG local ingress
+mote-proxy 1.5.0-2   B/SSH + group-scoped D/MSG ingress
 moted      3.2.0-35  B -> sshd, D -> chatd dispatch
-chat       0.1.0-1   D/MSG client
-chatd      0.1.0-1   independent MSG service and local app inbox
+chat       0.1.0-2   chatd-only UI with slash-command mode
+chatd      0.1.0-2   local MSG send/receive service and durable inbox
 ```
 
-MSG uses native xMSG between one Mote Proxy and the target MoteD. MOTESSH,
-MOTERDP, and RDP remain retired. This standalone release does not replace or
-modify the current signed MEdge APT aggregate or its GitHub Pages installer.
+The canonical application path is `chat -> local chatd -> local mote-proxy ->
+xMSG -> target moted -> remote chatd -> remote chat`. Interactive commands
+`/help`, `/status`, `/receive`, and `/quit` remain local and are never sent as
+MSG payloads. MOTESSH, MOTERDP, and RDP remain retired. This standalone release
+does not replace or modify the current signed MEdge APT aggregate or its
+GitHub Pages installer.
 
 ## Current v10 package set
 
