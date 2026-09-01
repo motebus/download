@@ -7,6 +7,8 @@ are forbidden here.
 
 ## Current v10 package set
 
+The latest approved bundle is `medge-v5.1.0-10`.
+
 An approved `medge-public-release/v10` bundle contains these independent Debian
 packages in dependency-safe audit order:
 
