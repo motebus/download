@@ -211,7 +211,7 @@ for package_name in "${APPROVED_PACKAGES[@]}"; do
 done
 
 remove_managed_ssh_proxy_profile() {
-    [[ ! -e "$SSH_PROFILE_PATH" ]] && return 0
+    [[ ! -e "$SSH_PROFILE_PATH" && ! -L "$SSH_PROFILE_PATH" ]] && return 0
     [[ -f "$SSH_PROFILE_PATH" && ! -L "$SSH_PROFILE_PATH" ]] ||
         fail "package-owned SSH proxy profile is not a regular file"
 
