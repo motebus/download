@@ -68,13 +68,30 @@ run_target() {
             chmod 0755 /usr/sbin/policy-rc.d
             export DEBIAN_FRONTEND=noninteractive
             apt-get update
+
+            # Establish the complete dependency-safe host baseline first.
             apt-get install -y --no-install-recommends /bundle/*.deb
+            apt-get check
+
+            # Reproduce the admitted corrective case: L2 can contain a newer,
+            # unadmitted local motemcp build. The signed bundle must replace it
+            # with the exact lower manifest version in the same package set.
+            dpkg-deb -R /bundle/motemcp_1.1.0-2_all.deb /tmp/motemcp-higher
+            sed -i "s/^Version: .*/Version: 1.1.0-3/" \
+                /tmp/motemcp-higher/DEBIAN/control
+            dpkg-deb -b /tmp/motemcp-higher /tmp/motemcp_1.1.0-3_all.deb
+            dpkg -i /tmp/motemcp_1.1.0-3_all.deb
+            test "$(dpkg-query -W -f="\${Version}" motemcp)" = 1.1.0-3
+
+            apt-get install -y --allow-downgrades --no-install-recommends \
+                /bundle/*.deb
             apt-get check
 
             for package_name in $EXPECTED_PACKAGE_NAMES; do
                 dpkg-query -W -f="\${db:Status-Status} \${binary:Package} \${Version}\n" \
                     "$package_name"
             done
+            test "$(dpkg-query -W -f="\${Version}" motemcp)" = 1.1.0-2
 
             test "$(stat -c "%U:%G:%a" /etc/ssh/ssh_config.d/50-mote-proxy.conf)" \
                 = root:root:644

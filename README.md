@@ -45,9 +45,10 @@ older releases remain immutable historical evidence.
 
 ## Current v13 package set
 
-The latest approved bundle is `medge-v5.3.0-1` under v13. It adds the
-station-local `codex-mesh` contract to the aligned Schat, SchatD, Mote Proxy,
-MoteD, and MoteMCP package chain. Earlier releases remain immutable.
+The latest approved bundle is `medge-v5.3.0-2` under v13. It preserves the
+exact sixteen-package set from `medge-v5.3.0-1` and corrects the installer so
+an unadmitted newer local build can be replaced by the exact signed manifest
+pin. Earlier releases remain immutable.
 
 An approved `medge-public-release/v13` bundle contains these independent Debian
 packages in dependency-safe audit order:
@@ -121,7 +122,9 @@ The installer pins archive fingerprint
 `AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0`, verifies the manifest detached
 signature, accepts only the exact Pages `.sources` definition, proves every
 manifest version is present in the signed APT source, performs one APT
-transaction, and verifies installed versions. Before `sphere.sh` or
+transaction with downgrades allowed only for those exact `name=version` pins,
+and verifies installed versions. It does not admit unpinned downgrades,
+essential-package removal, or held-package changes. Before `sphere.sh` or
 `sshkit.sh` reports success, it also proves the package-owned system OpenSSH
 profile and helper have their exact root ownership and modes and that `ssh -G`
 selects the helper for a typed `.mote` target. The installers do not write user

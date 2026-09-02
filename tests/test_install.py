@@ -76,8 +76,8 @@ class InstallContractTest(unittest.TestCase):
                 "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
                 "release-manifest.json.asc",
                 "gpgv --keyring",
-                'apt-get --print-uris -y install "${PACKAGE_ARGS[@]}"',
-                'apt-get install -y "${PACKAGE_ARGS[@]}"',
+                'apt-get --allow-downgrades --print-uris -y install "${PACKAGE_ARGS[@]}"',
+                'apt-get install -y --allow-downgrades "${PACKAGE_ARGS[@]}"',
                 "Ubuntu 24.04 or 26.04 is required",
             ):
                 self.assertIn(required, text)
@@ -110,6 +110,14 @@ class InstallContractTest(unittest.TestCase):
                 "Supporting Center",
             ):
                 self.assertNotIn(forbidden, text)
+
+    def test_downgrades_remain_bounded_to_exact_manifest_pins(self) -> None:
+        for filename in INSTALLERS:
+            text = (ROOT / filename).read_text(encoding="utf-8")
+            self.assertIn('PACKAGE_ARGS+=("$package_name=$package_version")', text)
+            self.assertEqual(text.count("--allow-downgrades"), 2)
+            self.assertNotIn("--allow-remove-essential", text)
+            self.assertNotIn("--allow-change-held-packages", text)
 
     def test_mote_proxy_profiles_verify_automatic_system_ssh_setup(self) -> None:
         required = (
@@ -221,6 +229,8 @@ class InstallContractTest(unittest.TestCase):
         compatibility = COMPATIBILITY.read_text(encoding="utf-8")
         self.assertIn("run_target 24.04", compatibility)
         self.assertIn("run_target 26.04", compatibility)
+        self.assertIn("motemcp_1.1.0-3_all.deb", compatibility)
+        self.assertIn("--allow-downgrades", compatibility)
 
 
 if __name__ == "__main__":
