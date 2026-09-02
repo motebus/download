@@ -1,0 +1,300 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly RELEASE_VERSION="5.2.0-3"
+readonly RUNNER_TAG="sphere-runner-v5.2.0-3-1"
+readonly RELEASE_BASE="https://github.com/motebus/download/releases/download/${RUNNER_TAG}"
+readonly KEYRING_URL="https://motebus.github.io/download/medge-archive-keyring.gpg"
+readonly KEYRING_SHA256="756fc2632c307509b8e5ece665ced7f4d1a58636ac935aefc1e017f7dcfcbfbd"
+readonly SIGNER_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
+readonly ADMISSION_NAME="install-sphere-5.2.0-3.privilege-admission.json"
+readonly CONTROLLER_ACCOUNT="jujue"
+
+fail() {
+    printf 'Sphere runner bootstrap failed: %s\n' "$*" >&2
+    exit 1
+}
+
+[[ "$#" -eq 0 ]] || fail "arguments are forbidden"
+[[ "$(id -u)" -eq 0 ]] || fail "run the signed bootstrap as root"
+[[ -r /etc/os-release ]] || fail "cannot identify operating system"
+# shellcheck disable=SC1091
+. /etc/os-release
+[[ "${ID:-}:${VERSION_ID:-}" == "ubuntu:24.04" ]] ||
+    fail "the admitted targets require Ubuntu 24.04"
+[[ "$(dpkg --print-architecture)" == "amd64" ]] || fail "amd64 is required"
+
+case "$(hostname -s)" in
+    medge-home)
+        TARGET_ID=L1
+        PRINCIPAL=sphere-install-l1
+        CAPABILITY_ASSET=l1-capability.pub.pem
+        CAPABILITY_PATH=/etc/sphere/keys/l1-capability-5.2.0-3.ed25519.pub
+        CONTROLLER_KEY_ASSET=l1-controller-ssh.pub
+        AUTHORIZED_KEYS_TEMPLATE=authorized_keys-l1.template
+        SUDOERS_ASSET=sudoers-l1
+        REPLAY_DIR=/var/lib/sphere-install/replay/l1
+        ;;
+    medge-tv)
+        TARGET_ID=L9
+        PRINCIPAL=sphere-install-l9
+        CAPABILITY_ASSET=l9-capability.pub.pem
+        CAPABILITY_PATH=/etc/sphere/keys/l1-to-l9-capability-5.2.0-3.ed25519.pub
+        CONTROLLER_KEY_ASSET=l9-controller-ssh.pub
+        AUTHORIZED_KEYS_TEMPLATE=authorized_keys-l9.template
+        SUDOERS_ASSET=sudoers-l9
+        REPLAY_DIR=/var/lib/sphere-install/replay/l9
+        ;;
+    *) fail "target stable identity is not admitted" ;;
+esac
+readonly TARGET_ID PRINCIPAL CAPABILITY_ASSET CAPABILITY_PATH
+readonly CONTROLLER_KEY_ASSET AUTHORIZED_KEYS_TEMPLATE SUDOERS_ASSET REPLAY_DIR
+readonly MARKER_PATH="/var/lib/sphere-install/bootstrap/${TARGET_ID}-5.2.0-3.json"
+[[ ! -e "$MARKER_PATH" ]] || fail "one-time bootstrap is already consumed for ${TARGET_ID}"
+
+for command_name in awk chmod chown cmp curl date dpkg find getent gpg gpgv hostname id install \
+    logger mktemp openssl passwd python3 rmdir sha256sum ssh-keygen stat useradd usermod visudo; do
+    command -v "$command_name" >/dev/null 2>&1 || fail "required command is unavailable: $command_name"
+done
+
+umask 077
+TEMP_DIR="$(mktemp -d /run/sphere-runner-bootstrap.XXXXXX)"
+cleanup() {
+    find "$TEMP_DIR" -mindepth 1 -maxdepth 1 -type f -delete 2>/dev/null || true
+    rmdir "$TEMP_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT HUP INT TERM
+
+download() {
+    local name="$1"
+    local output="$2"
+    curl --proto '=https' --tlsv1.2 -fsSLo "$output" "${RELEASE_BASE}/${name}"
+}
+
+curl --proto '=https' --tlsv1.2 -fsSLo "$TEMP_DIR/archive-keyring.gpg" "$KEYRING_URL"
+printf '%s  %s\n' "$KEYRING_SHA256" "$TEMP_DIR/archive-keyring.gpg" |
+    sha256sum -c - >/dev/null || fail "archive keyring digest mismatch"
+actual_fingerprint="$(
+    gpg --batch --no-options --show-keys --with-colons "$TEMP_DIR/archive-keyring.gpg" |
+        awk -F: '$1 == "pub" { count += 1 } $1 == "fpr" && fingerprint == "" { fingerprint = $10 } END { if (count != 1 || fingerprint == "") exit 1; print fingerprint }'
+)" || fail "archive keyring is invalid"
+[[ "$actual_fingerprint" == "$SIGNER_FINGERPRINT" ]] || fail "runner signer fingerprint mismatch"
+
+download runner-manifest.json "$TEMP_DIR/runner-manifest.json"
+download runner-manifest.json.asc "$TEMP_DIR/runner-manifest.json.asc"
+gpgv --keyring "$TEMP_DIR/archive-keyring.gpg" \
+    "$TEMP_DIR/runner-manifest.json.asc" "$TEMP_DIR/runner-manifest.json" \
+    >/dev/null 2>&1 || fail "runner manifest signature verification failed"
+
+python3 - "$TEMP_DIR/runner-manifest.json" "$TARGET_ID" >"$TEMP_DIR/assets.tsv" <<'PY'
+import json
+import re
+import sys
+
+path, target = sys.argv[1:]
+with open(path, encoding="utf-8") as handle:
+    manifest = json.load(handle)
+if (
+    manifest.get("schema") != "sphere-runner-public-release/v1"
+    or manifest.get("status") != "approved"
+    or manifest.get("tag") != "sphere-runner-v5.2.0-3-1"
+    or manifest.get("release_version") != "5.2.0-3"
+    or manifest.get("signer_fingerprint") != "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
+):
+    raise SystemExit("runner manifest identity mismatch")
+names = set()
+selected = []
+for item in manifest.get("artifacts", []):
+    name = item.get("name")
+    if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", name):
+        raise SystemExit("invalid runner artifact name")
+    if name in names:
+        raise SystemExit("duplicate runner artifact name")
+    names.add(name)
+    digest = item.get("sha256")
+    signature = item.get("signature")
+    signature_digest = item.get("signature_sha256")
+    targets = item.get("targets")
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise SystemExit("invalid runner artifact digest")
+    if signature != name + ".asc" or not isinstance(signature_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", signature_digest):
+        raise SystemExit("invalid runner artifact signature record")
+    if targets not in (["L1", "L9"], ["L1"], ["L9"], ["BOOTSTRAP"]):
+        raise SystemExit("invalid runner artifact target set")
+    if target in targets:
+        selected.append((name, digest, signature, signature_digest))
+required_common = {
+    "install-sphere-5.2.0-3", "sphere-install-dispatch-5.2.0-3",
+    "sphere-verify-5.2.0-3", "sphere-result-5.2.0-3",
+    "sphere-maintenance-health-5.2.0-3", "verify-sphere-capability-5.2.0-3.py",
+    "sphere_capability.py", "install-sphere-5.2.0-3.privilege-admission.json",
+}
+required_target = {
+    "L1": {"l1-controller-ssh.pub", "l9-controller-ssh.pub", "l1-capability.pub.pem", "l9-capability.pub.pem", "authorized_keys-l1.template", "sudoers-l1", "controller-known_hosts", "sphere-capability-agent-5.2.0-3.py", "sphere-controller-5.2.0-3.py"},
+    "L9": {"l9-controller-ssh.pub", "l9-capability.pub.pem", "authorized_keys-l9.template", "sudoers-l9"},
+}[target]
+selected_names = {item[0] for item in selected}
+if selected_names != required_common | required_target:
+    raise SystemExit("runner artifact set is not exact for target")
+for row in selected:
+    print("\t".join(row))
+PY
+
+while IFS=$'\t' read -r name digest signature signature_digest; do
+    download "$name" "$TEMP_DIR/$name"
+    download "$signature" "$TEMP_DIR/$signature"
+    printf '%s  %s\n' "$digest" "$TEMP_DIR/$name" | sha256sum -c - >/dev/null ||
+        fail "runner artifact digest mismatch: $name"
+    printf '%s  %s\n' "$signature_digest" "$TEMP_DIR/$signature" | sha256sum -c - >/dev/null ||
+        fail "runner artifact signature digest mismatch: $name"
+    gpgv --keyring "$TEMP_DIR/archive-keyring.gpg" "$TEMP_DIR/$signature" "$TEMP_DIR/$name" \
+        >/dev/null 2>&1 || fail "runner artifact signature verification failed: $name"
+done <"$TEMP_DIR/assets.tsv"
+
+python3 - "$TEMP_DIR/$ADMISSION_NAME" "$TARGET_ID" "$PRINCIPAL" \
+    "$CAPABILITY_ASSET" "$TEMP_DIR" <<'PY'
+import datetime as dt
+import hashlib
+import json
+import socket
+import sys
+from pathlib import Path
+
+path, target_id, principal, capability_asset, temp_name = sys.argv[1:]
+root = Path(temp_name)
+with open(path, encoding="utf-8") as handle:
+    admission = json.load(handle)
+if admission.get("schema") != "install-sphere-privilege-admission/v1" or admission.get("status") != "approved" or admission.get("release_version") != "5.2.0-3":
+    raise SystemExit("privilege admission is not approved")
+now = dt.datetime.now(dt.timezone.utc)
+valid_from = dt.datetime.fromisoformat(admission["valid_from"].replace("Z", "+00:00"))
+valid_until = dt.datetime.fromisoformat(admission["valid_until"].replace("Z", "+00:00"))
+if not valid_from <= now <= valid_until:
+    raise SystemExit("privilege admission is outside its validity window")
+targets = [item for item in admission.get("targets", []) if item.get("id") == target_id]
+if len(targets) != 1 or targets[0].get("principal") != principal or targets[0].get("stable_identity") != socket.gethostname().split(".", 1)[0]:
+    raise SystemExit("target privilege identity mismatch")
+capability_targets = [item for item in admission["capability_token"]["targets"] if item.get("id") == target_id]
+if len(capability_targets) != 1:
+    raise SystemExit("target capability admission mismatch")
+actual = hashlib.sha256((root / capability_asset).read_bytes()).hexdigest()
+if capability_targets[0].get("public_key_sha256") != actual:
+    raise SystemExit("target capability public-key digest mismatch")
+PY
+
+if ! id "$PRINCIPAL" >/dev/null 2>&1; then
+    useradd --system --user-group --home-dir "/var/lib/sphere-install/principals/${TARGET_ID,,}" \
+        --create-home --shell /bin/sh "$PRINCIPAL"
+fi
+[[ "$(id -u "$PRINCIPAL")" -ne 0 ]] || fail "principal identity is unsafe"
+passwd -l "$PRINCIPAL" >/dev/null
+usermod -s /bin/sh "$PRINCIPAL"
+principal_home="$(getent passwd "$PRINCIPAL" | awk -F: '{print $6}')"
+[[ "$principal_home" == "/var/lib/sphere-install/principals/${TARGET_ID,,}" ]] ||
+    fail "principal home is not admitted"
+install -d -o root -g root -m 0755 "$principal_home"
+install -d -o root -g root -m 0755 "$principal_home/.ssh"
+
+python3 - "$TEMP_DIR/$AUTHORIZED_KEYS_TEMPLATE" "$TEMP_DIR/$CONTROLLER_KEY_ASSET" \
+    "$TARGET_ID" >"$TEMP_DIR/authorized_keys" <<'PY'
+import sys
+template_path, key_path, target = sys.argv[1:]
+template = open(template_path, encoding="utf-8").read().strip()
+key = open(key_path, encoding="utf-8").read().strip()
+token = "@L1_CONTROLLER_PUBLIC_KEY@" if target == "L1" else "@L9_CONTROLLER_PUBLIC_KEY@"
+if template.count(token) != 1 or "@" in template.replace(token, ""):
+    raise SystemExit("authorized-keys template is invalid")
+print(template.replace(token, key))
+PY
+install -o root -g root -m 0600 "$TEMP_DIR/authorized_keys" "$principal_home/.ssh/authorized_keys"
+
+install -d -o root -g root -m 0755 /usr/libexec/sphere /usr/libexec/sphere/lib
+install -d -o root -g root -m 0755 /etc/sphere /etc/sphere/keys /usr/share/keyrings
+install -d -o root -g root -m 0700 /var/log/sphere-install /var/lib/sphere-install/bootstrap
+install -d -o "$PRINCIPAL" -g "$PRINCIPAL" -m 0700 "$REPLAY_DIR"
+
+install -o root -g root -m 0555 "$TEMP_DIR/install-sphere-5.2.0-3" /usr/libexec/sphere/install-sphere-5.2.0-3
+install -o root -g root -m 0444 "$TEMP_DIR/install-sphere-5.2.0-3.asc" /usr/libexec/sphere/install-sphere-5.2.0-3.asc
+for name in sphere-install-dispatch-5.2.0-3 sphere-verify-5.2.0-3 \
+    sphere-result-5.2.0-3 sphere-maintenance-health-5.2.0-3; do
+    install -o root -g root -m 0555 "$TEMP_DIR/$name" "/usr/libexec/sphere/$name"
+done
+install -o root -g root -m 0555 "$TEMP_DIR/verify-sphere-capability-5.2.0-3.py" \
+    /usr/libexec/sphere/verify-sphere-capability-5.2.0-3.py
+install -o root -g root -m 0444 "$TEMP_DIR/sphere_capability.py" /usr/libexec/sphere/lib/sphere_capability.py
+install -o root -g root -m 0444 "$TEMP_DIR/$ADMISSION_NAME" "/etc/sphere/$ADMISSION_NAME"
+install -o root -g root -m 0444 "$TEMP_DIR/${ADMISSION_NAME}.asc" "/etc/sphere/${ADMISSION_NAME}.asc"
+install -o root -g root -m 0444 "$TEMP_DIR/archive-keyring.gpg" /usr/share/keyrings/sphere-release-archive-keyring.gpg
+install -o root -g root -m 0444 "$TEMP_DIR/$CAPABILITY_ASSET" "$CAPABILITY_PATH"
+
+visudo -c -f "$TEMP_DIR/$SUDOERS_ASSET" >/dev/null || fail "target sudoers source is invalid"
+install -o root -g root -m 0440 "$TEMP_DIR/$SUDOERS_ASSET" "/etc/sudoers.d/sphere-install-${TARGET_ID,,}-5.2.0-3"
+visudo -c >/dev/null || fail "installed sudoers policy is invalid"
+
+if [[ "$TARGET_ID" == L1 ]]; then
+    controller_home="$(getent passwd "$CONTROLLER_ACCOUNT" | awk -F: '{print $6}')"
+    [[ -n "$controller_home" ]] || fail "L1 controller account is unavailable"
+    controller_uid="$(id -u "$CONTROLLER_ACCOUNT")"
+    controller_gid="$(id -g "$CONTROLLER_ACCOUNT")"
+    controller_root="$controller_home/.local/share/sphere-install-controller/$RELEASE_VERSION"
+    [[ -d "$controller_root" ]] || fail "protected L1 controller key directory is absent"
+    [[ "$(stat -c '%u:%g:%a' "$controller_root")" == "$controller_uid:$controller_gid:700" ]] ||
+        fail "protected L1 controller key directory is unsafe"
+    for target in l1 l9; do
+        [[ "$(stat -c '%u:%g:%a' "$controller_root/${target}-ssh")" == "$controller_uid:$controller_gid:600" ]] ||
+            fail "protected ${target} SSH private key is unsafe"
+        [[ "$(stat -c '%u:%g:%a' "$controller_root/${target}-capability.pem")" == "$controller_uid:$controller_gid:600" ]] ||
+            fail "protected ${target} capability private key is unsafe"
+        ssh-keygen -y -f "$controller_root/${target}-ssh" >"$TEMP_DIR/${target}-ssh-derived.pub"
+        awk '{print $1, $2}' "$TEMP_DIR/${target}-controller-ssh.pub" >"$TEMP_DIR/${target}-ssh-approved.pub"
+        cmp -s "$TEMP_DIR/${target}-ssh-derived.pub" "$TEMP_DIR/${target}-ssh-approved.pub" ||
+            fail "protected ${target} SSH private key does not match the approved public key"
+        openssl pkey -in "$controller_root/${target}-capability.pem" -pubout \
+            -out "$TEMP_DIR/${target}-capability-derived.pub.pem" >/dev/null 2>&1
+        cmp -s "$TEMP_DIR/${target}-capability-derived.pub.pem" "$TEMP_DIR/${target}-capability.pub.pem" ||
+            fail "protected ${target} capability private key does not match the approved public key"
+    done
+    install -d -o root -g root -m 0755 /usr/local/libexec/sphere-controller/5.2.0-3/controller \
+        /usr/local/libexec/sphere-controller/5.2.0-3/lib
+    install -o root -g root -m 0555 "$TEMP_DIR/sphere-capability-agent-5.2.0-3.py" \
+        /usr/local/libexec/sphere-controller/5.2.0-3/controller/sphere-capability-agent-5.2.0-3.py
+    install -o root -g root -m 0555 "$TEMP_DIR/sphere-controller-5.2.0-3.py" \
+        /usr/local/libexec/sphere-controller/5.2.0-3/controller/sphere-controller-5.2.0-3.py
+    install -o root -g root -m 0444 "$TEMP_DIR/sphere_capability.py" \
+        /usr/local/libexec/sphere-controller/5.2.0-3/lib/sphere_capability.py
+    install -o "$controller_uid" -g "$controller_gid" -m 0600 \
+        "$TEMP_DIR/controller-known_hosts" "$controller_root/known_hosts"
+fi
+
+python3 - "$MARKER_PATH" "$TARGET_ID" "$RUNNER_TAG" "$TEMP_DIR/runner-manifest.json" <<'PY'
+import datetime as dt
+import hashlib
+import json
+import os
+import sys
+path, target, tag, manifest_path = sys.argv[1:]
+with open(manifest_path, "rb") as handle:
+    digest = hashlib.sha256(handle.read()).hexdigest()
+record = {
+    "schema": "sphere-runner-bootstrap-result/v1",
+    "target": target,
+    "release": "5.2.0-3",
+    "runner_tag": tag,
+    "runner_manifest_sha256": digest,
+    "completed_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+    "bootstrap_grant": "consumed",
+    "routine_authorization": "token-and-digest-bound",
+}
+temporary = path + ".tmp"
+with open(temporary, "x", encoding="utf-8") as handle:
+    json.dump(record, handle, separators=(",", ":"), sort_keys=True)
+    handle.write("\n")
+    handle.flush()
+    os.fsync(handle.fileno())
+os.chmod(temporary, 0o600)
+os.replace(temporary, path)
+PY
+
+logger -p authpriv.notice -t sphere-runner-bootstrap \
+    "target=$TARGET_ID release=$RELEASE_VERSION runner_tag=$RUNNER_TAG status=completed bootstrap_grant=consumed"
+printf 'Sphere runner bootstrap completed for %s; this one-time operation is now consumed.\n' "$TARGET_ID"

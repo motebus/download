@@ -1,0 +1,2 @@
+restrict,command="/usr/libexec/sphere/sphere-install-dispatch-5.2.0-3",no-agent-forwarding,no-port-forwarding,no-pty,no-user-rc,no-X11-forwarding @L9_CONTROLLER_PUBLIC_KEY@
+

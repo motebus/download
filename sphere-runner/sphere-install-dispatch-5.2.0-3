@@ -1,0 +1,53 @@
+#!/bin/sh
+set -eu
+
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+export LANG=C
+export LC_ALL=C
+export HOME=/nonexistent
+unset ALL_PROXY BASH_ENV CDPATH ENV GLOBIGNORE HTTP_PROXY HTTPS_PROXY IFS \
+    LD_AUDIT LD_LIBRARY_PATH LD_PRELOAD NO_PROXY PYTHONHOME PYTHONPATH \
+    all_proxy http_proxy https_proxy no_proxy
+
+case "${SSH_ORIGINAL_COMMAND-}" in
+    sphere-install:5.2.0-3)
+        operation=sphere-install:5.2.0-3
+        runner=/usr/libexec/sphere/install-sphere-5.2.0-3
+        ;;
+    sphere-verify:5.2.0-3)
+        operation=sphere-verify:5.2.0-3
+        runner=/usr/libexec/sphere/sphere-verify-5.2.0-3
+        ;;
+    sphere-result:5.2.0-3)
+        operation=sphere-result:5.2.0-3
+        runner=/usr/libexec/sphere/sphere-result-5.2.0-3
+        ;;
+    sphere-maintenance-health:5.2.0-3)
+        operation=sphere-maintenance-health:5.2.0-3
+        runner=/usr/libexec/sphere/sphere-maintenance-health-5.2.0-3
+        ;;
+    *)
+        logger -p authpriv.warning -t sphere-install-dispatch \
+            "principal=$(id -un) operation=unlisted decision=deny"
+        printf '%s\n' 'Sphere installation operation denied' >&2
+        exit 126
+        ;;
+esac
+
+if correlation_id=$(
+    /usr/libexec/sphere/verify-sphere-capability-5.2.0-3.py "$operation"
+); then
+    :
+else
+    logger -p authpriv.warning -t sphere-install-dispatch \
+        "principal=$(id -un) operation=$operation decision=deny-token"
+    printf '%s\n' 'Sphere capability denied' >&2
+    exit 125
+fi
+
+exec </dev/null
+logger -p authpriv.notice -t sphere-install-dispatch \
+    "principal=$(id -un) operation=$operation correlation=$correlation_id decision=allow"
+exec /usr/bin/sudo -n "$runner"
+

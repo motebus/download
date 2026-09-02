@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+[ "$#" -eq 0 ] || {
+    printf '%s\n' 'Sphere maintenance health failed: arguments are forbidden' >&2
+    exit 1
+}
+exec </dev/null
+logger -p authpriv.notice -t sphere-install-runner \
+    'operation=sphere-maintenance-health:5.2.0-3 decision=allow-read-only'
+exec /usr/libexec/sphere/sphere-verify-5.2.0-3
+

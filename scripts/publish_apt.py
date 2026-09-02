@@ -199,7 +199,7 @@ ALLOWED_ROOT_FILES = {
     "medge-archive-keyring.fingerprint",
     "medge-archive-keyring.gpg",
 }
-ALLOWED_ROOT_DIRS = {".git", ".github", "scripts", "tests"}
+ALLOWED_ROOT_DIRS = {".git", ".github", "scripts", "sphere-runner", "tests"}
 
 
 class PublishError(RuntimeError):

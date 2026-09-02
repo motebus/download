@@ -1,0 +1,60 @@
+#!/bin/sh
+set -eu
+
+umask 077
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH LANG=C LC_ALL=C HOME=/root
+unset ALL_PROXY BASH_ENV CDPATH ENV GLOBIGNORE HTTP_PROXY HTTPS_PROXY IFS \
+    LD_AUDIT LD_LIBRARY_PATH LD_PRELOAD NO_PROXY PYTHONHOME PYTHONPATH \
+    all_proxy http_proxy https_proxy no_proxy
+exec </dev/null
+
+[ "$#" -eq 0 ] || {
+    printf '%s\n' 'Sphere result retrieval failed: arguments are forbidden' >&2
+    exit 1
+}
+[ "$(id -u)" -eq 0 ] || {
+    printf '%s\n' 'Sphere result retrieval failed: exact runner must execute as root' >&2
+    exit 1
+}
+
+python3 - <<'PY'
+import json
+import os
+import stat
+from pathlib import Path
+
+audit_dir = Path("/var/log/sphere-install")
+directory = os.lstat(audit_dir)
+if not stat.S_ISDIR(directory.st_mode) or directory.st_uid != 0 or directory.st_mode & 0o022:
+    raise SystemExit("Sphere result retrieval failed: audit directory is unsafe")
+
+candidates = []
+for path in audit_dir.glob("sphere-install-5.2.0-3-*.json"):
+    item = os.lstat(path)
+    if not stat.S_ISREG(item.st_mode) or item.st_uid != 0 or item.st_mode & 0o077:
+        raise SystemExit("Sphere result retrieval failed: audit result is unsafe")
+    candidates.append((item.st_mtime_ns, path))
+if not candidates:
+    raise SystemExit("Sphere result retrieval failed: no 5.2.0-3 result exists")
+
+_, latest = max(candidates, key=lambda item: (item[0], item[1].name))
+with latest.open(encoding="utf-8") as handle:
+    result = json.load(handle)
+if result.get("schema") != "subfield.installation-result/v1" or result.get("release_version") != "5.2.0-3":
+    raise SystemExit("Sphere result retrieval failed: result contract mismatch")
+
+allowed = {
+    "schema": "install-sphere-routine-result/v1",
+    "operation": "sphere-result:5.2.0-3",
+    "release_version": "5.2.0-3",
+    "operation_id": result.get("operation_id"),
+    "target": result.get("target"),
+    "started_at": result.get("started_at"),
+    "ended_at": result.get("ended_at"),
+    "status": result.get("status"),
+    "exit_code": result.get("exit_code"),
+}
+print(json.dumps(allowed, separators=(",", ":"), sort_keys=True))
+PY
+

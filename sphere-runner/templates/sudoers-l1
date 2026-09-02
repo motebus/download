@@ -1,0 +1,7 @@
+Defaults:sphere-install-l1 env_reset
+Defaults:sphere-install-l1 secure_path=/usr/sbin:/usr/bin:/sbin:/bin
+Cmnd_Alias SPHERE_ROUTINE_5203 = sha256:6f72c1232f9a302c99fd21dc663f6521d8645216c5dbc03158a0080bf3a479bd /usr/libexec/sphere/install-sphere-5.2.0-3 "", \
+    sha256:438015722535b0ce8bc315b25c22780c6fb888ce6e6366f4c1302bc26e866e65 /usr/libexec/sphere/sphere-verify-5.2.0-3 "", \
+    sha256:f2a6ec2e72349f8d2bd1a527caac692a83cf9643c44c3d49f73d6c5888e482c5 /usr/libexec/sphere/sphere-result-5.2.0-3 "", \
+    sha256:bd0911628cff52964bfb58f0df1e64a7ab927b5b77beaff8046f90c8b1b58867 /usr/libexec/sphere/sphere-maintenance-health-5.2.0-3 ""
+sphere-install-l1 ALL=(root) NOPASSWD: NOSETENV: SPHERE_ROUTINE_5203

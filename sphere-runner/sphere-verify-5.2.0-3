@@ -1,0 +1,57 @@
+#!/bin/sh
+set -eu
+
+umask 077
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH LANG=C LC_ALL=C HOME=/root
+unset ALL_PROXY BASH_ENV CDPATH ENV GLOBIGNORE HTTP_PROXY HTTPS_PROXY IFS \
+    LD_AUDIT LD_LIBRARY_PATH LD_PRELOAD NO_PROXY PYTHONHOME PYTHONPATH \
+    all_proxy http_proxy https_proxy no_proxy
+exec </dev/null
+
+fail() {
+    printf 'Sphere 5.2.0-3 verification failed: %s\n' "$*" >&2
+    exit 1
+}
+
+[ "$#" -eq 0 ] || fail "arguments are forbidden"
+[ "$(id -u)" -eq 0 ] || fail "the exact verification runner must execute as root"
+
+expected_packages='sphere=4.0.0-2
+moted=3.2.0-35
+medge=1.1.0-3
+mlink=0.1.0-2
+mdesk=3.0.0-2
+ss-webos=2.0.0-8
+mote-proxy=1.5.0-2
+motemcp=1.0.0-3
+ultra-mcp-ssh=1.1.0-1
+mcp-run=1.1.1-1
+cx-pivot=0.3.2-6
+mote-sync=0.2.0-2
+mote-syncd=0.2.0-2
+chatd=0.1.0-2
+chat=0.1.0-2'
+
+printf '%s\n' "$expected_packages" | while IFS='=' read -r package_name expected_version; do
+    installed_version=$(dpkg-query -W -f='${Version}' "$package_name" 2>/dev/null) ||
+        fail "$package_name is not installed"
+    [ "$installed_version" = "$expected_version" ] ||
+        fail "$package_name is $installed_version instead of $expected_version"
+done
+
+python3 - <<'PY'
+import datetime as dt
+import json
+import socket
+
+print(json.dumps({
+    "schema": "install-sphere-routine-result/v1",
+    "operation": "sphere-verify:5.2.0-3",
+    "release_version": "5.2.0-3",
+    "target_identity": socket.gethostname().split(".", 1)[0],
+    "checked_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+    "package_count": 15,
+    "status": "succeeded",
+}, separators=(",", ":"), sort_keys=True))
+PY
