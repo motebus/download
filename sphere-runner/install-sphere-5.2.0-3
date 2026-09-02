@@ -1,0 +1,408 @@
+#!/bin/sh
+set -eu
+
+umask 077
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+export LANG=C
+export LC_ALL=C
+export HOME=/root
+export CURL_HOME=/nonexistent
+unset ALL_PROXY BASH_ENV CDPATH ENV GLOBIGNORE HTTP_PROXY HTTPS_PROXY IFS \
+    LD_AUDIT LD_LIBRARY_PATH LD_PRELOAD NO_PROXY PYTHONHOME PYTHONPATH \
+    all_proxy http_proxy https_proxy no_proxy
+
+RELEASE_VERSION=5.2.0-3
+BASE_URL=https://motebus.github.io/download
+RUNNER_PATH=/usr/libexec/sphere/install-sphere-5.2.0-3
+RUNNER_SIGNATURE_PATH=/usr/libexec/sphere/install-sphere-5.2.0-3.asc
+ADMISSION_PATH=/etc/sphere/install-sphere-5.2.0-3.privilege-admission.json
+ADMISSION_SIGNATURE_PATH=/etc/sphere/install-sphere-5.2.0-3.privilege-admission.json.asc
+TRUST_KEYRING_PATH=/usr/share/keyrings/sphere-release-archive-keyring.gpg
+AUDIT_DIR=/var/log/sphere-install
+LOCK_PATH=/run/lock/sphere-install-5.2.0-3.lock
+EXPECTED_FINGERPRINT=AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0
+EXPECTED_INSTALLER_SHA256=7c080ecb769b519334dee99fde46875bf63df06c166ba4e1e982def46260973f
+EXPECTED_MANIFEST_SHA256=7f8140c5021ac8c6d645491205209ecf78b48de4ea73d1f267e9e35e3658f004
+EXPECTED_MANIFEST_SIGNATURE_SHA256=27ec063ae92d37f2e8753bf0e80716748494969803fde9454458f215e06f2e73
+EXPECTED_KEYRING_SHA256=756fc2632c307509b8e5ece665ced7f4d1a58636ac935aefc1e017f7dcfcbfbd
+EXPECTED_SOURCES_SHA256=e2745da14e570e5ceb304dca44c7960c129d4d66447207c2fef60aac4def4dde
+EXPECTED_INRELEASE_SHA256=56691ba0e268134d5fcf1127bc2e96948f6a7cc00eea9cf6caa4678a0751729c
+
+fail() {
+    printf 'Sphere 5.2.0-3 runner failed: %s\n' "$*" >&2
+    exit 1
+}
+
+[ "$#" -eq 0 ] || fail "arguments are forbidden"
+[ "$(id -u)" -eq 0 ] || fail "the exact runner must execute as root"
+
+for command_name in awk bash curl date dpkg-query flock gpg gpgv hostname \
+    install logger mktemp python3 readlink rmdir sha256sum stat unlink; do
+    command -v "$command_name" >/dev/null 2>&1 ||
+        fail "required command is unavailable: $command_name"
+done
+
+actual_runner_path=$(readlink -f -- "$0")
+[ "$actual_runner_path" = "$RUNNER_PATH" ] || fail "runner path is not admitted"
+
+python3 - "$RUNNER_PATH" "$RUNNER_SIGNATURE_PATH" "$ADMISSION_PATH" \
+    "$ADMISSION_SIGNATURE_PATH" "$TRUST_KEYRING_PATH" <<'PY'
+import os
+import stat
+import sys
+
+for value in sys.argv[1:]:
+    path = os.path.abspath(value)
+    current = path
+    while True:
+        item = os.lstat(current)
+        if stat.S_ISLNK(item.st_mode):
+            raise SystemExit(f"symlinked trust path is forbidden: {current}")
+        if item.st_uid != 0 or item.st_gid != 0:
+            raise SystemExit(f"trust path is not root-owned: {current}")
+        if item.st_mode & 0o022:
+            raise SystemExit(f"trust path is group/world writable: {current}")
+        parent = os.path.dirname(current)
+        if parent == current or current == "/":
+            break
+        current = parent
+PY
+
+actual_fingerprint=$(
+    gpg --batch --no-options --show-keys --with-colons "$TRUST_KEYRING_PATH" |
+        awk -F: '
+            $1 == "pub" { public_keys += 1 }
+            $1 == "fpr" && fingerprint == "" { fingerprint = $10 }
+            END {
+                if (public_keys != 1 || fingerprint == "") exit 1
+                print fingerprint
+            }
+        '
+) || fail "installed trust keyring is invalid"
+[ "$actual_fingerprint" = "$EXPECTED_FINGERPRINT" ] ||
+    fail "installed trust-key fingerprint mismatch"
+
+gpgv --keyring "$TRUST_KEYRING_PATH" "$RUNNER_SIGNATURE_PATH" \
+    "$RUNNER_PATH" >/dev/null 2>&1 || fail "runner signature verification failed"
+gpgv --keyring "$TRUST_KEYRING_PATH" "$ADMISSION_SIGNATURE_PATH" \
+    "$ADMISSION_PATH" >/dev/null 2>&1 || fail "privilege-admission signature verification failed"
+
+exec </dev/null
+install -d -m 0700 "$AUDIT_DIR"
+exec 9>"$LOCK_PATH"
+flock -n 9 || fail "another Sphere installation operation is active"
+
+TEMP_DIR=$(mktemp -d /run/sphere-install-5.2.0-3.XXXXXX)
+OPERATION_ID="sphere-install-5.2.0-3-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+TARGET_ID=unresolved
+STABLE_IDENTITY=unresolved
+CONTROLLER_FINGERPRINT=unresolved
+ADMISSION_ID=unresolved
+AUDIT_RESULT_PATH="$AUDIT_DIR/$OPERATION_ID.json"
+
+cleanup_temp() {
+    for item in sphere.sh release-manifest.json release-manifest.json.asc \
+        medge-archive-keyring.gpg medge.sources InRelease admission.tsv \
+        packages.before packages.after result.json; do
+        if [ -e "$TEMP_DIR/$item" ]; then
+            unlink "$TEMP_DIR/$item"
+        fi
+    done
+    rmdir "$TEMP_DIR" 2>/dev/null || true
+}
+
+collect_packages() {
+    output_path=$1
+    : >"$output_path"
+    for package_name in sphere moted medge mlink mdesk ss-webos mote-proxy \
+        motemcp ultra-mcp-ssh mcp-run cx-pivot mote-sync mote-syncd chatd chat; do
+        package_version=$(dpkg-query -W -f='${Version}' "$package_name" 2>/dev/null || true)
+        if [ -n "$package_version" ]; then
+            printf '%s\t%s\n' "$package_name" "$package_version" >>"$output_path"
+        else
+            printf '%s\t%s\n' "$package_name" absent >>"$output_path"
+        fi
+    done
+}
+
+finish() {
+    result_code=$?
+    trap - EXIT HUP INT TERM
+    collect_packages "$TEMP_DIR/packages.after"
+    ENDED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    if [ "$result_code" -eq 0 ]; then
+        RESULT_STATUS=succeeded
+    else
+        RESULT_STATUS=failed
+    fi
+    python3 - "$OPERATION_ID" "$TARGET_ID" "$STABLE_IDENTITY" \
+        "$CONTROLLER_FINGERPRINT" "$ADMISSION_ID" "$STARTED_AT" "$ENDED_AT" \
+        "$RESULT_STATUS" "$result_code" "$RUNNER_PATH" \
+        "$TEMP_DIR/packages.before" "$TEMP_DIR/packages.after" \
+        "$TEMP_DIR/result.json" <<'PY'
+import hashlib
+import json
+import sys
+
+(
+    operation_id,
+    target_id,
+    stable_identity,
+    controller_fingerprint,
+    admission_id,
+    started_at,
+    ended_at,
+    status,
+    exit_code,
+    runner_path,
+    before_path,
+    after_path,
+    output_path,
+) = sys.argv[1:]
+
+def read_versions(path):
+    result = {}
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            name, version = line.rstrip("\n").split("\t", 1)
+            result[name] = version
+    return result
+
+with open(runner_path, "rb") as handle:
+    runner_sha256 = hashlib.sha256(handle.read()).hexdigest()
+
+document = {
+    "schema": "subfield.installation-result/v1",
+    "operation_id": operation_id,
+    "target": {"id": target_id, "stable_identity": stable_identity},
+    "controller_public_key_fingerprint": controller_fingerprint,
+    "admission_id": admission_id,
+    "release_version": "5.2.0-3",
+    "runner": {"path": runner_path, "sha256": runner_sha256},
+    "release_inputs": {
+        "installer_sha256": "7c080ecb769b519334dee99fde46875bf63df06c166ba4e1e982def46260973f",
+        "manifest_sha256": "7f8140c5021ac8c6d645491205209ecf78b48de4ea73d1f267e9e35e3658f004",
+        "manifest_signature_sha256": "27ec063ae92d37f2e8753bf0e80716748494969803fde9454458f215e06f2e73",
+        "inrelease_sha256": "56691ba0e268134d5fcf1127bc2e96948f6a7cc00eea9cf6caa4678a0751729c",
+    },
+    "packages": {"before": read_versions(before_path), "after": read_versions(after_path)},
+    "started_at": started_at,
+    "ended_at": ended_at,
+    "status": status,
+    "exit_code": int(exit_code),
+}
+with open(output_path, "w", encoding="utf-8") as handle:
+    json.dump(document, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+PY
+    install -m 0600 "$TEMP_DIR/result.json" "$AUDIT_RESULT_PATH"
+    logger -p authpriv.notice -t sphere-install-runner \
+        "operation=$OPERATION_ID target=$TARGET_ID admission=$ADMISSION_ID status=$RESULT_STATUS exit=$result_code"
+    cleanup_temp
+    exit "$result_code"
+}
+
+trap finish EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+collect_packages "$TEMP_DIR/packages.before"
+
+python3 - "$ADMISSION_PATH" "$RUNNER_PATH" "$EXPECTED_INSTALLER_SHA256" \
+    "$EXPECTED_MANIFEST_SHA256" "$EXPECTED_MANIFEST_SIGNATURE_SHA256" \
+    "$EXPECTED_KEYRING_SHA256" "$EXPECTED_SOURCES_SHA256" \
+    "$EXPECTED_INRELEASE_SHA256" >"$TEMP_DIR/admission.tsv" <<'PY'
+import datetime as dt
+import hashlib
+import json
+import re
+import sys
+
+(
+    admission_path,
+    runner_path,
+    installer_sha256,
+    manifest_sha256,
+    manifest_signature_sha256,
+    keyring_sha256,
+    sources_sha256,
+    inrelease_sha256,
+) = sys.argv[1:]
+
+with open(admission_path, encoding="utf-8") as handle:
+    admission = json.load(handle)
+if admission.get("schema") != "install-sphere-privilege-admission/v1":
+    raise SystemExit("privilege-admission schema mismatch")
+if admission.get("status") != "approved" or admission.get("release_version") != "5.2.0-3":
+    raise SystemExit("privilege admission is not approved for 5.2.0-3")
+runner = admission.get("runner", {})
+with open(runner_path, "rb") as handle:
+    actual_runner_sha256 = hashlib.sha256(handle.read()).hexdigest()
+if runner.get("install_path") != runner_path or runner.get("sha256") != actual_runner_sha256:
+    raise SystemExit("runner path/digest is not admitted")
+
+release = admission.get("release", {})
+expected_release = {
+    "installer_sha256": installer_sha256,
+    "manifest_sha256": manifest_sha256,
+    "manifest_signature_sha256": manifest_signature_sha256,
+    "keyring_sha256": keyring_sha256,
+    "sources_sha256": sources_sha256,
+    "inrelease_sha256": inrelease_sha256,
+}
+for name, expected in expected_release.items():
+    if release.get(name) != expected:
+        raise SystemExit(f"release pin mismatch: {name}")
+
+expected_packages = [
+    ("sphere", "4.0.0-2"),
+    ("moted", "3.2.0-35"),
+    ("medge", "1.1.0-3"),
+    ("mlink", "0.1.0-2"),
+    ("mdesk", "3.0.0-2"),
+    ("ss-webos", "2.0.0-8"),
+    ("mote-proxy", "1.5.0-2"),
+    ("motemcp", "1.0.0-3"),
+    ("ultra-mcp-ssh", "1.1.0-1"),
+    ("mcp-run", "1.1.1-1"),
+    ("cx-pivot", "0.3.2-6"),
+    ("mote-sync", "0.2.0-2"),
+    ("mote-syncd", "0.2.0-2"),
+    ("chatd", "0.1.0-2"),
+    ("chat", "0.1.0-2"),
+]
+packages = admission.get("packages")
+if [(item.get("name"), item.get("version")) for item in packages or []] != expected_packages:
+    raise SystemExit("exact package pins are not admitted")
+
+now = dt.datetime.now(dt.timezone.utc)
+def parse_time(value, name):
+    if not isinstance(value, str) or "OWNER_APPROVAL_REQUIRED" in value:
+        raise SystemExit(f"{name} is not approved")
+    parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise SystemExit(f"{name} has no timezone")
+    return parsed
+
+valid_from = parse_time(admission.get("valid_from"), "valid_from")
+valid_until = parse_time(admission.get("valid_until"), "valid_until")
+if not valid_from <= now <= valid_until:
+    raise SystemExit("privilege admission is outside its validity window")
+rollback_ref = admission.get("rollback_ref")
+if not isinstance(rollback_ref, str) or not rollback_ref or "OWNER_APPROVAL_REQUIRED" in rollback_ref:
+    raise SystemExit("rollback reference is not approved")
+
+identity = __import__("socket").gethostname().split(".", 1)[0]
+matches = [target for target in admission.get("targets", []) if target.get("stable_identity") == identity]
+if len(matches) != 1:
+    raise SystemExit("target stable identity is not uniquely admitted")
+target = matches[0]
+fingerprint = target.get("controller_public_key_fingerprint")
+if not isinstance(fingerprint, str) or re.fullmatch(r"SHA256:[A-Za-z0-9+/]{43}", fingerprint) is None:
+    raise SystemExit("controller public-key fingerprint is not approved")
+if not isinstance(target.get("principal"), str) or not target["principal"].startswith("sphere-install-"):
+    raise SystemExit("target-specific principal is not admitted")
+target_rollback_ref = target.get("rollback_ref")
+if (
+    not isinstance(target_rollback_ref, str)
+    or not target_rollback_ref
+    or "OWNER_APPROVAL_REQUIRED" in target_rollback_ref
+):
+    raise SystemExit("target rollback reference is not approved")
+if target.get("bootstrap_grant_one_time") is not True:
+    raise SystemExit("target bootstrap grant is not one-time")
+
+print(target["id"], identity, fingerprint, admission["approval"]["id"], sep="\t")
+PY
+
+TAB=$(printf '\t')
+IFS=$TAB read -r TARGET_ID STABLE_IDENTITY CONTROLLER_FINGERPRINT ADMISSION_ID \
+    <"$TEMP_DIR/admission.tsv"
+[ -n "$TARGET_ID" ] && [ -n "$STABLE_IDENTITY" ] &&
+    [ -n "$CONTROLLER_FINGERPRINT" ] && [ -n "$ADMISSION_ID" ] ||
+    fail "resolved privilege admission is incomplete"
+
+download() {
+    relative_path=$1
+    output_path=$2
+    curl --disable --proto '=https' --tlsv1.2 -fsSLo "$output_path" \
+        "$BASE_URL/$relative_path"
+}
+
+download sphere.sh "$TEMP_DIR/sphere.sh"
+download release-manifest.json "$TEMP_DIR/release-manifest.json"
+download release-manifest.json.asc "$TEMP_DIR/release-manifest.json.asc"
+download medge-archive-keyring.gpg "$TEMP_DIR/medge-archive-keyring.gpg"
+download medge.sources "$TEMP_DIR/medge.sources"
+download dists/stable/InRelease "$TEMP_DIR/InRelease"
+
+printf '%s  %s\n' "$EXPECTED_INSTALLER_SHA256" "$TEMP_DIR/sphere.sh" |
+    sha256sum -c - >/dev/null
+printf '%s  %s\n' "$EXPECTED_MANIFEST_SHA256" "$TEMP_DIR/release-manifest.json" |
+    sha256sum -c - >/dev/null
+printf '%s  %s\n' "$EXPECTED_MANIFEST_SIGNATURE_SHA256" "$TEMP_DIR/release-manifest.json.asc" |
+    sha256sum -c - >/dev/null
+printf '%s  %s\n' "$EXPECTED_KEYRING_SHA256" "$TEMP_DIR/medge-archive-keyring.gpg" |
+    sha256sum -c - >/dev/null
+printf '%s  %s\n' "$EXPECTED_SOURCES_SHA256" "$TEMP_DIR/medge.sources" |
+    sha256sum -c - >/dev/null
+printf '%s  %s\n' "$EXPECTED_INRELEASE_SHA256" "$TEMP_DIR/InRelease" |
+    sha256sum -c - >/dev/null
+
+downloaded_fingerprint=$(
+    gpg --batch --no-options --show-keys --with-colons "$TEMP_DIR/medge-archive-keyring.gpg" |
+        awk -F: '$1 == "fpr" { print $10; exit }'
+) || fail "downloaded archive key is invalid"
+[ "$downloaded_fingerprint" = "$EXPECTED_FINGERPRINT" ] ||
+    fail "downloaded archive-key fingerprint mismatch"
+gpgv --keyring "$TEMP_DIR/medge-archive-keyring.gpg" \
+    "$TEMP_DIR/release-manifest.json.asc" "$TEMP_DIR/release-manifest.json" \
+    >/dev/null 2>&1 || fail "release-manifest signature verification failed"
+gpgv --keyring "$TEMP_DIR/medge-archive-keyring.gpg" "$TEMP_DIR/InRelease" \
+    >/dev/null 2>&1 || fail "APT InRelease signature verification failed"
+
+python3 - "$TEMP_DIR/release-manifest.json" <<'PY'
+import json
+import sys
+
+expected = [
+    ("sphere", "4.0.0-2"),
+    ("moted", "3.2.0-35"),
+    ("medge", "1.1.0-3"),
+    ("mlink", "0.1.0-2"),
+    ("mdesk", "3.0.0-2"),
+    ("ss-webos", "2.0.0-8"),
+    ("mote-proxy", "1.5.0-2"),
+    ("motemcp", "1.0.0-3"),
+    ("ultra-mcp-ssh", "1.1.0-1"),
+    ("mcp-run", "1.1.1-1"),
+    ("cx-pivot", "0.3.2-6"),
+    ("mote-sync", "0.2.0-2"),
+    ("mote-syncd", "0.2.0-2"),
+    ("chatd", "0.1.0-2"),
+    ("chat", "0.1.0-2"),
+]
+with open(sys.argv[1], encoding="utf-8") as handle:
+    manifest = json.load(handle)
+if manifest.get("schema") != "medge-public-release/v11" or manifest.get("status") != "approved":
+    raise SystemExit("public release manifest is not approved v9")
+if manifest.get("medge_version") != "5.2.0-3":
+    raise SystemExit("public release version mismatch")
+if (manifest.get("suite"), manifest.get("component"), manifest.get("architecture")) != ("stable", "main", "amd64"):
+    raise SystemExit("public release distribution mismatch")
+packages = manifest.get("packages", [])
+if [(item.get("name"), item.get("version")) for item in packages] != expected:
+    raise SystemExit("public release package pins mismatch")
+PY
+
+logger -p authpriv.notice -t sphere-install-runner \
+    "operation=$OPERATION_ID target=$TARGET_ID admission=$ADMISSION_ID status=started"
+
+/usr/bin/env -i PATH="$PATH" LANG=C LC_ALL=C HOME=/root CURL_HOME=/nonexistent \
+    DEBIAN_FRONTEND=noninteractive \
+    MEDGE_RELEASE_MANIFEST="$TEMP_DIR/release-manifest.json" \
+    MEDGE_RELEASE_MANIFEST_SIGNATURE="$TEMP_DIR/release-manifest.json.asc" \
+    /usr/bin/bash --noprofile --norc "$TEMP_DIR/sphere.sh"

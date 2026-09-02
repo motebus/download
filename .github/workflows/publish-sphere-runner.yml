@@ -1,0 +1,84 @@
+name: Publish signed Sphere restricted runner
+
+on:
+  push:
+    tags:
+      - "sphere-runner-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate public source boundary
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests
+          python3 scripts/publish_apt.py validate-tree .
+          python3 scripts/publish_sphere_runner.py validate-source sphere-runner
+
+      - name: Validate immutable runner tag
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_TYPE" = tag
+          test "$GITHUB_REF_NAME" = sphere-runner-v5.2.0-3-1
+
+      - name: Import protected archive key
+        env:
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$MEDGE_APT_SIGNING_KEY"
+          printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
+          test "$(gpg --batch --with-colons --list-secret-keys | awk -F: '$1 == "fpr" {print $10; exit}')" = \
+            AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0
+
+      - name: Stage and sign exact runner artifact set
+        env:
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          python3 scripts/publish_sphere_runner.py stage sphere-runner runner-dist
+          python3 - <<'PY' > runner-artifacts.txt
+          import json
+          for item in json.load(open("runner-dist/.artifact-map.json", encoding="utf-8"))["artifacts"]:
+              print(item["name"])
+          PY
+          while IFS= read -r name; do
+            gpg --batch --yes --pinentry-mode loopback \
+              --passphrase "$MEDGE_APT_SIGNING_PASSPHRASE" \
+              --armor --detach-sign --output "runner-dist/${name}.asc" "runner-dist/${name}"
+          done < runner-artifacts.txt
+          python3 scripts/publish_sphere_runner.py finalize runner-dist \
+            --source-commit "$GITHUB_SHA"
+          gpg --batch --yes --pinentry-mode loopback \
+            --passphrase "$MEDGE_APT_SIGNING_PASSPHRASE" \
+            --armor --detach-sign --output runner-dist/runner-manifest.json.asc \
+            runner-dist/runner-manifest.json
+          python3 scripts/publish_sphere_runner.py validate-dist runner-dist
+          gpgv --keyring ./medge-archive-keyring.gpg \
+            runner-dist/runner-manifest.json.asc runner-dist/runner-manifest.json
+          while IFS= read -r name; do
+            gpgv --keyring ./medge-archive-keyring.gpg \
+              "runner-dist/${name}.asc" "runner-dist/${name}"
+          done < runner-artifacts.txt
+          rm runner-dist/.artifact-map.json
+
+      - name: Create immutable public runner release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "runner release already exists: $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" runner-dist/* \
+            --verify-tag \
+            --title "Sphere 5.2.0-3 restricted runner 1" \
+            --notes "Signed, target-separated L1/L9 restricted runner and one-time native bootstrap for the approved Sphere 5.2.0-3 lifecycle. This release contains public source, public keys, signatures, and no private implementation or credentials."

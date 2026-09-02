@@ -1,0 +1,318 @@
+{
+  "schema": "install-sphere-privilege-admission/v1",
+  "status": "approved",
+  "release_version": "5.2.0-3",
+  "base_target_admission": {
+    "path": "release/sphere-v5.2.0-3.targets.json",
+    "sha256": "5e64282ea87e4e6998edf190c53c6f865b27851813aa248e80f51b6f1b771ef3"
+  },
+  "approval": {
+    "id": "sphere-l1-l9-privilege-20260902",
+    "approved_by": "stevenhsu",
+    "approved_at": "2026-09-02T02:30:00Z"
+  },
+  "valid_from": "2026-09-02T02:30:00Z",
+  "valid_until": "2026-09-09T23:59:59Z",
+  "controller_host": {
+    "target_id": "L1",
+    "stable_identity": "medge-home",
+    "account": "jujue",
+    "role": "sphere-super-node-installation-controller",
+    "private_key_policy": "four target-scoped private keys remain only in the L1 controller 0700 key directory; never Git, release, target, argv, environment, forwarding, chat, or logs"
+  },
+  "release": {
+    "tag": "medge-v5.2.0-3",
+    "pages_origin": "https://motebus.github.io/download",
+    "manifest_schema": "medge-public-release/v11",
+    "signing_key_fingerprint": "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
+    "installer_sha256": "7c080ecb769b519334dee99fde46875bf63df06c166ba4e1e982def46260973f",
+    "manifest_sha256": "7f8140c5021ac8c6d645491205209ecf78b48de4ea73d1f267e9e35e3658f004",
+    "manifest_signature_sha256": "27ec063ae92d37f2e8753bf0e80716748494969803fde9454458f215e06f2e73",
+    "keyring_sha256": "756fc2632c307509b8e5ece665ced7f4d1a58636ac935aefc1e017f7dcfcbfbd",
+    "sources_sha256": "e2745da14e570e5ceb304dca44c7960c129d4d66447207c2fef60aac4def4dde",
+    "inrelease_sha256": "56691ba0e268134d5fcf1127bc2e96948f6a7cc00eea9cf6caa4678a0751729c"
+  },
+  "runner_publication": {
+    "tag": "sphere-runner-v5.2.0-3-1",
+    "manifest_ref": "https://github.com/motebus/download/releases/download/sphere-runner-v5.2.0-3-1/runner-manifest.json",
+    "manifest_signature_ref": "https://github.com/motebus/download/releases/download/sphere-runner-v5.2.0-3-1/runner-manifest.json.asc",
+    "signer_fingerprint": "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
+  },
+  "runner": {
+    "source_path": "runner/install-sphere-5.2.0-3",
+    "install_path": "/usr/libexec/sphere/install-sphere-5.2.0-3",
+    "sha256": "6f72c1232f9a302c99fd21dc663f6521d8645216c5dbc03158a0080bf3a479bd",
+    "signature_ref": "https://github.com/motebus/download/releases/download/sphere-runner-v5.2.0-3-1/install-sphere-5.2.0-3.asc",
+    "owner": "root:root",
+    "mode": "0555",
+    "arguments": [],
+    "stdin": "closed",
+    "caller_environment": "rejected",
+    "sudo_command_digest": "sha256:6f72c1232f9a302c99fd21dc663f6521d8645216c5dbc03158a0080bf3a479bd"
+  },
+  "dispatcher": {
+    "source_path": "runner/sphere-install-dispatch-5.2.0-3",
+    "install_path": "/usr/libexec/sphere/sphere-install-dispatch-5.2.0-3",
+    "sha256": "7193a1ce7dd979df07a07fdd61c6e09889482ca19b6f187bf4cde1167d8b8a85",
+    "signature_ref": "https://github.com/motebus/download/releases/download/sphere-runner-v5.2.0-3-1/sphere-install-dispatch-5.2.0-3.asc",
+    "owner": "root:root",
+    "mode": "0555",
+    "accepted_operations": [
+      "sphere-install:5.2.0-3",
+      "sphere-verify:5.2.0-3",
+      "sphere-result:5.2.0-3",
+      "sphere-maintenance-health:5.2.0-3"
+    ]
+  },
+  "routine_runners": [
+    {
+      "class": "install",
+      "operation": "sphere-install:5.2.0-3",
+      "source_path": "runner/install-sphere-5.2.0-3",
+      "install_path": "/usr/libexec/sphere/install-sphere-5.2.0-3",
+      "sha256": "6f72c1232f9a302c99fd21dc663f6521d8645216c5dbc03158a0080bf3a479bd",
+      "signature_ref": "https://github.com/motebus/download/releases/download/sphere-runner-v5.2.0-3-1/install-sphere-5.2.0-3.asc",
+      "mutates_target": true
+    },
+    {
+      "class": "verification",
+      "operation": "sphere-verify:5.2.0-3",
+      "source_path": "runner/sphere-verify-5.2.0-3",
+      "install_path": "/usr/libexec/sphere/sphere-verify-5.2.0-3",
+      "sha256": "438015722535b0ce8bc315b25c22780c6fb888ce6e6366f4c1302bc26e866e65",
+      "signature_ref": "https://github.com/motebus/download/releases/download/sphere-runner-v5.2.0-3-1/sphere-verify-5.2.0-3.asc",
+      "mutates_target": false
+    },
+    {
+      "class": "status-result",
+      "operation": "sphere-result:5.2.0-3",
+      "source_path": "runner/sphere-result-5.2.0-3",
+      "install_path": "/usr/libexec/sphere/sphere-result-5.2.0-3",
+      "sha256": "f2a6ec2e72349f8d2bd1a527caac692a83cf9643c44c3d49f73d6c5888e482c5",
+      "signature_ref": "https://github.com/motebus/download/releases/download/sphere-runner-v5.2.0-3-1/sphere-result-5.2.0-3.asc",
+      "mutates_target": false
+    },
+    {
+      "class": "approved-maintenance",
+      "operation": "sphere-maintenance-health:5.2.0-3",
+      "source_path": "runner/sphere-maintenance-health-5.2.0-3",
+      "install_path": "/usr/libexec/sphere/sphere-maintenance-health-5.2.0-3",
+      "sha256": "bd0911628cff52964bfb58f0df1e64a7ab927b5b77beaff8046f90c8b1b58867",
+      "signature_ref": "https://github.com/motebus/download/releases/download/sphere-runner-v5.2.0-3-1/sphere-maintenance-health-5.2.0-3.asc",
+      "mutates_target": false
+    }
+  ],
+  "capability_token": {
+    "schema": "install-sphere-capability-token/v1",
+    "issuer": "L1",
+    "algorithm": "Ed25519",
+    "max_ttl_seconds": 300,
+    "clock_skew_seconds": 30,
+    "transport": "protected same-UID Unix socket to stdin; never argv, environment, temp file, shell history, process list, or persistent token log",
+    "artifacts": {
+      "verifier_sha256": "03471d840b94031e0b1c92040275675c7001b2ddee1d5872be87f2b7416ed5ea",
+      "library_sha256": "95bc031736b71972c66128ac43a601862004d2c5865d6c989da9c4c33606e4fd",
+      "dispatcher_sha256": "7193a1ce7dd979df07a07fdd61c6e09889482ca19b6f187bf4cde1167d8b8a85"
+    },
+    "allowed_operations": [
+      {
+        "class": "install",
+        "operation": "sphere-install:5.2.0-3",
+        "runner_path": "/usr/libexec/sphere/install-sphere-5.2.0-3",
+        "runner_sha256": "6f72c1232f9a302c99fd21dc663f6521d8645216c5dbc03158a0080bf3a479bd"
+      },
+      {
+        "class": "verification",
+        "operation": "sphere-verify:5.2.0-3",
+        "runner_path": "/usr/libexec/sphere/sphere-verify-5.2.0-3",
+        "runner_sha256": "438015722535b0ce8bc315b25c22780c6fb888ce6e6366f4c1302bc26e866e65"
+      },
+      {
+        "class": "status-result",
+        "operation": "sphere-result:5.2.0-3",
+        "runner_path": "/usr/libexec/sphere/sphere-result-5.2.0-3",
+        "runner_sha256": "f2a6ec2e72349f8d2bd1a527caac692a83cf9643c44c3d49f73d6c5888e482c5"
+      },
+      {
+        "class": "approved-maintenance",
+        "operation": "sphere-maintenance-health:5.2.0-3",
+        "runner_path": "/usr/libexec/sphere/sphere-maintenance-health-5.2.0-3",
+        "runner_sha256": "bd0911628cff52964bfb58f0df1e64a7ab927b5b77beaff8046f90c8b1b58867"
+      }
+    ],
+    "targets": [
+      {
+        "id": "L1",
+        "audience": "L1",
+        "issuer_key_id": "sphere-l1-capability-5.2.0-3-758f4aa2f513",
+        "public_key_path": "/etc/sphere/keys/l1-capability-5.2.0-3.ed25519.pub",
+        "public_key_sha256": "8418552a65a529c2eea525afdc8e492f222463d72d31536b2292281b6569d4bf",
+        "private_key_custody": "L1 protected issuer only",
+        "replay_dir": "/var/lib/sphere-install/replay/l1"
+      },
+      {
+        "id": "L9",
+        "audience": "L9",
+        "issuer_key_id": "sphere-l9-capability-5.2.0-3-47827e08eef9",
+        "public_key_path": "/etc/sphere/keys/l1-to-l9-capability-5.2.0-3.ed25519.pub",
+        "public_key_sha256": "0c51ed59e538916d16cbfea7d04c8548bfa4d921e8f0020dbf720d68596dc149",
+        "private_key_custody": "L1 protected issuer only; L9 receives verifier public key only",
+        "replay_dir": "/var/lib/sphere-install/replay/l9"
+      }
+    ],
+    "persistent_record": "token ID SHA-256, correlation ID, issuer key ID, target, release, operation, issue/expiry/consume times, decision only"
+  },
+  "packages": [
+    {
+      "name": "sphere",
+      "version": "4.0.0-2",
+      "sha256": "7597eaf8155225c3b3c61290c335ee7959ff8d44712c88e3b2a5c441ee1d8bee"
+    },
+    {
+      "name": "moted",
+      "version": "3.2.0-35",
+      "sha256": "d28c06b5431bdee096782d467998f7eb8558ab165c0354d086621936798875f6"
+    },
+    {
+      "name": "medge",
+      "version": "1.1.0-3",
+      "sha256": "3e35f7db1fb8a7db5988ecd7a937724bf9d23ad37ff86d3bb097dbac21760c6a"
+    },
+    {
+      "name": "mlink",
+      "version": "0.1.0-2",
+      "sha256": "63905693cab16dde8a4e472431010051f9297835c8d730a02e2db4ff5cba9d5d"
+    },
+    {
+      "name": "mdesk",
+      "version": "3.0.0-2",
+      "sha256": "af4bf7493c962ba29c19712e9c12e4df3c08315a5464b53f74949906799942d4"
+    },
+    {
+      "name": "ss-webos",
+      "version": "2.0.0-8",
+      "sha256": "803119844bbc3d4f01c578080e94ed365574e63cb4fcc32c5c004b00eb9f14b0"
+    },
+    {
+      "name": "mote-proxy",
+      "version": "1.5.0-2",
+      "sha256": "be437bfae184113f750c3c738060993a69c0a6e55e0bf6ddd68377a3e0538dc6"
+    },
+    {
+      "name": "motemcp",
+      "version": "1.0.0-3",
+      "sha256": "173734eb1cbc50a16a033a6566d0ad9743392c74b79c677f3524faf514d140bd"
+    },
+    {
+      "name": "ultra-mcp-ssh",
+      "version": "1.1.0-1",
+      "sha256": "797a5525b378b642114f06810c98a4b15c1dac326b593872b1c42b83dbde244f"
+    },
+    {
+      "name": "mcp-run",
+      "version": "1.1.1-1",
+      "sha256": "cce915ac0551bfb7c0ed217605861732d5efc2fb8850f580469fc644c2cf30be"
+    },
+    {
+      "name": "cx-pivot",
+      "version": "0.3.2-6",
+      "sha256": "df77b8b7ba66fe8bc06911dac025e230aa5da680e83ee1de87cd9e4b123a8c3e"
+    },
+    {
+      "name": "mote-sync",
+      "version": "0.2.0-2",
+      "sha256": "b6b249662a33bc981b7680fd94e08d5085f3bf1a558e9e2db0a58c9e418a0649"
+    },
+    {
+      "name": "mote-syncd",
+      "version": "0.2.0-2",
+      "sha256": "48c12446cbf7984f3b387715c895cd8fb7c57086f5f8b4e8b89faed6b6f05832"
+    },
+    {
+      "name": "chatd",
+      "version": "0.1.0-2",
+      "sha256": "df414f91a524204265ac7fcb7e8cdb1dc78b9f42fea10e0c01d25ae530d9c697"
+    },
+    {
+      "name": "chat",
+      "version": "0.1.0-2",
+      "sha256": "9d575edd6093e8249dfc3150b605db1046fbb9c58abd12aafc2b02e09784478f"
+    }
+  ],
+  "rollback_ref": "https://github.com/motebus/download/releases/download/medge-v5.2.0-3/uninstall.sh#sha256=2571cee57dc30ccddf4879fc15ccfc3787456ec1a58dabea4270f218cdfc17b5",
+  "targets": [
+    {
+      "id": "L1",
+      "rollout_order": 1,
+      "class": "codex-l-system-workstation",
+      "role": "sphere-super-node-canary",
+      "stable_identity": "medge-home",
+      "principal": "sphere-install-l1",
+      "controller_identity_ref": "L1:sphere-install-controller:ssh",
+      "controller_public_key_fingerprint": "SHA256:1ws0LO655ilt1C7bW9ZfYtRQxj2nj7vPzsLrkV2HSLE",
+      "controller_private_key_custody": "L1 protected controller only",
+      "strict_host_key_fingerprints": [
+        "SHA256:G2h14FNIJqWkwpfReEwZEPMQsRCJyl45Im3WUChX7GA",
+        "SHA256:jbXW77aPEzA3WUAUWwkxZ+G2CSJ7vDaAu4Z3v748nOU",
+        "SHA256:wSaxUOihkUKx28jBBBFGzkc58F1BFXgdIOhwCXcq/Fo"
+      ],
+      "accepted_operations": [
+        "sphere-install:5.2.0-3",
+        "sphere-verify:5.2.0-3",
+        "sphere-result:5.2.0-3",
+        "sphere-maintenance-health:5.2.0-3"
+      ],
+      "bootstrap_grant_one_time": true,
+      "routine_grant_validity": "valid_from through valid_until and fresh single-use token per invocation",
+      "rollback_ref": "https://github.com/motebus/download/releases/download/medge-v5.2.0-3/uninstall.sh#sha256=2571cee57dc30ccddf4879fc15ccfc3787456ec1a58dabea4270f218cdfc17b5"
+    },
+    {
+      "id": "L9",
+      "rollout_order": 2,
+      "class": "mote-transport-peer-endpoint",
+      "role": "sphere-installation-target",
+      "stable_identity": "medge-tv",
+      "selector": "medge-tv.mote",
+      "access_profile": "L9",
+      "principal": "sphere-install-l9",
+      "controller_identity_ref": "L1:sphere-install-controller:l9-ssh",
+      "controller_public_key_fingerprint": "SHA256:yg2WaPyRgOlF8Xx4+P48SsLHj5Zb9g7v4ggDsIsUE0g",
+      "controller_private_key_custody": "L1 protected controller only; L9 receives public key only",
+      "strict_host_key_fingerprints": [
+        "SHA256:wfvIxi3qPD+u8OwDCLNOD5Fuj4V6JxuvwzgEHqUglf0",
+        "SHA256:643IluWnnulvoRQYgETclklKaWrH9gL0OUqPBz0y3HA",
+        "SHA256:BltEcL2BLeJ9lWFfGKv7+psXasxoKZfK3l/QGMyOLJs"
+      ],
+      "accepted_operations": [
+        "sphere-install:5.2.0-3",
+        "sphere-verify:5.2.0-3",
+        "sphere-result:5.2.0-3",
+        "sphere-maintenance-health:5.2.0-3"
+      ],
+      "bootstrap_grant_one_time": true,
+      "routine_grant_validity": "valid_from through valid_until and fresh single-use token per invocation",
+      "rollback_ref": "https://github.com/motebus/download/releases/download/medge-v5.2.0-3/uninstall.sh#sha256=2571cee57dc30ccddf4879fc15ccfc3787456ec1a58dabea4270f218cdfc17b5"
+    }
+  ],
+  "audit": {
+    "sink": "/var/log/sphere-install",
+    "retention": "90 days minimum, then owner-controlled disposal",
+    "redaction": "no token body, signature, private key, password, credential, or arbitrary payload"
+  },
+  "rollout": {
+    "order": [
+      "L1",
+      "L9"
+    ],
+    "l9_start_gate": "L1 runner/bootstrap validation, denial matrix, installation, verification, audit, one-time bootstrap consumption, and repeated-bootstrap denial complete",
+    "management_direction": "L1 Super Node to L9 only",
+    "fallback": "forbidden"
+  },
+  "revocation": {
+    "bootstrap_one_time": true,
+    "routine_trigger": "lifecycle completion, valid_until expiry, or explicit owner revocation",
+    "account_password_policy": "unchanged"
+  },
+  "activation_blockers": []
+}
+

@@ -140,7 +140,8 @@ unrelated packages, or non-Sphere services. After the package purge it removes
 the exact package-owned `/etc/ssh/ssh_config.d/50-mote-proxy.conf` profile; a
 modified or symlinked profile is preserved and causes a visible failure.
 
-After an approved v11 release has completed the Pages workflow, install with:
+After an approved v11 release has completed the Pages workflow, an ordinary
+interactive operator may install with:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -fsSL \
@@ -153,6 +154,17 @@ supplies a local signed pair through `MEDGE_RELEASE_MANIFEST` and
 `MEDGE_RELEASE_MANIFEST_SIGNATURE`. A stale manifest beside a downloaded
 script is never reused. The raw `main` script on GitHub is source-review
 material, not an approved installation source.
+
+That pipe is not the managed L1/L9 path. The managed endpoints use the
+separately signed `sphere-runner-v5.2.0-3-1` release. Its one-time native
+bootstrap verifies the bootstrap signature, signed runner manifest, every
+artifact digest/signature, target identity, validity, public keys, and exact
+digest-form sudoers rules before installation. Routine operations then require
+both a target-specific restricted SSH key and a short-lived single-use
+capability token delivered on stdin. L1 is the canary; L9 starts only after L1
+acceptance and requires its own local native administrator bootstrap. No
+password is relayed through SSH, chat, argv, environment, stdin, a file, or a
+log.
 
 To remove only that bounded Sphere package surface from an admitted host:
 
