@@ -26,6 +26,7 @@ EXPECTED_ALL = (
     "mote-syncd",
     "schatd",
     "schat",
+    "codex-mesh",
 )
 INSTALLERS = {
     "sphere.sh": EXPECTED_ALL,
@@ -64,19 +65,19 @@ class InstallContractTest(unittest.TestCase):
             installer = ROOT / filename
             self.assertTrue(installer.stat().st_mode & 0o111)
 
-    def test_installers_have_exact_v12_trust_and_profile_contract(self) -> None:
+    def test_installers_have_exact_v13_trust_and_profile_contract(self) -> None:
         for filename, selected in INSTALLERS.items():
             text = (ROOT / filename).read_text(encoding="utf-8")
             self.assertTrue(text.startswith("#!/usr/bin/env bash\nset -euo pipefail\n"))
             for package_name in EXPECTED_ALL:
                 self.assertIn(f'    "{package_name}",', text)
             for required in (
-                "medge-public-release/v12",
+                "medge-public-release/v13",
                 "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
                 "release-manifest.json.asc",
                 "gpgv --keyring",
-                'apt-get --allow-downgrades --print-uris -y install "${PACKAGE_ARGS[@]}"',
-                'apt-get install -y --allow-downgrades "${PACKAGE_ARGS[@]}"',
+                'apt-get --print-uris -y install "${PACKAGE_ARGS[@]}"',
+                'apt-get install -y "${PACKAGE_ARGS[@]}"',
                 "Ubuntu 24.04 or 26.04 is required",
             ):
                 self.assertIn(required, text)
@@ -149,7 +150,7 @@ class InstallContractTest(unittest.TestCase):
         for package_name in EXPECTED_ALL:
             self.assertIn(f'    "{package_name}",', text)
         for required in (
-            "medge-public-release/v12",
+            "medge-public-release/v13",
             "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
             "release-manifest.json.asc",
             "gpgv --keyring",

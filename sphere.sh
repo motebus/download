@@ -131,13 +131,14 @@ expected = (
     "mote-syncd",
     "schatd",
     "schat",
+    "codex-mesh",
 )
 selected = expected
 version_re = re.compile(r"^[0-9][0-9A-Za-z.+:~]*-[0-9]+$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
-if manifest.get("schema") != "medge-public-release/v12":
-    raise SystemExit("release manifest schema is not medge-public-release/v12")
+if manifest.get("schema") != "medge-public-release/v13":
+    raise SystemExit("release manifest schema is not medge-public-release/v13")
 if manifest.get("status") != "approved":
     raise SystemExit("release manifest is not approved")
 if (
@@ -165,7 +166,7 @@ for item in packages:
 PY
 
 mapfile -t PACKAGE_RECORDS <"$TEMP_DIR/package-plan"
-[[ "${#PACKAGE_RECORDS[@]}" -eq 15 ]] || fail "release manifest package plan is incomplete for $PROFILE_NAME"
+[[ "${#PACKAGE_RECORDS[@]}" -eq 16 ]] || fail "release manifest package plan is incomplete for $PROFILE_NAME"
 
 curl --proto '=https' --tlsv1.2 -fsSLo \
     "$TEMP_DIR/medge-archive-keyring.gpg" \
@@ -222,7 +223,7 @@ for record in "${PACKAGE_RECORDS[@]}"; do
         fail "$package_name release asset does not match its pinned version"
 done
 
-APT_INSTALL_PLAN="$(apt-get --allow-downgrades --print-uris -y install "${PACKAGE_ARGS[@]}")" ||
+APT_INSTALL_PLAN="$(apt-get --print-uris -y install "${PACKAGE_ARGS[@]}")" ||
     fail "cannot resolve the pinned Sphere APT transaction"
 if grep -Eiq "(https?|ssh|git)://[^[:space:]\"']*gitlab[.]" <<<"$APT_INSTALL_PLAN"; then
     fail "the APT transaction contains a forbidden GitLab URL"
@@ -230,7 +231,7 @@ fi
 
 # The signed APT index supplies the exact manifest-pinned packages. Package
 # dependencies are resolved together, so this remains one atomic APT request.
-apt-get install -y --allow-downgrades "${PACKAGE_ARGS[@]}"
+apt-get install -y "${PACKAGE_ARGS[@]}"
 
 for record in "${PACKAGE_RECORDS[@]}"; do
     IFS=$'\t' read -r package_name package_version _ <<<"$record"

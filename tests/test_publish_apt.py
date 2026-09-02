@@ -31,6 +31,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v10": publish_apt.EXPECTED_PACKAGES_V10,
             "medge-public-release/v11": publish_apt.EXPECTED_PACKAGES_V11,
             "medge-public-release/v12": publish_apt.EXPECTED_PACKAGES_V12,
+            "medge-public-release/v13": publish_apt.EXPECTED_PACKAGES_V13,
         }[schema]
         packages = []
         for index, name in enumerate(package_names, start=1):
@@ -40,7 +41,7 @@ class PublicAptTest(unittest.TestCase):
                 if name in {
                     "medge", "mote-proxy", "motemcp", "ultra-mcp-ssh",
                     "mcp-run", "mote-sync", "mote-syncd", "chatd", "chat",
-                    "schatd", "schat",
+                    "schatd", "schat", "codex-mesh",
                 }
                 else "amd64"
             )
@@ -50,9 +51,9 @@ class PublicAptTest(unittest.TestCase):
                     "version": version,
                     "architecture": architecture,
                     "asset": f"{name}_{version}_{architecture}.deb",
-                    "source_commit": f"{index:x}" * 40,
+                    "source_commit": hashlib.sha1(name.encode()).hexdigest(),
                     "source_ref": "refs/heads/main",
-                    "sha256": f"{index:x}" * 64,
+                    "sha256": hashlib.sha256(name.encode()).hexdigest(),
                 }
             )
         now = dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
@@ -60,7 +61,8 @@ class PublicAptTest(unittest.TestCase):
             "schema": schema,
             "status": "approved",
             "medge_version": (
-                "5.2.0-4" if schema == "medge-public-release/v12"
+                "5.3.0-1" if schema == "medge-public-release/v13"
+                else "5.2.0-4" if schema == "medge-public-release/v12"
                 else "5.2.0-3" if schema == "medge-public-release/v11"
                 else "5.1.0-9" if schema == "medge-public-release/v10"
                 else "4.2.0-1"
@@ -79,7 +81,9 @@ class PublicAptTest(unittest.TestCase):
                             "sha256": publish_apt.sha256(MODULE_PATH.parents[1] / name),
                         }
                         for name in (
-                            publish_apt.RELEASE_SCRIPTS_V12
+                            publish_apt.RELEASE_SCRIPTS_V13
+                            if schema == "medge-public-release/v13"
+                            else publish_apt.RELEASE_SCRIPTS_V12
                             if schema == "medge-public-release/v12"
                             else publish_apt.RELEASE_SCRIPTS_V11
                             if schema == "medge-public-release/v11"
@@ -91,6 +95,7 @@ class PublicAptTest(unittest.TestCase):
                     "medge-public-release/v10",
                     "medge-public-release/v11",
                     "medge-public-release/v12",
+                    "medge-public-release/v13",
                 }
                 else {}
             ),
@@ -105,6 +110,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v10",
             "medge-public-release/v11",
             "medge-public-release/v12",
+            "medge-public-release/v13",
         }:
             for package in manifest["packages"]:
                 package["env_inputs"] = [
@@ -253,6 +259,30 @@ class PublicAptTest(unittest.TestCase):
         self.assertEqual(
             [item["path"] for item in manifest["packages"][-1]["env_inputs"]],
             ["schat-deb.env"],
+        )
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v13_manifest_adds_codex_mesh_only_to_full_sphere_profile(self) -> None:
+        manifest = self.manifest("medge-public-release/v13")
+        self.assertEqual(
+            [package["name"] for package in manifest["packages"]],
+            list(publish_apt.EXPECTED_PACKAGES_V13),
+        )
+        self.assertEqual(
+            publish_apt.INSTALLER_PROFILES_V13["sshkit.sh"],
+            publish_apt.INSTALLER_PROFILES_V12["sshkit.sh"],
+        )
+        self.assertNotIn(
+            "codex-mesh",
+            publish_apt.INSTALLER_PROFILES_V13["sshkit.sh"],
+        )
+        self.assertNotIn(
+            "codex-mesh",
+            publish_apt.INSTALLER_PROFILES_V13["webdesk.sh"],
+        )
+        self.assertEqual(
+            [item["path"] for item in manifest["packages"][-1]["env_inputs"]],
+            ["codex-mesh-deb.env"],
         )
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
