@@ -1,8 +1,11 @@
 # Sphere 5.2.0-3 restricted runner
 
 This directory is the public-source contract for the separately signed
-`sphere-runner-v5.2.0-3-2` corrective bootstrap publication. It retains the
-exact `sphere-runner-v5.2.0-3-1` routine runner surface and does not grant general SSH, sudo, a
+`sphere-runner-v5.2.0-3-3` corrective bootstrap publication. It retains the
+exact `sphere-runner-v5.2.0-3-1` routine runner surface. The immutable `-2`
+publication remains failed corrective evidence because it treated a trailing
+blank SSH public-key record as identity data. The `-3` bootstrap selects only
+the first valid algorithm/blob record. It does not grant general SSH, sudo, a
 shell, package-manager access, or another release operation.
 
 L1 is the controller and canary. Four private keys remain only in the L1
