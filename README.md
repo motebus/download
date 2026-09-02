@@ -157,8 +157,9 @@ material, not an approved installation source.
 
 That pipe is not the managed L1/L9 path. The managed endpoints use the
 separately signed `sphere-runner-v5.2.0-3-1` routine surface, immutable failed
-`sphere-runner-v5.2.0-3-2` and `sphere-runner-v5.2.0-3-3` corrective evidence,
-and the current `sphere-runner-v5.2.0-3-4` corrective bootstrap publication.
+`sphere-runner-v5.2.0-3-2`, `sphere-runner-v5.2.0-3-3`, and
+`sphere-runner-v5.2.0-3-4` corrective evidence, and the current
+`sphere-runner-v5.2.0-3-5` corrective bootstrap publication.
 The corrected native
 bootstrap verifies the bootstrap signature, signed runner manifest, every
 artifact digest/signature, target identity, validity, public keys, and exact
@@ -166,8 +167,9 @@ digest-form sudoers rules before installation. It selects the first valid SSH
 algorithm/blob record, ignores trailing blank records, compares Ed25519 public
 DER rather than comment or PEM serialization bytes, and activates an exact
 public-key-only SSH Match policy before making the service principal
-non-locked. Runner `-4` accepts only the exact consumed `-3` L1 marker and
-writes a new consumed marker.
+non-locked. Runner `-5` accepts only the exact consumed `-3` L1 marker and
+writes a new consumed marker; host SSH reload remains a separately admitted
+exact controller action.
 Routine operations then require
 both a target-specific restricted SSH key and a short-lived single-use
 capability token delivered on stdin. L1 is the canary; L9 starts only after L1

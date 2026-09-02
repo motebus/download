@@ -35,7 +35,7 @@ class SphereRunnerReleaseTests(unittest.TestCase):
                 (output / (item["name"] + ".asc")).write_text("test signature\n", encoding="utf-8")
             runner.finalize(output, "a" * 40)
             manifest = runner.validate_dist(output)
-            self.assertEqual(manifest["tag"], "sphere-runner-v5.2.0-3-4")
+            self.assertEqual(manifest["tag"], "sphere-runner-v5.2.0-3-5")
             bootstrap = next(item for item in manifest["artifacts"] if item["name"].startswith("bootstrap-"))
             self.assertEqual(bootstrap["targets"], ["BOOTSTRAP"])
 
