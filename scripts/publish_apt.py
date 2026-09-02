@@ -844,8 +844,8 @@ def validate_tree(root: Path) -> None:
             fingerprint,
             "release-manifest.json.asc",
             "gpgv --keyring",
-            'apt-get --print-uris -y install "${PACKAGE_ARGS[@]}"',
-            'apt-get install -y "${PACKAGE_ARGS[@]}"',
+            'apt-get --allow-downgrades --print-uris -y install "${PACKAGE_ARGS[@]}"',
+            'apt-get install -y --allow-downgrades "${PACKAGE_ARGS[@]}"',
         ):
             require(
                 required_text in installer_text,
