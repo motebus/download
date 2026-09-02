@@ -1,7 +1,8 @@
 # Sphere 5.2.0-3 restricted runner
 
 This directory is the public-source contract for the separately signed
-`sphere-runner-v5.2.0-3-1` lifecycle. It does not grant general SSH, sudo, a
+`sphere-runner-v5.2.0-3-2` corrective bootstrap publication. It retains the
+exact `sphere-runner-v5.2.0-3-1` routine runner surface and does not grant general SSH, sudo, a
 shell, package-manager access, or another release operation.
 
 L1 is the controller and canary. Four private keys remain only in the L1
@@ -49,7 +50,9 @@ authorization executes the local file; downloaded content is never piped
 into sudo or a shell.
 
 L1 additionally verifies that its four protected private keys match the
-approved public assets and installs the controller agent/client. The client
+approved public assets by canonical SSH algorithm/key blob and Ed25519 public
+DER identity, never by comment or PEM text serialization, then installs the
+controller agent/client. The client
 uses strict host keys, public-key-only authentication, no PTY or forwarding,
 loopback OpenSSH for L1, and the packaged Mote Proxy for
 `medge-tv.mote`. It sends one compiled-in operation literal and the token on
