@@ -186,6 +186,13 @@ async function verify(assetsDir) {
       sessionId: "11111111-1111-4111-8111-111111111111",
       messageId: "22222222-2222-4222-8222-222222222222",
     };
+    const ready = await schat.connectTarget("medge-tv.mote", ids.sessionId, {
+      socketPath: localAppSocket,
+      timeoutMs: 1000,
+    });
+    assert.equal(ready.status, "ready");
+    assert.equal(ready.session_id, ids.sessionId);
+    assert.equal(remoteSchatd.snapshot().recent_messages, 0);
     const first = await schat.sendText("medge-tv.mote", "hello from exact Debian artifacts", {
       socketPath: localAppSocket,
       timeoutMs: 1000,
@@ -249,6 +256,13 @@ async function verify(assetsDir) {
     await remoteSchatd.close();
     remoteSchatdClosed = true;
     await assert.rejects(
+      schat.connectTarget("medge-tv.mote", "77777777-7777-4777-8777-777777777777", {
+        socketPath: localAppSocket,
+        timeoutMs: 1000,
+      }),
+      /temporarily unavailable/,
+    );
+    await assert.rejects(
       schat.sendText("medge-tv.mote", "D failure containment", {
         socketPath: localAppSocket,
         timeoutMs: 1000,
@@ -260,7 +274,7 @@ async function verify(assetsDir) {
     assert.equal(proxy.snapshot().listening, true);
     assert.equal(localSchatd.snapshot().app_listening, true);
     assert.equal((await schat.statusApp({ socketPath: localAppSocket, timeoutMs: 1000 })).latest_sequence, 1);
-    assert.equal(targetMoted.snapshot().rejected_total, 1);
+    assert.equal(targetMoted.snapshot().rejected_total, 2);
 
     return {
       schema: "mote.transport.bundle-e2e/v1",
@@ -279,6 +293,8 @@ async function verify(assetsDir) {
       }])),
       checks: {
         schat_to_schat_package_chain: "passed",
+        remote_ready_before_prompt: "passed",
+        connect_has_no_inbox_record: "passed",
         duplicate_message_idempotency: "passed",
         self_delivery_loop_containment: "passed",
         slash_command_locality: "passed",

@@ -5,25 +5,25 @@ for the Sphere/Mote Transport Debian aggregate. Private implementation source,
 GitLab addresses, credentials, topology, source packages, and loose env files
 are forbidden here.
 
-## Mote Transport Dual Channel schat v0.2
+## Mote Transport Dual Channel schat v0.3
 
-The standalone GitHub release `mote-transport-v2026.09.02-4` carries the clean
-schat rename, MoteD upgrade-restart repair, and credential-clean MoteChat
-runtime in the component-qualified Dual Channel binary bundle:
+The standalone GitHub release `mote-transport-v2026.09.02-5` adds a live
+interactive Schat handshake and includes the SchatD service-start repair in
+the component-qualified Dual Channel binary bundle:
 
 ```text
-mote-proxy 1.5.0-4   B/SSH + schat-only D/MSG ingress
-moted      3.2.0-41  B -> sshd, D -> schatd; restart and re-register after upgrade
-schat      0.2.0-5   open local UI with /inbox slash-command mode
-schatd     0.2.0-4   local P2P service with open app socket and protected ingress
+mote-proxy 1.5.0-5   B/SSH + schat D/MSG send and live-connect ingress
+moted      3.2.0-42  B -> sshd; D connect/send -> target schatd
+schat      0.2.0-6   print ready to chat only after target SchatD responds
+schatd     0.2.0-6   start both local sockets; ready without an inbox write
 ```
 
 The canonical application path is `schat -> local schatd -> local mote-proxy ->
 D/MSG -> target moted -> remote schatd -> remote schat`. Interactive commands
 `/help`, `/status`, `/inbox`, and `/quit` remain local and are never sent as
-MSG payloads. MOTESSH, MOTERDP, and RDP remain retired. This standalone release
-does not replace or modify the current signed MEdge APT aggregate or its
-GitHub Pages installer.
+MSG payloads. Before its first prompt, interactive Schat performs a payload-free
+connect through that complete path and prints `ready to chat` only after the
+remote SchatD confirms the session. MOTESSH, MOTERDP, and RDP remain retired.
 
 Verify the exact four-package application chain without installing or changing
 the host runtime:
@@ -45,11 +45,10 @@ older releases remain immutable historical evidence.
 
 ## Current v12 package set
 
-The latest approved bundle is `medge-v5.2.0-6` under v12. It supersedes
-`medge-v5.2.0-5` by upgrading MoteD to 3.2.0-41, which enables and starts its
-manager and Dual Channel relay on first install, restarts both services after
-package upgrades so the MoteC phonebook registration resumes, and consumes the
-credential-clean MoteChat runtime. Earlier releases remain immutable.
+The latest approved bundle is `medge-v5.2.0-7` under v12. It upgrades Schat,
+SchatD, Mote Proxy, and MoteD together for the live interactive handshake and
+ensures SchatD starts with both local sockets. Earlier releases remain
+immutable.
 
 An approved `medge-public-release/v12` bundle contains these independent Debian
 packages in dependency-safe audit order:
