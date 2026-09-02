@@ -8,7 +8,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
-const EXPECTED_PACKAGES = ["mote-proxy", "moted", "chat", "chatd"];
+const EXPECTED_PACKAGES = ["mote-proxy", "moted", "schat", "schatd"];
 
 function command(...args) {
   const result = spawnSync(args[0], args.slice(1), { encoding: "utf8" });
@@ -52,9 +52,9 @@ function validateManifest(assetsDir, packages) {
   const manifestPath = path.join(assetsDir, "release-manifest.json");
   assert.equal(fs.existsSync(manifestPath), true, "release-manifest.json is required");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-  assert.equal(manifest.schema, "mote-transport-dual-channel-public-release/v1");
+  assert.equal(manifest.schema, "mote-transport-dual-channel-public-release/v2");
   assert.equal(manifest.status, "component-qualified");
-  assert.equal(manifest.transport?.direct_chat_to_proxy, false);
+  assert.equal(manifest.transport?.direct_schat_to_proxy, false);
   assert.equal(manifest.runtime_acceptance, "pending-endpoint-e2e");
   assert.equal(manifest.packages?.length, EXPECTED_PACKAGES.length);
   for (const pkg of packages.values()) {
@@ -104,47 +104,52 @@ async function verify(assetsDir) {
   const packages = discoverPackages(assetsDir);
   const manifest = validateManifest(assetsDir, packages);
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mote-dual-channel-e2e-"));
-  let localChatd;
-  let remoteChatd;
-  let remoteChatdClosed = false;
+  let localSchatd;
+  let remoteSchatd;
+  let remoteSchatdClosed = false;
   let proxy;
 
   try {
     const roots = extractPackages(packages, temporaryRoot);
-    const chat = moduleFrom(roots, "chat", "usr/lib/chat/client.js");
-    const chatd = moduleFrom(roots, "chatd", "usr/lib/chatd/runtime.js");
+    const schat = moduleFrom(roots, "schat", "usr/lib/schat/client.js");
+    const schatd = moduleFrom(roots, "schatd", "usr/lib/schatd/runtime.js");
     const proxyModule = moduleFrom(roots, "mote-proxy", "usr/lib/mote-proxy/msg-runtime.js");
     const moted = moduleFrom(roots, "moted", "usr/lib/moted/msg-dispatch-runtime.js");
 
-    assert.equal(chat.APP_SCHEMA, chatd.APP_SCHEMA);
-    assert.equal(chatd.PROXY_REQUEST_SCHEMA, proxyModule.LOCAL_MSG_SCHEMA);
-    assert.equal(chatd.MESSAGE_SCHEMA, proxyModule.MSG_SCHEMA);
+    assert.equal(schat.APP_SCHEMA, schatd.APP_SCHEMA);
+    assert.equal(schatd.PROXY_REQUEST_SCHEMA, proxyModule.LOCAL_MSG_SCHEMA);
+    assert.equal(schatd.MESSAGE_SCHEMA, proxyModule.MSG_SCHEMA);
     assert.equal(proxyModule.MSG_SCHEMA, moted.MSG_SCHEMA);
-    assert.equal(chatd.DELIVERY_SCHEMA, moted.CHATD_DELIVERY_SCHEMA);
+    assert.equal(schatd.DELIVERY_SCHEMA, moted.SCHATD_DELIVERY_SCHEMA);
 
-    const chatSource = fs.readFileSync(
-      path.join(roots.get("chat"), "usr/lib/chat/client.js"), "utf8",
+    const schatSource = fs.readFileSync(
+      path.join(roots.get("schat"), "usr/lib/schat/client.js"), "utf8",
     );
-    assert.equal(chatSource.includes("mote-proxy/msg.sock"), false);
-    assert.equal(chatSource.includes("mote-proxy.local-msg"), false);
+    assert.equal(schatSource.includes("mote-proxy/msg.sock"), false);
+    assert.equal(schatSource.includes("mote-proxy.local-msg"), false);
 
     const runtimeRoot = path.join(temporaryRoot, "runtime");
-    const localAppSocket = path.join(runtimeRoot, "local/chatd/apps.sock");
-    const localIngressSocket = path.join(runtimeRoot, "local/chatd/ingress.sock");
+    const localAppSocket = path.join(runtimeRoot, "local/schatd/apps.sock");
+    const localIngressSocket = path.join(runtimeRoot, "local/schatd/ingress.sock");
     const proxySocket = path.join(runtimeRoot, "local/mote-proxy/msg.sock");
-    const remoteAppSocket = path.join(runtimeRoot, "remote/chatd/apps.sock");
-    const remoteIngressSocket = path.join(runtimeRoot, "remote/chatd/ingress.sock");
+    const remoteAppSocket = path.join(runtimeRoot, "remote/schatd/apps.sock");
+    const remoteIngressSocket = path.join(runtimeRoot, "remote/schatd/ingress.sock");
 
-    remoteChatd = new chatd.ChatdRuntime({
+    remoteSchatd = new schatd.SchatdRuntime({
       ingressSocketPath: remoteIngressSocket,
       appSocketPath: remoteAppSocket,
-      store: new chatd.ChatStore(path.join(runtimeRoot, "remote/inbox.ndjson")),
+      store: new schatd.SchatStore(path.join(runtimeRoot, "remote/inbox.ndjson")),
     });
-    await remoteChatd.listen();
+    await remoteSchatd.listen();
 
     const targetMoted = new moted.MsgDispatchRuntime({
       localEndpoint: "medge-tv.mote",
       socketPath: remoteIngressSocket,
+      timeoutMs: 1000,
+    });
+    const localMoted = new moted.MsgDispatchRuntime({
+      localEndpoint: "medge-home.mote",
+      socketPath: localIngressSocket,
       timeoutMs: 1000,
     });
 
@@ -152,69 +157,99 @@ async function verify(assetsDir) {
       socketPath: proxySocket,
       localTarget: "medge-home.mote",
       resolveTarget: async (target) => {
-        assert.equal(target, "medge-tv.mote");
-        return { targetMma: "dc/edge/moted-app" };
+        assert.ok(["local.mote", "medge-tv.mote"].includes(target));
+        return {
+          targetMma: target === "local.mote"
+            ? "dc/edge/local-moted-app"
+            : "dc/edge/remote-moted-app",
+        };
       },
       send: async (targetMma, envelope) => {
-        assert.equal(targetMma, "dc/edge/moted-app");
-        return targetMoted.dispatch({ from: "dc/edge/mote-proxy-app;n=1" }, envelope);
+        const runtime = targetMma === "dc/edge/local-moted-app" ? localMoted : targetMoted;
+        const result = await runtime.dispatch({ from: "dc/edge/mote-proxy-app;n=1" }, envelope);
+        return { ErrCode: 0, ErrMsg: "OK", result };
       },
     });
     fs.mkdirSync(path.dirname(proxySocket), { recursive: true, mode: 0o750 });
     await proxy.listen();
 
-    localChatd = new chatd.ChatdRuntime({
+    localSchatd = new schatd.SchatdRuntime({
       ingressSocketPath: localIngressSocket,
       appSocketPath: localAppSocket,
       proxySocketPath: proxySocket,
       proxyTimeoutMs: 1000,
-      store: new chatd.ChatStore(path.join(runtimeRoot, "local/inbox.ndjson")),
+      store: new schatd.SchatStore(path.join(runtimeRoot, "local/inbox.ndjson")),
     });
-    await localChatd.listen();
+    await localSchatd.listen();
 
     const ids = {
       sessionId: "11111111-1111-4111-8111-111111111111",
       messageId: "22222222-2222-4222-8222-222222222222",
     };
-    const first = await chat.sendText("medge-tv.mote", "hello from exact Debian artifacts", {
+    const first = await schat.sendText("medge-tv.mote", "hello from exact Debian artifacts", {
       socketPath: localAppSocket,
       timeoutMs: 1000,
       ...ids,
     });
     assert.equal(first.status, "accepted");
 
-    const duplicate = await chat.sendText("medge-tv.mote", "hello from exact Debian artifacts", {
+    const duplicate = await schat.sendText("medge-tv.mote", "hello from exact Debian artifacts", {
       socketPath: localAppSocket,
       timeoutMs: 1000,
       ...ids,
     });
     assert.equal(duplicate.duplicate, true);
 
-    const inbox = await chat.receiveInbox(0, 50, {
+    const inbox = await schat.receiveInbox(0, 50, {
       socketPath: remoteAppSocket,
       timeoutMs: 1000,
     });
     assert.equal(inbox.messages.length, 1);
     assert.equal(inbox.messages[0].message_id, ids.messageId);
     assert.equal(inbox.messages[0].payload.text, "hello from exact Debian artifacts");
-    assert.equal((await chat.statusApp({ socketPath: remoteAppSocket, timeoutMs: 1000 })).latest_sequence, 1);
+    assert.equal((await schat.statusApp({ socketPath: remoteAppSocket, timeoutMs: 1000 })).latest_sequence, 1);
 
-    assert.deepEqual(chat.parseSlashCommand("/help"), { op: "help" });
-    assert.deepEqual(chat.parseSlashCommand("/status"), { op: "status" });
-    assert.deepEqual(chat.parseSlashCommand("/receive 0 10"), { op: "receive", after: 0, limit: 10 });
-    assert.deepEqual(chat.parseSlashCommand("/quit"), { op: "quit" });
-    assert.throws(() => chat.parseSlashCommand(".quit"));
+    const selfIds = {
+      sessionId: "55555555-5555-4555-8555-555555555555",
+      messageId: "66666666-6666-4666-8666-666666666666",
+    };
+    const selfFirst = await schat.sendText("local.mote", "one terminating self delivery", {
+      socketPath: localAppSocket,
+      timeoutMs: 1000,
+      ...selfIds,
+    });
+    const selfDuplicate = await schat.sendText("local.mote", "one terminating self delivery", {
+      socketPath: localAppSocket,
+      timeoutMs: 1000,
+      ...selfIds,
+    });
+    assert.equal(selfFirst.duplicate, false);
+    assert.equal(selfDuplicate.duplicate, true);
+    const localInbox = await schat.receiveInbox(0, 50, {
+      socketPath: localAppSocket,
+      timeoutMs: 1000,
+    });
+    assert.equal(localInbox.messages.length, 1);
+    assert.equal(localMoted.snapshot().accepted_total, 2);
 
-    for (const socketPath of [
-      localAppSocket, localIngressSocket, proxySocket, remoteAppSocket, remoteIngressSocket,
-    ]) {
+    assert.deepEqual(schat.parseSlashCommand("/help"), { op: "help" });
+    assert.deepEqual(schat.parseSlashCommand("/status"), { op: "status" });
+    assert.deepEqual(schat.parseSlashCommand("/inbox 0 10"), { op: "inbox", after: 0, limit: 10 });
+    assert.throws(() => schat.parseSlashCommand("/receive"));
+    assert.deepEqual(schat.parseSlashCommand("/quit"), { op: "quit" });
+    assert.throws(() => schat.parseSlashCommand(".quit"));
+
+    for (const socketPath of [localAppSocket, remoteAppSocket]) {
+      assert.equal(socketMode(socketPath), 0o666, `${path.basename(socketPath)} must use mode 0666`);
+    }
+    for (const socketPath of [localIngressSocket, proxySocket, remoteIngressSocket]) {
       assert.equal(socketMode(socketPath), 0o660, `${path.basename(socketPath)} must use mode 0660`);
     }
 
-    await remoteChatd.close();
-    remoteChatdClosed = true;
+    await remoteSchatd.close();
+    remoteSchatdClosed = true;
     await assert.rejects(
-      chat.sendText("medge-tv.mote", "D failure containment", {
+      schat.sendText("medge-tv.mote", "D failure containment", {
         socketPath: localAppSocket,
         timeoutMs: 1000,
         sessionId: "33333333-3333-4333-8333-333333333333",
@@ -223,8 +258,8 @@ async function verify(assetsDir) {
       /temporarily unavailable/,
     );
     assert.equal(proxy.snapshot().listening, true);
-    assert.equal(localChatd.snapshot().app_listening, true);
-    assert.equal((await chat.statusApp({ socketPath: localAppSocket, timeoutMs: 1000 })).latest_sequence, 0);
+    assert.equal(localSchatd.snapshot().app_listening, true);
+    assert.equal((await schat.statusApp({ socketPath: localAppSocket, timeoutMs: 1000 })).latest_sequence, 1);
     assert.equal(targetMoted.snapshot().rejected_total, 1);
 
     return {
@@ -233,7 +268,7 @@ async function verify(assetsDir) {
       generated_at: new Date().toISOString(),
       source: "exact-debian-release-assets",
       release_tag: manifest.tag,
-      application_path: "chat -> local chatd -> local mote-proxy -> xMSG -> target moted -> remote chatd -> remote chat",
+      application_path: "schat -> local schatd -> local mote-proxy -> xMSG -> target moted -> remote schatd -> remote schat",
       transport_bridge: "in-process-simulated-native-xmsg",
       endpoint_runtime: "not-tested",
       packages: Object.fromEntries([...packages.values()].map((pkg) => [pkg.name, {
@@ -243,18 +278,19 @@ async function verify(assetsDir) {
         sha256: pkg.sha256,
       }])),
       checks: {
-        chat_to_chat_package_chain: "passed",
+        schat_to_schat_package_chain: "passed",
         duplicate_message_idempotency: "passed",
+        self_delivery_loop_containment: "passed",
         slash_command_locality: "passed",
-        group_scoped_socket_modes: "passed",
+        open_local_app_socket_and_protected_ingress: "passed",
         d_failure_containment: "passed",
-        chat_proxy_bypass_absent: "passed",
+        schat_proxy_bypass_absent: "passed",
       },
     };
   } finally {
-    if (localChatd) await localChatd.close();
+    if (localSchatd) await localSchatd.close();
     if (proxy) await closeServer(proxy.server);
-    if (remoteChatd && !remoteChatdClosed) await remoteChatd.close();
+    if (remoteSchatd && !remoteSchatdClosed) await remoteSchatd.close();
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }
 }

@@ -79,6 +79,10 @@ EXPECTED_PACKAGES_V11 = EXPECTED_PACKAGES_V10 + (
     "chatd",
     "chat",
 )
+EXPECTED_PACKAGES_V12 = EXPECTED_PACKAGES_V10 + (
+    "schatd",
+    "schat",
+)
 INSTALLER_PROFILES_V9 = {
     "sphere.sh": EXPECTED_PACKAGES_V9,
     "sshpack.sh": (
@@ -122,6 +126,12 @@ INSTALLER_PROFILES_V11 = {
     "sshkit.sh": INSTALLER_PROFILES_V10["sshkit.sh"] + ("chatd", "chat"),
 }
 RELEASE_SCRIPTS_V11 = (*INSTALLER_PROFILES_V11, "uninstall.sh")
+INSTALLER_PROFILES_V12 = {
+    "sphere.sh": EXPECTED_PACKAGES_V12,
+    "webdesk.sh": INSTALLER_PROFILES_V10["webdesk.sh"],
+    "sshkit.sh": INSTALLER_PROFILES_V10["sshkit.sh"] + ("schatd", "schat"),
+}
+RELEASE_SCRIPTS_V12 = (*INSTALLER_PROFILES_V12, "uninstall.sh")
 V10_THREE_SCRIPT_RELEASES = {"5.1.0-6", "5.1.0-7", "5.1.0-8"}
 HEADLESS_PACKAGES = (
     "sphere",
@@ -175,6 +185,11 @@ ENV_PATHS_V11 = {
     **ENV_PATHS_V10,
     "chatd": ("chatd-deb.env",),
     "chat": ("chat-deb.env",),
+}
+ENV_PATHS_V12 = {
+    **ENV_PATHS_V10,
+    "schatd": ("schatd-deb.env",),
+    "schat": ("schat-deb.env",),
 }
 MOTE_TRANSPORT_SCHEMA = "mote-transport-public-release/v1"
 MOTE_TRANSPORT_TAG_RE = re.compile(
@@ -306,12 +321,16 @@ def expected_packages(manifest: dict) -> tuple[str, ...]:
         return EXPECTED_PACKAGES_V10
     if manifest.get("schema") == "medge-public-release/v11":
         return EXPECTED_PACKAGES_V11
+    if manifest.get("schema") == "medge-public-release/v12":
+        return EXPECTED_PACKAGES_V12
     raise PublishError("unsupported public release manifest schema")
 
 
 def expected_env_paths(package_name: str) -> list[str]:
     if package_name == "cx-node":
         return []
+    if package_name in ENV_PATHS_V12:
+        return list(ENV_PATHS_V12[package_name])
     if package_name in ENV_PATHS_V11:
         return list(ENV_PATHS_V11[package_name])
     paths = [f"{package_name}-deb.env"]
@@ -346,13 +365,19 @@ def validate_env_inputs(package: dict) -> None:
 
 def validate_installer_records(manifest: dict) -> None:
     schema = manifest.get("schema")
-    if schema not in {"medge-public-release/v10", "medge-public-release/v11"}:
+    if schema not in {
+        "medge-public-release/v10",
+        "medge-public-release/v11",
+        "medge-public-release/v12",
+    }:
         require("installers" not in manifest, "legacy manifest must not carry installers")
         return
     installers = manifest.get("installers")
     if installers is None and manifest.get("medge_version") == "5.1.0-5":
         return
-    if schema == "medge-public-release/v11":
+    if schema == "medge-public-release/v12":
+        expected_names = list(RELEASE_SCRIPTS_V12)
+    elif schema == "medge-public-release/v11":
         expected_names = list(RELEASE_SCRIPTS_V11)
     else:
         expected_names = list(
@@ -396,6 +421,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v9",
             "medge-public-release/v10",
             "medge-public-release/v11",
+            "medge-public-release/v12",
         },
         "invalid public release manifest schema",
     )
@@ -444,6 +470,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v9",
             "medge-public-release/v10",
             "medge-public-release/v11",
+            "medge-public-release/v12",
         }:
             package_fields.add("env_inputs")
         require(
@@ -464,6 +491,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v9",
             "medge-public-release/v10",
             "medge-public-release/v11",
+            "medge-public-release/v12",
         }:
             validate_env_inputs(package)
     require_no_gitlab_url_bytes(
@@ -649,8 +677,15 @@ def validate_bundle(bundle: Path) -> dict:
     ]
     require(forbidden == [], f"source packages are forbidden: {forbidden}")
     validate_no_gitlab_urls(bundle)
-    if manifest["schema"] in {"medge-public-release/v9", "medge-public-release/v10", "medge-public-release/v11"}:
-        if manifest["schema"] == "medge-public-release/v11":
+    if manifest["schema"] in {
+        "medge-public-release/v9",
+        "medge-public-release/v10",
+        "medge-public-release/v11",
+        "medge-public-release/v12",
+    }:
+        if manifest["schema"] == "medge-public-release/v12":
+            release_scripts = RELEASE_SCRIPTS_V12
+        elif manifest["schema"] == "medge-public-release/v11":
             release_scripts = RELEASE_SCRIPTS_V11
         elif manifest["schema"] == "medge-public-release/v10":
             release_scripts = RELEASE_SCRIPTS_V10
@@ -748,7 +783,7 @@ def validate_tree(root: Path) -> None:
         f"fpr:::::::::{fingerprint}:" in public_keys,
         "public archive key does not match fingerprint",
     )
-    for installer_name in RELEASE_SCRIPTS_V11:
+    for installer_name in RELEASE_SCRIPTS_V12:
         installer = root / installer_name
         require(installer.is_file(), f"public repository is missing {installer_name}")
         require(
@@ -763,7 +798,7 @@ def validate_tree(root: Path) -> None:
         and path.name != "github-setup.sh"
     }
     require(
-        actual_shell_entries == set(RELEASE_SCRIPTS_V11),
+        actual_shell_entries == set(RELEASE_SCRIPTS_V12),
         "public repository must contain exactly the approved release scripts",
     )
     publish_workflow = (root / ".github/workflows/publish-apt.yml").read_text(
@@ -776,10 +811,10 @@ def validate_tree(root: Path) -> None:
         and "release-input/current/uninstall.sh" in publish_workflow,
         "publish workflow must restore all release-asset installer modes",
     )
-    for installer_name in INSTALLER_PROFILES_V11:
+    for installer_name in INSTALLER_PROFILES_V12:
         installer_text = (root / installer_name).read_text(encoding="utf-8")
         for required_text in (
-            "medge-public-release/v11",
+            "medge-public-release/v12",
             fingerprint,
             "release-manifest.json.asc",
             "gpgv --keyring",
@@ -835,7 +870,7 @@ def validate_tree(root: Path) -> None:
 
     uninstall_text = (root / "uninstall.sh").read_text(encoding="utf-8")
     for required_text in (
-        "medge-public-release/v11",
+        "medge-public-release/v12",
         fingerprint,
         "release-manifest.json.asc",
         "gpgv --keyring",
@@ -934,15 +969,14 @@ def write_index(
 
     shutil.copy2(repository_root / "medge-archive-keyring.gpg", site)
     shutil.copy2(repository_root / "medge.sources", site)
-    release_scripts = (
-        RELEASE_SCRIPTS_V11
-        if current_manifest.get("schema") == "medge-public-release/v11"
-        else (
-            tuple(INSTALLER_PROFILES_V10)
-            if current_manifest.get("medge_version") in V10_THREE_SCRIPT_RELEASES
-            else RELEASE_SCRIPTS_V10
-        )
-    )
+    if current_manifest.get("schema") == "medge-public-release/v12":
+        release_scripts = RELEASE_SCRIPTS_V12
+    elif current_manifest.get("schema") == "medge-public-release/v11":
+        release_scripts = RELEASE_SCRIPTS_V11
+    elif current_manifest.get("medge_version") in V10_THREE_SCRIPT_RELEASES:
+        release_scripts = tuple(INSTALLER_PROFILES_V10)
+    else:
+        release_scripts = RELEASE_SCRIPTS_V10
     for installer_name in release_scripts:
         shutil.copy2(current_bundle / installer_name, site)
     shutil.copy2(current_bundle / "release-manifest.json", site)

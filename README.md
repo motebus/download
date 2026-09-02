@@ -5,21 +5,21 @@ for the Sphere/Mote Transport Debian aggregate. Private implementation source,
 GitLab addresses, credentials, topology, source packages, and loose env files
 are forbidden here.
 
-## Mote Transport Dual Channel v0.1
+## Mote Transport Dual Channel schat v0.2 candidate
 
-The standalone GitHub release `mote-transport-v2026.09.02-1` carries the
-first component-qualified Dual Channel binary bundle:
+This branch prepares the clean schat rename for the next component-qualified
+Dual Channel binary bundle:
 
 ```text
-mote-proxy 1.5.0-2   B/SSH + group-scoped D/MSG ingress
-moted      3.2.0-35  B -> sshd, D -> chatd dispatch
-chat       0.1.0-2   chatd-only UI with slash-command mode
-chatd      0.1.0-2   local MSG send/receive service and durable inbox
+mote-proxy 1.5.0-4   B/SSH + schat-only D/MSG ingress
+moted      3.2.0-39  B -> sshd, D -> schatd dispatch
+schat      0.2.0-5   open local UI with /inbox slash-command mode
+schatd     0.2.0-4   local P2P service with open app socket and protected ingress
 ```
 
-The canonical application path is `chat -> local chatd -> local mote-proxy ->
-D/MSG -> target moted -> remote chatd -> remote chat`. Interactive commands
-`/help`, `/status`, `/receive`, and `/quit` remain local and are never sent as
+The canonical application path is `schat -> local schatd -> local mote-proxy ->
+D/MSG -> target moted -> remote schatd -> remote schat`. Interactive commands
+`/help`, `/status`, `/inbox`, and `/quit` remain local and are never sent as
 MSG payloads. MOTESSH, MOTERDP, and RDP remain retired. This standalone release
 does not replace or modify the current signed MEdge APT aggregate or its
 GitHub Pages installer.
@@ -34,19 +34,22 @@ node scripts/verify-dual-channel-bundle.js \
 ```
 
 The verifier extracts the published Debian packages and executes the actual
-packaged `chat`, `chatd`, Mote Proxy MSG, and MoteD MSG-dispatch modules across
+packaged `schat`, `schatd`, Mote Proxy MSG, and MoteD MSG-dispatch modules across
 temporary Unix sockets. Its D/MSG bridge is intentionally in-process, so a pass
 qualifies the package chain but does not claim live MoteBus or two-endpoint
-runtime acceptance. Mote Transport releases also run this gate in their own
-GitHub Actions workflow. That component evidence is preserved; the v11 Sphere
-aggregate below now admits the same Dual Channel packages through the signed
-APT boundary.
+runtime acceptance. It also proves that a `local.mote` self-delivery terminates
+as one idempotent inbox record and never re-enters the outbound path. Mote
+Transport releases run this gate in their own GitHub Actions workflow. The
+older `mote-transport-v2026.09.02-2` chat-named release remains immutable
+historical evidence.
 
-## Current v11 package set
+## Next v12 package set
 
-The latest approved bundle is `medge-v5.2.0-3`.
+The latest published approved bundle remains `medge-v5.2.0-3` under v11. The
+rename requires a new `medge-public-release/v12` manifest and does not rewrite
+that release.
 
-An approved `medge-public-release/v11` bundle contains these independent Debian
+An approved `medge-public-release/v12` bundle contains these independent Debian
 packages in dependency-safe audit order:
 
 ```text
@@ -63,8 +66,8 @@ mcp-run
 cx-pivot
 mote-sync
 mote-syncd
-chatd
-chat
+schatd
+schat
 ```
 
 The bundle includes the active Sphere runtime catalog. `ultra-mcp-ssh` and
@@ -76,7 +79,7 @@ Server, Redixs, and every other OCI-only service are excluded; `ss-webos` is
 the independent Debian client runtime and remains included.
 
 The five B/SSH service rows are SSH, SFTP, Git, MCP over SSH, and Sync for an
-Obsidian Vault. D/MSG adds Chat through `chatd` and `chat`. Install Sphere provides their approved Debian
+Obsidian Vault. D/MSG adds Schat through `schatd` and `schat`. Install Sphere provides their approved Debian
 package prerequisites, but it never discovers, creates, selects, modifies, or
 copies a Vault. Vault pairing and runtime Sync acceptance remain separate
 post-install operations owned by `mote-sync` and `mote-syncd`.
@@ -93,7 +96,7 @@ There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 The current signed release surface contains exactly four scripts:
 `sphere.sh` for all fifteen packages, `webdesk.sh` for
 `sphere + mlink + mdesk + ss-webos`, and `sshkit.sh` for
-`sphere + moted + mote-proxy + motemcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + chatd + chat`.
+`sphere + moted + mote-proxy + motemcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + schatd + schat`.
 `uninstall.sh` performs a bounded purge of the approved fifteen-package set
 and the exact installer-managed APT source/key. All former
 `install*.sh` and `*-install.sh` entries are retired without aliases.
@@ -102,7 +105,7 @@ are not copied into the new Pages site.
 
 ## Trust chain
 
-The protected private owner creates a v11 bundle from exact private-source `main` or an
+The protected private owner creates a v12 bundle from exact private-source `main` or an
 explicitly approved immutable rollback tag. This repository then:
 
 1. validates the exact fifteen-package manifest, assets, SHA-256 checksums, env
@@ -140,7 +143,7 @@ unrelated packages, or non-Sphere services. After the package purge it removes
 the exact package-owned `/etc/ssh/ssh_config.d/50-mote-proxy.conf` profile; a
 modified or symlinked profile is preserved and causes a visible failure.
 
-After an approved v11 release has completed the Pages workflow, an ordinary
+After an approved v12 release has completed the Pages workflow, an ordinary
 interactive operator may install with:
 
 ```bash
