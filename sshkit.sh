@@ -131,6 +131,7 @@ expected = (
     "mote-syncd",
     "schatd",
     "schat",
+    "codex-mesh",
 )
 selected = (
     "sphere",
@@ -147,8 +148,8 @@ selected = (
 version_re = re.compile(r"^[0-9][0-9A-Za-z.+:~]*-[0-9]+$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
-if manifest.get("schema") != "medge-public-release/v12":
-    raise SystemExit("release manifest schema is not medge-public-release/v12")
+if manifest.get("schema") != "medge-public-release/v13":
+    raise SystemExit("release manifest schema is not medge-public-release/v13")
 if manifest.get("status") != "approved":
     raise SystemExit("release manifest is not approved")
 if (
