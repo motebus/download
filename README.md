@@ -5,10 +5,10 @@ for the Sphere/Mote Transport Debian aggregate. Private implementation source,
 GitLab addresses, credentials, topology, source packages, and loose env files
 are forbidden here.
 
-## Mote Transport Dual Channel schat v0.2 candidate
+## Mote Transport Dual Channel schat v0.2
 
-This branch prepares the clean schat rename for the next component-qualified
-Dual Channel binary bundle:
+The standalone GitHub release `mote-transport-v2026.09.02-3` carries the clean
+schat rename in the component-qualified Dual Channel binary bundle:
 
 ```text
 mote-proxy 1.5.0-4   B/SSH + schat-only D/MSG ingress
@@ -43,11 +43,11 @@ Transport releases run this gate in their own GitHub Actions workflow. The
 older `mote-transport-v2026.09.02-2` chat-named release remains immutable
 historical evidence.
 
-## Next v12 package set
+## Current v12 package set
 
-The latest published approved bundle remains `medge-v5.2.0-3` under v11. The
-rename requires a new `medge-public-release/v12` manifest and does not rewrite
-that release.
+The latest approved bundle is `medge-v5.2.0-5` under v12. It supersedes
+`medge-v5.2.0-4` only by allowing an explicitly pinned APT transaction to
+downgrade a package when required; the earlier release remains immutable.
 
 An approved `medge-public-release/v12` bundle contains these independent Debian
 packages in dependency-safe audit order:

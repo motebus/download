@@ -75,7 +75,8 @@ class InstallContractTest(unittest.TestCase):
                 "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
                 "release-manifest.json.asc",
                 "gpgv --keyring",
-                'apt-get install -y "${PACKAGE_ARGS[@]}"',
+                'apt-get --allow-downgrades --print-uris -y install "${PACKAGE_ARGS[@]}"',
+                'apt-get install -y --allow-downgrades "${PACKAGE_ARGS[@]}"',
                 "Ubuntu 24.04 or 26.04 is required",
             ):
                 self.assertIn(required, text)
