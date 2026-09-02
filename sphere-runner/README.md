@@ -1,11 +1,15 @@
 # Sphere 5.2.0-3 restricted runner
 
 This directory is the public-source contract for the separately signed
-`sphere-runner-v5.2.0-3-3` corrective bootstrap publication. It retains the
-exact `sphere-runner-v5.2.0-3-1` routine runner surface. The immutable `-2`
+`sphere-runner-v5.2.0-3-4` corrective bootstrap publication. It retains the
+exact four-operation `sphere-runner-v5.2.0-3-1` routine runner surface and
+adds only a signed SSH Match policy for the dedicated principals. The immutable `-2`
 publication remains failed corrective evidence because it treated a trailing
-blank SSH public-key record as identity data. The `-3` bootstrap selects only
-the first valid algorithm/blob record. It does not grant general SSH, sudo, a
+blank SSH public-key record as identity data. The immutable `-3` publication
+fixed key identity but exposed Ubuntu's locked-account rejection before
+public-key evaluation. The `-4` bootstrap accepts only the exact consumed `-3`
+L1 marker, activates a public-key-only SSH Match policy, and writes a new
+consumed marker. It does not grant general SSH, sudo, a
 shell, package-manager access, or another release operation.
 
 L1 is the controller and canary. Four private keys remain only in the L1
@@ -43,11 +47,15 @@ the immutable runner manifest, every artifact digest, every detached
 signature, the archive fingerprint, the approved privilege admission,
 target identity, validity window, target public keys, and sudoers syntax.
 
-The bootstrap creates one locked-password non-human principal with a
-root-owned restricted `authorized_keys` file, installs the exact signed
-artifacts, and writes one root-owned consumed marker. A repeated bootstrap is
-denied. It never disables an account password or creates general
-passwordless administration. The bootstrap file itself must be downloaded and
+The bootstrap creates one non-human principal with a root-owned restricted
+`authorized_keys` file and an exact root-owned SSH Match policy that disables
+password, keyboard-interactive, PTY, and forwarding while requiring public
+key authentication. After policy validation and reload, it replaces the
+locked shadow marker with a random discarded-password hash so Ubuntu does not
+reject the account before public-key evaluation. It installs the exact signed
+artifacts and writes one root-owned consumed marker. A repeated bootstrap is
+denied. It does not change a human password or create general passwordless
+administration. The bootstrap file itself must be downloaded and
 verified with the same archive key before a desktop-native administrator
 authorization executes the local file; downloaded content is never piped
 into sudo or a shell.

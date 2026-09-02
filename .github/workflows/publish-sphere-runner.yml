@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_TYPE" = tag
-          test "$GITHUB_REF_NAME" = sphere-runner-v5.2.0-3-3
+          test "$GITHUB_REF_NAME" = sphere-runner-v5.2.0-3-4
 
       - name: Import protected archive key
         env:
@@ -80,5 +80,5 @@ jobs:
           fi
           gh release create "$GITHUB_REF_NAME" runner-dist/* \
             --verify-tag \
-            --title "Sphere 5.2.0-3 restricted runner 3" \
-            --notes "Corrective signed one-time bootstrap for the unchanged target-separated Sphere 5.2.0-3 routine runner surface. It selects the first valid SSH algorithm/blob record, ignores trailing blank records, and compares Ed25519 public DER identity. This release contains public source, public keys, signatures, and no private implementation or credentials."
+            --title "Sphere 5.2.0-3 restricted runner 4" \
+            --notes "Corrective signed bootstrap for the target-separated Sphere 5.2.0-3 runner. It accepts only the exact consumed runner-3 L1 marker, activates a public-key-only SSH Match policy for dedicated principals, preserves normalized SSH and Ed25519 identity checks, and writes a new consumed marker. This release contains public source, public keys, signatures, and no private implementation or credentials."

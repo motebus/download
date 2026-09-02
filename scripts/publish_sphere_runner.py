@@ -14,7 +14,7 @@ import stat
 from pathlib import Path
 
 
-TAG = "sphere-runner-v5.2.0-3-3"
+TAG = "sphere-runner-v5.2.0-3-4"
 RELEASE = "5.2.0-3"
 FINGERPRINT = "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -28,6 +28,7 @@ ARTIFACTS = (
     ("verify-sphere-capability-5.2.0-3.py", "verify-sphere-capability-5.2.0-3.py", ("L1", "L9"), 0o755),
     ("sphere_capability.py", "lib/sphere_capability.py", ("L1", "L9"), 0o644),
     ("install-sphere-5.2.0-3.privilege-admission.json", "install-sphere-5.2.0-3.privilege-admission.json", ("L1", "L9"), 0o644),
+    ("sshd-sphere-install.conf", "templates/sshd-sphere-install.conf", ("L1", "L9"), 0o644),
     ("l1-controller-ssh.pub", "public/l1-controller-ssh.pub", ("L1",), 0o644),
     ("l9-controller-ssh.pub", "public/l9-controller-ssh.pub", ("L1", "L9"), 0o644),
     ("l1-capability.pub.pem", "public/l1-capability.pub.pem", ("L1",), 0o644),
