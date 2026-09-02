@@ -199,6 +199,14 @@ class InstallContractTest(unittest.TestCase):
             subprocess.run(["bash", "-n", str(ROOT / filename)], check=True)
         subprocess.run(["bash", "-n", str(COMPATIBILITY)], check=True)
 
+    def test_dual_channel_bundle_verifier_parses(self) -> None:
+        verifier = ROOT / "scripts/verify-dual-channel-bundle.js"
+        self.assertTrue(verifier.is_file())
+        subprocess.run(["node", "--check", str(verifier)], check=True)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("in-process", readme)
+        self.assertIn("does not claim live MoteBus", readme)
+
     def test_supported_ubuntu_targets_are_exact(self) -> None:
         for filename in RELEASE_SCRIPTS:
             text = (ROOT / filename).read_text(encoding="utf-8")

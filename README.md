@@ -24,6 +24,22 @@ MSG payloads. MOTESSH, MOTERDP, and RDP remain retired. This standalone release
 does not replace or modify the current signed MEdge APT aggregate or its
 GitHub Pages installer.
 
+Verify the exact four-package application chain without installing or changing
+the host runtime:
+
+```bash
+node scripts/verify-dual-channel-bundle.js \
+  --assets-dir /path/to/downloaded/release-assets \
+  --output dual-channel-e2e.json
+```
+
+The verifier extracts the published Debian packages and executes the actual
+packaged `chat`, `chatd`, Mote Proxy MSG, and MoteD MSG-dispatch modules across
+temporary Unix sockets. Its xMSG bridge is intentionally in-process, so a pass
+qualifies the package chain but does not claim live MoteBus or two-endpoint
+runtime acceptance. Mote Transport releases also run this gate in their own
+GitHub Actions workflow; they never trigger the signed MEdge APT/Pages job.
+
 ## Current v10 package set
 
 The latest approved bundle is `medge-v5.1.0-13`.
