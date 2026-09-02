@@ -1,7 +1,7 @@
 # Sphere 5.2.0-3 restricted runner
 
 This directory is the public-source contract for the separately signed
-`sphere-runner-v5.2.0-3-5` corrective bootstrap publication. It retains the
+`sphere-runner-v5.2.0-3-6` corrective bootstrap publication. It retains the
 exact four-operation `sphere-runner-v5.2.0-3-1` routine runner surface and
 adds only a signed SSH Match policy for the dedicated principals. The immutable `-2`
 publication remains failed corrective evidence because it treated a trailing
@@ -12,7 +12,11 @@ chroot cannot reload the host SSH daemon. The `-5` bootstrap accepts only the
 exact consumed `-3` L1 marker, validates and installs a public-key-only SSH
 Match policy, makes the dedicated principal non-locked, and writes a new
 consumed marker. The separately admitted controller performs the exact host
-SSH HUP and advertised-auth-method proof. It does not grant general SSH, sudo, a
+SSH HUP and advertised-auth-method proof. Immutable `-5` left the root-owned
+public `authorized_keys` file at mode `0600`, so the service principal could
+not read its admitted key. The `-6` bootstrap accepts only the exact consumed
+`-5` L1 marker and changes that public file to root-owned mode `0644`; the
+principal can read but cannot modify it. It does not grant general SSH, sudo, a
 shell, package-manager access, or another release operation.
 
 L1 is the controller and canary. Four private keys remain only in the L1

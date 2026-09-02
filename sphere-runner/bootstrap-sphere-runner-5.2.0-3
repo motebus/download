@@ -2,15 +2,15 @@
 set -euo pipefail
 
 readonly RELEASE_VERSION="5.2.0-3"
-readonly RUNNER_TAG="sphere-runner-v5.2.0-3-5"
+readonly RUNNER_TAG="sphere-runner-v5.2.0-3-6"
 readonly RELEASE_BASE="https://github.com/motebus/download/releases/download/${RUNNER_TAG}"
 readonly KEYRING_URL="https://motebus.github.io/download/medge-archive-keyring.gpg"
 readonly KEYRING_SHA256="756fc2632c307509b8e5ece665ced7f4d1a58636ac935aefc1e017f7dcfcbfbd"
 readonly SIGNER_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 readonly ADMISSION_NAME="install-sphere-5.2.0-3.privilege-admission.json"
 readonly CONTROLLER_ACCOUNT="jujue"
-readonly CORRECTIVE_FROM_TAG="sphere-runner-v5.2.0-3-3"
-readonly CORRECTIVE_FROM_MANIFEST_SHA256="8ab83265a85ca1d95f13880cfecaea0fe683dd4157ee477dba17fa8027988ca1"
+readonly CORRECTIVE_FROM_TAG="sphere-runner-v5.2.0-3-5"
+readonly CORRECTIVE_FROM_MANIFEST_SHA256="164061664b411d9520c594cb7dc9f2da1a5b0a1752dda531b5beabc4c5e15191"
 
 fail() {
     printf 'Sphere runner bootstrap failed: %s\n' "$*" >&2
@@ -129,7 +129,7 @@ with open(path, encoding="utf-8") as handle:
 if (
     manifest.get("schema") != "sphere-runner-public-release/v1"
     or manifest.get("status") != "approved"
-    or manifest.get("tag") != "sphere-runner-v5.2.0-3-5"
+    or manifest.get("tag") != "sphere-runner-v5.2.0-3-6"
     or manifest.get("release_version") != "5.2.0-3"
     or manifest.get("signer_fingerprint") != "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 ):
@@ -238,7 +238,7 @@ if template.count(token) != 1 or "@" in template.replace(token, ""):
     raise SystemExit("authorized-keys template is invalid")
 print(template.replace(token, key))
 PY
-install -o root -g root -m 0600 "$TEMP_DIR/authorized_keys" "$principal_home/.ssh/authorized_keys"
+install -o root -g root -m 0644 "$TEMP_DIR/authorized_keys" "$principal_home/.ssh/authorized_keys"
 
 install -d -o root -g root -m 0755 /usr/libexec/sphere /usr/libexec/sphere/lib
 install -d -o root -g root -m 0755 /etc/sphere /etc/sphere/keys /usr/share/keyrings
