@@ -14,7 +14,7 @@ import stat
 from pathlib import Path
 
 
-TAG = "sphere-runner-v5.2.0-3-6"
+TAG = "sphere-runner-v5.2.0-3-7"
 RELEASE = "5.2.0-3"
 FINGERPRINT = "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
