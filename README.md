@@ -156,12 +156,14 @@ script is never reused. The raw `main` script on GitHub is source-review
 material, not an approved installation source.
 
 That pipe is not the managed L1/L9 path. The managed endpoints use the
-separately signed `sphere-runner-v5.2.0-3-1` routine surface and the immutable
-`sphere-runner-v5.2.0-3-2` corrective bootstrap publication. The corrected one-time native
+separately signed `sphere-runner-v5.2.0-3-1` routine surface, immutable failed
+`sphere-runner-v5.2.0-3-2` corrective evidence, and the current
+`sphere-runner-v5.2.0-3-3` corrective bootstrap publication. The corrected one-time native
 bootstrap verifies the bootstrap signature, signed runner manifest, every
 artifact digest/signature, target identity, validity, public keys, and exact
-digest-form sudoers rules before installation, and compares canonical SSH key
-blobs plus Ed25519 public DER rather than comment or PEM serialization bytes.
+digest-form sudoers rules before installation. It selects the first valid SSH
+algorithm/blob record, ignores trailing blank records, and compares Ed25519
+public DER rather than comment or PEM serialization bytes.
 Routine operations then require
 both a target-specific restricted SSH key and a short-lived single-use
 capability token delivered on stdin. L1 is the canary; L9 starts only after L1
