@@ -2,15 +2,15 @@
 set -euo pipefail
 
 readonly RELEASE_VERSION="5.2.0-3"
-readonly RUNNER_TAG="sphere-runner-v5.2.0-3-6"
+readonly RUNNER_TAG="sphere-runner-v5.2.0-3-7"
 readonly RELEASE_BASE="https://github.com/motebus/download/releases/download/${RUNNER_TAG}"
 readonly KEYRING_URL="https://motebus.github.io/download/medge-archive-keyring.gpg"
 readonly KEYRING_SHA256="756fc2632c307509b8e5ece665ced7f4d1a58636ac935aefc1e017f7dcfcbfbd"
 readonly SIGNER_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 readonly ADMISSION_NAME="install-sphere-5.2.0-3.privilege-admission.json"
 readonly CONTROLLER_ACCOUNT="jujue"
-readonly CORRECTIVE_FROM_TAG="sphere-runner-v5.2.0-3-5"
-readonly CORRECTIVE_FROM_MANIFEST_SHA256="164061664b411d9520c594cb7dc9f2da1a5b0a1752dda531b5beabc4c5e15191"
+readonly CORRECTIVE_FROM_TAG="sphere-runner-v5.2.0-3-6"
+readonly CORRECTIVE_FROM_MANIFEST_SHA256="f5c1f187b3f24c3820954a4057695919abcaf81b470a7a11d45058a97eca2368"
 
 fail() {
     printf 'Sphere runner bootstrap failed: %s\n' "$*" >&2
@@ -35,6 +35,7 @@ case "$(hostname -s)" in
         CONTROLLER_KEY_ASSET=l1-controller-ssh.pub
         AUTHORIZED_KEYS_TEMPLATE=authorized_keys-l1.template
         SUDOERS_ASSET=sudoers-l1
+        SUDOERS_PATH=/etc/sudoers.d/sphere-install-l1-5203
         REPLAY_DIR=/var/lib/sphere-install/replay/l1
         ;;
     medge-tv)
@@ -45,12 +46,14 @@ case "$(hostname -s)" in
         CONTROLLER_KEY_ASSET=l9-controller-ssh.pub
         AUTHORIZED_KEYS_TEMPLATE=authorized_keys-l9.template
         SUDOERS_ASSET=sudoers-l9
+        SUDOERS_PATH=/etc/sudoers.d/sphere-install-l9-5203
         REPLAY_DIR=/var/lib/sphere-install/replay/l9
         ;;
     *) fail "target stable identity is not admitted" ;;
 esac
 readonly TARGET_ID PRINCIPAL CAPABILITY_ASSET CAPABILITY_PATH
 readonly CONTROLLER_KEY_ASSET AUTHORIZED_KEYS_TEMPLATE SUDOERS_ASSET REPLAY_DIR
+readonly SUDOERS_PATH
 readonly MARKER_PATH="/var/lib/sphere-install/bootstrap/${TARGET_ID}-5.2.0-3.json"
 if [[ -e "$MARKER_PATH" ]]; then
     [[ "$TARGET_ID" == L1 ]] || fail "one-time bootstrap is already consumed for ${TARGET_ID}"
@@ -84,8 +87,8 @@ PY
     fi
 fi
 
-for command_name in awk chmod chown chpasswd cmp curl date dpkg find getent gpg gpgv hostname id install \
-    logger mktemp openssl python3 rmdir sha256sum ssh-keygen stat useradd usermod visudo; do
+for command_name in awk chmod chown chpasswd cmp curl date dpkg find getent gpg gpgv grep hostname id install \
+    logger mktemp openssl python3 rmdir sha256sum ssh-keygen stat sudo useradd usermod visudo; do
     command -v "$command_name" >/dev/null 2>&1 || fail "required command is unavailable: $command_name"
 done
 
@@ -129,7 +132,7 @@ with open(path, encoding="utf-8") as handle:
 if (
     manifest.get("schema") != "sphere-runner-public-release/v1"
     or manifest.get("status") != "approved"
-    or manifest.get("tag") != "sphere-runner-v5.2.0-3-6"
+    or manifest.get("tag") != "sphere-runner-v5.2.0-3-7"
     or manifest.get("release_version") != "5.2.0-3"
     or manifest.get("signer_fingerprint") != "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 ):
@@ -294,8 +297,15 @@ printf '%s:%s\n' "$PRINCIPAL" "$password_hash" | chpasswd --encrypted
 unset password_hash
 
 visudo -c -f "$TEMP_DIR/$SUDOERS_ASSET" >/dev/null || fail "target sudoers source is invalid"
-install -o root -g root -m 0440 "$TEMP_DIR/$SUDOERS_ASSET" "/etc/sudoers.d/sphere-install-${TARGET_ID,,}-5.2.0-3"
+install -o root -g root -m 0440 "$TEMP_DIR/$SUDOERS_ASSET" "$SUDOERS_PATH"
 visudo -c >/dev/null || fail "installed sudoers policy is invalid"
+sudo -l -U "$PRINCIPAL" >"$TEMP_DIR/sudo-list" 2>/dev/null || fail "installed sudoers policy is inactive"
+for runner_path in /usr/libexec/sphere/install-sphere-5.2.0-3 \
+    /usr/libexec/sphere/sphere-verify-5.2.0-3 \
+    /usr/libexec/sphere/sphere-result-5.2.0-3 \
+    /usr/libexec/sphere/sphere-maintenance-health-5.2.0-3; do
+    grep -Fq "$runner_path" "$TEMP_DIR/sudo-list" || fail "installed sudoers command is not enumerated"
+done
 
 if [[ "$TARGET_ID" == L1 ]]; then
     controller_home="$(getent passwd "$CONTROLLER_ACCOUNT" | awk -F: '{print $6}')"

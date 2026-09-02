@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_TYPE" = tag
-          test "$GITHUB_REF_NAME" = sphere-runner-v5.2.0-3-6
+          test "$GITHUB_REF_NAME" = sphere-runner-v5.2.0-3-7
 
       - name: Import protected archive key
         env:
@@ -80,5 +80,5 @@ jobs:
           fi
           gh release create "$GITHUB_REF_NAME" runner-dist/* \
             --verify-tag \
-            --title "Sphere 5.2.0-3 restricted runner 6" \
-            --notes "Corrective signed bootstrap for the target-separated Sphere 5.2.0-3 runner. It accepts only the exact consumed runner-5 L1 marker and changes the root-owned public authorized_keys file to mode 0644 so the dedicated principal can read but cannot modify it. It preserves the public-key-only SSH Match policy, non-locked principal state, normalized SSH and Ed25519 identity checks, and writes a new consumed marker. This release contains public source, public keys, signatures, and no private implementation or credentials."
+            --title "Sphere 5.2.0-3 restricted runner 7" \
+            --notes "Corrective signed bootstrap for the target-separated Sphere 5.2.0-3 runner. It accepts only the exact consumed runner-6 L1 marker, preserves the principal-readable root-owned authorized_keys file, and installs the exact digest-form sudoers policy under the dotless includedir name sphere-install-l1-5203. It requires whole-policy visudo and sudo -l enumeration of every admitted runner path before writing a new consumed marker. This release contains public source, public keys, signatures, and no private implementation or credentials."
