@@ -43,14 +43,13 @@ as one idempotent inbox record and never re-enters the outbound path. Mote
 Transport releases run this gate in their own GitHub Actions workflow. The
 older releases remain immutable historical evidence.
 
-## Current v12 package set
+## Current v13 package set
 
-The latest approved bundle is `medge-v5.2.0-7` under v12. It upgrades Schat,
-SchatD, Mote Proxy, and MoteD together for the live interactive handshake and
-ensures SchatD starts with both local sockets. Earlier releases remain
-immutable.
+The latest approved bundle is `medge-v5.3.0-1` under v13. It adds the
+station-local `codex-mesh` contract to the aligned Schat, SchatD, Mote Proxy,
+MoteD, and MoteMCP package chain. Earlier releases remain immutable.
 
-An approved `medge-public-release/v12` bundle contains these independent Debian
+An approved `medge-public-release/v13` bundle contains these independent Debian
 packages in dependency-safe audit order:
 
 ```text
@@ -69,6 +68,7 @@ mote-sync
 mote-syncd
 schatd
 schat
+codex-mesh
 ```
 
 The bundle includes the active Sphere runtime catalog. `ultra-mcp-ssh` and
@@ -95,10 +95,10 @@ There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 ## Clean break
 
 The current signed release surface contains exactly four scripts:
-`sphere.sh` for all fifteen packages, `webdesk.sh` for
+`sphere.sh` for all sixteen packages, `webdesk.sh` for
 `sphere + mlink + mdesk + ss-webos`, and `sshkit.sh` for
 `sphere + moted + mote-proxy + motemcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + schatd + schat`.
-`uninstall.sh` performs a bounded purge of the approved fifteen-package set
+`uninstall.sh` performs a bounded purge of the approved sixteen-package set
 and the exact installer-managed APT source/key. All former
 `install*.sh` and `*-install.sh` entries are retired without aliases.
 Existing tags and release assets remain immutable historical evidence; they
@@ -106,10 +106,10 @@ are not copied into the new Pages site.
 
 ## Trust chain
 
-The protected private owner creates a v12 bundle from exact private-source `main` or an
+The protected private owner creates a v13 bundle from exact private-source `main` or an
 explicitly approved immutable rollback tag. This repository then:
 
-1. validates the exact fifteen-package manifest, assets, SHA-256 checksums, env
+1. validates the exact sixteen-package manifest, assets, SHA-256 checksums, env
    provenance, and the four executable release scripts;
 2. installs the bundle in pinned Ubuntu 24.04 and 26.04 amd64 containers;
 3. constructs the APT index from only that approved bundle;
@@ -138,13 +138,13 @@ admission can be external to package correctness.
 `uninstall.sh` verifies the same signed manifest and fingerprint before any
 destructive action, requires an exact unmodified installer-managed source/key,
 and simulates APT purge first. It refuses a plan that would remove anything
-outside the fifteen signed package identities. It does not run `autoremove`,
+outside the sixteen signed package identities. It does not run `autoremove`,
 recursively delete paths, or remove user data, SSH identities, Obsidian vaults,
 unrelated packages, or non-Sphere services. After the package purge it removes
 the exact package-owned `/etc/ssh/ssh_config.d/50-mote-proxy.conf` profile; a
 modified or symlinked profile is preserved and causes a visible failure.
 
-After an approved v12 release has completed the Pages workflow, an ordinary
+After an approved v13 release has completed the Pages workflow, an ordinary
 interactive operator may install with:
 
 ```bash
