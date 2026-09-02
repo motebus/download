@@ -33,7 +33,7 @@ jobs:
           mkdir -p release-input/current
           gh release download "$TAG" --dir release-input/current
           jq -e --arg tag "$TAG" \
-            '.schema == "mote-transport-dual-channel-public-release/v1" and .tag == $tag' \
+            '.schema == "mote-transport-dual-channel-public-release/v2" and .tag == $tag' \
             release-input/current/release-manifest.json >/dev/null
           printf 'CURRENT_TAG=%s\n' "$TAG" >> "$GITHUB_ENV"
 
