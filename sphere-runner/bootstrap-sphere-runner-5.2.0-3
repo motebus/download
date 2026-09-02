@@ -2,13 +2,15 @@
 set -euo pipefail
 
 readonly RELEASE_VERSION="5.2.0-3"
-readonly RUNNER_TAG="sphere-runner-v5.2.0-3-3"
+readonly RUNNER_TAG="sphere-runner-v5.2.0-3-4"
 readonly RELEASE_BASE="https://github.com/motebus/download/releases/download/${RUNNER_TAG}"
 readonly KEYRING_URL="https://motebus.github.io/download/medge-archive-keyring.gpg"
 readonly KEYRING_SHA256="756fc2632c307509b8e5ece665ced7f4d1a58636ac935aefc1e017f7dcfcbfbd"
 readonly SIGNER_FINGERPRINT="AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 readonly ADMISSION_NAME="install-sphere-5.2.0-3.privilege-admission.json"
 readonly CONTROLLER_ACCOUNT="jujue"
+readonly CORRECTIVE_FROM_TAG="sphere-runner-v5.2.0-3-3"
+readonly CORRECTIVE_FROM_MANIFEST_SHA256="8ab83265a85ca1d95f13880cfecaea0fe683dd4157ee477dba17fa8027988ca1"
 
 fail() {
     printf 'Sphere runner bootstrap failed: %s\n' "$*" >&2
@@ -50,10 +52,40 @@ esac
 readonly TARGET_ID PRINCIPAL CAPABILITY_ASSET CAPABILITY_PATH
 readonly CONTROLLER_KEY_ASSET AUTHORIZED_KEYS_TEMPLATE SUDOERS_ASSET REPLAY_DIR
 readonly MARKER_PATH="/var/lib/sphere-install/bootstrap/${TARGET_ID}-5.2.0-3.json"
-[[ ! -e "$MARKER_PATH" ]] || fail "one-time bootstrap is already consumed for ${TARGET_ID}"
+if [[ -e "$MARKER_PATH" ]]; then
+    [[ "$TARGET_ID" == L1 ]] || fail "one-time bootstrap is already consumed for ${TARGET_ID}"
+    if ! python3 - "$MARKER_PATH" "$CORRECTIVE_FROM_TAG" "$CORRECTIVE_FROM_MANIFEST_SHA256" <<'PY'
+import json
+import os
+import stat
+import sys
 
-for command_name in awk chmod chown cmp curl date dpkg find getent gpg gpgv hostname id install \
-    logger mktemp openssl passwd python3 rmdir sha256sum ssh-keygen stat useradd usermod visudo; do
+path, expected_tag, expected_manifest = sys.argv[1:]
+item = os.lstat(path)
+if not stat.S_ISREG(item.st_mode) or item.st_uid != 0 or item.st_gid != 0 or stat.S_IMODE(item.st_mode) != 0o600:
+    raise SystemExit(1)
+with open(path, encoding="utf-8") as handle:
+    marker = json.load(handle)
+if set(marker) != {"schema", "release", "target", "runner_tag", "runner_manifest_sha256", "completed_at", "bootstrap_grant", "routine_authorization"}:
+    raise SystemExit(1)
+if (
+    marker.get("schema") != "sphere-runner-bootstrap-result/v1"
+    or marker.get("release") != "5.2.0-3"
+    or marker.get("target") != "L1"
+    or marker.get("runner_tag") != expected_tag
+    or marker.get("runner_manifest_sha256") != expected_manifest
+    or marker.get("bootstrap_grant") != "consumed"
+    or marker.get("routine_authorization") != "token-and-digest-bound"
+):
+    raise SystemExit(1)
+PY
+    then
+        fail "one-time bootstrap is already consumed for ${TARGET_ID}"
+    fi
+fi
+
+for command_name in awk chmod chown chpasswd cmp curl date dpkg find getent gpg gpgv hostname id install \
+    logger mktemp openssl python3 rmdir sha256sum ssh-keygen stat systemctl useradd usermod visudo; do
     command -v "$command_name" >/dev/null 2>&1 || fail "required command is unavailable: $command_name"
 done
 
@@ -97,7 +129,7 @@ with open(path, encoding="utf-8") as handle:
 if (
     manifest.get("schema") != "sphere-runner-public-release/v1"
     or manifest.get("status") != "approved"
-    or manifest.get("tag") != "sphere-runner-v5.2.0-3-3"
+    or manifest.get("tag") != "sphere-runner-v5.2.0-3-4"
     or manifest.get("release_version") != "5.2.0-3"
     or manifest.get("signer_fingerprint") != "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 ):
@@ -128,6 +160,7 @@ required_common = {
     "sphere-verify-5.2.0-3", "sphere-result-5.2.0-3",
     "sphere-maintenance-health-5.2.0-3", "verify-sphere-capability-5.2.0-3.py",
     "sphere_capability.py", "install-sphere-5.2.0-3.privilege-admission.json",
+    "sshd-sphere-install.conf",
 }
 required_target = {
     "L1": {"l1-controller-ssh.pub", "l9-controller-ssh.pub", "l1-capability.pub.pem", "l9-capability.pub.pem", "authorized_keys-l1.template", "sudoers-l1", "controller-known_hosts", "sphere-capability-agent-5.2.0-3.py", "sphere-controller-5.2.0-3.py"},
@@ -187,7 +220,6 @@ if ! id "$PRINCIPAL" >/dev/null 2>&1; then
         --create-home --shell /bin/sh "$PRINCIPAL"
 fi
 [[ "$(id -u "$PRINCIPAL")" -ne 0 ]] || fail "principal identity is unsafe"
-passwd -l "$PRINCIPAL" >/dev/null
 usermod -s /bin/sh "$PRINCIPAL"
 principal_home="$(getent passwd "$PRINCIPAL" | awk -F: '{print $6}')"
 [[ "$principal_home" == "/var/lib/sphere-install/principals/${TARGET_ID,,}" ]] ||
@@ -226,6 +258,41 @@ install -o root -g root -m 0444 "$TEMP_DIR/$ADMISSION_NAME" "/etc/sphere/$ADMISS
 install -o root -g root -m 0444 "$TEMP_DIR/${ADMISSION_NAME}.asc" "/etc/sphere/${ADMISSION_NAME}.asc"
 install -o root -g root -m 0444 "$TEMP_DIR/archive-keyring.gpg" /usr/share/keyrings/sphere-release-archive-keyring.gpg
 install -o root -g root -m 0444 "$TEMP_DIR/$CAPABILITY_ASSET" "$CAPABILITY_PATH"
+
+install -d -o root -g root -m 0755 /etc/ssh /etc/ssh/sshd_config.d
+install -o root -g root -m 0644 "$TEMP_DIR/sshd-sphere-install.conf" \
+    /etc/ssh/sshd_config.d/60-sphere-install-5.2.0-3.conf
+/usr/sbin/sshd -t || fail "Sphere SSH policy syntax is invalid"
+/usr/sbin/sshd -T -C "user=$PRINCIPAL,host=localhost,addr=127.0.0.1" \
+    >"$TEMP_DIR/sshd-effective"
+python3 - "$TEMP_DIR/sshd-effective" <<'PY'
+import sys
+
+expected = {
+    "allowagentforwarding": "no",
+    "allowtcpforwarding": "no",
+    "authenticationmethods": "publickey",
+    "disableforwarding": "yes",
+    "kbdinteractiveauthentication": "no",
+    "passwordauthentication": "no",
+    "permittty": "no",
+    "pubkeyauthentication": "yes",
+    "x11forwarding": "no",
+}
+actual = {}
+with open(sys.argv[1], encoding="utf-8") as handle:
+    for line in handle:
+        key, _, value = line.strip().partition(" ")
+        if key in expected:
+            actual[key] = value
+if actual != expected:
+    raise SystemExit("Sphere SSH policy is not exact")
+PY
+systemctl reload ssh || fail "SSH policy reload failed"
+password_hash="$(openssl rand -base64 48 | openssl passwd -6 -stdin)"
+[[ "$password_hash" == \$6\$* ]] || fail "service-principal password hash generation failed"
+printf '%s:%s\n' "$PRINCIPAL" "$password_hash" | chpasswd --encrypted
+unset password_hash
 
 visudo -c -f "$TEMP_DIR/$SUDOERS_ASSET" >/dev/null || fail "target sudoers source is invalid"
 install -o root -g root -m 0440 "$TEMP_DIR/$SUDOERS_ASSET" "/etc/sudoers.d/sphere-install-${TARGET_ID,,}-5.2.0-3"
