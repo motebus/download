@@ -24,6 +24,8 @@ EXPECTED_ALL = (
     "cx-pivot",
     "mote-sync",
     "mote-syncd",
+    "chatd",
+    "chat",
 )
 INSTALLERS = {
     "sphere.sh": EXPECTED_ALL,
@@ -42,6 +44,8 @@ INSTALLERS = {
         "mcp-run",
         "mote-sync",
         "mote-syncd",
+        "chatd",
+        "chat",
     ),
 }
 RELEASE_SCRIPTS = (*INSTALLERS, "uninstall.sh")
@@ -60,14 +64,14 @@ class InstallContractTest(unittest.TestCase):
             installer = ROOT / filename
             self.assertTrue(installer.stat().st_mode & 0o111)
 
-    def test_installers_have_exact_v10_trust_and_profile_contract(self) -> None:
+    def test_installers_have_exact_v11_trust_and_profile_contract(self) -> None:
         for filename, selected in INSTALLERS.items():
             text = (ROOT / filename).read_text(encoding="utf-8")
             self.assertTrue(text.startswith("#!/usr/bin/env bash\nset -euo pipefail\n"))
             for package_name in EXPECTED_ALL:
                 self.assertIn(f'    "{package_name}",', text)
             for required in (
-                "medge-public-release/v10",
+                "medge-public-release/v11",
                 "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
                 "release-manifest.json.asc",
                 "gpgv --keyring",
@@ -144,7 +148,7 @@ class InstallContractTest(unittest.TestCase):
         for package_name in EXPECTED_ALL:
             self.assertIn(f'    "{package_name}",', text)
         for required in (
-            "medge-public-release/v10",
+            "medge-public-release/v11",
             "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
             "release-manifest.json.asc",
             "gpgv --keyring",

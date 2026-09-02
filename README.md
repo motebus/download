@@ -18,7 +18,7 @@ chatd      0.1.0-2   local MSG send/receive service and durable inbox
 ```
 
 The canonical application path is `chat -> local chatd -> local mote-proxy ->
-xMSG -> target moted -> remote chatd -> remote chat`. Interactive commands
+D/MSG -> target moted -> remote chatd -> remote chat`. Interactive commands
 `/help`, `/status`, `/receive`, and `/quit` remain local and are never sent as
 MSG payloads. MOTESSH, MOTERDP, and RDP remain retired. This standalone release
 does not replace or modify the current signed MEdge APT aggregate or its
@@ -35,16 +35,18 @@ node scripts/verify-dual-channel-bundle.js \
 
 The verifier extracts the published Debian packages and executes the actual
 packaged `chat`, `chatd`, Mote Proxy MSG, and MoteD MSG-dispatch modules across
-temporary Unix sockets. Its xMSG bridge is intentionally in-process, so a pass
+temporary Unix sockets. Its D/MSG bridge is intentionally in-process, so a pass
 qualifies the package chain but does not claim live MoteBus or two-endpoint
 runtime acceptance. Mote Transport releases also run this gate in their own
-GitHub Actions workflow; they never trigger the signed MEdge APT/Pages job.
+GitHub Actions workflow. That component evidence is preserved; the v11 Sphere
+aggregate below now admits the same Dual Channel packages through the signed
+APT boundary.
 
-## Current v10 package set
+## Current v11 package set
 
-The latest approved bundle is `medge-v5.1.0-13`.
+The latest approved bundle is `medge-v5.2.0-3`.
 
-An approved `medge-public-release/v10` bundle contains these independent Debian
+An approved `medge-public-release/v11` bundle contains these independent Debian
 packages in dependency-safe audit order:
 
 ```text
@@ -61,6 +63,8 @@ mcp-run
 cx-pivot
 mote-sync
 mote-syncd
+chatd
+chat
 ```
 
 The bundle includes the active Sphere runtime catalog. `ultra-mcp-ssh` and
@@ -71,8 +75,8 @@ endpoint packages used by the Sync-service acceptance row. WebOS Server, SS
 Server, Redixs, and every other OCI-only service are excluded; `ss-webos` is
 the independent Debian client runtime and remains included.
 
-The five Mote Transport service rows are SSH, SFTP, Git, MCP over SSH, and
-Sync for an Obsidian Vault. Install Sphere provides their approved Debian
+The five B/SSH service rows are SSH, SFTP, Git, MCP over SSH, and Sync for an
+Obsidian Vault. D/MSG adds Chat through `chatd` and `chat`. Install Sphere provides their approved Debian
 package prerequisites, but it never discovers, creates, selects, modifies, or
 copies a Vault. Vault pairing and runtime Sync acceptance remain separate
 post-install operations owned by `mote-sync` and `mote-syncd`.
@@ -87,10 +91,10 @@ There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 ## Clean break
 
 The current signed release surface contains exactly four scripts:
-`sphere.sh` for all thirteen packages, `webdesk.sh` for
+`sphere.sh` for all fifteen packages, `webdesk.sh` for
 `sphere + mlink + mdesk + ss-webos`, and `sshkit.sh` for
-`sphere + moted + mote-proxy + motemcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd`.
-`uninstall.sh` performs a bounded purge of the approved thirteen-package set
+`sphere + moted + mote-proxy + motemcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + chatd + chat`.
+`uninstall.sh` performs a bounded purge of the approved fifteen-package set
 and the exact installer-managed APT source/key. All former
 `install*.sh` and `*-install.sh` entries are retired without aliases.
 Existing tags and release assets remain immutable historical evidence; they
@@ -98,10 +102,10 @@ are not copied into the new Pages site.
 
 ## Trust chain
 
-The protected private owner creates a v10 bundle from exact GitLab `main` or an
+The protected private owner creates a v11 bundle from exact private-source `main` or an
 explicitly approved immutable rollback tag. This repository then:
 
-1. validates the exact thirteen-package manifest, assets, SHA-256 checksums, env
+1. validates the exact fifteen-package manifest, assets, SHA-256 checksums, env
    provenance, and the four executable release scripts;
 2. installs the bundle in pinned Ubuntu 24.04 and 26.04 amd64 containers;
 3. constructs the APT index from only that approved bundle;
@@ -130,13 +134,13 @@ admission can be external to package correctness.
 `uninstall.sh` verifies the same signed manifest and fingerprint before any
 destructive action, requires an exact unmodified installer-managed source/key,
 and simulates APT purge first. It refuses a plan that would remove anything
-outside the thirteen signed package identities. It does not run `autoremove`,
+outside the fifteen signed package identities. It does not run `autoremove`,
 recursively delete paths, or remove user data, SSH identities, Obsidian vaults,
 unrelated packages, or non-Sphere services. After the package purge it removes
 the exact package-owned `/etc/ssh/ssh_config.d/50-mote-proxy.conf` profile; a
 modified or symlinked profile is preserved and causes a visible failure.
 
-After an approved v10 release has completed the Pages workflow, install with:
+After an approved v11 release has completed the Pages workflow, install with:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -fsSL \
