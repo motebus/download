@@ -233,7 +233,7 @@ for record in "${PACKAGE_RECORDS[@]}"; do
         fail "$package_name release asset does not match its pinned version"
 done
 
-APT_INSTALL_PLAN="$(apt-get --print-uris -y install "${PACKAGE_ARGS[@]}")" ||
+APT_INSTALL_PLAN="$(apt-get --allow-downgrades --print-uris -y install "${PACKAGE_ARGS[@]}")" ||
     fail "cannot resolve the pinned Sphere APT transaction"
 if grep -Eiq "(https?|ssh|git)://[^[:space:]\"']*gitlab[.]" <<<"$APT_INSTALL_PLAN"; then
     fail "the APT transaction contains a forbidden GitLab URL"
@@ -241,7 +241,7 @@ fi
 
 # The signed APT index supplies the exact manifest-pinned packages. Package
 # dependencies are resolved together, so this remains one atomic APT request.
-apt-get install -y "${PACKAGE_ARGS[@]}"
+apt-get install -y --allow-downgrades "${PACKAGE_ARGS[@]}"
 
 for record in "${PACKAGE_RECORDS[@]}"; do
     IFS=$'\t' read -r package_name package_version _ <<<"$record"
