@@ -7,12 +7,13 @@ are forbidden here.
 
 ## Mote Transport Dual Channel schat v0.2
 
-The standalone GitHub release `mote-transport-v2026.09.02-3` carries the clean
-schat rename in the component-qualified Dual Channel binary bundle:
+The standalone GitHub release `mote-transport-v2026.09.02-4` carries the clean
+schat rename and MoteD upgrade-restart repair in the component-qualified Dual
+Channel binary bundle:
 
 ```text
 mote-proxy 1.5.0-4   B/SSH + schat-only D/MSG ingress
-moted      3.2.0-39  B -> sshd, D -> schatd dispatch
+moted      3.2.0-40  B -> sshd, D -> schatd; restart and re-register after upgrade
 schat      0.2.0-5   open local UI with /inbox slash-command mode
 schatd     0.2.0-4   local P2P service with open app socket and protected ingress
 ```
@@ -40,14 +41,15 @@ qualifies the package chain but does not claim live MoteBus or two-endpoint
 runtime acceptance. It also proves that a `local.mote` self-delivery terminates
 as one idempotent inbox record and never re-enters the outbound path. Mote
 Transport releases run this gate in their own GitHub Actions workflow. The
-older `mote-transport-v2026.09.02-2` chat-named release remains immutable
-historical evidence.
+older releases remain immutable historical evidence.
 
 ## Current v12 package set
 
-The latest approved bundle is `medge-v5.2.0-5` under v12. It supersedes
-`medge-v5.2.0-4` only by allowing an explicitly pinned APT transaction to
-downgrade a package when required; the earlier release remains immutable.
+The latest approved bundle is `medge-v5.2.0-6` under v12. It supersedes
+`medge-v5.2.0-5` by upgrading MoteD to 3.2.0-40, which enables and starts its
+manager and Dual Channel relay on first install and restarts both services
+after package upgrades so the MoteC phonebook registration resumes. Earlier
+releases remain immutable.
 
 An approved `medge-public-release/v12` bundle contains these independent Debian
 packages in dependency-safe audit order:
