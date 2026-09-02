@@ -8,12 +8,12 @@ are forbidden here.
 ## Mote Transport Dual Channel schat v0.2
 
 The standalone GitHub release `mote-transport-v2026.09.02-4` carries the clean
-schat rename and MoteD upgrade-restart repair in the component-qualified Dual
-Channel binary bundle:
+schat rename, MoteD upgrade-restart repair, and credential-clean MoteChat
+runtime in the component-qualified Dual Channel binary bundle:
 
 ```text
 mote-proxy 1.5.0-4   B/SSH + schat-only D/MSG ingress
-moted      3.2.0-40  B -> sshd, D -> schatd; restart and re-register after upgrade
+moted      3.2.0-41  B -> sshd, D -> schatd; restart and re-register after upgrade
 schat      0.2.0-5   open local UI with /inbox slash-command mode
 schatd     0.2.0-4   local P2P service with open app socket and protected ingress
 ```
@@ -46,10 +46,10 @@ older releases remain immutable historical evidence.
 ## Current v12 package set
 
 The latest approved bundle is `medge-v5.2.0-6` under v12. It supersedes
-`medge-v5.2.0-5` by upgrading MoteD to 3.2.0-40, which enables and starts its
-manager and Dual Channel relay on first install and restarts both services
-after package upgrades so the MoteC phonebook registration resumes. Earlier
-releases remain immutable.
+`medge-v5.2.0-5` by upgrading MoteD to 3.2.0-41, which enables and starts its
+manager and Dual Channel relay on first install, restarts both services after
+package upgrades so the MoteC phonebook registration resumes, and consumes the
+credential-clean MoteChat runtime. Earlier releases remain immutable.
 
 An approved `medge-public-release/v12` bundle contains these independent Debian
 packages in dependency-safe audit order:
