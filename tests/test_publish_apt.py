@@ -20,7 +20,7 @@ SPEC.loader.exec_module(publish_apt)
 
 
 class PublicAptTest(unittest.TestCase):
-    def manifest(self, schema: str = "medge-public-release/v12") -> dict:
+    def manifest(self, schema: str = "medge-public-release/v13") -> dict:
         package_names = {
             "medge-public-release/v4": publish_apt.LEGACY_PACKAGES,
             "medge-public-release/v5": publish_apt.LEGACY_PACKAGES,
@@ -31,6 +31,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v10": publish_apt.EXPECTED_PACKAGES_V10,
             "medge-public-release/v11": publish_apt.EXPECTED_PACKAGES_V11,
             "medge-public-release/v12": publish_apt.EXPECTED_PACKAGES_V12,
+            "medge-public-release/v13": publish_apt.EXPECTED_PACKAGES_V13,
         }[schema]
         packages = []
         for index, name in enumerate(package_names, start=1):
@@ -40,7 +41,7 @@ class PublicAptTest(unittest.TestCase):
                 if name in {
                     "medge", "mote-proxy", "motemcp", "ultra-mcp-ssh",
                     "mcp-run", "mote-sync", "mote-syncd", "chatd", "chat",
-                    "schatd", "schat",
+                    "schatd", "schat", "codex-mesh",
                 }
                 else "amd64"
             )
@@ -50,9 +51,9 @@ class PublicAptTest(unittest.TestCase):
                     "version": version,
                     "architecture": architecture,
                     "asset": f"{name}_{version}_{architecture}.deb",
-                    "source_commit": f"{index:x}" * 40,
+                    "source_commit": f"{index:040x}",
                     "source_ref": "refs/heads/main",
-                    "sha256": f"{index:x}" * 64,
+                    "sha256": f"{index:064x}",
                 }
             )
         now = dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
@@ -60,7 +61,8 @@ class PublicAptTest(unittest.TestCase):
             "schema": schema,
             "status": "approved",
             "medge_version": (
-                "5.2.0-4" if schema == "medge-public-release/v12"
+                "5.3.0-1" if schema == "medge-public-release/v13"
+                else "5.2.0-4" if schema == "medge-public-release/v12"
                 else "5.2.0-3" if schema == "medge-public-release/v11"
                 else "5.1.0-9" if schema == "medge-public-release/v10"
                 else "4.2.0-1"
@@ -79,7 +81,9 @@ class PublicAptTest(unittest.TestCase):
                             "sha256": publish_apt.sha256(MODULE_PATH.parents[1] / name),
                         }
                         for name in (
-                            publish_apt.RELEASE_SCRIPTS_V12
+                            publish_apt.RELEASE_SCRIPTS_V13
+                            if schema == "medge-public-release/v13"
+                            else publish_apt.RELEASE_SCRIPTS_V12
                             if schema == "medge-public-release/v12"
                             else publish_apt.RELEASE_SCRIPTS_V11
                             if schema == "medge-public-release/v11"
@@ -91,6 +95,7 @@ class PublicAptTest(unittest.TestCase):
                     "medge-public-release/v10",
                     "medge-public-release/v11",
                     "medge-public-release/v12",
+                    "medge-public-release/v13",
                 }
                 else {}
             ),
@@ -105,6 +110,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v10",
             "medge-public-release/v11",
             "medge-public-release/v12",
+            "medge-public-release/v13",
         }:
             for package in manifest["packages"]:
                 package["env_inputs"] = [
@@ -256,6 +262,26 @@ class PublicAptTest(unittest.TestCase):
         )
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
+    def test_v13_manifest_adds_codex_mesh_to_sphere_only(self) -> None:
+        manifest = self.manifest("medge-public-release/v13")
+        self.assertEqual(
+            [package["name"] for package in manifest["packages"]],
+            list(publish_apt.EXPECTED_PACKAGES_V13),
+        )
+        self.assertEqual(
+            publish_apt.INSTALLER_PROFILES_V13["sphere.sh"],
+            (*publish_apt.EXPECTED_PACKAGES_V12, "codex-mesh"),
+        )
+        self.assertEqual(
+            publish_apt.INSTALLER_PROFILES_V13["sshkit.sh"],
+            publish_apt.INSTALLER_PROFILES_V12["sshkit.sh"],
+        )
+        self.assertEqual(
+            [item["path"] for item in manifest["packages"][-1]["env_inputs"]],
+            ["codex-mesh-deb.env"],
+        )
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
     def test_v10_manifest_rejects_retired_installer_name(self) -> None:
         manifest = self.manifest("medge-public-release/v10")
         manifest["installers"][2]["name"] = "sshpack.sh"
@@ -268,10 +294,10 @@ class PublicAptTest(unittest.TestCase):
         manifest["installers"] = manifest["installers"][:3]
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
-    def test_v12_bundle_is_exact_and_has_only_four_release_scripts(self) -> None:
+    def test_v13_bundle_is_exact_and_has_only_four_release_scripts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             bundle = Path(temp_name)
-            manifest = self.manifest("medge-public-release/v12")
+            manifest = self.manifest("medge-public-release/v13")
             for package in manifest["packages"]:
                 asset = self.make_deb(
                     bundle,
@@ -281,7 +307,7 @@ class PublicAptTest(unittest.TestCase):
                 )
                 package["sha256"] = publish_apt.sha256(asset)
             installers = []
-            for installer_name in publish_apt.RELEASE_SCRIPTS_V12:
+            for installer_name in publish_apt.RELEASE_SCRIPTS_V13:
                 installer = bundle / installer_name
                 installer.write_text(
                     "#!/usr/bin/env bash\nset -euo pipefail\n",
@@ -326,7 +352,7 @@ class PublicAptTest(unittest.TestCase):
                 (bundle / f"medge_{manifest['medge_version']}_all.deb").exists()
             )
 
-    def test_sign_release_signs_apt_and_v12_manifest(self) -> None:
+    def test_sign_release_signs_apt_and_v13_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             repository = root / "repository"
@@ -384,7 +410,7 @@ class PublicAptTest(unittest.TestCase):
                 encoding="utf-8",
             )
             (site / "release-manifest.json").write_text(
-                json.dumps(self.manifest("medge-public-release/v12")),
+                json.dumps(self.manifest("medge-public-release/v13")),
                 encoding="utf-8",
             )
             with mock.patch.dict(
@@ -412,7 +438,7 @@ class PublicAptTest(unittest.TestCase):
                 stderr=subprocess.DEVNULL,
             )
 
-    def test_v12_pages_index_exposes_exact_four_release_scripts(self) -> None:
+    def test_v13_pages_index_exposes_exact_four_release_scripts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             site = root / "site"
@@ -421,12 +447,12 @@ class PublicAptTest(unittest.TestCase):
             bundle.mkdir()
             package = self.make_deb(bundle, package="sphere")
             publish_apt.copy_package(package, site)
-            manifest = self.manifest("medge-public-release/v12")
+            manifest = self.manifest("medge-public-release/v13")
             (bundle / "release-manifest.json").write_text(
                 json.dumps(manifest),
                 encoding="utf-8",
             )
-            for installer_name in publish_apt.RELEASE_SCRIPTS_V12:
+            for installer_name in publish_apt.RELEASE_SCRIPTS_V13:
                 (bundle / installer_name).write_text(
                     "#!/usr/bin/env bash\nset -euo pipefail\n",
                     encoding="utf-8",
@@ -437,7 +463,7 @@ class PublicAptTest(unittest.TestCase):
                 manifest,
                 bundle,
             )
-            for installer_name in publish_apt.RELEASE_SCRIPTS_V12:
+            for installer_name in publish_apt.RELEASE_SCRIPTS_V13:
                 self.assertTrue((site / installer_name).is_file())
             self.assertTrue((site / "release-manifest.json").is_file())
             self.assertFalse((site / "install-sphere.sh").exists())

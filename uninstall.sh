@@ -91,13 +91,14 @@ expected = (
     "mote-syncd",
     "schatd",
     "schat",
+    "codex-mesh",
 )
 expected_installers = ("sphere.sh", "webdesk.sh", "sshkit.sh", "uninstall.sh")
 hex64_re = re.compile(r"^[0-9a-f]{64}$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
-if manifest.get("schema") != "medge-public-release/v12":
-    raise SystemExit("release manifest schema is not medge-public-release/v12")
+if manifest.get("schema") != "medge-public-release/v13":
+    raise SystemExit("release manifest schema is not medge-public-release/v13")
 if manifest.get("status") != "approved":
     raise SystemExit("release manifest is not approved")
 if (
@@ -119,7 +120,7 @@ for name in expected:
 PY
 
 mapfile -t APPROVED_PACKAGES <"$TEMP_DIR/package-plan"
-[[ "${#APPROVED_PACKAGES[@]}" -eq 15 ]] ||
+[[ "${#APPROVED_PACKAGES[@]}" -eq 16 ]] ||
     fail "release manifest package boundary is incomplete"
 
 curl --proto '=https' --tlsv1.2 -fsSLo \
