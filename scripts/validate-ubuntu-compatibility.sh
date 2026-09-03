@@ -69,19 +69,39 @@ run_target() {
             export DEBIAN_FRONTEND=noninteractive
             apt-get update
 
-            # Establish the complete dependency-safe host baseline first.
-            apt-get install -y --no-install-recommends /bundle/*.deb
-            apt-get check
+            # Reproduce the clean v2 migration from the retired package and
+            # managed Codex server identity before installing the full bundle.
+            install -d -m0755 /tmp/motemcp-legacy/DEBIAN /etc/codex
+            printf "%s\n" \
+                "Package: motemcp" \
+                "Version: 1.1.0-2" \
+                "Architecture: all" \
+                "Maintainer: Compatibility Test <test@example.invalid>" \
+                "Description: retired migration fixture" \
+                > /tmp/motemcp-legacy/DEBIAN/control
+            dpkg-deb -b /tmp/motemcp-legacy /tmp/motemcp_1.1.0-2_all.deb
+            dpkg -i /tmp/motemcp_1.1.0-2_all.deb
+            printf "%s\n" \
+                "# BEGIN motemcp managed Codex MCP server" \
+                "[mcp_servers.motemcp]" \
+                "command = \"/usr/bin/mote\"" \
+                "args = [\"mcp\", \"serve\"]" \
+                "enabled = true" \
+                "# END motemcp managed Codex MCP server" \
+                > /etc/codex/config.toml
+            test "$(dpkg-query -W -f="\${Version}" motemcp)" = 1.1.0-2
 
-            # Reproduce the admitted corrective case: L2 can contain a newer,
-            # unadmitted local motemcp build. The signed bundle must replace it
-            # with the exact lower manifest version in the same package set.
-            dpkg-deb -R /bundle/motemcp_1.1.0-2_all.deb /tmp/motemcp-higher
-            sed -i "s/^Version: .*/Version: 1.1.0-3/" \
-                /tmp/motemcp-higher/DEBIAN/control
-            dpkg-deb -b /tmp/motemcp-higher /tmp/motemcp_1.1.0-3_all.deb
-            dpkg -i /tmp/motemcp_1.1.0-3_all.deb
-            test "$(dpkg-query -W -f="\${Version}" motemcp)" = 1.1.0-3
+            # Establish the complete dependency-safe host baseline. The new
+            # package must replace, not provide or coexist with, the old name.
+            apt-get install -y --allow-downgrades --no-install-recommends \
+                /bundle/*.deb
+            apt-get check
+            ! dpkg-query -W motemcp >/dev/null 2>&1
+            expected_mcp_version="$(dpkg-deb -f /bundle/mote-bridge-mcp_*.deb Version)"
+            test "$(dpkg-query -W -f="\${Version}" mote-bridge-mcp)" \
+                = "$expected_mcp_version"
+            grep -Fq "[mcp_servers.mote-bridge-mcp]" /etc/codex/config.toml
+            ! grep -Fq "[mcp_servers.motemcp]" /etc/codex/config.toml
 
             apt-get install -y --allow-downgrades --no-install-recommends \
                 /bundle/*.deb
@@ -91,7 +111,8 @@ run_target() {
                 dpkg-query -W -f="\${db:Status-Status} \${binary:Package} \${Version}\n" \
                     "$package_name"
             done
-            test "$(dpkg-query -W -f="\${Version}" motemcp)" = 1.1.0-2
+            test "$(dpkg-query -W -f="\${Version}" mote-bridge-mcp)" \
+                = "$expected_mcp_version"
 
             test "$(stat -c "%U:%G:%a" /etc/ssh/ssh_config.d/50-mote-proxy.conf)" \
                 = root:root:644

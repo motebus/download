@@ -20,7 +20,7 @@ SPEC.loader.exec_module(publish_apt)
 
 
 class PublicAptTest(unittest.TestCase):
-    def manifest(self, schema: str = "medge-public-release/v12") -> dict:
+    def manifest(self, schema: str = "medge-public-release/v14") -> dict:
         package_names = {
             "medge-public-release/v4": publish_apt.LEGACY_PACKAGES,
             "medge-public-release/v5": publish_apt.LEGACY_PACKAGES,
@@ -32,6 +32,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v11": publish_apt.EXPECTED_PACKAGES_V11,
             "medge-public-release/v12": publish_apt.EXPECTED_PACKAGES_V12,
             "medge-public-release/v13": publish_apt.EXPECTED_PACKAGES_V13,
+            "medge-public-release/v14": publish_apt.EXPECTED_PACKAGES_V14,
         }[schema]
         packages = []
         for index, name in enumerate(package_names, start=1):
@@ -39,7 +40,7 @@ class PublicAptTest(unittest.TestCase):
             architecture = (
                 "all"
                 if name in {
-                    "medge", "mote-proxy", "motemcp", "ultra-mcp-ssh",
+                    "medge", "mote-proxy", "motemcp", "mote-bridge-mcp", "ultra-mcp-ssh",
                     "mcp-run", "mote-sync", "mote-syncd", "chatd", "chat",
                     "schatd", "schat", "codex-mesh",
                 }
@@ -61,7 +62,8 @@ class PublicAptTest(unittest.TestCase):
             "schema": schema,
             "status": "approved",
             "medge_version": (
-                "5.3.0-1" if schema == "medge-public-release/v13"
+                "5.4.0-1" if schema == "medge-public-release/v14"
+                else "5.3.0-1" if schema == "medge-public-release/v13"
                 else "5.2.0-4" if schema == "medge-public-release/v12"
                 else "5.2.0-3" if schema == "medge-public-release/v11"
                 else "5.1.0-9" if schema == "medge-public-release/v10"
@@ -81,7 +83,9 @@ class PublicAptTest(unittest.TestCase):
                             "sha256": publish_apt.sha256(MODULE_PATH.parents[1] / name),
                         }
                         for name in (
-                            publish_apt.RELEASE_SCRIPTS_V13
+                            publish_apt.RELEASE_SCRIPTS_V14
+                            if schema == "medge-public-release/v14"
+                            else publish_apt.RELEASE_SCRIPTS_V13
                             if schema == "medge-public-release/v13"
                             else publish_apt.RELEASE_SCRIPTS_V12
                             if schema == "medge-public-release/v12"
@@ -96,6 +100,7 @@ class PublicAptTest(unittest.TestCase):
                     "medge-public-release/v11",
                     "medge-public-release/v12",
                     "medge-public-release/v13",
+                    "medge-public-release/v14",
                 }
                 else {}
             ),
@@ -111,6 +116,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v11",
             "medge-public-release/v12",
             "medge-public-release/v13",
+            "medge-public-release/v14",
         }:
             for package in manifest["packages"]:
                 package["env_inputs"] = [
@@ -283,6 +289,27 @@ class PublicAptTest(unittest.TestCase):
         self.assertEqual(
             [item["path"] for item in manifest["packages"][-1]["env_inputs"]],
             ["codex-mesh-deb.env"],
+        )
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v14_manifest_retires_motemcp_for_mote_bridge_mcp(self) -> None:
+        manifest = self.manifest("medge-public-release/v14")
+        names = [package["name"] for package in manifest["packages"]]
+        self.assertEqual(names, list(publish_apt.EXPECTED_PACKAGES_V14))
+        self.assertIn("mote-bridge-mcp", names)
+        self.assertNotIn("motemcp", names)
+        self.assertEqual(
+            publish_apt.INSTALLER_PROFILES_V14["sshkit.sh"],
+            (
+                "sphere", "moted", "mote-proxy", "mote-bridge-mcp",
+                "ultra-mcp-ssh", "mcp-run", "mote-sync", "mote-syncd",
+                "schatd", "schat",
+            ),
+        )
+        bridge = next(package for package in manifest["packages"] if package["name"] == "mote-bridge-mcp")
+        self.assertEqual(
+            [item["path"] for item in bridge["env_inputs"]],
+            ["mote-bridge-mcp-deb.env"],
         )
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 

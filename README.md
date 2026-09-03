@@ -43,14 +43,13 @@ as one idempotent inbox record and never re-enters the outbound path. Mote
 Transport releases run this gate in their own GitHub Actions workflow. The
 older releases remain immutable historical evidence.
 
-## Current v13 package set
+## Current v14 package set
 
-The latest approved bundle is `medge-v5.3.0-2` under v13. It preserves the
-exact sixteen-package set from `medge-v5.3.0-1` and corrects the installer so
-an unadmitted newer local build can be replaced by the exact signed manifest
-pin. Earlier releases remain immutable.
+The latest approved bundle is `medge-v5.4.0-1` under v14. It performs the
+clean Mote Bridge MCP package/server rename while preserving the sixteen-row
+composition and immutable v13 history.
 
-An approved `medge-public-release/v13` bundle contains these independent Debian
+An approved `medge-public-release/v14` bundle contains these independent Debian
 packages in dependency-safe audit order:
 
 ```text
@@ -61,7 +60,7 @@ mlink
 mdesk
 ss-webos
 mote-proxy
-motemcp
+mote-bridge-mcp
 ultra-mcp-ssh
 mcp-run
 cx-pivot
@@ -98,7 +97,7 @@ There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 The current signed release surface contains exactly four scripts:
 `sphere.sh` for all sixteen packages, `webdesk.sh` for
 `sphere + mlink + mdesk + ss-webos`, and `sshkit.sh` for
-`sphere + moted + mote-proxy + motemcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + schatd + schat`.
+`sphere + moted + mote-proxy + mote-bridge-mcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + schatd + schat`.
 `uninstall.sh` performs a bounded purge of the approved sixteen-package set
 and the exact installer-managed APT source/key. All former
 `install*.sh` and `*-install.sh` entries are retired without aliases.
@@ -107,7 +106,7 @@ are not copied into the new Pages site.
 
 ## Trust chain
 
-The protected private owner creates a v13 bundle from exact private-source `main` or an
+The protected private owner creates a v14 bundle from exact private-source `main` or an
 explicitly approved immutable rollback tag. This repository then:
 
 1. validates the exact sixteen-package manifest, assets, SHA-256 checksums, env
@@ -147,7 +146,7 @@ unrelated packages, or non-Sphere services. After the package purge it removes
 the exact package-owned `/etc/ssh/ssh_config.d/50-mote-proxy.conf` profile; a
 modified or symlinked profile is preserved and causes a visible failure.
 
-After an approved v13 release has completed the Pages workflow, an ordinary
+After an approved v14 release has completed the Pages workflow, an ordinary
 interactive operator may install with:
 
 ```bash
