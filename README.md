@@ -50,13 +50,15 @@ as one idempotent inbox record and never re-enters the outbound path. Mote
 Transport releases run this gate in their own GitHub Actions workflow. The
 older releases remain immutable historical evidence.
 
-## Current v15 package set
+## Current v16 package set
 
-The next bundle contract is `medge-public-release/v15`. It adds the component-
-qualified S/SEC status owner to the target-selector Mote Transport packages
-and install-only `sphere.sh`, while preserving the clean Mote Bridge MCP
-package/server rename and immutable earlier release history. Publication still
-requires an owner-approved, signed `medge-v<version>` release.
+The approved v15 baseline retires `cx-pivot` in favor of `cx-node`, carries
+Mote Bridge MCP 2.1, and keeps its immutable sixteen-row release history. The
+next `medge-public-release/v16` contract adds the component-qualified S/SEC
+status owner as a seventeenth row. The install-only `sphere.sh` profile selects
+sixteen rows and leaves `ultra-mcp-ssh` to the dedicated `sshkit.sh` profile.
+Publication still requires an owner-approved, signed `medge-v<version>`
+release.
 
 The new S component versions admitted by that contract are:
 
@@ -66,7 +68,7 @@ moted      3.3.0-1   B -> sshd; D -> schatd; S -> mote-secd fixed dispatch
 mote-secd  0.1.0-1   S/SEC status owner; authority mutations fail closed
 ```
 
-An approved `medge-public-release/v15` bundle contains these independent Debian
+An approved `medge-public-release/v16` bundle contains these independent Debian
 packages in dependency-safe audit order:
 
 ```text
@@ -81,7 +83,7 @@ mote-secd
 mote-bridge-mcp
 ultra-mcp-ssh
 mcp-run
-cx-pivot
+cx-node
 mote-sync
 mote-syncd
 schatd
@@ -91,8 +93,9 @@ codex-mesh
 
 The bundle includes the active Sphere runtime catalog. `ultra-mcp-ssh` and
 `mcp-run` are the strict MCP-over-SSH client and target data-plane packages;
-they do not restore the retired MCP mode proxy. CX Pivot keeps its independent
-CX ownership. `mote-sync` and `mote-syncd` are the client and
+they do not restore the retired MCP mode proxy. `ultra-mcp-ssh` remains in the
+bundle for `sshkit.sh`, but is not selected by `sphere.sh`. CX Node keeps its
+independent CX ownership. `mote-sync` and `mote-syncd` are the client and
 endpoint packages used by the Sync-service acceptance row. WebOS Server, SS
 Server, Redixs, and every other OCI-only service are excluded; `ss-webos` is
 the independent Debian client runtime and remains included.
@@ -103,9 +106,10 @@ package prerequisites, but it never discovers, creates, selects, modifies, or
 copies a Vault. Vault pairing and runtime Sync acceptance remain separate
 post-install operations owned by `mote-sync` and `mote-syncd`.
 
-`medge` and `cx-pivot` are independent package boundaries. Their publication
-and installation do not depend on or query UltraMap. Historical `cx-node`
-release evidence does not create an UltraMap relationship.
+`medge` and `cx-node` are independent package boundaries. Their publication
+and installation do not depend on or query UltraMap. Historical `cx-pivot`
+release evidence does not create an UltraMap relationship or compatibility
+alias.
 
 There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 `vdevice` remains optional and separate.
@@ -113,7 +117,8 @@ There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 ## Clean break
 
 The current signed release surface contains exactly four scripts:
-`sphere.sh` for all seventeen packages, `webdesk.sh` for
+`sphere.sh` for sixteen packages (all catalog rows except `ultra-mcp-ssh`),
+`webdesk.sh` for
 `sphere + mlink + mdesk + ss-webos`, and `sshkit.sh` for
 `sphere + moted + mote-proxy + mote-secd + mote-bridge-mcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + schatd + schat`.
 `uninstall.sh` performs a bounded purge of the approved seventeen-package set
@@ -124,7 +129,7 @@ are not copied into the new Pages site.
 
 ## Trust chain
 
-The protected private owner creates a v15 bundle from exact private-source `main` or an
+The protected private owner creates a v16 bundle from exact private-source `main` or an
 explicitly approved immutable rollback tag. This repository then:
 
 1. validates the exact seventeen-package manifest, assets, SHA-256 checksums, env
@@ -162,7 +167,7 @@ unrelated packages, or non-Sphere services. After the package purge it removes
 the exact package-owned `/etc/ssh/ssh_config.d/50-mote-proxy.conf` profile; a
 modified or symlinked profile is preserved and causes a visible failure.
 
-After an approved v15 release has completed the Pages workflow, an ordinary
+After an approved v16 release has completed the Pages workflow, an ordinary
 interactive operator may install with:
 
 ```bash
@@ -212,7 +217,7 @@ curl --proto '=https' --tlsv1.2 -fsSL \
 
 A new L5 or L6 runs the signed `sphere.sh` locally, optionally launched by its
 local Codex CLI. Codex is not a runtime dependency of `mote-proxy`; only the
-independent `cx-pivot` integration may consume a Codex client when available.
+independent `cx-node` integration may consume a Codex client when available.
 After MoteD has registered the new host and the operator has separately admitted
 L1 host-key and public-key authentication, a support session may use:
 

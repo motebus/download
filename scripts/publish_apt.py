@@ -90,10 +90,14 @@ EXPECTED_PACKAGES_V14 = tuple(
     "mote-bridge-mcp" if name == "motemcp" else name
     for name in EXPECTED_PACKAGES_V13
 )
-EXPECTED_PACKAGES_V15 = (
-    *EXPECTED_PACKAGES_V14[:7],
+EXPECTED_PACKAGES_V15 = tuple(
+    "cx-node" if name == "cx-pivot" else name
+    for name in EXPECTED_PACKAGES_V14
+)
+EXPECTED_PACKAGES_V16 = (
+    *EXPECTED_PACKAGES_V15[:7],
     "mote-secd",
-    *EXPECTED_PACKAGES_V14[7:],
+    *EXPECTED_PACKAGES_V15[7:],
 )
 INSTALLER_PROFILES_V9 = {
     "sphere.sh": EXPECTED_PACKAGES_V9,
@@ -160,15 +164,25 @@ INSTALLER_PROFILES_V14 = {
 }
 RELEASE_SCRIPTS_V14 = (*INSTALLER_PROFILES_V14, "uninstall.sh")
 INSTALLER_PROFILES_V15 = {
-    "sphere.sh": EXPECTED_PACKAGES_V15,
-    "webdesk.sh": INSTALLER_PROFILES_V14["webdesk.sh"],
-    "sshkit.sh": (
-        *INSTALLER_PROFILES_V14["sshkit.sh"][:3],
-        "mote-secd",
-        *INSTALLER_PROFILES_V14["sshkit.sh"][3:],
+    "sphere.sh": tuple(
+        name for name in EXPECTED_PACKAGES_V15 if name != "ultra-mcp-ssh"
     ),
+    "webdesk.sh": INSTALLER_PROFILES_V14["webdesk.sh"],
+    "sshkit.sh": INSTALLER_PROFILES_V14["sshkit.sh"],
 }
 RELEASE_SCRIPTS_V15 = (*INSTALLER_PROFILES_V15, "uninstall.sh")
+INSTALLER_PROFILES_V16 = {
+    "sphere.sh": tuple(
+        name for name in EXPECTED_PACKAGES_V16 if name != "ultra-mcp-ssh"
+    ),
+    "webdesk.sh": INSTALLER_PROFILES_V15["webdesk.sh"],
+    "sshkit.sh": (
+        *INSTALLER_PROFILES_V15["sshkit.sh"][:3],
+        "mote-secd",
+        *INSTALLER_PROFILES_V15["sshkit.sh"][3:],
+    ),
+}
+RELEASE_SCRIPTS_V16 = (*INSTALLER_PROFILES_V16, "uninstall.sh")
 V10_THREE_SCRIPT_RELEASES = {"5.1.0-6", "5.1.0-7", "5.1.0-8"}
 HEADLESS_PACKAGES = (
     "sphere",
@@ -237,7 +251,11 @@ ENV_PATHS_V14 = {
     "mote-bridge-mcp": ("mote-bridge-mcp-deb.env",),
 }
 ENV_PATHS_V15 = {
-    **ENV_PATHS_V14,
+    **{name: paths for name, paths in ENV_PATHS_V14.items() if name != "cx-pivot"},
+    "cx-node": ("cx-node-deb.env", "cx-node-mchat.env"),
+}
+ENV_PATHS_V16 = {
+    **ENV_PATHS_V15,
     "mote-secd": ("mote-secd-deb.env",),
 }
 MOTE_TRANSPORT_SCHEMA = "mote-transport-public-release/v1"
@@ -378,14 +396,20 @@ def expected_packages(manifest: dict) -> tuple[str, ...]:
         return EXPECTED_PACKAGES_V14
     if manifest.get("schema") == "medge-public-release/v15":
         return EXPECTED_PACKAGES_V15
+    if manifest.get("schema") == "medge-public-release/v16":
+        return EXPECTED_PACKAGES_V16
     raise PublishError("unsupported public release manifest schema")
 
 
-def expected_env_paths(package_name: str) -> list[str]:
+def expected_env_paths(package_name: str, schema: str | None = None) -> list[str]:
+    if schema == "medge-public-release/v16" and package_name in ENV_PATHS_V16:
+        return list(ENV_PATHS_V16[package_name])
+    if schema == "medge-public-release/v15" and package_name in ENV_PATHS_V15:
+        return list(ENV_PATHS_V15[package_name])
     if package_name == "cx-node":
         return []
-    if package_name in ENV_PATHS_V15:
-        return list(ENV_PATHS_V15[package_name])
+    if package_name in ENV_PATHS_V16:
+        return list(ENV_PATHS_V16[package_name])
     if package_name in ENV_PATHS_V12:
         return list(ENV_PATHS_V12[package_name])
     if package_name in ENV_PATHS_V11:
@@ -396,14 +420,14 @@ def expected_env_paths(package_name: str) -> list[str]:
     return paths
 
 
-def validate_env_inputs(package: dict) -> None:
+def validate_env_inputs(package: dict, schema: str | None = None) -> None:
     name = package["name"]
     env_inputs = package.get("env_inputs")
     require(isinstance(env_inputs, list), f"{name}: env_inputs must be an array")
     require(
         [item.get("path") for item in env_inputs if isinstance(item, dict)]
-        == expected_env_paths(name),
-        f"{name}: env_inputs must be {expected_env_paths(name)}",
+        == expected_env_paths(name, schema),
+        f"{name}: env_inputs must be {expected_env_paths(name, schema)}",
     )
     for item in env_inputs:
         require(isinstance(item, dict), f"{name}: env input must be an object")
@@ -429,13 +453,16 @@ def validate_installer_records(manifest: dict) -> None:
         "medge-public-release/v13",
         "medge-public-release/v14",
         "medge-public-release/v15",
+        "medge-public-release/v16",
     }:
         require("installers" not in manifest, "legacy manifest must not carry installers")
         return
     installers = manifest.get("installers")
     if installers is None and manifest.get("medge_version") == "5.1.0-5":
         return
-    if schema == "medge-public-release/v15":
+    if schema == "medge-public-release/v16":
+        expected_names = list(RELEASE_SCRIPTS_V16)
+    elif schema == "medge-public-release/v15":
         expected_names = list(RELEASE_SCRIPTS_V15)
     elif schema == "medge-public-release/v14":
         expected_names = list(RELEASE_SCRIPTS_V14)
@@ -491,6 +518,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v13",
             "medge-public-release/v14",
             "medge-public-release/v15",
+            "medge-public-release/v16",
         },
         "invalid public release manifest schema",
     )
@@ -543,6 +571,7 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v13",
             "medge-public-release/v14",
             "medge-public-release/v15",
+            "medge-public-release/v16",
         }:
             package_fields.add("env_inputs")
         require(
@@ -567,8 +596,9 @@ def validate_manifest(manifest: object) -> dict:
             "medge-public-release/v13",
             "medge-public-release/v14",
             "medge-public-release/v15",
+            "medge-public-release/v16",
         }:
-            validate_env_inputs(package)
+            validate_env_inputs(package, manifest["schema"])
     require_no_gitlab_url_bytes(
         json.dumps(manifest, sort_keys=True).encode("utf-8"),
         "release-manifest.json",
@@ -760,8 +790,11 @@ def validate_bundle(bundle: Path) -> dict:
         "medge-public-release/v13",
         "medge-public-release/v14",
         "medge-public-release/v15",
+        "medge-public-release/v16",
     }:
-        if manifest["schema"] == "medge-public-release/v15":
+        if manifest["schema"] == "medge-public-release/v16":
+            release_scripts = RELEASE_SCRIPTS_V16
+        elif manifest["schema"] == "medge-public-release/v15":
             release_scripts = RELEASE_SCRIPTS_V15
         elif manifest["schema"] == "medge-public-release/v14":
             release_scripts = RELEASE_SCRIPTS_V14
@@ -867,7 +900,7 @@ def validate_tree(root: Path) -> None:
         f"fpr:::::::::{fingerprint}:" in public_keys,
         "public archive key does not match fingerprint",
     )
-    for installer_name in RELEASE_SCRIPTS_V15:
+    for installer_name in RELEASE_SCRIPTS_V16:
         installer = root / installer_name
         require(installer.is_file(), f"public repository is missing {installer_name}")
         require(
@@ -882,7 +915,7 @@ def validate_tree(root: Path) -> None:
         and path.name != "github-setup.sh"
     }
     require(
-        actual_shell_entries == set(RELEASE_SCRIPTS_V15),
+        actual_shell_entries == set(RELEASE_SCRIPTS_V16),
         "public repository must contain exactly the approved release scripts",
     )
     publish_workflow = (root / ".github/workflows/publish-apt.yml").read_text(
@@ -895,10 +928,10 @@ def validate_tree(root: Path) -> None:
         and "release-input/current/uninstall.sh" in publish_workflow,
         "publish workflow must restore all release-asset installer modes",
     )
-    for installer_name in INSTALLER_PROFILES_V15:
+    for installer_name in INSTALLER_PROFILES_V16:
         installer_text = (root / installer_name).read_text(encoding="utf-8")
         for required_text in (
-            "medge-public-release/v15",
+            "medge-public-release/v16",
             fingerprint,
             "release-manifest.json.asc",
             "gpgv --keyring",
@@ -966,7 +999,7 @@ def validate_tree(root: Path) -> None:
 
     uninstall_text = (root / "uninstall.sh").read_text(encoding="utf-8")
     for required_text in (
-        "medge-public-release/v15",
+        "medge-public-release/v16",
         fingerprint,
         "release-manifest.json.asc",
         "gpgv --keyring",
@@ -1065,7 +1098,9 @@ def write_index(
 
     shutil.copy2(repository_root / "medge-archive-keyring.gpg", site)
     shutil.copy2(repository_root / "medge.sources", site)
-    if current_manifest.get("schema") == "medge-public-release/v15":
+    if current_manifest.get("schema") == "medge-public-release/v16":
+        release_scripts = RELEASE_SCRIPTS_V16
+    elif current_manifest.get("schema") == "medge-public-release/v15":
         release_scripts = RELEASE_SCRIPTS_V15
     elif current_manifest.get("schema") == "medge-public-release/v14":
         release_scripts = RELEASE_SCRIPTS_V14
@@ -1099,7 +1134,7 @@ https://motebus.github.io/download/release-manifest.json &amp;&amp;
 curl -fsSLo /tmp/release-manifest.json.asc \
 https://motebus.github.io/download/release-manifest.json.asc &amp;&amp;
 sudo bash /tmp/sphere.sh</pre>
-<p>Profiles: <code>sphere.sh</code> (all), <code>webdesk.sh</code>
+<p>Profiles: <code>sphere.sh</code> (16 of 17; excludes ultra-mcp-ssh), <code>webdesk.sh</code>
 (sphere + ss-webos + mdesk + mlink), and <code>sshkit.sh</code>
 (Mote Transport prerequisites). <code>uninstall.sh</code> performs bounded,
 signed cleanup of the Sphere package boundary.</p>
