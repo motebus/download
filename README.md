@@ -52,9 +52,10 @@ older releases remain immutable historical evidence.
 
 ## Current v14 package set
 
-The latest approved bundle is `medge-v5.4.0-1` under v14. It performs the
-clean Mote Bridge MCP package/server rename while preserving the sixteen-row
-composition and immutable v13 history.
+The latest approved bundle is `medge-v5.4.0-2` under v14. It carries the
+target-selector Mote Transport packages and install-only `sphere.sh`, while
+preserving the clean Mote Bridge MCP package/server rename, the sixteen-row
+composition, and immutable earlier release history.
 
 An approved `medge-public-release/v14` bundle contains these independent Debian
 packages in dependency-safe audit order:
