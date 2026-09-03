@@ -54,11 +54,18 @@ older releases remain immutable historical evidence.
 
 The approved v15 baseline retires `cx-pivot` in favor of `cx-node`, carries
 Mote Bridge MCP 2.1, and keeps its immutable sixteen-row release history. The
-published `medge-v5.6.0-1` release advances to `medge-public-release/v16` and
-adds the component-qualified S/SEC status owner as a seventeenth row. The
-install-only `sphere.sh` profile selects sixteen rows and leaves
-`ultra-mcp-ssh` to the dedicated `sshkit.sh` profile. Publication remains an
-owner-approved, signed `medge-v<version>` operation.
+`medge-v5.6.0-1` release advances to `medge-public-release/v16` and adds the
+component-qualified S/SEC status owner as a seventeenth row. The current
+`medge-v5.6.0-2` patch advances Mote Bridge MCP to 2.2.0-2 while preserving
+that exact package set. The install-only `sphere.sh` profile selects sixteen
+rows and leaves `ultra-mcp-ssh` to the dedicated `sshkit.sh` profile.
+Publication remains an owner-approved, signed `medge-v<version>` operation.
+
+Mote Bridge MCP 2.2 sends Screen and Telegram requests directly through
+Sphere-native MoteBus contracts (`screen://spec` + `screen://mms` and
+`tg://spec` + `tg://mms`). It is a peer of UltraMCP SS and UltraMCP Comm:
+Codex selects one provider directly, Mote Bridge never calls those providers,
+and no MCP provider may call another MCP provider.
 
 The new S component versions admitted by that contract are:
 
