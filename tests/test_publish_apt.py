@@ -20,7 +20,7 @@ SPEC.loader.exec_module(publish_apt)
 
 
 class PublicAptTest(unittest.TestCase):
-    def manifest(self, schema: str = "medge-public-release/v15") -> dict:
+    def manifest(self, schema: str = "medge-public-release/v16") -> dict:
         package_names = {
             "medge-public-release/v4": publish_apt.LEGACY_PACKAGES,
             "medge-public-release/v5": publish_apt.LEGACY_PACKAGES,
@@ -34,6 +34,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v13": publish_apt.EXPECTED_PACKAGES_V13,
             "medge-public-release/v14": publish_apt.EXPECTED_PACKAGES_V14,
             "medge-public-release/v15": publish_apt.EXPECTED_PACKAGES_V15,
+            "medge-public-release/v16": publish_apt.EXPECTED_PACKAGES_V16,
         }[schema]
         packages = []
         for index, name in enumerate(package_names, start=1):
@@ -43,7 +44,7 @@ class PublicAptTest(unittest.TestCase):
                 if name in {
                     "medge", "mote-proxy", "motemcp", "mote-bridge-mcp", "ultra-mcp-ssh",
                     "mcp-run", "mote-sync", "mote-syncd", "chatd", "chat",
-                    "schatd", "schat", "codex-mesh",
+                    "schatd", "schat", "codex-mesh", "mote-secd",
                 }
                 else "amd64"
             )
@@ -63,7 +64,8 @@ class PublicAptTest(unittest.TestCase):
             "schema": schema,
             "status": "approved",
             "medge_version": (
-                "5.5.0-1" if schema == "medge-public-release/v15"
+                "5.6.0-1" if schema == "medge-public-release/v16"
+                else "5.5.0-1" if schema == "medge-public-release/v15"
                 else "5.4.0-1" if schema == "medge-public-release/v14"
                 else "5.3.0-1" if schema == "medge-public-release/v13"
                 else "5.2.0-4" if schema == "medge-public-release/v12"
@@ -85,7 +87,9 @@ class PublicAptTest(unittest.TestCase):
                             "sha256": publish_apt.sha256(MODULE_PATH.parents[1] / name),
                         }
                         for name in (
-                            publish_apt.RELEASE_SCRIPTS_V15
+                            publish_apt.RELEASE_SCRIPTS_V16
+                            if schema == "medge-public-release/v16"
+                            else publish_apt.RELEASE_SCRIPTS_V15
                             if schema == "medge-public-release/v15"
                             else publish_apt.RELEASE_SCRIPTS_V14
                             if schema == "medge-public-release/v14"
@@ -106,6 +110,7 @@ class PublicAptTest(unittest.TestCase):
                     "medge-public-release/v13",
                     "medge-public-release/v14",
                     "medge-public-release/v15",
+                    "medge-public-release/v16",
                 }
                 else {}
             ),
@@ -123,6 +128,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v13",
             "medge-public-release/v14",
             "medge-public-release/v15",
+            "medge-public-release/v16",
         }:
             for package in manifest["packages"]:
                 package["env_inputs"] = [
@@ -341,6 +347,24 @@ class PublicAptTest(unittest.TestCase):
         self.assertEqual(
             [item["path"] for item in cx_node["env_inputs"]],
             ["cx-node-deb.env", "cx-node-mchat.env"],
+        )
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v16_adds_s_channel_owner_without_rewriting_v15(self) -> None:
+        manifest = self.manifest("medge-public-release/v16")
+        names = [package["name"] for package in manifest["packages"]]
+        self.assertEqual(names, list(publish_apt.EXPECTED_PACKAGES_V16))
+        self.assertEqual(names[names.index("mote-proxy") + 1], "mote-secd")
+        self.assertIn("cx-node", names)
+        self.assertNotIn("cx-pivot", names)
+        self.assertIn("mote-secd", publish_apt.INSTALLER_PROFILES_V16["sphere.sh"])
+        self.assertIn("mote-secd", publish_apt.INSTALLER_PROFILES_V16["sshkit.sh"])
+        self.assertNotIn("mote-secd", publish_apt.INSTALLER_PROFILES_V16["webdesk.sh"])
+        self.assertNotIn("ultra-mcp-ssh", publish_apt.INSTALLER_PROFILES_V16["sphere.sh"])
+        secd = next(package for package in manifest["packages"] if package["name"] == "mote-secd")
+        self.assertEqual(
+            [item["path"] for item in secd["env_inputs"]],
+            ["mote-secd-deb.env"],
         )
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
