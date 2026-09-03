@@ -18,7 +18,7 @@ EXPECTED_ALL = (
     "mdesk",
     "ss-webos",
     "mote-proxy",
-    "motemcp",
+    "mote-bridge-mcp",
     "ultra-mcp-ssh",
     "mcp-run",
     "cx-pivot",
@@ -40,7 +40,7 @@ INSTALLERS = {
         "sphere",
         "moted",
         "mote-proxy",
-        "motemcp",
+        "mote-bridge-mcp",
         "ultra-mcp-ssh",
         "mcp-run",
         "mote-sync",
@@ -65,14 +65,14 @@ class InstallContractTest(unittest.TestCase):
             installer = ROOT / filename
             self.assertTrue(installer.stat().st_mode & 0o111)
 
-    def test_installers_have_exact_v13_trust_and_profile_contract(self) -> None:
+    def test_installers_have_exact_v14_trust_and_profile_contract(self) -> None:
         for filename, selected in INSTALLERS.items():
             text = (ROOT / filename).read_text(encoding="utf-8")
             self.assertTrue(text.startswith("#!/usr/bin/env bash\nset -euo pipefail\n"))
             for package_name in EXPECTED_ALL:
                 self.assertIn(f'    "{package_name}",', text)
             for required in (
-                "medge-public-release/v13",
+                "medge-public-release/v14",
                 "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
                 "release-manifest.json.asc",
                 "gpgv --keyring",
@@ -158,7 +158,7 @@ class InstallContractTest(unittest.TestCase):
         for package_name in EXPECTED_ALL:
             self.assertIn(f'    "{package_name}",', text)
         for required in (
-            "medge-public-release/v13",
+            "medge-public-release/v14",
             "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
             "release-manifest.json.asc",
             "gpgv --keyring",
@@ -229,7 +229,8 @@ class InstallContractTest(unittest.TestCase):
         compatibility = COMPATIBILITY.read_text(encoding="utf-8")
         self.assertIn("run_target 24.04", compatibility)
         self.assertIn("run_target 26.04", compatibility)
-        self.assertIn("motemcp_1.1.0-3_all.deb", compatibility)
+        self.assertIn("mote-bridge-mcp_*.deb", compatibility)
+        self.assertIn("! dpkg-query -W motemcp", compatibility)
         self.assertIn("--allow-downgrades", compatibility)
 
 

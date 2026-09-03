@@ -83,7 +83,7 @@ expected = (
     "mdesk",
     "ss-webos",
     "mote-proxy",
-    "motemcp",
+    "mote-bridge-mcp",
     "ultra-mcp-ssh",
     "mcp-run",
     "cx-pivot",
@@ -97,8 +97,8 @@ expected_installers = ("sphere.sh", "webdesk.sh", "sshkit.sh", "uninstall.sh")
 hex64_re = re.compile(r"^[0-9a-f]{64}$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
-if manifest.get("schema") != "medge-public-release/v13":
-    raise SystemExit("release manifest schema is not medge-public-release/v13")
+if manifest.get("schema") != "medge-public-release/v14":
+    raise SystemExit("release manifest schema is not medge-public-release/v14")
 if manifest.get("status") != "approved":
     raise SystemExit("release manifest is not approved")
 if (
