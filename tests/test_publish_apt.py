@@ -20,7 +20,7 @@ SPEC.loader.exec_module(publish_apt)
 
 
 class PublicAptTest(unittest.TestCase):
-    def manifest(self, schema: str = "medge-public-release/v14") -> dict:
+    def manifest(self, schema: str = "medge-public-release/v15") -> dict:
         package_names = {
             "medge-public-release/v4": publish_apt.LEGACY_PACKAGES,
             "medge-public-release/v5": publish_apt.LEGACY_PACKAGES,
@@ -33,6 +33,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v12": publish_apt.EXPECTED_PACKAGES_V12,
             "medge-public-release/v13": publish_apt.EXPECTED_PACKAGES_V13,
             "medge-public-release/v14": publish_apt.EXPECTED_PACKAGES_V14,
+            "medge-public-release/v15": publish_apt.EXPECTED_PACKAGES_V15,
         }[schema]
         packages = []
         for index, name in enumerate(package_names, start=1):
@@ -62,7 +63,8 @@ class PublicAptTest(unittest.TestCase):
             "schema": schema,
             "status": "approved",
             "medge_version": (
-                "5.4.0-1" if schema == "medge-public-release/v14"
+                "5.5.0-1" if schema == "medge-public-release/v15"
+                else "5.4.0-1" if schema == "medge-public-release/v14"
                 else "5.3.0-1" if schema == "medge-public-release/v13"
                 else "5.2.0-4" if schema == "medge-public-release/v12"
                 else "5.2.0-3" if schema == "medge-public-release/v11"
@@ -83,7 +85,9 @@ class PublicAptTest(unittest.TestCase):
                             "sha256": publish_apt.sha256(MODULE_PATH.parents[1] / name),
                         }
                         for name in (
-                            publish_apt.RELEASE_SCRIPTS_V14
+                            publish_apt.RELEASE_SCRIPTS_V15
+                            if schema == "medge-public-release/v15"
+                            else publish_apt.RELEASE_SCRIPTS_V14
                             if schema == "medge-public-release/v14"
                             else publish_apt.RELEASE_SCRIPTS_V13
                             if schema == "medge-public-release/v13"
@@ -101,6 +105,7 @@ class PublicAptTest(unittest.TestCase):
                     "medge-public-release/v12",
                     "medge-public-release/v13",
                     "medge-public-release/v14",
+                    "medge-public-release/v15",
                 }
                 else {}
             ),
@@ -117,11 +122,12 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v12",
             "medge-public-release/v13",
             "medge-public-release/v14",
+            "medge-public-release/v15",
         }:
             for package in manifest["packages"]:
                 package["env_inputs"] = [
                     {"path": path, "sha256": package["sha256"]}
-                    for path in publish_apt.expected_env_paths(package["name"])
+                    for path in publish_apt.expected_env_paths(package["name"], schema)
                 ]
         return manifest
 
@@ -310,6 +316,31 @@ class PublicAptTest(unittest.TestCase):
         self.assertEqual(
             [item["path"] for item in bridge["env_inputs"]],
             ["mote-bridge-mcp-deb.env"],
+        )
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v15_retires_cx_pivot_and_excludes_ultra_mcp_ssh_from_sphere(self) -> None:
+        manifest = self.manifest("medge-public-release/v15")
+        names = [package["name"] for package in manifest["packages"]]
+        self.assertEqual(names, list(publish_apt.EXPECTED_PACKAGES_V15))
+        self.assertIn("cx-node", names)
+        self.assertNotIn("cx-pivot", names)
+        self.assertNotIn(
+            "ultra-mcp-ssh",
+            publish_apt.INSTALLER_PROFILES_V15["sphere.sh"],
+        )
+        self.assertIn(
+            "ultra-mcp-ssh",
+            publish_apt.INSTALLER_PROFILES_V15["sshkit.sh"],
+        )
+        self.assertEqual(
+            publish_apt.INSTALLER_PROFILES_V15["webdesk.sh"],
+            publish_apt.INSTALLER_PROFILES_V14["webdesk.sh"],
+        )
+        cx_node = next(package for package in manifest["packages"] if package["name"] == "cx-node")
+        self.assertEqual(
+            [item["path"] for item in cx_node["env_inputs"]],
+            ["cx-node-deb.env", "cx-node-mchat.env"],
         )
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
