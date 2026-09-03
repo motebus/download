@@ -123,19 +123,17 @@ signature, accepts only the exact Pages `.sources` definition, proves every
 manifest version is present in the signed APT source, performs one APT
 transaction with downgrades allowed only for those exact `name=version` pins,
 and verifies installed versions. It does not admit unpinned downgrades,
-essential-package removal, or held-package changes. Before `sphere.sh` or
-`sshkit.sh` reports success, it also proves the package-owned system OpenSSH
-profile and helper have their exact root ownership and modes and that `ssh -G`
-selects the helper for a typed `.mote` target. The installers do not write user
+essential-package removal, or held-package changes. `sphere.sh` ends after the
+signed package transaction and installed-version checks; it does not perform
+SSH, runtime, transport, or target-connectivity tests. Package maintainer
+scripts own service activation and configuration handling.
+
+Before `sshkit.sh` reports success, it proves the package-owned system OpenSSH
+profile and helper have their exact root ownership and modes, verifies that
+`ssh -G` selects the helper for a typed `.mote` target, and runs the
+manifest-pinned `sphere post-install` command. The installers do not write user
 SSH configuration or duplicate the package-owned proxy rule. They reject any
 GitLab URL in the resolved package plan.
-
-Those two profiles then run the manifest-pinned `sphere post-install` command.
-It emits deterministic PASS/WARN/FAIL results and returns non-zero for an
-essential unit, TCP/6262, relay socket, configuration, or `mote-proxy doctor`
-failure. Its bounded noninteractive `ssh local.mote` smoke uses strict
-host-key checking and is only a warning because registration and trust
-admission can be external to package correctness.
 
 `uninstall.sh` verifies the same signed manifest and fingerprint before any
 destructive action, requires an exact unmodified installer-managed source/key,

@@ -894,26 +894,37 @@ def validate_tree(root: Path) -> None:
                 f"{installer_name} contains forbidden content: {forbidden_text}",
             )
 
-    for installer_name in ("sphere.sh", "sshkit.sh"):
-        installer_text = (root / installer_name).read_text(encoding="utf-8")
-        for required_text in (
-            "verify_mote_proxy_ssh_setup",
-            "/etc/ssh/ssh_config.d/50-mote-proxy.conf",
-            "/usr/libexec/mote-proxy/ssh-proxy",
-            "/usr/bin/ssh -G -F /etc/ssh/ssh_config",
-            "sphere-installer-proxy-check.mote",
-            "automatic *.mote SSH proxy setup is active",
-            "verify_sphere_post_install",
-            "/usr/sbin/sphere post-install",
-            "Sphere essential post-install health checks failed",
-        ):
-            require(
-                required_text in installer_text,
-                f"{installer_name} is missing automatic SSH proxy verification: {required_text}",
-            )
+    installer_text = (root / "sshkit.sh").read_text(encoding="utf-8")
+    for required_text in (
+        "verify_mote_proxy_ssh_setup",
+        "/etc/ssh/ssh_config.d/50-mote-proxy.conf",
+        "/usr/libexec/mote-proxy/ssh-proxy",
+        "/usr/bin/ssh -G -F /etc/ssh/ssh_config",
+        "sphere-installer-proxy-check.mote",
+        "automatic *.mote SSH proxy setup is active",
+        "verify_sphere_post_install",
+        "/usr/sbin/sphere post-install",
+        "Sphere essential post-install health checks failed",
+    ):
         require(
-            "~/.ssh/config" not in installer_text,
-            f"{installer_name} must not write user SSH configuration",
+            required_text in installer_text,
+            f"sshkit.sh is missing automatic SSH proxy verification: {required_text}",
+        )
+    require(
+        "~/.ssh/config" not in installer_text,
+        "sshkit.sh must not write user SSH configuration",
+    )
+
+    sphere_text = (root / "sphere.sh").read_text(encoding="utf-8")
+    for excluded_text in (
+        "verify_mote_proxy_ssh_setup",
+        "verify_sphere_post_install",
+        "/usr/sbin/sphere post-install",
+        "sphere-installer-proxy-check.mote",
+    ):
+        require(
+            excluded_text not in sphere_text,
+            f"sphere.sh must remain install-only: {excluded_text}",
         )
 
     webdesk_text = (root / "webdesk.sh").read_text(encoding="utf-8")
