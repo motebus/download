@@ -119,7 +119,7 @@ class InstallContractTest(unittest.TestCase):
             self.assertNotIn("--allow-remove-essential", text)
             self.assertNotIn("--allow-change-held-packages", text)
 
-    def test_mote_proxy_profiles_verify_automatic_system_ssh_setup(self) -> None:
+    def test_sshkit_verifies_automatic_system_ssh_setup(self) -> None:
         required = (
             "verify_mote_proxy_ssh_setup",
             "/etc/ssh/ssh_config.d/50-mote-proxy.conf",
@@ -133,18 +133,28 @@ class InstallContractTest(unittest.TestCase):
             "/usr/sbin/sphere post-install",
             "Sphere essential post-install health checks failed",
         )
-        for filename in ("sphere.sh", "sshkit.sh"):
-            text = (ROOT / filename).read_text(encoding="utf-8")
-            for contract in required:
-                self.assertIn(contract, text)
-            for forbidden in (
-                "~/.ssh/config",
-                "cat >/etc/ssh/ssh_config",
-                "tee /etc/ssh/ssh_config",
-                "install /etc/ssh/ssh_config",
-            ):
-                self.assertNotIn(forbidden, text)
+        text = (ROOT / "sshkit.sh").read_text(encoding="utf-8")
+        for contract in required:
+            self.assertIn(contract, text)
+        for forbidden in (
+            "~/.ssh/config",
+            "cat >/etc/ssh/ssh_config",
+            "tee /etc/ssh/ssh_config",
+            "install /etc/ssh/ssh_config",
+        ):
+            self.assertNotIn(forbidden, text)
 
+    def test_sphere_is_install_only(self) -> None:
+        text = (ROOT / "sphere.sh").read_text(encoding="utf-8")
+        for excluded in (
+            "verify_mote_proxy_ssh_setup",
+            "verify_sphere_post_install",
+            "/usr/sbin/sphere post-install",
+            "sphere-installer-proxy-check.mote",
+        ):
+            self.assertNotIn(excluded, text)
+
+    def test_webdesk_does_not_verify_mote_proxy_setup(self) -> None:
         webdesk = (ROOT / "webdesk.sh").read_text(encoding="utf-8")
         for excluded in (
             "verify_mote_proxy_ssh_setup",
