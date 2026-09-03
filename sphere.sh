@@ -89,7 +89,23 @@ expected = (
     "schat",
     "codex-mesh",
 )
-selected = tuple(name for name in expected if name != "ultra-mcp-ssh")
+selected = (
+    "sphere",
+    "moted",
+    "medge",
+    "mlink",
+    "mdesk",
+    "ss-webos",
+    "mote-proxy",
+    "mote-bridge-mcp",
+    "mcp-run",
+    "cx-node",
+    "mote-sync",
+    "mote-syncd",
+    "schatd",
+    "schat",
+    "codex-mesh",
+)
 version_re = re.compile(r"^[0-9][0-9A-Za-z.+:~]*-[0-9]+$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
