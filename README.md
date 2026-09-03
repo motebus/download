@@ -50,14 +50,23 @@ as one idempotent inbox record and never re-enters the outbound path. Mote
 Transport releases run this gate in their own GitHub Actions workflow. The
 older releases remain immutable historical evidence.
 
-## Current v14 package set
+## Current v15 package set
 
-The latest approved bundle is `medge-v5.4.0-2` under v14. It carries the
-target-selector Mote Transport packages and install-only `sphere.sh`, while
-preserving the clean Mote Bridge MCP package/server rename, the sixteen-row
-composition, and immutable earlier release history.
+The next bundle contract is `medge-public-release/v15`. It adds the component-
+qualified S/SEC status owner to the target-selector Mote Transport packages
+and install-only `sphere.sh`, while preserving the clean Mote Bridge MCP
+package/server rename and immutable earlier release history. Publication still
+requires an owner-approved, signed `medge-v<version>` release.
 
-An approved `medge-public-release/v14` bundle contains these independent Debian
+The new S component versions admitted by that contract are:
+
+```text
+mote-proxy 1.7.0-1   B/SSH + D/MSG + S/SEC selector enforcement and resolution
+moted      3.3.0-1   B -> sshd; D -> schatd; S -> mote-secd fixed dispatch
+mote-secd  0.1.0-1   S/SEC status owner; authority mutations fail closed
+```
+
+An approved `medge-public-release/v15` bundle contains these independent Debian
 packages in dependency-safe audit order:
 
 ```text
@@ -68,6 +77,7 @@ mlink
 mdesk
 ss-webos
 mote-proxy
+mote-secd
 mote-bridge-mcp
 ultra-mcp-ssh
 mcp-run
@@ -103,10 +113,10 @@ There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 ## Clean break
 
 The current signed release surface contains exactly four scripts:
-`sphere.sh` for all sixteen packages, `webdesk.sh` for
+`sphere.sh` for all seventeen packages, `webdesk.sh` for
 `sphere + mlink + mdesk + ss-webos`, and `sshkit.sh` for
-`sphere + moted + mote-proxy + mote-bridge-mcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + schatd + schat`.
-`uninstall.sh` performs a bounded purge of the approved sixteen-package set
+`sphere + moted + mote-proxy + mote-secd + mote-bridge-mcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + schatd + schat`.
+`uninstall.sh` performs a bounded purge of the approved seventeen-package set
 and the exact installer-managed APT source/key. All former
 `install*.sh` and `*-install.sh` entries are retired without aliases.
 Existing tags and release assets remain immutable historical evidence; they
@@ -114,10 +124,10 @@ are not copied into the new Pages site.
 
 ## Trust chain
 
-The protected private owner creates a v14 bundle from exact private-source `main` or an
+The protected private owner creates a v15 bundle from exact private-source `main` or an
 explicitly approved immutable rollback tag. This repository then:
 
-1. validates the exact sixteen-package manifest, assets, SHA-256 checksums, env
+1. validates the exact seventeen-package manifest, assets, SHA-256 checksums, env
    provenance, and the four executable release scripts;
 2. installs the bundle in pinned Ubuntu 24.04 and 26.04 amd64 containers;
 3. constructs the APT index from only that approved bundle;
@@ -146,13 +156,13 @@ GitLab URL in the resolved package plan.
 `uninstall.sh` verifies the same signed manifest and fingerprint before any
 destructive action, requires an exact unmodified installer-managed source/key,
 and simulates APT purge first. It refuses a plan that would remove anything
-outside the sixteen signed package identities. It does not run `autoremove`,
+outside the seventeen signed package identities. It does not run `autoremove`,
 recursively delete paths, or remove user data, SSH identities, Obsidian vaults,
 unrelated packages, or non-Sphere services. After the package purge it removes
 the exact package-owned `/etc/ssh/ssh_config.d/50-mote-proxy.conf` profile; a
 modified or symlinked profile is preserved and causes a visible failure.
 
-After an approved v14 release has completed the Pages workflow, an ordinary
+After an approved v15 release has completed the Pages workflow, an ordinary
 interactive operator may install with:
 
 ```bash
