@@ -54,11 +54,11 @@ older releases remain immutable historical evidence.
 
 The approved v15 baseline retires `cx-pivot` in favor of `cx-node`, carries
 Mote Bridge MCP 2.1, and keeps its immutable sixteen-row release history. The
-next `medge-public-release/v16` contract adds the component-qualified S/SEC
-status owner as a seventeenth row. The install-only `sphere.sh` profile selects
-sixteen rows and leaves `ultra-mcp-ssh` to the dedicated `sshkit.sh` profile.
-Publication still requires an owner-approved, signed `medge-v<version>`
-release.
+published `medge-v5.6.0-1` release advances to `medge-public-release/v16` and
+adds the component-qualified S/SEC status owner as a seventeenth row. The
+install-only `sphere.sh` profile selects sixteen rows and leaves
+`ultra-mcp-ssh` to the dedicated `sshkit.sh` profile. Publication remains an
+owner-approved, signed `medge-v<version>` operation.
 
 The new S component versions admitted by that contract are:
 
