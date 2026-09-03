@@ -55,6 +55,11 @@ function validateManifest(assetsDir, packages) {
   assert.equal(manifest.schema, "mote-transport-dual-channel-public-release/v2");
   assert.equal(manifest.status, "component-qualified");
   assert.equal(manifest.transport?.direct_schat_to_proxy, false);
+  assert.deepEqual(manifest.transport?.target_selectors, {
+    ".local": { B: "direct-ssh", D: "rejected", resolution: "lan-mdns" },
+    ".mote": { B: "mote-proxy", D: "mote-proxy", resolution: "motec-type-moted" },
+    ".mma": { B: "mote-proxy", D: "mote-proxy", resolution: "direct-strip-suffix" },
+  });
   assert.equal(manifest.runtime_acceptance, "pending-endpoint-e2e");
   assert.equal(manifest.packages?.length, EXPECTED_PACKAGES.length);
   for (const pkg of packages.values()) {
@@ -114,6 +119,8 @@ async function verify(assetsDir) {
     const schat = moduleFrom(roots, "schat", "usr/lib/schat/client.js");
     const schatd = moduleFrom(roots, "schatd", "usr/lib/schatd/runtime.js");
     const proxyModule = moduleFrom(roots, "mote-proxy", "usr/lib/mote-proxy/msg-runtime.js");
+    const proxyRuntimeModule = moduleFrom(roots, "mote-proxy", "usr/lib/mote-proxy/proxy-runtime.js");
+    const selectorModule = moduleFrom(roots, "mote-proxy", "usr/lib/mote-proxy/motec-resolution.js");
     const moted = moduleFrom(roots, "moted", "usr/lib/moted/msg-dispatch-runtime.js");
 
     assert.equal(schat.APP_SCHEMA, schatd.APP_SCHEMA);
@@ -127,6 +134,60 @@ async function verify(assetsDir) {
     );
     assert.equal(schatSource.includes("mote-proxy/msg.sock"), false);
     assert.equal(schatSource.includes("mote-proxy.local-msg"), false);
+
+    const sshConfig = fs.readFileSync(
+      path.join(roots.get("mote-proxy"), "etc/ssh/ssh_config.d/50-mote-proxy.conf"), "utf8",
+    );
+    assert.match(sshConfig, /^Host \*\.mote \*\.mma$/m);
+    assert.equal(sshConfig.includes("*.local"), false);
+
+    assert.deepEqual(selectorModule.selectorFromTarget("medge-tv.mote"), {
+      kind: "mote",
+      local: false,
+      nodeKey: "medge-tv",
+    });
+    assert.deepEqual(selectorModule.selectorFromTarget("ops.edge.mma"), {
+      kind: "mma",
+      local: false,
+      targetMma: "ops.edge",
+    });
+    for (const invalid of ["medge-tv.local", "edge.mma", "1.2.mma", "local.edge.mma"]) {
+      assert.throws(() => selectorModule.selectorFromTarget(invalid));
+      assert.throws(() => schat.validateTarget(invalid));
+      assert.throws(() => schatd.validateTarget(invalid));
+    }
+    assert.equal(schat.validateTarget("medge-tv.mote"), "medge-tv.mote");
+    assert.equal(schat.validateTarget("ops.edge.mma"), "ops.edge.mma");
+    assert.equal(schatd.validateTarget("medge-tv.mote"), "medge-tv.mote");
+    assert.equal(schatd.validateTarget("ops.edge.mma"), "ops.edge.mma");
+
+    const motecCalls = [];
+    const selectorRuntime = new proxyRuntimeModule.ProxyRuntime({
+      socketPath: path.join(temporaryRoot, "selector.sock"),
+      sourceMma: "dc/edge/mote-proxy-app",
+      call: async (...args) => {
+        motecCalls.push(args);
+        return {
+          ErrCode: 0,
+          result: {
+            ErrMsg: "OK",
+            Data: { result: { observed_mma: "dc/edge/moted-app" } },
+          },
+        };
+      },
+    });
+    assert.deepEqual(await selectorRuntime.resolve("ops.edge.mma"), { targetMma: "ops.edge" });
+    assert.equal(motecCalls.length, 0);
+    assert.deepEqual(await selectorRuntime.resolve("medge-tv.mote"), {
+      targetMma: "dc/edge/moted-app",
+    });
+    assert.equal(motecCalls.length, 1);
+    assert.equal(motecCalls[0][0], "rc/motec");
+    assert.equal(motecCalls[0][1], "rc://mms");
+    assert.deepEqual(motecCalls[0][2].payload, {
+      op: "rc.query",
+      args: { type: "moted", key: "medge-tv" },
+    });
 
     const runtimeRoot = path.join(temporaryRoot, "runtime");
     const localAppSocket = path.join(runtimeRoot, "local/schatd/apps.sock");
@@ -301,6 +362,10 @@ async function verify(assetsDir) {
         open_local_app_socket_and_protected_ingress: "passed",
         d_failure_containment: "passed",
         schat_proxy_bypass_absent: "passed",
+        target_selector_contract: "passed",
+        local_ssh_proxy_bypass: "passed",
+        direct_mma_without_motec: "passed",
+        mote_motec_type_moted: "passed",
       },
     };
   } finally {

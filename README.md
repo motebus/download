@@ -5,18 +5,25 @@ for the Sphere/Mote Transport Debian aggregate. Private implementation source,
 GitLab addresses, credentials, topology, source packages, and loose env files
 are forbidden here.
 
-## Mote Transport Dual Channel schat v0.3
+## Mote Transport target selectors
 
-The standalone GitHub release `mote-transport-v2026.09.02-5` adds a live
-interactive Schat handshake and includes the SchatD service-start repair in
-the component-qualified Dual Channel binary bundle:
+The standalone GitHub release `mote-transport-v2026.09.03-1` publishes the
+component-qualified target-selector bundle:
 
 ```text
-mote-proxy 1.5.0-5   B/SSH + schat D/MSG send and live-connect ingress
+mote-proxy 1.6.0-1   B/SSH + D/MSG selector enforcement and resolution
 moted      3.2.0-42  B -> sshd; D connect/send -> target schatd
-schat      0.2.0-6   print ready to chat only after target SchatD responds
-schatd     0.2.0-6   start both local sockets; ready without an inbox write
+schat      0.6.0-1   accept .mote/.mma and reject .local D/MSG targets
+schatd     0.4.0-1   enforce the same D/MSG target policy
 ```
+
+`host.local` remains ordinary OpenSSH LAN/mDNS addressing for B/SSH only and
+is never intercepted by Mote Proxy. `host.mote` provides B/SSH and D/MSG
+through Mote Proxy and is the only selector that queries MoteC with
+`rc.query type=moted`. A lower-case `xxx.xxx.mma` provides B/SSH and D/MSG by
+stripping only the final `.mma` and using exact `xxx.xxx` as the MMA, without
+querying MoteC. There is no suffix conversion or fallback, and callers cannot
+supply raw MMA transport fields.
 
 The canonical application path is `schat -> local schatd -> local mote-proxy ->
 D/MSG -> target moted -> remote schatd -> remote schat`. Interactive commands
