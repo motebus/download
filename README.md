@@ -12,7 +12,7 @@ component-qualified target-selector bundle:
 
 ```text
 mote-proxy 1.6.0-1   B/SSH + D/MSG selector enforcement and resolution
-moted      3.2.0-42  B -> sshd; D connect/send -> target schatd
+moted      3.2.0-44  B -> sshd; D connect/send -> target schatd app inbox
 schat      0.6.0-1   accept .mote/.mma and reject .local D/MSG targets
 schatd     0.4.0-1   enforce the same D/MSG target policy
 ```
