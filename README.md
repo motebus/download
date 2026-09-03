@@ -7,7 +7,7 @@ are forbidden here.
 
 ## Mote Transport target selectors
 
-The standalone GitHub release `mote-transport-v2026.09.03-1` publishes the
+The standalone GitHub release `mote-transport-v2026.09.03-2` publishes the
 component-qualified target-selector bundle:
 
 ```text
