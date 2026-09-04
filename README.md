@@ -72,8 +72,8 @@ The new S component versions admitted by that contract are:
 mote-proxy 1.7.0-1   B/SSH + S/SEC selector enforcement and resolution
 moted      3.3.0-1   B -> sshd; S -> mote-secd fixed dispatch
 mote-secd  0.1.0-1   S/SEC status owner; authority mutations fail closed
-mote-chatd 1.0.0-2   independent native D/MSG portal using Sphere loopback
-uchat      1.0.0-3   home/UChat aliases for the general-inbox TUI
+mote-chatd 1.0.0-4   moted lookup plus canonical UChat and read-only aggregate view
+uchat      1.0.0-4   app=uchat default; home/general aliases; /app view
 ```
 
 An approved `medge-public-release/v17` bundle contains these independent Debian
