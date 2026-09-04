@@ -72,7 +72,7 @@ The new S component versions admitted by that contract are:
 mote-proxy 1.7.0-1   B/SSH + S/SEC selector enforcement and resolution
 moted      3.3.0-1   B -> sshd; S -> mote-secd fixed dispatch
 mote-secd  0.1.0-1   S/SEC status owner; authority mutations fail closed
-mote-chatd 1.0.0-1   independent native D/MSG portal with app inbox views
+mote-chatd 1.0.0-2   independent native D/MSG portal using Sphere loopback
 uchat      1.0.0-1   Ultranet Chat TUI over the local mote-chatd boundary
 ```
 
