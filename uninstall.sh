@@ -90,16 +90,16 @@ expected = (
     "cx-node",
     "mote-sync",
     "mote-syncd",
-    "schatd",
-    "schat",
+    "mote-chatd",
+    "uchat",
     "codex-mesh",
 )
 expected_installers = ("sphere.sh", "webdesk.sh", "sshkit.sh", "uninstall.sh")
 hex64_re = re.compile(r"^[0-9a-f]{64}$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
-if manifest.get("schema") != "medge-public-release/v16":
-    raise SystemExit("release manifest schema is not medge-public-release/v16")
+if manifest.get("schema") != "medge-public-release/v17":
+    raise SystemExit("release manifest schema is not medge-public-release/v17")
 if manifest.get("status") != "approved":
     raise SystemExit("release manifest is not approved")
 if (
