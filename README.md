@@ -60,14 +60,17 @@ profile selects sixteen
 rows and leaves `ultra-mcp-ssh` to the dedicated `sshkit.sh` profile.
 Publication remains an owner-approved, signed `medge-v<version>` operation.
 
-Mote Bridge MCP 2.3 sends Screen and Telegram requests directly through
+Mote Bridge MCP 2.3.1 sends Screen and Telegram requests directly through
 Sphere-native MoteBus contracts (`screen://spec` + `screen://mms` and
 `tg://spec` + `tg://mms`). It is a peer of UltraMCP SS and UltraMCP Comm:
 Codex selects one provider directly, Mote Bridge never calls those providers,
-and no MCP provider may call another MCP provider. After an authoritative
-`codex_mesh_send` is accepted and is not a duplicate, Mote Bridge mirrors its
-summary and packet identity to the registered `*codex-mesh` Telegram target;
-mirror failure remains non-authoritative and never retries the Mesh delivery.
+and no MCP provider may call another MCP provider. It does not mirror outbound
+Codex Mesh sends. After `mote-chatd` durably commits a new, non-duplicate
+`app=codex` inbox record, its internal `inbox-mirror` publishes an
+`event/codex-inbox` event through logical `rc/broker`. Ehandle subscribes to
+that event and sends the summary and packet identity through Comm's registered
+`*codex-mesh` Telegram target. Operational logs remain local; mirror failure is
+non-authoritative and never retries or rolls back inbox acceptance.
 
 The new S component versions admitted by that contract are:
 
@@ -75,7 +78,7 @@ The new S component versions admitted by that contract are:
 mote-proxy 1.7.0-1   B/SSH + S/SEC selector enforcement and resolution
 moted      3.3.0-1   B -> sshd; S -> mote-secd fixed dispatch
 mote-secd  0.1.0-1   S/SEC status owner; authority mutations fail closed
-mote-chatd 1.0.0-5   moted boundary lookup and direct tg://mms chat-portal routing
+mote-chatd 1.1.0-1   durable app inbox plus post-commit event/codex-inbox publication
 uchat      1.0.0-4   app=uchat default; home/general aliases; /app view
 ```
 
