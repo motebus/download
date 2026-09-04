@@ -20,7 +20,7 @@ SPEC.loader.exec_module(publish_apt)
 
 
 class PublicAptTest(unittest.TestCase):
-    def manifest(self, schema: str = "medge-public-release/v16") -> dict:
+    def manifest(self, schema: str = "medge-public-release/v17") -> dict:
         package_names = {
             "medge-public-release/v4": publish_apt.LEGACY_PACKAGES,
             "medge-public-release/v5": publish_apt.LEGACY_PACKAGES,
@@ -35,6 +35,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v14": publish_apt.EXPECTED_PACKAGES_V14,
             "medge-public-release/v15": publish_apt.EXPECTED_PACKAGES_V15,
             "medge-public-release/v16": publish_apt.EXPECTED_PACKAGES_V16,
+            "medge-public-release/v17": publish_apt.EXPECTED_PACKAGES_V17,
         }[schema]
         packages = []
         for index, name in enumerate(package_names, start=1):
@@ -44,7 +45,7 @@ class PublicAptTest(unittest.TestCase):
                 if name in {
                     "medge", "mote-proxy", "motemcp", "mote-bridge-mcp", "ultra-mcp-ssh",
                     "mcp-run", "mote-sync", "mote-syncd", "chatd", "chat",
-                    "schatd", "schat", "codex-mesh", "mote-secd",
+                    "schatd", "schat", "mote-chatd", "uchat", "codex-mesh", "mote-secd",
                 }
                 else "amd64"
             )
@@ -64,7 +65,8 @@ class PublicAptTest(unittest.TestCase):
             "schema": schema,
             "status": "approved",
             "medge_version": (
-                "5.6.0-1" if schema == "medge-public-release/v16"
+                "5.7.0-1" if schema == "medge-public-release/v17"
+                else "5.6.0-1" if schema == "medge-public-release/v16"
                 else "5.5.0-1" if schema == "medge-public-release/v15"
                 else "5.4.0-1" if schema == "medge-public-release/v14"
                 else "5.3.0-1" if schema == "medge-public-release/v13"
@@ -87,7 +89,9 @@ class PublicAptTest(unittest.TestCase):
                             "sha256": publish_apt.sha256(MODULE_PATH.parents[1] / name),
                         }
                         for name in (
-                            publish_apt.RELEASE_SCRIPTS_V16
+                            publish_apt.RELEASE_SCRIPTS_V17
+                            if schema == "medge-public-release/v17"
+                            else publish_apt.RELEASE_SCRIPTS_V16
                             if schema == "medge-public-release/v16"
                             else publish_apt.RELEASE_SCRIPTS_V15
                             if schema == "medge-public-release/v15"
@@ -111,6 +115,7 @@ class PublicAptTest(unittest.TestCase):
                     "medge-public-release/v14",
                     "medge-public-release/v15",
                     "medge-public-release/v16",
+                    "medge-public-release/v17",
                 }
                 else {}
             ),
@@ -129,6 +134,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v14",
             "medge-public-release/v15",
             "medge-public-release/v16",
+            "medge-public-release/v17",
         }:
             for package in manifest["packages"]:
                 package["env_inputs"] = [
@@ -366,6 +372,25 @@ class PublicAptTest(unittest.TestCase):
             [item["path"] for item in secd["env_inputs"]],
             ["mote-secd-deb.env"],
         )
+        self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v17_replaces_schat_packages_without_rewriting_v16(self) -> None:
+        manifest = self.manifest("medge-public-release/v17")
+        names = [package["name"] for package in manifest["packages"]]
+        self.assertEqual(names, list(publish_apt.EXPECTED_PACKAGES_V17))
+        self.assertIn("mote-chatd", names)
+        self.assertIn("uchat", names)
+        self.assertNotIn("schatd", names)
+        self.assertNotIn("schat", names)
+        self.assertIn("mote-chatd", publish_apt.INSTALLER_PROFILES_V17["sphere.sh"])
+        self.assertIn("uchat", publish_apt.INSTALLER_PROFILES_V17["sshkit.sh"])
+        chatd = next(package for package in manifest["packages"] if package["name"] == "mote-chatd")
+        self.assertEqual(
+            [item["path"] for item in chatd["env_inputs"]],
+            ["mote-chatd-deb.env", "mote-chatd-mchat.env"],
+        )
+        uchat = next(package for package in manifest["packages"] if package["name"] == "uchat")
+        self.assertEqual(uchat["env_inputs"], [])
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
 
     def test_v10_manifest_rejects_retired_installer_name(self) -> None:

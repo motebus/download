@@ -50,14 +50,13 @@ as one idempotent inbox record and never re-enters the outbound path. Mote
 Transport releases run this gate in their own GitHub Actions workflow. The
 older releases remain immutable historical evidence.
 
-## Current v16 package set
+## Current v17 package set
 
-The approved v15 baseline retires `cx-pivot` in favor of `cx-node`, carries
-Mote Bridge MCP 2.1, and keeps its immutable sixteen-row release history. The
-`medge-v5.6.0-1` release advances to `medge-public-release/v16` and adds the
-component-qualified S/SEC status owner as a seventeenth row. The current
-`medge-v5.6.0-2` patch advances Mote Bridge MCP to 2.2.0-2 while preserving
-that exact package set. The install-only `sphere.sh` profile selects sixteen
+The immutable v16 baseline adds the component-qualified S/SEC status owner and
+Mote Bridge MCP 2.2. The `medge-public-release/v17` contract replaces the
+retired Schat package names with `mote-chatd` and `uchat`, and advances Codex
+Mesh to its `mote-chatd` app inbox boundary. The install-only `sphere.sh`
+profile selects sixteen
 rows and leaves `ultra-mcp-ssh` to the dedicated `sshkit.sh` profile.
 Publication remains an owner-approved, signed `medge-v<version>` operation.
 
@@ -70,12 +69,14 @@ and no MCP provider may call another MCP provider.
 The new S component versions admitted by that contract are:
 
 ```text
-mote-proxy 1.7.0-1   B/SSH + D/MSG + S/SEC selector enforcement and resolution
-moted      3.3.0-1   B -> sshd; D -> schatd; S -> mote-secd fixed dispatch
+mote-proxy 1.7.0-1   B/SSH + S/SEC selector enforcement and resolution
+moted      3.3.0-1   B -> sshd; S -> mote-secd fixed dispatch
 mote-secd  0.1.0-1   S/SEC status owner; authority mutations fail closed
+mote-chatd 1.0.0-1   independent native D/MSG portal with app inbox views
+uchat      1.0.0-1   Ultranet Chat TUI over the local mote-chatd boundary
 ```
 
-An approved `medge-public-release/v16` bundle contains these independent Debian
+An approved `medge-public-release/v17` bundle contains these independent Debian
 packages in dependency-safe audit order:
 
 ```text
@@ -93,8 +94,8 @@ mcp-run
 cx-node
 mote-sync
 mote-syncd
-schatd
-schat
+mote-chatd
+uchat
 codex-mesh
 ```
 
@@ -108,7 +109,8 @@ Server, Redixs, and every other OCI-only service are excluded; `ss-webos` is
 the independent Debian client runtime and remains included.
 
 The five B/SSH service rows are SSH, SFTP, Git, MCP over SSH, and Sync for an
-Obsidian Vault. D/MSG adds Schat through `schatd` and `schat`. Install Sphere provides their approved Debian
+Obsidian Vault. D/MSG adds UChat through `mote-chatd` and `uchat`, independent
+of MoteD and Mote Proxy. Install Sphere provides their approved Debian
 package prerequisites, but it never discovers, creates, selects, modifies, or
 copies a Vault. Vault pairing and runtime Sync acceptance remain separate
 post-install operations owned by `mote-sync` and `mote-syncd`.
@@ -127,7 +129,7 @@ The current signed release surface contains exactly four scripts:
 `sphere.sh` for sixteen packages (all catalog rows except `ultra-mcp-ssh`),
 `webdesk.sh` for
 `sphere + mlink + mdesk + ss-webos`, and `sshkit.sh` for
-`sphere + moted + mote-proxy + mote-secd + mote-bridge-mcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + schatd + schat`.
+`sphere + moted + mote-proxy + mote-secd + mote-bridge-mcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + mote-chatd + uchat`.
 `uninstall.sh` performs a bounded purge of the approved seventeen-package set
 and the exact installer-managed APT source/key. All former
 `install*.sh` and `*-install.sh` entries are retired without aliases.
@@ -136,7 +138,7 @@ are not copied into the new Pages site.
 
 ## Trust chain
 
-The protected private owner creates a v16 bundle from exact private-source `main` or an
+The protected private owner creates a v17 bundle from exact private-source `main` or an
 explicitly approved immutable rollback tag. This repository then:
 
 1. validates the exact seventeen-package manifest, assets, SHA-256 checksums, env
