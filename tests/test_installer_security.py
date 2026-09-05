@@ -339,6 +339,7 @@ ORIGINAL_UMASK="$(umask)"
 umask 077
 mapfile -t PACKAGE_RECORDS <"$TEST_SELECTION"
 cp "$TEST_SELECTION" "$TEMP_DIR/package-plan"
+dpkg-query() { return 1; }
 apt-get() {
     printf '%s\n' "$*" >>"$TEST_LOG"
     [[ " $* " == *' update '* ]] && return 0
@@ -410,6 +411,26 @@ apt-get() {
         self.assertNotEqual(guarded.returncode, 0)
         self.assertIn("remove is disabled", guarded.stderr)
         self.assertEqual(status.read_text(), original)
+
+    def test_locked_apt_hook_allows_only_the_physical_sphere_replacement(self) -> None:
+        for filename in INSTALLERS:
+            text = (ROOT / filename).read_text()
+            code = text.split("<<'PY_REMOVAL'\n", 1)[1].split("\nPY_REMOVAL\n", 1)[0]
+            for actions, accepted in [
+                ("sphere 4.0.0-2 > - **REMOVE**\nsphered - < 4.1.0-1 /tmp/sphered.deb\n", True),
+                ("unrelated 1.0-1 > - **REMOVE**\n", False),
+                ("sphere 4.0.0-2 > - **REMOVE**\nunrelated 1.0-1 > - **REMOVE**\n", False),
+                ("sphere - = - **REMOVE**\n", False),
+                ("sphere 1 = 1 **PURGE**\n", False),
+            ]:
+                with self.subTest(filename=filename, actions=actions):
+                    result = subprocess.run([sys.executable, "-c", code],
+                        input="VERSION 2\nAPT::Architecture=amd64\n\n" + actions,
+                        text=True, capture_output=True)
+                    self.assertEqual(result.returncode == 0, accepted, result.stderr)
+            result = subprocess.run([sys.executable, "-c", code], input="/tmp/sphered.deb\n",
+                                    text=True, capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
 
     def test_retired_install_entry_is_not_restored(self) -> None:
         self.assertFalse((ROOT / "install.sh").exists())

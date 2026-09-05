@@ -20,7 +20,7 @@ SPEC.loader.exec_module(publish_apt)
 
 
 class PublicAptTest(unittest.TestCase):
-    def manifest(self, schema: str = "medge-public-release/v17") -> dict:
+    def manifest(self, schema: str = "medge-public-release/v18") -> dict:
         package_names = {
             "medge-public-release/v4": publish_apt.LEGACY_PACKAGES,
             "medge-public-release/v5": publish_apt.LEGACY_PACKAGES,
@@ -36,6 +36,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v15": publish_apt.EXPECTED_PACKAGES_V15,
             "medge-public-release/v16": publish_apt.EXPECTED_PACKAGES_V16,
             "medge-public-release/v17": publish_apt.EXPECTED_PACKAGES_V17,
+            "medge-public-release/v18": publish_apt.EXPECTED_PACKAGES_V18,
         }[schema]
         packages = []
         for index, name in enumerate(package_names, start=1):
@@ -65,7 +66,8 @@ class PublicAptTest(unittest.TestCase):
             "schema": schema,
             "status": "approved",
             "medge_version": (
-                "5.7.0-1" if schema == "medge-public-release/v17"
+                "5.8.0-1" if schema == "medge-public-release/v18"
+                else "5.7.0-1" if schema == "medge-public-release/v17"
                 else "5.6.0-1" if schema == "medge-public-release/v16"
                 else "5.5.0-1" if schema == "medge-public-release/v15"
                 else "5.4.0-1" if schema == "medge-public-release/v14"
@@ -89,7 +91,9 @@ class PublicAptTest(unittest.TestCase):
                             "sha256": publish_apt.sha256(MODULE_PATH.parents[1] / name),
                         }
                         for name in (
-                            publish_apt.RELEASE_SCRIPTS_V17
+                            publish_apt.RELEASE_SCRIPTS_V18
+                            if schema == "medge-public-release/v18"
+                            else publish_apt.RELEASE_SCRIPTS_V17
                             if schema == "medge-public-release/v17"
                             else publish_apt.RELEASE_SCRIPTS_V16
                             if schema == "medge-public-release/v16"
@@ -116,6 +120,7 @@ class PublicAptTest(unittest.TestCase):
                     "medge-public-release/v15",
                     "medge-public-release/v16",
                     "medge-public-release/v17",
+                    "medge-public-release/v18",
                 }
                 else {}
             ),
@@ -135,6 +140,7 @@ class PublicAptTest(unittest.TestCase):
             "medge-public-release/v15",
             "medge-public-release/v16",
             "medge-public-release/v17",
+            "medge-public-release/v18",
         }:
             for package in manifest["packages"]:
                 package["env_inputs"] = [
@@ -392,6 +398,20 @@ class PublicAptTest(unittest.TestCase):
         uchat = next(package for package in manifest["packages"] if package["name"] == "uchat")
         self.assertEqual(uchat["env_inputs"], [])
         self.assertEqual(publish_apt.validate_manifest(manifest), manifest)
+
+    def test_v18_renames_foundation_and_preserves_v17_evidence(self) -> None:
+        current = self.manifest("medge-public-release/v18")
+        old = self.manifest("medge-public-release/v17")
+        self.assertEqual(publish_apt.validate_manifest(current), current)
+        self.assertEqual(publish_apt.validate_manifest(old), old)
+        self.assertEqual(current["packages"][0]["name"], "sphered")
+        self.assertEqual(old["packages"][0]["name"], "sphere")
+        self.assertEqual(publish_apt.expected_env_paths("sphered", current["schema"]), ["sphered-deb.env"])
+        self.assertEqual(publish_apt.expected_env_paths("mote-bridge-mcp", current["schema"]),
+                         ["mote-bridge-mcp-deb.env", "mote-bridge-mcp-mchat.env"])
+        current["packages"][0]["name"] = "sphere"
+        with self.assertRaises(publish_apt.PublishError):
+            publish_apt.validate_manifest(current)
 
     def test_v10_manifest_rejects_retired_installer_name(self) -> None:
         manifest = self.manifest("medge-public-release/v10")

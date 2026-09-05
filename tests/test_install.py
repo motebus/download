@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).parents[1]
 COMPATIBILITY = ROOT / "scripts/validate-ubuntu-compatibility.sh"
 EXPECTED_ALL = (
-    "sphere",
+    "sphered",
     "moted",
     "medge",
     "mlink",
@@ -32,13 +32,13 @@ EXPECTED_ALL = (
 INSTALLERS = {
     "sphere.sh": tuple(name for name in EXPECTED_ALL if name != "ultra-mcp-ssh"),
     "webdesk.sh": (
-        "sphere",
+        "sphered",
         "mlink",
         "mdesk",
         "ss-webos",
     ),
     "sshkit.sh": (
-        "sphere",
+        "sphered",
         "moted",
         "mote-proxy",
         "mote-secd",
@@ -67,14 +67,14 @@ class InstallContractTest(unittest.TestCase):
             installer = ROOT / filename
             self.assertTrue(installer.stat().st_mode & 0o111)
 
-    def test_installers_have_exact_v17_trust_and_profile_contract(self) -> None:
+    def test_installers_have_exact_v18_trust_and_profile_contract(self) -> None:
         for filename, selected in INSTALLERS.items():
             text = (ROOT / filename).read_text(encoding="utf-8")
             self.assertTrue(text.startswith("#!/usr/bin/env bash\nset -euo pipefail\n"))
             for package_name in EXPECTED_ALL:
                 self.assertIn(f'    "{package_name}",', text)
             for required in (
-                "medge-public-release/v17",
+                "medge-public-release/v18",
                 "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
                 "release-manifest.json.asc",
                 "gpgv --keyring",
@@ -121,7 +121,7 @@ class InstallContractTest(unittest.TestCase):
             text = (ROOT / filename).read_text(encoding="utf-8")
             self.assertIn('PACKAGE_ARGS+=("$package_name=$package_version")', text)
             self.assertEqual(text.count("--allow-downgrades"), 3)
-            self.assertEqual(text.count("--no-remove"), 3)
+            self.assertEqual(text.count("--no-remove"), 1)
             self.assertEqual(text.count("--reinstall"), 3)
             self.assertNotIn("--allow-remove-essential", text)
             self.assertNotIn("--allow-change-held-packages", text)
@@ -137,7 +137,7 @@ class InstallContractTest(unittest.TestCase):
             "root:root:755",
             "automatic *.mote SSH proxy setup is active",
             "verify_sphere_post_install",
-            "/usr/sbin/sphere post-install",
+            "/usr/sbin/sphered post-install",
             "Sphere essential post-install health checks failed",
         )
         text = (ROOT / "sshkit.sh").read_text(encoding="utf-8")
@@ -156,7 +156,7 @@ class InstallContractTest(unittest.TestCase):
         for excluded in (
             "verify_mote_proxy_ssh_setup",
             "verify_sphere_post_install",
-            "/usr/sbin/sphere post-install",
+            "/usr/sbin/sphered post-install",
             "sphere-installer-proxy-check.mote",
         ):
             self.assertNotIn(excluded, text)
@@ -175,7 +175,7 @@ class InstallContractTest(unittest.TestCase):
         for package_name in EXPECTED_ALL:
             self.assertIn(f'    "{package_name}",', text)
         for required in (
-            "medge-public-release/v17",
+            "medge-public-release/v18",
             "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
             "release-manifest.json.asc",
             "gpgv --keyring",

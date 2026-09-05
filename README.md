@@ -50,15 +50,19 @@ as one idempotent inbox record and never re-enters the outbound path. Mote
 Transport releases run this gate in their own GitHub Actions workflow. The
 older releases remain immutable historical evidence.
 
-## Current v17 package set
+## Current v18 package set
 
-The immutable v16 baseline adds the component-qualified S/SEC status owner and
-Mote Bridge MCP 2.2. The `medge-public-release/v17` contract replaces the
-retired Schat package names with `mote-chatd` and `uchat`, and advances Codex
-Mesh to its `mote-chatd` app inbox boundary. The install-only `sphere.sh`
-profile selects sixteen
-rows and leaves `ultra-mcp-ssh` to the dedicated `sshkit.sh` profile.
-Publication remains an owner-approved, signed `medge-v<version>` operation.
+The `medge-public-release/v18` contract replaces the physical `sphere` package
+with `sphered` and updates dependent packages and systemd references together.
+The installer URL remains `sphere.sh`; it selects sixteen packages and leaves
+`ultra-mcp-ssh` to `sshkit.sh`. There is no legacy executable or service alias.
+Sphered preserves trusted existing normal configuration during the explicit
+package migration and keeps MoteBus data intact. Existing MoteChat topology
+files remain unchanged. Historical v17 release evidence remains immutable.
+
+The release also admits native Rust MoteD, Mote Proxy, UChat and MoteChatD
+artifacts, plus the native MoteChat transport used by MDesk and Mote Bridge
+MCP. A Rust transport helper does not make the MCP Python facade a Rust service.
 
 Mote Bridge MCP 2.3.1 sends Screen and Telegram requests directly through
 Sphere-native MoteBus contracts (`screen://spec` + `screen://mms` and
@@ -82,11 +86,11 @@ mote-chatd 1.1.0-1   durable app inbox plus post-commit event/codex-inbox public
 uchat      1.0.0-4   app=uchat default; home/general aliases; /app view
 ```
 
-An approved `medge-public-release/v17` bundle contains these independent Debian
+An approved `medge-public-release/v18` bundle contains these independent Debian
 packages in dependency-safe audit order:
 
 ```text
-sphere
+sphered
 moted
 medge
 mlink
@@ -271,3 +275,9 @@ UltraMap is not part of this gate.
 
 Installer source changes require a new approved release bundle and signatures;
 historical release assets and their recorded digests must not be rewritten.
+
+During the physical `sphere` to `sphered` upgrade, the installer permits only the
+old `sphere` package removal. An APT pre-install hook checks the actual transaction
+under the package-manager lock and rejects every other removal before dpkg runs.
+Ordinary installs keep APT removal disabled. Old conffiles remain available to the
+Sphered package migration; unrelated packages and user data remain outside this step.

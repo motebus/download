@@ -91,11 +91,31 @@ run_target() {
                 > /etc/codex/config.toml
             test "$(dpkg-query -W -f="\${Version}" motemcp)" = 1.1.0-2
 
+            # Exercise the physical Sphere rename using complete package defaults
+            # plus an owner marker. The old conffile must survive byte-for-byte.
+            install -d /tmp/sphere-legacy/DEBIAN /tmp/sphere-legacy/etc/mote/sphere
+            dpkg-deb -x /bundle/sphered_*.deb /tmp/sphered-seed
+            cp /tmp/sphered-seed/etc/mote/sphered/sphered-deb.env \
+                /tmp/sphere-legacy/etc/mote/sphere/sphere-deb.env
+            printf "\n# owner migration fixture\n" >> /tmp/sphere-legacy/etc/mote/sphere/sphere-deb.env
+            chmod 0640 /tmp/sphere-legacy/etc/mote/sphere/sphere-deb.env
+            printf "%s\n" "Package: sphere" "Version: 4.0.0-2" \
+                "Architecture: all" "Maintainer: Test <test@example.invalid>" \
+                "Description: physical rename fixture" >/tmp/sphere-legacy/DEBIAN/control
+            printf "%s\n" /etc/mote/sphere/sphere-deb.env >/tmp/sphere-legacy/DEBIAN/conffiles
+            dpkg-deb -b /tmp/sphere-legacy /tmp/sphere_4.0.0-2_all.deb
+            dpkg -i /tmp/sphere_4.0.0-2_all.deb
+            cp /etc/mote/sphere/sphere-deb.env /tmp/owner-sphere.env
+
             # Establish the complete dependency-safe host baseline. The new
             # package must replace, not provide or coexist with, the old name.
             apt-get install -y --allow-downgrades --no-install-recommends \
                 /bundle/*.deb
             apt-get check
+            cmp /tmp/owner-sphere.env /etc/mote/sphere/sphere-deb.env
+            cmp /tmp/owner-sphere.env /etc/mote/sphered/sphered-deb.env
+            test -f /var/lib/mote/sphered/sphere-migration.json
+            test "$(dpkg-query -W -f="\${db:Status-Status}" sphere)" = config-files
             ! dpkg-query -W motemcp >/dev/null 2>&1
             expected_mcp_version="$(dpkg-deb -f /bundle/mote-bridge-mcp_*.deb Version)"
             test "$(dpkg-query -W -f="\${Version}" mote-bridge-mcp)" \
@@ -103,9 +123,13 @@ run_target() {
             grep -Fq "[mcp_servers.mote-bridge-mcp]" /etc/codex/config.toml
             ! grep -Fq "[mcp_servers.motemcp]" /etc/codex/config.toml
 
-            apt-get install -y --allow-downgrades --no-install-recommends \
+            printf "\n# owner edit after migration\n" >> /etc/mote/sphered/sphered-deb.env
+            cp /etc/mote/sphered/sphered-deb.env /tmp/owner-sphered.env
+            apt-get install -y --reinstall --allow-downgrades --no-install-recommends \
                 /bundle/*.deb
             apt-get check
+            cmp /tmp/owner-sphered.env /etc/mote/sphered/sphered-deb.env
+            cmp /tmp/owner-sphere.env /etc/mote/sphere/sphere-deb.env
 
             for package_name in $EXPECTED_PACKAGE_NAMES; do
                 dpkg-query -W -f="\${db:Status-Status} \${binary:Package} \${Version}\n" \

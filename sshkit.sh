@@ -50,8 +50,8 @@ verify_mote_proxy_ssh_setup() {
 }
 
 verify_sphere_post_install() {
-    [[ -x /usr/sbin/sphere ]] || fail "Sphere health command is unavailable"
-    /usr/sbin/sphere post-install ||
+    [[ -x /usr/sbin/sphered ]] || fail "Sphere health command is unavailable"
+    /usr/sbin/sphered post-install ||
         fail "Sphere essential post-install health checks failed"
 }
 
@@ -149,7 +149,7 @@ import re
 import sys
 
 expected = (
-    "sphere",
+    "sphered",
     "moted",
     "medge",
     "mlink",
@@ -168,7 +168,7 @@ expected = (
     "codex-mesh",
 )
 selected = (
-    "sphere",
+    "sphered",
     "moted",
     "mote-proxy",
     "mote-secd",
@@ -183,8 +183,8 @@ selected = (
 version_re = re.compile(r"^[0-9][0-9A-Za-z.+:~]*-[0-9]+$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
-if manifest.get("schema") != "medge-public-release/v17":
-    raise SystemExit("release manifest schema is not medge-public-release/v17")
+if manifest.get("schema") != "medge-public-release/v18":
+    raise SystemExit("release manifest schema is not medge-public-release/v18")
 if manifest.get("status") != "approved":
     raise SystemExit("release manifest is not approved")
 if (
@@ -339,20 +339,59 @@ for filename, (name, version, architecture, size) in planned.items():
 PY
 }
 
+# APT's locked pre-install hook admits only the physical Sphere replacement.
+# Ordinary installs continue to forbid every package removal.
+APT_REMOVAL_OPTIONS=(--no-remove)
+if [[ "$(dpkg-query -W -f='${db:Status-Status}' sphere 2>/dev/null || true)" == installed ]]; then
+    APT_REMOVAL_OPTIONS=()
+fi
+cat >"$TEMP_DIR/verify-removal" <<'PY_REMOVAL'
+#!/usr/bin/python3
+import re
+import sys
+
+payload = sys.stdin.buffer.read(8 * 1024 * 1024 + 1)
+if len(payload) > 8 * 1024 * 1024:
+    raise SystemExit("APT removal policy input is too large")
+try:
+    lines = payload.decode("utf-8").splitlines()
+except UnicodeError:
+    raise SystemExit("APT removal policy input is not UTF-8")
+if not lines or lines.pop(0) != "VERSION 2" or "" not in lines:
+    raise SystemExit("APT removal policy requires protocol version 2")
+actions = lines[lines.index("") + 1:]
+for line in actions:
+    fields = line.split()
+    if len(fields) != 5 or fields[2] not in {"<", ">", "="}:
+        raise SystemExit("APT removal policy received an invalid action")
+    name, old, direction, new, action = fields
+    if action == "**REMOVE**":
+        if name != "sphere" or old == "-" or new != "-":
+            raise SystemExit("APT removal outside the sphere-to-sphered migration is forbidden")
+    elif action != "**CONFIGURE**" and not action.endswith(".deb"):
+        raise SystemExit("APT removal policy received an unknown action")
+PY_REMOVAL
+chmod 0700 "$TEMP_DIR/verify-removal"
+APT_OPTIONS+=(
+    -o "DPkg::Pre-Install-Pkgs::=$TEMP_DIR/verify-removal"
+    -o "DPkg::Tools::Options::$TEMP_DIR/verify-removal::Version=2"
+    -o "DPkg::Tools::Options::$TEMP_DIR/verify-removal::InfoFD=0"
+)
+
 # Reinstall forces verification even when an identical version is installed.
-# Every APT phase independently refuses removals, including the final mutation.
-apt-get "${APT_OPTIONS[@]}" --no-remove --allow-downgrades --reinstall \
+# Every actual dpkg transaction checks removal actions under the APT lock.
+apt-get "${APT_OPTIONS[@]}" "${APT_REMOVAL_OPTIONS[@]}" --allow-downgrades --reinstall \
     --print-uris -y install "${PACKAGE_ARGS[@]}" >"$TEMP_DIR/apt-install-plan" ||
-    fail "cannot resolve the pinned Sphere APT transaction without removals"
+    fail "cannot resolve the pinned Sphere APT transaction"
 verify_apt_artifacts plan
-apt-get "${APT_OPTIONS[@]}" --no-remove --allow-downgrades --reinstall \
+apt-get "${APT_OPTIONS[@]}" "${APT_REMOVAL_OPTIONS[@]}" --allow-downgrades --reinstall \
     --download-only -y install "${PACKAGE_ARGS[@]}"
 verify_apt_artifacts staged
 
 # Preserve the caller's creation mask for package maintainer scripts.
 umask "$ORIGINAL_UMASK"
 # This is the only package mutation. No new download may bypass verification.
-apt-get "${APT_OPTIONS[@]}" --no-remove --allow-downgrades --reinstall \
+apt-get "${APT_OPTIONS[@]}" "${APT_REMOVAL_OPTIONS[@]}" --allow-downgrades --reinstall \
     --no-download -y install "${PACKAGE_ARGS[@]}"
 
 for record in "${PACKAGE_RECORDS[@]}"; do
