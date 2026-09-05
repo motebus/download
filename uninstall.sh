@@ -24,52 +24,84 @@ case "${ID:-}:${VERSION_ID:-}" in
 esac
 [[ "$(dpkg --print-architecture)" == amd64 ]] || fail "amd64 is required"
 
-for command_name in apt-get awk cmp curl dpkg dpkg-query gpg gpgv python3; do
+for command_name in apt-get awk chmod cmp curl dpkg dpkg-query gpg gpgv install mktemp python3; do
     command -v "$command_name" >/dev/null 2>&1 ||
         fail "required command is unavailable: $command_name"
 done
 
-TEMP_DIR="$(mktemp -d "/tmp/${PROFILE_NAME}-uninstall.XXXXXX")"
-cleanup() {
-    rm -f "$TEMP_DIR/medge-archive-keyring.gpg" \
-        "$TEMP_DIR/medge.sources" \
-        "$TEMP_DIR/package-plan" \
-        "$TEMP_DIR/purge-plan" \
-        "$TEMP_DIR/mote-proxy-ssh-profile" \
-        "$TEMP_DIR/release-manifest.json" \
-        "$TEMP_DIR/release-manifest.json.asc"
-    rmdir "$TEMP_DIR" 2>/dev/null || true
-}
-trap cleanup EXIT HUP INT TERM
-
-SCRIPT_SOURCE="${BASH_SOURCE[0]-}"
-FETCH_RELEASE_MANIFEST=0
-if [[ -n "${MEDGE_RELEASE_MANIFEST:-}" ]]; then
-    manifest_path="$MEDGE_RELEASE_MANIFEST"
-else
-    manifest_path="$TEMP_DIR/release-manifest.json"
-    FETCH_RELEASE_MANIFEST=1
+# A local override is a pair; never mix local and downloaded release evidence.
+if [[ -n "${MEDGE_RELEASE_MANIFEST:-}" || -n "${MEDGE_RELEASE_MANIFEST_SIGNATURE:-}" ]]; then
+    [[ -n "${MEDGE_RELEASE_MANIFEST:-}" && -n "${MEDGE_RELEASE_MANIFEST_SIGNATURE:-}" ]] ||
+        fail "set both MEDGE_RELEASE_MANIFEST and MEDGE_RELEASE_MANIFEST_SIGNATURE"
 fi
-manifest_signature_path="${MEDGE_RELEASE_MANIFEST_SIGNATURE:-${manifest_path}.asc}"
-readonly MANIFEST_PATH="$manifest_path"
-readonly MANIFEST_SIGNATURE_PATH="$manifest_signature_path"
 
-if [[ "$FETCH_RELEASE_MANIFEST" -eq 1 ]]; then
+readonly ORIGINAL_UMASK="$(umask)"
+umask 077
+TEMP_DIR="$(mktemp -d "/tmp/${PROFILE_NAME}-uninstall.XXXXXX")"
+readonly TEMP_DIR
+cleanup() {
+    python3 - "$TEMP_DIR" "$PROFILE_NAME-uninstall" <<'PY'
+import os
+from pathlib import Path
+import shutil
+import sys
+
+path = Path(sys.argv[1])
+if (path.parent != Path("/tmp") or not path.name.startswith(sys.argv[2] + ".")
+        or path.is_symlink() or path.stat().st_uid != os.geteuid()):
+    raise SystemExit("refusing cleanup outside the owned installer temporary directory")
+shutil.rmtree(path)
+PY
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' HUP TERM
+
+install -d -m 0700 "$TEMP_DIR/verified"
+readonly MANIFEST_PATH="$TEMP_DIR/verified/release-manifest.json"
+readonly MANIFEST_SIGNATURE_PATH="$TEMP_DIR/verified/release-manifest.json.asc"
+if [[ -n "${MEDGE_RELEASE_MANIFEST:-}" ]]; then
+    [[ -f "$MEDGE_RELEASE_MANIFEST" && -r "$MEDGE_RELEASE_MANIFEST" ]] ||
+        fail "the explicit release manifest must be a readable regular file"
+    [[ -f "$MEDGE_RELEASE_MANIFEST_SIGNATURE" && -r "$MEDGE_RELEASE_MANIFEST_SIGNATURE" ]] ||
+        fail "the explicit manifest signature must be a readable regular file"
+    install -m 0400 -- "$MEDGE_RELEASE_MANIFEST" "$MANIFEST_PATH"
+    install -m 0400 -- "$MEDGE_RELEASE_MANIFEST_SIGNATURE" "$MANIFEST_SIGNATURE_PATH"
+else
     curl --proto '=https' --tlsv1.2 -fsSLo \
         "$MANIFEST_PATH" "$BASE_URL/release-manifest.json" ||
         fail "approved Sphere release is not published at $BASE_URL"
-    if [[ -z "${MEDGE_RELEASE_MANIFEST_SIGNATURE:-}" ]]; then
-        curl --proto '=https' --tlsv1.2 -fsSLo \
-            "$MANIFEST_SIGNATURE_PATH" "$BASE_URL/release-manifest.json.asc" ||
-            fail "approved Sphere manifest signature is not published at $BASE_URL"
-    fi
+    curl --proto '=https' --tlsv1.2 -fsSLo \
+        "$MANIFEST_SIGNATURE_PATH" "$BASE_URL/release-manifest.json.asc" ||
+        fail "approved Sphere manifest signature is not published at $BASE_URL"
 fi
+chmod 0400 "$MANIFEST_PATH" "$MANIFEST_SIGNATURE_PATH"
 
-[[ -r "$MANIFEST_PATH" ]] ||
-    fail "approved release-manifest.json is required beside the uninstaller"
-[[ -r "$MANIFEST_SIGNATURE_PATH" ]] ||
-    fail "release-manifest.json.asc is required beside the approved manifest"
+curl --proto '=https' --tlsv1.2 -fsSLo \
+    "$TEMP_DIR/medge-archive-keyring.gpg" \
+    "$BASE_URL/medge-archive-keyring.gpg"
+curl --proto '=https' --tlsv1.2 -fsSLo \
+    "$TEMP_DIR/medge.sources" "$BASE_URL/medge.sources"
 
+ACTUAL_FINGERPRINT="$(
+    gpg --batch --show-keys --with-colons \
+        "$TEMP_DIR/medge-archive-keyring.gpg" |
+        awk -F: '
+            $1 == "pub" { public_keys += 1 }
+            $1 == "fpr" && fingerprint == "" { fingerprint = $10 }
+            END {
+                if (public_keys != 1 || fingerprint == "") exit 1
+                print fingerprint
+            }
+        '
+)" || fail "the downloaded archive key is invalid"
+[[ "$ACTUAL_FINGERPRINT" == "$EXPECTED_FINGERPRINT" ]] ||
+    fail "archive-key fingerprint mismatch"
+gpgv --keyring "$TEMP_DIR/medge-archive-keyring.gpg" \
+    "$MANIFEST_SIGNATURE_PATH" "$MANIFEST_PATH" >/dev/null 2>&1 ||
+    fail "release-manifest signature verification failed"
+
+# Parse only the authenticated private snapshot.
 python3 - "$MANIFEST_PATH" >"$TEMP_DIR/package-plan" <<'PY'
 import json
 import re
@@ -124,30 +156,6 @@ mapfile -t APPROVED_PACKAGES <"$TEMP_DIR/package-plan"
 [[ "${#APPROVED_PACKAGES[@]}" -eq 17 ]] ||
     fail "release manifest package boundary is incomplete"
 
-curl --proto '=https' --tlsv1.2 -fsSLo \
-    "$TEMP_DIR/medge-archive-keyring.gpg" \
-    "$BASE_URL/medge-archive-keyring.gpg"
-curl --proto '=https' --tlsv1.2 -fsSLo \
-    "$TEMP_DIR/medge.sources" "$BASE_URL/medge.sources"
-
-ACTUAL_FINGERPRINT="$(
-    gpg --batch --show-keys --with-colons \
-        "$TEMP_DIR/medge-archive-keyring.gpg" |
-        awk -F: '
-            $1 == "pub" { public_keys += 1 }
-            $1 == "fpr" && fingerprint == "" { fingerprint = $10 }
-            END {
-                if (public_keys != 1 || fingerprint == "") exit 1
-                print fingerprint
-            }
-        '
-)" || fail "the downloaded archive key is invalid"
-[[ "$ACTUAL_FINGERPRINT" == "$EXPECTED_FINGERPRINT" ]] ||
-    fail "archive-key fingerprint mismatch"
-gpgv --keyring "$TEMP_DIR/medge-archive-keyring.gpg" \
-    "$MANIFEST_SIGNATURE_PATH" "$MANIFEST_PATH" >/dev/null 2>&1 ||
-    fail "release-manifest signature verification failed"
-
 if [[ -e "$KEYRING_PATH" ]]; then
     [[ -f "$KEYRING_PATH" ]] || fail "Sphere archive-key path is not a regular file"
     cmp -s "$KEYRING_PATH" "$TEMP_DIR/medge-archive-keyring.gpg" ||
@@ -199,6 +207,7 @@ if outside:
 PY
 
     export DEBIAN_FRONTEND=noninteractive
+    umask "$ORIGINAL_UMASK"
     LC_ALL=C apt-get purge -y "${PURGE_ARGS[@]}"
 fi
 

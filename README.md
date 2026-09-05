@@ -157,10 +157,15 @@ explicitly approved immutable rollback tag. This repository then:
 
 The installer pins archive fingerprint
 `AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0`, verifies the manifest detached
-signature, accepts only the exact Pages `.sources` definition, proves every
-manifest version is present in the signed APT source, performs one APT
-transaction with downgrades allowed only for those exact `name=version` pins,
-and verifies installed versions. It does not admit unpinned downgrades,
+signature on a protected private snapshot before parsing it, and accepts only
+the exact Pages `.sources` definition. Each run uses isolated APT indexes and
+archives, requires the exact Pages pool origin and signed asset identity for
+every acquired catalog package, and checks its SHA-256 and Debian metadata
+before installation. A same-version installation is reacquired and verified.
+The final APT transaction uses only the verified downloads, exact
+`name=version` pins, `--allow-downgrades`, and `--no-remove`, then checks
+installed states and versions. Planning and downloading also refuse removals.
+It does not admit unpinned downgrades,
 essential-package removal, or held-package changes. `sphere.sh` ends after the
 signed package transaction and installed-version checks; it does not perform
 SSH, runtime, transport, or target-connectivity tests. Package maintainer
@@ -177,12 +182,13 @@ GitLab URL in the resolved package plan.
 destructive action, requires an exact unmodified installer-managed source/key,
 and simulates APT purge first. It refuses a plan that would remove anything
 outside the seventeen signed package identities. It does not run `autoremove`,
-recursively delete paths, or remove user data, SSH identities, Obsidian vaults,
+delete persistent data directories, or remove user data, SSH identities,
+Obsidian vaults,
 unrelated packages, or non-Sphere services. After the package purge it removes
 the exact package-owned `/etc/ssh/ssh_config.d/50-mote-proxy.conf` profile; a
 modified or symlinked profile is preserved and causes a visible failure.
 
-After an approved v16 release has completed the Pages workflow, an ordinary
+After an approved v17 release has completed the Pages workflow, an ordinary
 interactive operator may install with:
 
 ```bash
@@ -193,8 +199,10 @@ curl --proto '=https' --tlsv1.2 -fsSL \
 Each release script fetches the manifest and detached signature from that same
 Pages origin before making any APT change unless an operator explicitly
 supplies a local signed pair through `MEDGE_RELEASE_MANIFEST` and
-`MEDGE_RELEASE_MANIFEST_SIGNATURE`. A stale manifest beside a downloaded
-script is never reused. The raw `main` script on GitHub is source-review
+`MEDGE_RELEASE_MANIFEST_SIGNATURE`. A partial override fails. Verification
+and planning use only the invocation's protected copies, even if the original
+files change. Temporary files and APT caches are removed on exit. A stale
+manifest beside a downloaded script is never reused. The raw `main` script on GitHub is source-review
 material, not an approved installation source.
 
 That pipe is not the managed L1/L9 path. The managed endpoints use the
@@ -260,3 +268,6 @@ L1 and L9 installation is a separate gate: both endpoints must appear in the
 authoritative target inventory with explicit host identity, owner admission,
 an approved signed release reference, and an authorized installation window.
 UltraMap is not part of this gate.
+
+Installer source changes require a new approved release bundle and signatures;
+historical release assets and their recorded digests must not be rewritten.

@@ -967,8 +967,14 @@ def validate_tree(root: Path) -> None:
             fingerprint,
             "release-manifest.json.asc",
             "gpgv --keyring",
-            'apt-get --allow-downgrades --print-uris -y install "${PACKAGE_ARGS[@]}"',
-            'apt-get install -y --allow-downgrades "${PACKAGE_ARGS[@]}"',
+            '--print-uris -y install "${PACKAGE_ARGS[@]}"',
+            '--no-download -y install "${PACKAGE_ARGS[@]}"',
+            '--download-only -y install "${PACKAGE_ARGS[@]}"',
+            'apt-get "${APT_OPTIONS[@]}" --no-remove --allow-downgrades --reinstall',
+            "verify_apt_artifacts staged",
+            "staged package SHA-256 differs from the signed manifest",
+            'readonly MANIFEST_PATH="$TEMP_DIR/verified/release-manifest.json"',
+            "set both MEDGE_RELEASE_MANIFEST and MEDGE_RELEASE_MANIFEST_SIGNATURE",
         ):
             require(
                 required_text in installer_text,
