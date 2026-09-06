@@ -1215,7 +1215,7 @@ curl -fsSLo /tmp/release-manifest.json.asc \
 https://motebus.github.io/download/release-manifest.json.asc &amp;&amp;
 sudo bash /tmp/sphere.sh</pre>
 <p>Profiles: <code>sphere.sh</code> (16 of 17; excludes ultra-mcp-ssh), <code>webdesk.sh</code>
-(sphere + ss-webos + mdesk + mlink), and <code>sshkit.sh</code>
+(sphered + ss-webos + mdesk + mlink), and <code>sshkit.sh</code>
 (Mote Transport prerequisites). <code>uninstall.sh</code> performs bounded,
 signed cleanup of the Sphere package boundary.</p>
 </html>
