@@ -60,12 +60,17 @@ Sphered preserves trusted existing normal configuration during the explicit
 package migration and keeps MoteBus data intact. Existing MoteChat topology
 files remain unchanged. Historical v17 release evidence remains immutable.
 
-The release also admits native Rust MoteD, Mote Proxy, UChat and MoteChatD
-artifacts, plus the native MoteChat transport used by MDesk and Mote Bridge
-MCP. A Rust transport helper does not make the MCP Python facade a Rust service.
+The v18 candidate uses native Rust for MoteD, Mote Proxy, UChat, MoteChatD,
+MDesk, Mote SecD, Mote Sync, and the complete Mote Bridge MCP facade. Medge
+also uses Rust for its controller, scheduler, provider, and create-once
+configuration helper. These five new package migrations ship architecture-specific
+ELF binaries without Python or Node.js runtime dependencies. Debian maintainer
+scripts and build-time checks remain separate from the installed runtime.
+The Obsidian plugin and the external browser and MoteBus runtimes retain their
+required implementation languages.
 
-Mote Bridge MCP 2.3.1 sends Screen and Telegram requests directly through
-Sphere-native MoteBus contracts (`screen://spec` + `screen://mms` and
+Mote Bridge MCP 3.0 sends Screen and Telegram requests directly through
+Sphered-native MoteBus contracts (`screen://spec` + `screen://mms` and
 `tg://spec` + `tg://mms`). It is a peer of UltraMCP SS and UltraMCP Comm:
 Codex selects one provider directly, Mote Bridge never calls those providers,
 and no MCP provider may call another MCP provider. It does not mirror outbound
@@ -76,15 +81,17 @@ that event and sends the summary and packet identity through Comm's registered
 `*codex-mesh` Telegram target. Operational logs remain local; mirror failure is
 non-authoritative and never retries or rolls back inbox acceptance.
 
-The new S component versions admitted by that contract are:
+The native migration candidate includes:
 
-```text
-mote-proxy 1.7.0-1   B/SSH + S/SEC selector enforcement and resolution
-moted      3.3.0-1   B -> sshd; S -> mote-secd fixed dispatch
-mote-secd  0.1.0-1   S/SEC status owner; authority mutations fail closed
-mote-chatd 1.1.0-1   durable app inbox plus post-commit event/codex-inbox publication
-uchat      1.0.0-4   app=uchat default; home/general aliases; /app view
-```
+| Package | Version | Native runtime scope |
+| --- | --- | --- |
+| `medge` | `2.0.0-1` | Controller, scheduler, provider, configuration helper |
+| `mote-secd` | `1.0.0-1` | Security daemon and CLI |
+| `mote-sync` | `1.0.0-1` | Vault sync client and plugin installer |
+| `mote-syncd` | `1.0.0-1` | SSH sync subsystem |
+| `mote-bridge-mcp` | `3.0.0-1` | MCP facade, native lane, extension execution, installers |
+
+The signed release manifest remains the authority for published versions.
 
 An approved `medge-public-release/v18` bundle contains these independent Debian
 packages in dependency-safe audit order:
@@ -148,7 +155,7 @@ are not copied into the new Pages site.
 
 ## Trust chain
 
-The protected private owner creates a v17 bundle from exact private-source `main` or an
+The protected private owner creates a v18 bundle from exact private-source `main` or an
 explicitly approved immutable rollback tag. This repository then:
 
 1. validates the exact seventeen-package manifest, assets, SHA-256 checksums, env
@@ -192,7 +199,7 @@ unrelated packages, or non-Sphere services. After the package purge it removes
 the exact package-owned `/etc/ssh/ssh_config.d/50-mote-proxy.conf` profile; a
 modified or symlinked profile is preserved and causes a visible failure.
 
-After an approved v17 release has completed the Pages workflow, an ordinary
+After an approved v18 release has completed the Pages workflow, an ordinary
 interactive operator may install with:
 
 ```bash
