@@ -372,6 +372,17 @@ def approved_upstream_notice(package: str, path: str, data: bytes) -> bool:
             and hashlib.sha256(data).hexdigest() in UPSTREAM_NOTICE_SHA256)
 
 
+UPSTREAM_NODE_PATH = "usr/lib/ss-webos/node/bin/node"
+UPSTREAM_NODE_SHA256 = "89af8424dd53e560b1933f87ba650d8bf57c83ca5a04600eefb31f416aabbae7"
+
+
+def approved_upstream_node(package: str, path: str, data: bytes) -> bool:
+    # Official Node 24.20.0 linux-x64 ELF: two public blog references in comments.
+    # Preserve the reviewed vendor bytes; no other path, package or binary qualifies.
+    return (package == "ss-webos" and path == UPSTREAM_NODE_PATH
+            and hashlib.sha256(data).hexdigest() == UPSTREAM_NODE_SHA256)
+
+
 def validate_public_deb_content(asset: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="medge-public-deb-") as temp_name:
         extracted = Path(temp_name)
@@ -381,7 +392,8 @@ def validate_public_deb_content(asset: Path) -> None:
             if candidate.is_file() and not candidate.is_symlink():
                 data = candidate.read_bytes()
                 relative = candidate.relative_to(extracted).as_posix()
-                if approved_upstream_notice(package, relative, data):
+                if (approved_upstream_notice(package, relative, data)
+                        or approved_upstream_node(package, relative, data)):
                     continue
                 require_no_gitlab_url_bytes(data, f"{asset.name}:{relative}")
 

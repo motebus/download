@@ -181,6 +181,16 @@ resources. This does not permit local package substitution or repacking.
 The signing workflow consumes published release tags and repeats compatibility
 checks before importing the protected archive key and deploying Pages.
 
+The content auditor preserves the official Node 24.20.0 linux-x64 binary in
+`ss-webos` at `usr/lib/ss-webos/node/bin/node`, only with SHA-256
+`89af8424dd53e560b1933f87ba650d8bf57c83ca5a04600eefb31f416aabbae7`.
+Its two public GitLab blog references are embedded upstream comments. The reviewed
+official archive `node-v24.20.0-linux-x64.tar.xz` has SHA-256
+`2f2c0da162318f0de47665410c7c8c2ed3d36c8f3105de4bbc61176c70a7cbf2`.
+This exact vendor-file exception does not admit other files, changed bytes, private
+configuration, or a GitLab APT acquisition origin. The separate exact Chromium
+license-notice approvals remain in force.
+
 The installer pins archive fingerprint
 `AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0`, verifies the manifest detached
 signature on a protected private snapshot before parsing it, and accepts only
