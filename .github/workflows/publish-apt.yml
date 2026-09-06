@@ -18,6 +18,10 @@ on:
         description: Expected manifest SHA256 (required for candidate validation)
         required: false
         type: string
+      candidate_release_id:
+        description: Exact draft release ID (required for candidate validation)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -53,6 +57,7 @@ jobs:
           INPUT_TAG: ${{ inputs.release_tag }}
           VALIDATION_ONLY: ${{ inputs.validation_only }}
           EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+          CANDIDATE_RELEASE_ID: ${{ inputs.candidate_release_id }}
         run: |
           set -euo pipefail
           TAG="${EVENT_TAG:-${INPUT_TAG:-}}"
@@ -61,9 +66,47 @@ jobs:
           if [[ "$VALIDATION_ONLY" == true ]]; then
             [[ "$EXPECTED_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]] \
               || { echo "candidate validation requires an exact manifest SHA256" >&2; exit 1; }
+            [[ "$CANDIDATE_RELEASE_ID" =~ ^[1-9][0-9]*$ ]] \
+              || { echo "candidate validation requires an exact draft release ID" >&2; exit 1; }
           fi
           mkdir -p release-input/current
-          gh release download "$TAG" --dir release-input/current
+          if [[ "$VALIDATION_ONLY" == true ]]; then
+            python3 - <<'PY'
+          import hashlib, json, os, re, subprocess
+          from pathlib import Path
+          repo = os.environ['GITHUB_REPOSITORY']
+          assert repo == 'motebus/download'
+          release_id = int(os.environ['CANDIDATE_RELEASE_ID'])
+          release = json.loads(subprocess.check_output([
+              'gh', 'api', f'repos/{repo}/releases/{release_id}',
+          ], text=True))
+          assert release['id'] == release_id and release['draft'] is True
+          assert release['tag_name'] == os.environ['INPUT_TAG']
+          assert release['target_commitish'] == os.environ['GITHUB_SHA']
+          assets = release['assets']
+          assert len(assets) == 23 and len({asset['name'] for asset in assets}) == 23
+          fixed = {'release-manifest.json', 'SHA256SUMS', 'sphere.sh',
+                   'webdesk.sh', 'sshkit.sh', 'uninstall.sh'}
+          assert fixed.issubset({asset['name'] for asset in assets})
+          for asset in assets:
+              name = asset['name']
+              assert name in fixed or re.fullmatch(r'[a-z0-9][a-zA-Z0-9._+~:-]*\.deb', name)
+              assert asset['state'] == 'uploaded' and 0 < asset['size'] <= 500_000_000
+              assert re.fullmatch(r'sha256:[0-9a-f]{64}', asset['digest'])
+              assert isinstance(asset['id'], int) and asset['id'] > 0
+              path = Path('release-input/current') / name
+              with path.open('xb') as output:
+                  subprocess.run(['gh', 'api', '-H', 'Accept: application/octet-stream',
+                                  f"repos/{repo}/releases/assets/{asset['id']}"],
+                                 stdout=output, check=True)
+              assert path.stat().st_size == asset['size']
+              with path.open('rb') as source:
+                  assert 'sha256:' + hashlib.file_digest(source, 'sha256').hexdigest() == asset['digest']
+          print('Exact candidate draft downloaded; 23 GitHub asset digests verified')
+          PY
+          else
+            gh release download "$TAG" --dir release-input/current
+          fi
           MANIFEST_SHA256="$(sha256sum release-input/current/release-manifest.json | cut -d' ' -f1)"
           if [[ -n "$EXPECTED_MANIFEST_SHA256" ]]; then
             test "$MANIFEST_SHA256" = "$EXPECTED_MANIFEST_SHA256"

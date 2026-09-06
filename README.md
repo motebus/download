@@ -173,8 +173,10 @@ explicitly approved immutable rollback tag. This repository then:
 5. publishes the resulting site through GitHub Pages.
 
 Before publishing a candidate, dispatch the existing APT workflow on its reviewed
-`main` commit with `validation_only=true`, the draft `release_tag`, and the exact
-`manifest_sha256` from the admitted bundle. This mode performs the same tree,
+`main` commit with `validation_only=true`, the draft `release_tag`, its exact
+`candidate_release_id`, and the `manifest_sha256` from the admitted bundle.
+The draft must target that same source commit; downloads use exact release and
+asset IDs and verify every GitHub asset digest. This mode performs the same tree,
 bundle, and Ubuntu install/reinstall checks and records every asset digest. It
 skips archive-key import, signing, Pages artifact creation, and Pages deployment.
 Require the successful run's source commit, manifest digest, all asset digests,
