@@ -358,13 +358,18 @@ def require_no_gitlab_url_bytes(value: bytes, subject: str) -> None:
 
 
 UPSTREAM_NOTICE_PATH = "usr/lib/ss-webos/runtime/node_modules/electron/dist/LICENSES.chromium.html"
-UPSTREAM_NOTICE_SHA256 = "7f43224631a0844d982a5b6ce1f2af6e9be0d3a61d3e28494d95b64e20e15e53"
+UPSTREAM_NOTICE_SHA256 = frozenset({
+    # Published through medge-v5.8.0-2; immutable release revalidation remains valid.
+    "7f43224631a0844d982a5b6ce1f2af6e9be0d3a61d3e28494d95b64e20e15e53",
+    # Electron 44.2.0 license notice, reviewed for the 5.9 release candidate.
+    "a62dabd1c6ef1327365b2a3fdffb806222684a746dcb8f4afd1c1f690eba5535",
+})
 
 
 def approved_upstream_notice(package: str, path: str, data: bytes) -> bool:
     # This exact upstream license notice is separately reviewed public content.
     return (package == "ss-webos" and path == UPSTREAM_NOTICE_PATH
-            and hashlib.sha256(data).hexdigest() == UPSTREAM_NOTICE_SHA256)
+            and hashlib.sha256(data).hexdigest() in UPSTREAM_NOTICE_SHA256)
 
 
 def validate_public_deb_content(asset: Path) -> None:

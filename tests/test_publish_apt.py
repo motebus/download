@@ -627,18 +627,51 @@ class PublicAptTest(unittest.TestCase):
                 publish_apt.validate_public_deb_content(asset)
 
     def test_upstream_notice_exception_is_bound_to_package_path_and_bytes(self) -> None:
-        notice = b"reviewed upstream notice fixture"
-        digest = hashlib.sha256(notice).hexdigest()
-        original = publish_apt.UPSTREAM_NOTICE_SHA256
-        try:
-            publish_apt.UPSTREAM_NOTICE_SHA256 = digest
+        notices = (b"historical reviewed notice", b"new reviewed notice")
+        digests = frozenset(hashlib.sha256(notice).hexdigest() for notice in notices)
+        with mock.patch.object(publish_apt, "UPSTREAM_NOTICE_SHA256", digests):
             path = publish_apt.UPSTREAM_NOTICE_PATH
-            self.assertTrue(publish_apt.approved_upstream_notice("ss-webos", path, notice))
-            self.assertFalse(publish_apt.approved_upstream_notice("ss-webos", path, notice + b"changed"))
-            self.assertFalse(publish_apt.approved_upstream_notice("medge", path, notice))
-            self.assertFalse(publish_apt.approved_upstream_notice("ss-webos", "usr/bin/other", notice))
-        finally:
-            publish_apt.UPSTREAM_NOTICE_SHA256 = original
+            for notice in notices:
+                with self.subTest(notice=notice):
+                    self.assertTrue(publish_apt.approved_upstream_notice("ss-webos", path, notice))
+                    self.assertFalse(publish_apt.approved_upstream_notice("ss-webos", path, notice + b"changed"))
+                    self.assertFalse(publish_apt.approved_upstream_notice("medge", path, notice))
+                    self.assertFalse(publish_apt.approved_upstream_notice("ss-webos", "usr/bin/other", notice))
+
+    def test_deb_notice_exceptions_preserve_historical_and_new_release_audits(self) -> None:
+        url = b"https://" + b"gitlab" + b".example.invalid/upstream/license"
+        notices = (b"historical notice: " + url, b"new notice: " + url)
+        digests = frozenset(hashlib.sha256(notice).hexdigest() for notice in notices)
+        with tempfile.TemporaryDirectory() as temp_name, mock.patch.object(
+            publish_apt, "UPSTREAM_NOTICE_SHA256", digests
+        ):
+            root = Path(temp_name)
+            asset = self.make_deb(root, package="ss-webos")
+            package_root = root / "package-ss-webos"
+            notice_path = package_root / publish_apt.UPSTREAM_NOTICE_PATH
+            notice_path.parent.mkdir(parents=True)
+
+            def rebuild() -> None:
+                subprocess.run(
+                    ["dpkg-deb", "--build", "--root-owner-group", str(package_root), str(asset)],
+                    check=True, stdout=subprocess.DEVNULL,
+                )
+
+            for notice in notices:
+                with self.subTest(notice=notice):
+                    notice_path.write_bytes(notice)
+                    rebuild()
+                    publish_apt.validate_public_deb_content(asset)
+                    notice_path.write_bytes(notice + b" changed")
+                    rebuild()
+                    with self.assertRaisesRegex(publish_apt.PublishError, "GitLab URL is forbidden"):
+                        publish_apt.validate_public_deb_content(asset)
+
+            notice_path.write_bytes(notices[1])
+            (package_root / "usr/other-notice").write_bytes(notices[1])
+            rebuild()
+            with self.assertRaisesRegex(publish_apt.PublishError, "GitLab URL is forbidden"):
+                publish_apt.validate_public_deb_content(asset)
 
     def test_deb_without_gitlab_url_is_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
