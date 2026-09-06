@@ -107,11 +107,56 @@ run_target() {
             dpkg -i /tmp/sphere_4.0.0-2_all.deb
             cp /etc/mote/sphere/sphere-deb.env /tmp/owner-sphere.env
 
+            # Reproduce the legacy topology conffile: root can read it, while
+            # the daemon UID cannot. Upgrading must preserve its mode and bytes.
+            topology=/etc/mote/mote-chatd/mote-chatd-mchat.env
+            install -d /tmp/chatd-legacy/DEBIAN /tmp/chatd-legacy/etc/mote/mote-chatd
+            printf "%s\n" "MCHAT_APPNAME=compat-chat-app" \
+                "MCHAT_EINAME=compat-chat-edge" "MCHAT_DC=fixture-dc" \
+                "MCHAT_IOC=fixture-ioc" "MCHAT_MBGWIP=fixture.invalid:6262" \
+                "MCHAT_WATCHLEVEL=0" >"/tmp/chatd-legacy$topology"
+            chmod 0640 "/tmp/chatd-legacy$topology"
+            printf "%s\n" "Package: mote-chatd" "Version: 1.1.0-1" \
+                "Architecture: all" "Maintainer: Test <test@example.invalid>" \
+                "Description: protected topology upgrade fixture" >/tmp/chatd-legacy/DEBIAN/control
+            printf "%s\n" "$topology" >/tmp/chatd-legacy/DEBIAN/conffiles
+            dpkg-deb --root-owner-group -b /tmp/chatd-legacy /tmp/mote-chatd_1.1.0-1_all.deb
+            dpkg -i /tmp/mote-chatd_1.1.0-1_all.deb
+            cp "$topology" /tmp/owner-chatd-topology
+
+            check_chatd_configuration() {
+                cmp /tmp/owner-chatd-topology "$topology"
+                test "$(stat -c "%u:%g:%a" "$topology")" = 0:0:640
+                if setpriv --reuid=mote-chatd --regid=mote-chatd --clear-groups \
+                    test -r "$topology"; then
+                    echo "daemon must not gain direct access to locked topology" >&2
+                    exit 1
+                fi
+                unit=/usr/lib/systemd/system/mote-chatd.service
+                grep -Fxq "User=mote-chatd" "$unit"
+                grep -Fxq "Group=mote-chatd" "$unit"
+                grep -Fxq "ExecStartPre=+/usr/sbin/mote-chatd check-env-files" "$unit"
+                grep -Fxq "ExecStartPre=/usr/sbin/mote-chatd check-config" "$unit"
+                (
+                    # Replay the ordered EnvironmentFile inputs using only the
+                    # package normal defaults and the generated fixture above.
+                    set -a
+                    . /etc/mote/mote-chatd/mote-chatd-deb.env
+                    . "$topology"
+                    set +a
+                    /usr/sbin/mote-chatd check-env-files
+                    setpriv --reuid=mote-chatd --regid=mote-chatd --clear-groups \
+                        /usr/sbin/mote-chatd check-config
+                )
+                echo "MoteChatD protected topology and service-user configuration passed"
+            }
+
             # Establish the complete dependency-safe host baseline. The new
             # package must replace, not provide or coexist with, the old name.
             apt-get install -y --allow-downgrades --no-install-recommends \
                 /bundle/*.deb
             apt-get check
+            check_chatd_configuration
             cmp /tmp/owner-sphere.env /etc/mote/sphere/sphere-deb.env
             cmp /tmp/owner-sphere.env /etc/mote/sphered/sphered-deb.env
             test -f /var/lib/mote/sphered/sphere-migration.json
@@ -128,6 +173,7 @@ run_target() {
             apt-get install -y --reinstall --allow-downgrades --no-install-recommends \
                 /bundle/*.deb
             apt-get check
+            check_chatd_configuration
             cmp /tmp/owner-sphered.env /etc/mote/sphered/sphered-deb.env
             cmp /tmp/owner-sphere.env /etc/mote/sphere/sphere-deb.env
 

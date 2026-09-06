@@ -60,6 +60,12 @@ Sphered preserves trusted existing normal configuration during the explicit
 package migration and keeps MoteBus data intact. Existing MoteChat topology
 files remain unchanged. Historical v17 release evidence remains immutable.
 
+The MoteChatD upgrade check includes an existing root-owned `0640` topology
+conffile. It verifies that package upgrades preserve that file while the
+service user validates the environment loaded by systemd. A separate read-only
+root preflight checks the original files. Installation and configuration checks
+do not establish live MoteBus registration or message-delivery readiness.
+
 The v18 candidate uses native Rust for MoteD, Mote Proxy, UChat, MoteChatD,
 MDesk, Mote SecD, Mote Sync, and the complete Mote Bridge MCP facade. Medge
 also uses Rust for its controller, scheduler, provider, and create-once
