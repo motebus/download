@@ -9,6 +9,15 @@ on:
         description: Approved Install Sphere medge-v<version> release tag
         required: true
         type: string
+      validation_only:
+        description: Validate the candidate without signing or publishing
+        required: false
+        default: false
+        type: boolean
+      manifest_sha256:
+        description: Expected manifest SHA256 (required for candidate validation)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -42,13 +51,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT_TAG: ${{ github.event.release.tag_name }}
           INPUT_TAG: ${{ inputs.release_tag }}
+          VALIDATION_ONLY: ${{ inputs.validation_only }}
+          EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
         run: |
           set -euo pipefail
           TAG="${EVENT_TAG:-${INPUT_TAG:-}}"
           [[ "$TAG" =~ ^medge-v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]] \
             || { echo "invalid release tag: $TAG" >&2; exit 1; }
+          if [[ "$VALIDATION_ONLY" == true ]]; then
+            [[ "$EXPECTED_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]] \
+              || { echo "candidate validation requires an exact manifest SHA256" >&2; exit 1; }
+          fi
           mkdir -p release-input/current
           gh release download "$TAG" --dir release-input/current
+          MANIFEST_SHA256="$(sha256sum release-input/current/release-manifest.json | cut -d' ' -f1)"
+          if [[ -n "$EXPECTED_MANIFEST_SHA256" ]]; then
+            test "$MANIFEST_SHA256" = "$EXPECTED_MANIFEST_SHA256"
+          fi
+          printf 'Candidate manifest SHA256: %s\n' "$MANIFEST_SHA256"
           chmod 0755 release-input/current/sphere.sh \
             release-input/current/webdesk.sh \
             release-input/current/sshkit.sh \
@@ -59,7 +79,35 @@ jobs:
       - name: Validate Ubuntu 24.04 and 26.04 package compatibility
         run: scripts/validate-ubuntu-compatibility.sh release-input/current
 
+      - name: Record validated bundle identity
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          bundle = Path('release-input/current')
+          def digest(path):
+              with path.open('rb') as source:
+                  return hashlib.file_digest(source, 'sha256').hexdigest()
+          evidence = {
+              'schema': 'sphere-candidate-validation/v1',
+              'tag': os.environ['CURRENT_TAG'],
+              'source_commit': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'manifest_sha256': digest(bundle / 'release-manifest.json'),
+              'assets': {path.name: digest(path) for path in sorted(bundle.iterdir())},
+          }
+          Path('candidate-validation.json').write_text(json.dumps(evidence, indent=2) + '\n')
+          print(json.dumps(evidence, indent=2))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-validation-${{ github.run_id }}
+          path: candidate-validation.json
+          retention-days: 30
+
       - name: Import protected archive key
+        if: ${{ !inputs.validation_only }}
         env:
           MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
         run: |
@@ -68,6 +116,7 @@ jobs:
           printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
 
       - name: Build and sign APT repository
+        if: ${{ !inputs.validation_only }}
         env:
           MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
         run: |
@@ -79,11 +128,13 @@ jobs:
           test "$(du -sb apt-site | cut -f1)" -lt 1000000000
 
       - uses: actions/upload-pages-artifact@v3
+        if: ${{ !inputs.validation_only }}
         with:
           path: apt-site
 
   deploy:
     needs: build
+    if: ${{ !inputs.validation_only }}
     runs-on: ubuntu-24.04
     environment:
       name: github-pages

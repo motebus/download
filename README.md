@@ -172,6 +172,16 @@ explicitly approved immutable rollback tag. This repository then:
    protected archive key; and
 5. publishes the resulting site through GitHub Pages.
 
+Before publishing a candidate, dispatch the existing APT workflow on its reviewed
+`main` commit with `validation_only=true`, the draft `release_tag`, and the exact
+`manifest_sha256` from the admitted bundle. This mode performs the same tree,
+bundle, and Ubuntu install/reinstall checks and records every asset digest. It
+skips archive-key import, signing, Pages artifact creation, and Pages deployment.
+Require the successful run's source commit, manifest digest, all asset digests,
+both Ubuntu completion results, and all four protected-topology checks to match
+the reviewed candidate before publishing the draft. The normal published-release
+workflow repeats validation before signing and deployment.
+
 The installer pins archive fingerprint
 `AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0`, verifies the manifest detached
 signature on a protected private snapshot before parsing it, and accepts only
