@@ -5,7 +5,7 @@ for the Sphere/Mote Transport Debian aggregate. Private implementation source,
 GitLab addresses, credentials, topology, source packages, and loose env files
 are forbidden here.
 
-## Mote Transport target selectors
+## Historical Mote Transport target-selector bundle
 
 The standalone GitHub release `mote-transport-v2026.09.03-2` publishes the
 component-qualified target-selector bundle:
@@ -25,12 +25,13 @@ stripping only the final `.mma` and using exact `xxx.xxx` as the MMA, without
 querying MoteC. There is no suffix conversion or fallback, and callers cannot
 supply raw MMA transport fields.
 
-The canonical application path is `schat -> local schatd -> local mote-proxy ->
+That historical bundle's application path is `schat -> local schatd -> local mote-proxy ->
 D/MSG -> target moted -> remote schatd -> remote schat`. Interactive commands
 `/help`, `/status`, `/inbox`, and `/quit` remain local and are never sent as
 MSG payloads. Before its first prompt, interactive Schat performs a payload-free
 connect through that complete path and prints `ready to chat` only after the
-remote SchatD confirms the session. MOTESSH, MOTERDP, and RDP remain retired.
+remote SchatD confirms the session. Its retired names and routing describe that
+immutable bundle; the current UChat package contract is described below.
 
 Verify the exact four-package application chain without installing or changing
 the host runtime:
@@ -66,14 +67,13 @@ service user validates the environment loaded by systemd. A separate read-only
 root preflight checks the original files. Installation and configuration checks
 do not establish live MoteBus registration or message-delivery readiness.
 
-The v18 candidate uses native Rust for MoteD, Mote Proxy, UChat, MoteChatD,
+The v18 package set uses native Rust for MoteD, Mote Proxy, UChat, MoteChatD,
 MDesk, Mote SecD, Mote Sync, and the complete Mote Bridge MCP facade. Medge
 also uses Rust for its controller, scheduler, provider, and create-once
-configuration helper. These five new package migrations ship architecture-specific
-ELF binaries and drop their direct Python and Node.js runtime dependencies. Debian maintainer
-scripts and build-time checks remain separate from the installed runtime.
-The Obsidian plugin and the external browser and MoteBus runtimes retain their
-required implementation languages.
+configuration helper. Rust is the default for Debian-owned runtime code;
+maintainer scripts and build-time checks remain separate from the installed
+runtime. The MLink shared C ABI, Obsidian plugin, and external browser and
+MoteBus runtimes retain their required implementation languages.
 
 Mote Bridge MCP 3.0 sends Screen and Telegram requests directly through
 Sphered-native MoteBus contracts (`screen://spec` + `screen://mms` and
@@ -87,15 +87,25 @@ that event and sends the summary and packet identity through Comm's registered
 `*codex-mesh` Telegram target. Operational logs remain local; mirror failure is
 non-authoritative and never retries or rolls back inbox acceptance.
 
-The native migration candidate includes:
+Preparation for `medge-v5.9.0-1` extends the native migration to these remaining
+runtime helpers. Publication remains pending until exact remote artifacts and
+the complete Ubuntu install/reinstall checks pass:
 
 | Package | Version | Native runtime scope |
 | --- | --- | --- |
-| `medge` | `2.0.0-1` | Controller, scheduler, provider, configuration helper |
-| `mote-secd` | `1.0.0-1` | Security daemon and CLI |
-| `mote-sync` | `1.0.0-1` | Vault sync client and plugin installer |
-| `mote-syncd` | `1.0.0-1` | SSH sync subsystem |
-| `mote-bridge-mcp` | `3.0.0-1` | MCP facade, native lane, extension execution, installers |
+| `sphered` | `4.1.0-2` | Controller, launcher, provider |
+| `mlink` | `2.0.0-1` | Broker, daemon, CLI, HID and CEC helpers |
+| `mdesk` | `3.0.0-5` | Graphical-session provider |
+| `mote-proxy` | `2.0.0-3` | SSH proxy and transport handoff checker |
+| `ultra-mcp-ssh` / `mcp-run` | `2.0.0-1` | MCP-over-SSH client and restricted execution |
+| `codex-mesh` | `1.0.0-1` | Mesh CLI and bounded local broker client |
+
+The same candidate upgrades SS-WebOS to pinned Electron 44.2.0 and Node
+24.20.0, enables Chromium renderer sandboxing and context isolation, and
+rejects sandbox-disabling arguments. Package preparation verifies the complete
+Electron executable, and graphical acceptance exercises the packaged runtime
+on Ubuntu 24.04 and 26.04. Sync client and server updates are paired at
+`1.1.0-2` for the revision protocol.
 
 The signed release manifest remains the authority for published versions.
 
@@ -151,8 +161,8 @@ There is no aggregate `sphere`, `medge-core`, or `medge-all` meta-package.
 The current signed release surface contains exactly four scripts:
 `sphere.sh` for sixteen packages (all catalog rows except `ultra-mcp-ssh`),
 `webdesk.sh` for
-`sphere + mlink + mdesk + ss-webos`, and `sshkit.sh` for
-`sphere + moted + mote-proxy + mote-secd + mote-bridge-mcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + mote-chatd + uchat`.
+`sphered + mlink + mdesk + ss-webos`, and `sshkit.sh` for
+`sphered + moted + mote-proxy + mote-secd + mote-bridge-mcp + ultra-mcp-ssh + mcp-run + mote-sync + mote-syncd + mote-chatd + uchat`.
 `uninstall.sh` performs a bounded purge of the approved seventeen-package set
 and the exact installer-managed APT source/key. All former
 `install*.sh` and `*-install.sh` entries are retired without aliases.
@@ -218,7 +228,7 @@ scripts own service activation and configuration handling.
 Before `sshkit.sh` reports success, it proves the package-owned system OpenSSH
 profile and helper have their exact root ownership and modes, verifies that
 `ssh -G` selects the helper for a typed `.mote` target, and runs the
-manifest-pinned `sphere post-install` command. The installers do not write user
+manifest-pinned `/usr/sbin/sphered post-install` command. The installers do not write user
 SSH configuration or duplicate the package-owned proxy rule. They reject any
 GitLab URL in the resolved package plan.
 
