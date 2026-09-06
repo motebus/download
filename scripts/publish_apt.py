@@ -357,16 +357,28 @@ def require_no_gitlab_url_bytes(value: bytes, subject: str) -> None:
     require(GITLAB_URL_RE.search(value) is None, f"{subject}: GitLab URL is forbidden")
 
 
+UPSTREAM_NOTICE_PATH = "usr/lib/ss-webos/runtime/node_modules/electron/dist/LICENSES.chromium.html"
+UPSTREAM_NOTICE_SHA256 = "7f43224631a0844d982a5b6ce1f2af6e9be0d3a61d3e28494d95b64e20e15e53"
+
+
+def approved_upstream_notice(package: str, path: str, data: bytes) -> bool:
+    # This exact upstream license notice is separately reviewed public content.
+    return (package == "ss-webos" and path == UPSTREAM_NOTICE_PATH
+            and hashlib.sha256(data).hexdigest() == UPSTREAM_NOTICE_SHA256)
+
+
 def validate_public_deb_content(asset: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="medge-public-deb-") as temp_name:
         extracted = Path(temp_name)
         run("dpkg-deb", "--raw-extract", str(asset), str(extracted))
+        package = package_field(asset, "Package")
         for candidate in extracted.rglob("*"):
             if candidate.is_file() and not candidate.is_symlink():
-                require_no_gitlab_url_bytes(
-                    candidate.read_bytes(),
-                    f"{asset.name}:{candidate.relative_to(extracted)}",
-                )
+                data = candidate.read_bytes()
+                relative = candidate.relative_to(extracted).as_posix()
+                if approved_upstream_notice(package, relative, data):
+                    continue
+                require_no_gitlab_url_bytes(data, f"{asset.name}:{relative}")
 
 
 def validate_no_gitlab_urls(root: Path) -> None:

@@ -626,6 +626,20 @@ class PublicAptTest(unittest.TestCase):
             with self.assertRaisesRegex(publish_apt.PublishError, "GitLab URL is forbidden"):
                 publish_apt.validate_public_deb_content(asset)
 
+    def test_upstream_notice_exception_is_bound_to_package_path_and_bytes(self) -> None:
+        notice = b"reviewed upstream notice fixture"
+        digest = hashlib.sha256(notice).hexdigest()
+        original = publish_apt.UPSTREAM_NOTICE_SHA256
+        try:
+            publish_apt.UPSTREAM_NOTICE_SHA256 = digest
+            path = publish_apt.UPSTREAM_NOTICE_PATH
+            self.assertTrue(publish_apt.approved_upstream_notice("ss-webos", path, notice))
+            self.assertFalse(publish_apt.approved_upstream_notice("ss-webos", path, notice + b"changed"))
+            self.assertFalse(publish_apt.approved_upstream_notice("medge", path, notice))
+            self.assertFalse(publish_apt.approved_upstream_notice("ss-webos", "usr/bin/other", notice))
+        finally:
+            publish_apt.UPSTREAM_NOTICE_SHA256 = original
+
     def test_deb_without_gitlab_url_is_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             asset = self.make_deb(Path(temp_name), "https://github.com/motebus/medge-release")
