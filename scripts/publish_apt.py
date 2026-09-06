@@ -383,6 +383,16 @@ def approved_upstream_node(package: str, path: str, data: bytes) -> bool:
             and hashlib.sha256(data).hexdigest() == UPSTREAM_NODE_SHA256)
 
 
+UPSTREAM_ELECTRON_PATH = "usr/lib/ss-webos/runtime/node_modules/electron/dist/electron"
+UPSTREAM_ELECTRON_SHA256 = "9b827d38aacff0d69933481625c4c8f13b4732cbecd0e3477b1d2bac6102522c"
+
+
+def approved_upstream_electron(package: str, path: str, data: bytes) -> bool:
+    # Official Electron 44.2.0 linux-x64 ELF carries the same public Node comments.
+    return (package == "ss-webos" and path == UPSTREAM_ELECTRON_PATH
+            and hashlib.sha256(data).hexdigest() == UPSTREAM_ELECTRON_SHA256)
+
+
 def validate_public_deb_content(asset: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="medge-public-deb-") as temp_name:
         extracted = Path(temp_name)
@@ -393,7 +403,8 @@ def validate_public_deb_content(asset: Path) -> None:
                 data = candidate.read_bytes()
                 relative = candidate.relative_to(extracted).as_posix()
                 if (approved_upstream_notice(package, relative, data)
-                        or approved_upstream_node(package, relative, data)):
+                        or approved_upstream_node(package, relative, data)
+                        or approved_upstream_electron(package, relative, data)):
                     continue
                 require_no_gitlab_url_bytes(data, f"{asset.name}:{relative}")
 

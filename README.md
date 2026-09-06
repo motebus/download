@@ -191,6 +191,14 @@ This exact vendor-file exception does not admit other files, changed bytes, priv
 configuration, or a GitLab APT acquisition origin. The separate exact Chromium
 license-notice approvals remain in force.
 
+The official Electron 44.2.0 linux-x64 executable is separately admitted only
+for `ss-webos` at `usr/lib/ss-webos/runtime/node_modules/electron/dist/electron`,
+with SHA-256 `9b827d38aacff0d69933481625c4c8f13b4732cbecd0e3477b1d2bac6102522c`.
+Its official archive `electron-v44.2.0-linux-x64.zip` has SHA-256
+`574f7d8cd2a82d77812849729a282b86639b050de120d58b138a126d16b48692`.
+This exact binary contains the same two public upstream proxy-comment references;
+its bytes, package boundary, and acquisition-origin requirements are preserved.
+
 The installer pins archive fingerprint
 `AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0`, verifies the manifest detached
 signature on a protected private snapshot before parsing it, and accepts only
