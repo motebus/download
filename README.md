@@ -64,7 +64,7 @@ The v18 candidate uses native Rust for MoteD, Mote Proxy, UChat, MoteChatD,
 MDesk, Mote SecD, Mote Sync, and the complete Mote Bridge MCP facade. Medge
 also uses Rust for its controller, scheduler, provider, and create-once
 configuration helper. These five new package migrations ship architecture-specific
-ELF binaries without Python or Node.js runtime dependencies. Debian maintainer
+ELF binaries and drop their direct Python and Node.js runtime dependencies. Debian maintainer
 scripts and build-time checks remain separate from the installed runtime.
 The Obsidian plugin and the external browser and MoteBus runtimes retain their
 required implementation languages.
