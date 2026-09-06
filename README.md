@@ -172,17 +172,14 @@ explicitly approved immutable rollback tag. This repository then:
    protected archive key; and
 5. publishes the resulting site through GitHub Pages.
 
-Before publishing a candidate, dispatch the existing APT workflow on its reviewed
-`main` commit with `validation_only=true`, the draft `release_tag`, its exact
-`candidate_release_id`, and the `manifest_sha256` from the admitted bundle.
-The draft must target that same source commit; downloads use exact release and
-asset IDs and verify every GitHub asset digest. This mode performs the same tree,
-bundle, and Ubuntu install/reinstall checks and records every asset digest. It
-skips archive-key import, signing, Pages artifact creation, and Pages deployment.
-Require the successful run's source commit, manifest digest, all asset digests,
-both Ubuntu completion results, and all four protected-topology checks to match
-the reviewed candidate before publishing the draft. The normal published-release
-workflow repeats validation before signing and deployment.
+Before publication, the exact admitted CI bundle must pass the pinned Ubuntu
+24.04/26.04 install/reinstall tests and all four protected-topology checks.
+Record the source revision, test-script digest, manifest digest and all 23 asset
+digests. An authorized engineering workstation may run these checks against
+remote CI artifacts, using its existing approved Docker bridge and bounded
+resources. This does not permit local package substitution or repacking.
+The signing workflow consumes published release tags and repeats compatibility
+checks before importing the protected archive key and deploying Pages.
 
 The installer pins archive fingerprint
 `AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0`, verifies the manifest detached

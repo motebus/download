@@ -6,21 +6,8 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Approved Install Sphere medge-v<version> release tag
+        description: Approved published Install Sphere medge-v<version> release tag
         required: true
-        type: string
-      validation_only:
-        description: Validate the candidate without signing or publishing
-        required: false
-        default: false
-        type: boolean
-      manifest_sha256:
-        description: Expected manifest SHA256 (required for candidate validation)
-        required: false
-        type: string
-      candidate_release_id:
-        description: Exact draft release ID (required for candidate validation)
-        required: false
         type: string
 
 permissions:
@@ -55,63 +42,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT_TAG: ${{ github.event.release.tag_name }}
           INPUT_TAG: ${{ inputs.release_tag }}
-          VALIDATION_ONLY: ${{ inputs.validation_only }}
-          EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
-          CANDIDATE_RELEASE_ID: ${{ inputs.candidate_release_id }}
         run: |
           set -euo pipefail
           TAG="${EVENT_TAG:-${INPUT_TAG:-}}"
           [[ "$TAG" =~ ^medge-v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]] \
             || { echo "invalid release tag: $TAG" >&2; exit 1; }
-          if [[ "$VALIDATION_ONLY" == true ]]; then
-            [[ "$EXPECTED_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]] \
-              || { echo "candidate validation requires an exact manifest SHA256" >&2; exit 1; }
-            [[ "$CANDIDATE_RELEASE_ID" =~ ^[1-9][0-9]*$ ]] \
-              || { echo "candidate validation requires an exact draft release ID" >&2; exit 1; }
-          fi
           mkdir -p release-input/current
-          if [[ "$VALIDATION_ONLY" == true ]]; then
-            python3 - <<'PY'
-          import hashlib, json, os, re, subprocess
-          from pathlib import Path
-          repo = os.environ['GITHUB_REPOSITORY']
-          assert repo == 'motebus/download'
-          release_id = int(os.environ['CANDIDATE_RELEASE_ID'])
-          release = json.loads(subprocess.check_output([
-              'gh', 'api', f'repos/{repo}/releases/{release_id}',
-          ], text=True))
-          assert release['id'] == release_id and release['draft'] is True
-          assert release['tag_name'] == os.environ['INPUT_TAG']
-          assert release['target_commitish'] == os.environ['GITHUB_SHA']
-          assets = release['assets']
-          assert len(assets) == 23 and len({asset['name'] for asset in assets}) == 23
-          fixed = {'release-manifest.json', 'SHA256SUMS', 'sphere.sh',
-                   'webdesk.sh', 'sshkit.sh', 'uninstall.sh'}
-          assert fixed.issubset({asset['name'] for asset in assets})
-          for asset in assets:
-              name = asset['name']
-              assert name in fixed or re.fullmatch(r'[a-z0-9][a-zA-Z0-9._+~:-]*\.deb', name)
-              assert asset['state'] == 'uploaded' and 0 < asset['size'] <= 500_000_000
-              assert re.fullmatch(r'sha256:[0-9a-f]{64}', asset['digest'])
-              assert isinstance(asset['id'], int) and asset['id'] > 0
-              path = Path('release-input/current') / name
-              with path.open('xb') as output:
-                  subprocess.run(['gh', 'api', '-H', 'Accept: application/octet-stream',
-                                  f"repos/{repo}/releases/assets/{asset['id']}"],
-                                 stdout=output, check=True)
-              assert path.stat().st_size == asset['size']
-              with path.open('rb') as source:
-                  assert 'sha256:' + hashlib.file_digest(source, 'sha256').hexdigest() == asset['digest']
-          print('Exact candidate draft downloaded; 23 GitHub asset digests verified')
-          PY
-          else
-            gh release download "$TAG" --dir release-input/current
-          fi
-          MANIFEST_SHA256="$(sha256sum release-input/current/release-manifest.json | cut -d' ' -f1)"
-          if [[ -n "$EXPECTED_MANIFEST_SHA256" ]]; then
-            test "$MANIFEST_SHA256" = "$EXPECTED_MANIFEST_SHA256"
-          fi
-          printf 'Candidate manifest SHA256: %s\n' "$MANIFEST_SHA256"
+          gh release download "$TAG" --dir release-input/current
           chmod 0755 release-input/current/sphere.sh \
             release-input/current/webdesk.sh \
             release-input/current/sshkit.sh \
@@ -122,35 +59,7 @@ jobs:
       - name: Validate Ubuntu 24.04 and 26.04 package compatibility
         run: scripts/validate-ubuntu-compatibility.sh release-input/current
 
-      - name: Record validated bundle identity
-        run: |
-          python3 - <<'PY'
-          import hashlib, json, os
-          from pathlib import Path
-          bundle = Path('release-input/current')
-          def digest(path):
-              with path.open('rb') as source:
-                  return hashlib.file_digest(source, 'sha256').hexdigest()
-          evidence = {
-              'schema': 'sphere-candidate-validation/v1',
-              'tag': os.environ['CURRENT_TAG'],
-              'source_commit': os.environ['GITHUB_SHA'],
-              'run_id': os.environ['GITHUB_RUN_ID'],
-              'manifest_sha256': digest(bundle / 'release-manifest.json'),
-              'assets': {path.name: digest(path) for path in sorted(bundle.iterdir())},
-          }
-          Path('candidate-validation.json').write_text(json.dumps(evidence, indent=2) + '\n')
-          print(json.dumps(evidence, indent=2))
-          PY
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: candidate-validation-${{ github.run_id }}
-          path: candidate-validation.json
-          retention-days: 30
-
       - name: Import protected archive key
-        if: ${{ !inputs.validation_only }}
         env:
           MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
         run: |
@@ -159,7 +68,6 @@ jobs:
           printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
 
       - name: Build and sign APT repository
-        if: ${{ !inputs.validation_only }}
         env:
           MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
         run: |
@@ -171,13 +79,11 @@ jobs:
           test "$(du -sb apt-site | cut -f1)" -lt 1000000000
 
       - uses: actions/upload-pages-artifact@v3
-        if: ${{ !inputs.validation_only }}
         with:
           path: apt-site
 
   deploy:
     needs: build
-    if: ${{ !inputs.validation_only }}
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
