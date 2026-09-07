@@ -54,6 +54,9 @@ jobs:
             release-input/current/sshkit.sh \
             release-input/current/uninstall.sh
           python3 scripts/publish_apt.py validate-bundle release-input/current
+          BUNDLE_TAG="$(python3 -c 'import json; print("medge-v" + json.load(open("release-input/current/release-manifest.json"))["medge_version"])')"
+          [[ "$BUNDLE_TAG" == "$TAG" ]] \
+            || { echo "release tag does not match bundle version" >&2; exit 1; }
           printf 'CURRENT_TAG=%s\n' "$TAG" >> "$GITHUB_ENV"
 
       - name: Validate Ubuntu 24.04 and 26.04 package compatibility
