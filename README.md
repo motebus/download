@@ -87,9 +87,7 @@ that event and sends the summary and packet identity through Comm's registered
 `*codex-mesh` Telegram target. Operational logs remain local; mirror failure is
 non-authoritative and never retries or rolls back inbox acceptance.
 
-Preparation for `medge-v5.9.0-1` extends the native migration to these remaining
-runtime helpers. Publication remains pending until exact remote artifacts and
-the complete Ubuntu install/reinstall checks pass:
+`medge-v5.9.0-1` extends the native migration to these runtime helpers:
 
 | Package | Version | Native runtime scope |
 | --- | --- | --- |
@@ -100,7 +98,7 @@ the complete Ubuntu install/reinstall checks pass:
 | `ultra-mcp-ssh` / `mcp-run` | `2.0.0-1` | MCP-over-SSH client and restricted execution |
 | `codex-mesh` | `1.0.0-1` | Mesh CLI and bounded local broker client |
 
-The same candidate upgrades SS-WebOS to pinned Electron 44.2.0 and Node
+The release also upgrades SS-WebOS to pinned Electron 44.2.0 and Node
 24.20.0, enables Chromium renderer sandboxing and context isolation, and
 rejects sandbox-disabling arguments. Package preparation verifies the complete
 Electron executable, and graphical acceptance exercises the packaged runtime
