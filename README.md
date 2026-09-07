@@ -107,6 +107,32 @@ on Ubuntu 24.04 and 26.04. Sync client and server updates are paired at
 
 The signed release manifest remains the authority for published versions.
 
+### Terminal setup and chat
+
+`medge-v5.9.0-2` pairs `mlink 2.0.0-2` with `moted 3.5.0-4` and includes
+`uchat 2.0.0-3`. Both MLink setup and UChat use native Rust terminal interfaces.
+After installing the signed release, run:
+
+```bash
+mlink setup
+uchat
+```
+
+MLink setup lists connected readers, lets operators add support definitions,
+and saves each PC's enrollment by hardware serial or an explicit local port.
+Device names and event numbers are resolved at runtime. New enrollments start
+disabled. Enable a reader or run a private scan test through MoteD; frontend
+keystrokes are suppressed while the reader holds exclusive capture and its
+MoteD admission remains valid. Setup requires root or membership in the local
+`mote` operator group. The initial reader support uses the US keyboard layout
+with Enter or Tab termination. Physical-reader acceptance remains separate from
+package validation.
+
+UChat provides the local inbox and peer conversations, terminal selection for
+copying, explicit `/copy` commands where the terminal permits clipboard writes,
+and bracketed multiline paste that stays in the draft until Enter is pressed.
+Chat setup and delivery remain owned by MoteChatD.
+
 An approved `medge-public-release/v18` bundle contains these independent Debian
 packages in dependency-safe audit order:
 
