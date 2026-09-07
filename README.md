@@ -111,7 +111,14 @@ The signed release manifest remains the authority for published versions.
 
 `medge-v5.9.0-2` pairs `mlink 2.0.0-2` with `moted 3.5.0-4` and includes
 `uchat 2.0.0-3`. Both MLink setup and UChat use native Rust terminal interfaces.
-After installing the signed release, run:
+After installing the signed release, enable and start the services required by
+MLink setup. This first command requires local administrator privileges:
+
+```bash
+sudo systemctl enable --now mlink.service moted.service
+```
+
+Then run the terminal interfaces as your normal operator user:
 
 ```bash
 mlink setup
@@ -127,6 +134,13 @@ MoteD admission remains valid. Setup requires root or membership in the local
 `mote` operator group. The initial reader support uses the US keyboard layout
 with Enter or Tab termination. Physical-reader acceptance remains separate from
 package validation.
+
+If setup reports `SETUP_UNAVAILABLE: No such file or directory`, check
+`systemctl status mlink.service moted.service`. MLink's package leaves its
+service disabled on installation; the service-start step above is required
+before setup can reach its control socket. After both services are running,
+press `r` in setup to refresh. Starting the services does not enroll or enable
+new readers.
 
 UChat provides the local inbox and peer conversations, terminal selection for
 copying, explicit `/copy` commands where the terminal permits clipboard writes,
