@@ -109,6 +109,14 @@ The signed release manifest remains the authority for published versions.
 
 ### Terminal setup and chat
 
+`medge-v5.9.0-3` updates MLink to `2.0.0-3`. Run `mlink` or `mlink setup`
+for a single reader list: press **Y** to use a reader or **N** to disable it.
+Names are assigned automatically. A unique serial identifies the reader;
+otherwise setup shows the local port binding. Each choice advances to the
+next reader. Saved choices and actual capture readiness are shown separately.
+Model editing, additional devices, and private scan tests remain available
+with `mlink setup --advanced`.
+
 `medge-v5.9.0-2` pairs `mlink 2.0.0-2` with `moted 3.5.0-4` and includes
 `uchat 2.0.0-3`. Both MLink setup and UChat use native Rust terminal interfaces.
 After installing the signed release, enable and start the services required by
@@ -125,10 +133,10 @@ mlink setup
 uchat
 ```
 
-MLink setup lists connected readers, lets operators add support definitions,
-and saves each PC's enrollment by hardware serial or an explicit local port.
-Device names and event numbers are resolved at runtime. New enrollments start
-disabled. Enable a reader or run a private scan test through MoteD; frontend
+MLink setup lists supported readers and saves each PC's enrollment by hardware
+serial or the displayed local port. Device names and event numbers are resolved
+at runtime. Y enrolls a new reader and requests enable through MoteD. Advanced
+setup provides support editing, disabled enrollment and private scan tests; frontend
 keystrokes are suppressed while the reader holds exclusive capture and its
 MoteD admission remains valid. Setup requires root or membership in the local
 `mote` operator group. The initial reader support uses the US keyboard layout
@@ -141,6 +149,16 @@ service disabled on installation; the service-start step above is required
 before setup can reach its control socket. After both services are running,
 press `r` in setup to refresh. Starting the services does not enroll or enable
 new readers.
+
+The renewed `sphere.sh` also handles the Microsoft Edge stable repository GPG
+error that can block APT before Sphere installs. It downloads Microsoft's
+original release key from the [official key source](https://learn.microsoft.com/en-us/linux/packages),
+checks its pinned fingerprint and verifies the live Edge repository signature
+before repairing only Edge's `Signed-By` configuration. It supports `.list`
+and `.sources` files, including embedded keys, and keeps originals under
+`/var/backups/sphere-edge-apt-*`. It then retries APT with signature checking
+still enabled. Mixed-repository stanzas and unsafe files require manual repair;
+an unrelated repository failure still stops installation.
 
 UChat provides the local inbox and peer conversations, terminal selection for
 copying, explicit `/copy` commands where the terminal permits clipboard writes,

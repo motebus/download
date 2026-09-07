@@ -22,7 +22,7 @@ case "${ID:-}:${VERSION_ID:-}" in
 esac
 [[ "$(dpkg --print-architecture)" == amd64 ]] || fail "amd64 is required"
 
-for command_name in apt-get awk chmod cmp curl dpkg dpkg-deb dpkg-query gpg gpgv install mktemp python3; do
+for command_name in apt-get awk chmod cmp curl dpkg dpkg-deb dpkg-query gpg gpgv install mktemp python3 tee; do
     command -v "$command_name" >/dev/null 2>&1 ||
         fail "required command is unavailable: $command_name"
 done
@@ -195,7 +195,183 @@ APT_OPTIONS=(
 )
 export DEBIAN_FRONTEND=noninteractive
 export LC_ALL=C
-apt-get "${APT_OPTIONS[@]}" update
+
+repair_edge_signing_key() {
+    printf '%s\n' 'Repairing the Microsoft Edge repository key from Microsoft...'
+    install -d -m 0700 "$TEMP_DIR/edge-gnupg"
+    curl --proto '=https' --tlsv1.2 -fsSLo "$TEMP_DIR/microsoft.asc" \
+        https://packages.microsoft.com/keys/microsoft.asc || return 1
+    curl --proto '=https' --tlsv1.2 -fsSLo "$TEMP_DIR/edge-InRelease" \
+        https://packages.microsoft.com/repos/edge/dists/stable/InRelease || return 1
+    local fingerprint
+    fingerprint="$(gpg --homedir "$TEMP_DIR/edge-gnupg" --batch --show-keys --with-colons \
+        "$TEMP_DIR/microsoft.asc" | awk -F: '
+        $1 == "pub" { count++ }
+        $1 == "fpr" && fingerprint == "" { fingerprint = $10 }
+        END { if (count != 1 || fingerprint == "") exit 1; print fingerprint }')" || return 1
+    [[ "$fingerprint" == BC528686B50D79E339D3721CEB3E94ADBE1229CF ]] || return 1
+    gpg --homedir "$TEMP_DIR/edge-gnupg" --batch --yes --dearmor \
+        --output "$TEMP_DIR/microsoft-edge.gpg" "$TEMP_DIR/microsoft.asc" || return 1
+    gpgv --homedir "$TEMP_DIR/edge-gnupg" --keyring "$TEMP_DIR/microsoft-edge.gpg" \
+        "$TEMP_DIR/edge-InRelease" || return 1
+    python3 - / "$TEMP_DIR/microsoft-edge.gpg" <<'PY_EDGE_REPAIR'
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import stat
+import sys
+import uuid
+
+root, key_input = map(Path, sys.argv[1:])
+edge = 'https://packages.microsoft.com/repos/edge'
+key_name = '/etc/apt/keyrings/microsoft-edge.gpg'
+insecure = {'trusted', 'allow-insecure', 'allow-weak', 'allow-downgrade-to-insecure'}
+
+def directory(path):
+    if not path.exists():
+        directory(path.parent)
+        path.mkdir(mode=0o755)
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.geteuid() or info.st_mode & 0o022:
+        raise SystemExit(f'unsafe APT directory: {path}')
+
+def read(path):
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, 'rb') as handle:
+        info = os.fstat(handle.fileno())
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
+                or info.st_mode & 0o022 or info.st_size > 1048576):
+            raise SystemExit(f'unsafe APT file: {path}')
+        return handle.read(1048577), stat.S_IMODE(info.st_mode)
+
+def list_text(text):
+    global matched
+    output = []
+    for line in text.splitlines(keepends=True):
+        match = re.fullmatch(r'(\s*deb(?:-src)?\s+)(?:\[([^\]\n]*)\]\s+)?'
+                             r'(https://packages\.microsoft\.com/repos/edge/?)'
+                             r'([ \t]+stable[ \t]+[^\n]+)(\n?)', line)
+        if match:
+            matched = True
+            options = shlex.split(match[2] or '')
+            for option in options:
+                name, _, value = option.partition('=')
+                if name.lower() in insecure and value.lower() not in {'no', 'false', '0'}:
+                    raise SystemExit('Edge source already permits insecure packages; repair it manually')
+            options = [v for v in options if v.partition('=')[0].lower() != 'signed-by']
+            options.append('signed-by=' + key_name)
+            line = match[1] + '[' + ' '.join(options) + '] ' + match[3] + match[4] + match[5]
+        output.append(line)
+    return ''.join(output)
+
+def stanza_text(stanza):
+    global matched
+    lines = stanza.splitlines(keepends=True)
+    fields = {}
+    spans = {}
+    current = None
+    for i, line in enumerate(lines):
+        if line.startswith('#'):
+            continue
+        match = re.match(r'^([A-Za-z][A-Za-z0-9-]*):[ \t]*(.*)', line)
+        if match:
+            current = match[1].lower()
+            if current in fields:
+                raise SystemExit('duplicate field in APT source stanza')
+            fields[current] = match[2].strip()
+            spans[current] = [i]
+        elif line[:1].isspace() and current:
+            fields[current] += ' ' + line.strip()
+            spans[current].append(i)
+    uris = fields.get('uris', '').split()
+    if edge not in [u.rstrip('/') for u in uris] or fields.get('enabled', 'yes').lower() == 'no':
+        return stanza
+    if any(u.rstrip('/') != edge for u in uris):
+        raise SystemExit('Edge shares an APT stanza with another repository; split that stanza first')
+    if 'stable' not in fields.get('suites', '').split():
+        return stanza
+    matched = True
+    for name in insecure:
+        if name in fields and fields[name].lower() not in {'no', 'false', '0'}:
+            raise SystemExit('Edge source already permits insecure packages; repair it manually')
+    remove = set(spans.get('signed-by', []))
+    result = ''.join(line for i, line in enumerate(lines) if i not in remove)
+    return result.rstrip('\n') + '\nSigned-By: ' + key_name + '\n'
+
+apt = root / 'etc/apt'
+directory(apt)
+directory(apt / 'sources.list.d')
+paths = [apt / 'sources.list'] if (apt / 'sources.list').exists() else []
+paths += sorted(p for p in (apt / 'sources.list.d').iterdir() if p.suffix in {'.list', '.sources'})
+plan = []
+matched = False
+for path in paths:
+    original, mode = read(path)
+    text = original.decode('utf-8')
+    if path.suffix == '.sources':
+        revised = ''.join(part if not part.strip() else stanza_text(part)
+                          for part in re.split(r'(\n[ \t]*\n)', text))
+    else:
+        revised = list_text(text)
+    if revised != text:
+        plan.append((path, original, revised.encode(), mode))
+if not matched:
+    raise SystemExit('No supported active Edge stable source found; APT configuration was not changed')
+
+directory(apt / 'keyrings')
+key_path = root / key_name.lstrip('/')
+previous_key, key_mode = read(key_path) if key_path.exists() or key_path.is_symlink() else (None, 0o644)
+new_key = key_input.read_bytes()
+if not new_key or len(new_key) > 65536:
+    raise SystemExit('invalid verified Edge key size')
+plan.insert(0, (key_path, previous_key, new_key, 0o644))
+backup_root = root / 'var/backups'
+directory(backup_root)
+backup = backup_root / ('sphere-edge-apt-' + uuid.uuid4().hex)
+backup.mkdir(mode=0o700)
+records = []
+for i, (path, before, after, mode) in enumerate(plan):
+    if before is not None:
+        saved = backup / str(i)
+        saved.write_bytes(before)
+        saved.chmod(0o600)
+    records.append({'path': '/' + str(path.relative_to(root)), 'backup': str(i) if before is not None else None,
+                    'sha256': hashlib.sha256(before).hexdigest() if before is not None else None})
+(backup / 'files.json').write_text(json.dumps(records, indent=2) + '\n')
+for path, before, after, mode in plan:
+    exists = path.exists() or path.is_symlink()
+    if (before is None and exists) or (before is not None and (not exists or read(path)[0] != before)):
+        raise SystemExit(f'APT configuration changed during repair; backups: {backup}')
+    temporary = path.with_name('.' + path.name + '.' + uuid.uuid4().hex)
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, 'wb') as handle:
+        handle.write(after)
+        handle.flush()
+        os.fsync(handle.fileno())
+    temporary.chmod(mode)
+    os.replace(temporary, path)
+print(f'Edge key repaired with repository-scoped Signed-By. Backups: {backup}')
+PY_EDGE_REPAIR
+}
+
+if ! apt-get "${APT_OPTIONS[@]}" update 2>&1 | tee "$TEMP_DIR/apt-update.log"; then
+    if python3 - "$TEMP_DIR/apt-update.log" <<'PY_EDGE_ERROR'
+from pathlib import Path
+import re
+import sys
+text = Path(sys.argv[1]).read_text(errors='replace')
+raise SystemExit(0 if re.search(r'(?:GPG error|OpenPGP signature verification failed): https://packages\.microsoft\.com/repos/edge/? stable InRelease:', text) else 1)
+PY_EDGE_ERROR
+    then
+        repair_edge_signing_key || fail 'Microsoft Edge key repair failed; signature checks remain enabled'
+        apt-get "${APT_OPTIONS[@]}" update || fail 'APT still reports repository errors after Edge key repair'
+    else
+        fail 'APT repository update failed; repair the repository errors above and retry'
+    fi
+fi
 
 PACKAGE_ARGS=()
 for record in "${PACKAGE_RECORDS[@]}"; do
@@ -349,3 +525,7 @@ for record in "${PACKAGE_RECORDS[@]}"; do
 done
 
 printf '%s profile installation completed from the signed APT source.\n' "$PROFILE_NAME"
+printf '%s\n' \
+    'Reader setup: start mlink.service and moted.service, then run mlink.' \
+    'Choose Y to use a reader or N to disable it. Keys are blocked only while ready.' \
+    'First-use commands and advanced setup: https://github.com/motebus/download#terminal-setup-and-chat'
