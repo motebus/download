@@ -113,6 +113,19 @@ cannot mark the host ready. Mote Proxy retains exact host lookup through
 `rc.resolve`. The other sixteen package versions and all four release scripts
 remain pinned to the preceding release.
 
+Hosts use `<hostname>.mote`, for example `host-a.mote`. MoteD registers
+`type: "moted", key: "host-a"` and renews that record. `rc.register`
+automatically captures the source MMA from MoteBus; callers do not supply an
+MMA or look one up before registration. Mote Proxy uses `rc.resolve` when a
+host is accessed. `local.mote` selects the current host's same record.
+
+The accompanying MoteC service correction restores `rc://spec` and
+`rc.resolve` dispatch after MoteBus resolves a logical Resource Center to its
+native application. It addresses the server's `undefined ... apply` error
+that could appear as `Target MMA not found` in Mote Proxy. This service update
+is distributed as a Redixs OCI release; the signed Sphere Debian package
+manifest remains the package-version authority.
+
 ### Terminal setup and chat
 
 `medge-v5.9.0-3` updates MLink to `2.0.0-3`. Run `mlink` or `mlink setup`
