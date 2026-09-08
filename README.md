@@ -107,6 +107,12 @@ on Ubuntu 24.04 and 26.04. Sync client and server updates are paired at
 
 The signed release manifest remains the authority for published versions.
 
+`medge-v5.9.0-8` upgrades MoteD to `3.5.0-8`. Host registration now
+requires the complete successful terminal acknowledgement; an incomplete reply
+cannot mark the host ready. Mote Proxy retains exact host lookup through
+`rc.resolve`. The other sixteen package versions and all four release scripts
+remain pinned to the preceding release.
+
 ### Terminal setup and chat
 
 `medge-v5.9.0-3` updates MLink to `2.0.0-3`. Run `mlink` or `mlink setup`

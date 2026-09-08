@@ -525,7 +525,3 @@ for record in "${PACKAGE_RECORDS[@]}"; do
 done
 
 printf '%s profile installation completed from the signed APT source.\n' "$PROFILE_NAME"
-printf '%s\n' \
-    'Reader setup: start mlink.service and moted.service, then run mlink.' \
-    'Choose Y to use a reader or N to disable it. Keys are blocked only while ready.' \
-    'First-use commands and advanced setup: https://github.com/motebus/download#terminal-setup-and-chat'
