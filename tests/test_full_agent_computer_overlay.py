@@ -49,6 +49,10 @@ def make_deb(root, package, depends=None, payload=None):
         path = stage / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(data)
+    stage.chmod(0o755)
+    for path in stage.rglob("*"):
+        if not path.is_symlink():
+            path.chmod(0o755 if path.is_dir() else 0o644)
     subprocess.run(["dpkg-deb", "--build", "--root-owner-group", str(stage), str(asset)],
                    check=True, stdout=subprocess.DEVNULL)
     package["sha256"] = p.sha256(asset)
@@ -75,6 +79,30 @@ def make_full_bundle(root):
 
 
 class FullAgentComputerOverlayTest(unittest.TestCase):
+    def test_actual_archives_reject_writable_units_and_directories(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = next(x for x in config_fixture()["release"]["packages"] if x["name"] == "agos")
+            for relative, mode in (("usr/lib/systemd/system/agosd.service", 0o666),
+                                   ("usr/lib/systemd", 0o777)):
+                with self.subTest(path=relative):
+                    case = root / str(mode)
+                    asset = make_deb(case, package, payload={
+                        "usr/lib/systemd/system/agosd.service": "[Service]\nExecStart=/usr/sbin/agosd\n"})
+                    stage = case / "package-agos"
+                    (stage / "DEBIAN/postinst").write_text("#!/bin/sh\nexit 0\n")
+                    (stage / "DEBIAN/postinst").chmod(0o755)
+                    target = stage / relative
+                    target.chmod(mode)
+                    subprocess.run(["dpkg-deb", "--build", "--root-owner-group", str(stage), str(asset)],
+                                   check=True, stdout=subprocess.DEVNULL)
+                    with self.assertRaisesRegex(p.PublishError, "unsafe archive permissions"):
+                        p.validate_deb_archive_permissions(asset)
+                    target.chmod(0o755 if target.is_dir() or relative == "DEBIAN/postinst" else 0o644)
+                    subprocess.run(["dpkg-deb", "--build", "--root-owner-group", str(stage), str(asset)],
+                                   check=True, stdout=subprocess.DEVNULL)
+                    p.validate_deb_archive_permissions(asset)
+
     def test_v3_signatures_bind_root_blocker_and_immutable_legacy_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

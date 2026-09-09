@@ -1,87 +1,106 @@
-# Install Sphere Debian Distribution
+# Agent Computer Debian Distribution
 
-The next signed release uses the v19 catalog and includes SS-WebOS 2.0.0-11
-with fullscreen controls, display detection, hostname tags, startup profiles,
-status inspection, and a searchable SmartScreen app icon. Model Node is added
-to the complete Sphere profile and stays disabled until configured. The v19
-catalog has eighteen packages; Sphere installs seventeen, excluding ultra-mcp-ssh.
-WebDesk and SSHKit keep their existing selected package sets.
+```text
+Agent Computer = agent-sphere.deb + agent-apps.deb
 
-Historical releases remain immutable. New installer scripts are deployed with
-matching signed manifests through the protected APT publishing workflow.
+agent-sphere                       agent-apps
+  sphered                            agos
+  moted                              model-router
+  mote-proxy                         model-llm
+  mote-transportd                     cx-agent
+  medge                              ss-webos
+  mlink                              mdesk
+                                     obsidian
+                                     uchat
+                                     mote-bridge-mcp
+                                     mote-vault-sync
+                                     mote-vault-syncd
+                                     mote-secd
+                                     codex-mesh
 
-## Agent Computer APT composition
+MEdge = MBox + MDrive + MCP
+```
 
-The new top-level installation packages are `agent-sphere` and `agent-apps`.
-APT resolves their component dependencies. The initial additive publication
-path admits only `agent-sphere` and its renamed `mote-transportd` dependency
-from the public `motebus/agent-sphere-deb` release. `agent-apps` and a compatible
-new AGOS release are not published by this change.
-The installer entry is
-[`agent-sphere-apps.sh`](https://motebus.github.io/download/agent-sphere-apps.sh).
-This site publishes the exact reviewed script from the separate Agent Sphere
-release, along with its [detached signature](https://motebus.github.io/download/agent-sphere-apps.sh.asc)
-and [source release and SHA-256 record](https://motebus.github.io/download/agent-sphere-apps.source.json).
-Verify it with the trusted MoteBus archive key before running it. The script
-requires this signed APT repository to be configured and checks both packages
-before installation. Until compatible `agent-apps` is published, its preflight
-stops before installing packages.
+Agent Sphere supplies the system substrate. Agent Apps composes thirteen
+applications. APT/DPKG resolves the two entry packages and systemd manages each
+component's lifecycle. AGOS runs agent modules and requests model resources
+through the combined Model Router; Model LLM performs inference through its
+configured backend. CX Agent supplies admitted Codex execution.
 
-The committed `agent-sphere-apps.source.json` pins its public release, source
-commit, filename and digest. Publication validates that record and script,
-copies both, and signs both with the existing archive key. They are separate
-website assets and are not inserted into the two-package APT overlay or the
-legacy bundle manifest. The former `agent-app` package name is retired and
-does not become an installable alias.
+MEdge owns MBox admission/dispatch, bounded local MDrive objects and fixed MCP
+tools. Its MCP extension uses the Apps-owned Mote Bridge MCP server. Local
+I/O follows MoteD admission to MEdge and MLINK.
 
-`agent-computer-apt-overlay.json` is the tracked, reviewed pin set. A `null`
-release keeps the overlay disabled until both real Debian artifacts have
-passed their release gates. To activate it, replace `release` with an object
-containing the exact `repository` (`motebus/agent-sphere-deb`), `tag`
-(`v<agent-sphere-version>`), and ordered `packages` records for `agent-sphere`
-(`all`) and `mote-transportd` (`amd64`). Every package record contains exactly
-`name`, `version`, `architecture`, `asset`, and its verified `sha256`.
-Do not use placeholder checksums, mutable tags, another repository, or an
-incompatible historical AGOS package.
+## Installation
 
-Every protected APT publication checks out the reviewed `main` publication
-code and pin set, downloads this tracked overlay, verifies
-each digest and actual Debian identity, and adds the two archives to the
-signed APT index. An active overlay cannot be omitted on a future aggregate
-publication. The existing archive key signs both APT metadata and a separate
-copy of the overlay pin set. This uses the existing `release` environment;
-it introduces no signing key, credential source, repository dispatch, or
-public source-build path.
+Use [`agent-sphere-apps.sh`](https://motebus.github.io/download/agent-sphere-apps.sh)
+from this site after configuring the trusted signed MoteBus APT repository.
+The [detached signature](https://motebus.github.io/download/agent-sphere-apps.sh.asc)
+and [source release record](https://motebus.github.io/download/agent-sphere-apps.source.json)
+bind the script to the reviewed Agent Sphere release. Verify the signature
+with the trusted archive key before running the downloaded script using sudo.
 
-The base `release-manifest.json`, its signature, historical v18/v19 package
-catalogs, and fixed legacy installer selections keep their own contracts.
-The overlay is not inserted into those manifests or scripts. Once activated,
-an already configured and trusted APT client can use `apt install
-agent-sphere`; it does not select `mote-transportd` manually. Publishing the
-package does not establish live Agent Sphere readiness.
+The installer downloads and verifies the official upstream Obsidian DEB, then
+installs both entry packages in one APT transaction. Obsidian is not mirrored
+in this repository or the aggregate release. Its Vault and user configuration
+remain under the desktop user's ownership. The installer does not select a
+Vault, enable its sync plugin, download model weights, or provide model and
+transport credentials.
 
-Before uploading Pages, the active-overlay gate verifies the archive
-signatures and runs `apt-get --simulate --no-remove install agent-sphere`
-against the signed index in clean, digest-pinned Ubuntu 24.04 and 26.04
-containers. It names no runtime component on the command line. The plan must
-select all six runtime dependencies at their signed versions and no App,
-AGOS, desktop, WebOS, MCP, CX, retired `mote-chatd`, or other aggregate
-component. OS dependencies are allowed. This is a resolver check, with no
-package installation or runtime-readiness claim; the legacy full-bundle
-compatibility job remains separate.
+Fresh installation selects twenty-one canonical packages. A migrated host may
+also retain one documentation-only `mote-chatd` record protecting locked DPKG
+configuration ownership. Only `mote-transportd` owns the messaging runtime.
+The installer admits only the reviewed CX, Vault Sync and inference package
+renames, and checks the final APT transaction before DPKG runs. It refuses
+unrelated removals, downgrades and retirement of that protected record.
 
-To publish after the reviewed pins are committed to `main`, dispatch the
-existing **Publish approved Install Sphere APT repository** workflow with
-the exact currently approved base `medge-v<version>` release tag. The same
-overlay remains pinned during subsequent base publications. Changing the
-pins requires another reviewed commit; rewriting a released archive is
-rejected by checksum verification.
+The supported product names are `cx-agent`, `model-router`, `model-llm`,
+`mote-vault-sync` and `mote-vault-syncd`. There is no generic `agent.deb` or
+separate Model Grid package. Historical `model-node`, `cx-node`, `mcp-run`,
+`ultra-mcp-ssh` and the singular `agent-app` are outside the new composition.
+Existing wire/configuration identifiers remain where compatibility requires.
 
+## Release and acceptance contract
 
-This public repository is the reviewed GitHub release and signed APT boundary
-for the Sphere/Mote Transport Debian aggregate. Private implementation source,
-GitLab addresses, credentials, topology, source packages, and loose env files
-are forbidden here.
+`agent-computer-apt-overlay.json` pins the aggregate
+`motebus/download` release `agent-computer-v0.1.0-1`. The v3 contract admits
+exactly twenty redistributable canonical DEBs, the optional protected retention
+record, and one external official Obsidian prerequisite. Every runtime pin
+records the actual successful committed-main build and reviewed payload digest.
+The public aggregate contains no private implementation source or private
+source-server address. Released artifacts and historical manifests are immutable.
+
+The protected publication workflow validates those exact DEBs, their metadata
+and safe archive permissions, signs the APT index and public pin set with the existing archive key,
+and checks automatic resolution in clean Ubuntu 24.04 and 26.04 containers.
+The full fixture seeds only the verified official Obsidian prerequisite before
+resolving `apt install agent-sphere agent-apps`. It never seeds native runtime
+components or the legacy retention record on a fresh host.
+
+Package availability and resolver success do not establish full system
+readiness. Live UltraOne/D/MSG connectivity, owner admission, real inference,
+CX effective tool policy, a selected Vault and sync path, and reboot recovery
+require separate runtime acceptance. Initial process fixtures cover the native
+AGOS → Router → Model LLM chain with a test backend and
+MCP → MoteD → MBox → MDrive with isolated local objects.
+
+## Historical installation and removal
+
+The existing v19 base remains available byte-for-byte alongside the new APT
+versions. Its fixed legacy installer profiles describe that historical release.
+They do not define the new two-package product.
+
+For the active v3 composition, the root `uninstall.sh` refuses automatic removal
+before inspecting or changing services, packages or data. This also protects
+partial installations containing only shared runtime package names.
+Full removal awaits a safe migration of protected configuration ownership.
+Removing the two metapackages alone is not full runtime removal. The immutable
+legacy uninstaller, manifest and checksum file are archived under
+`legacy/medge-v5.10.0-1/`; that script is unsuitable for current Agent Computer
+cleanup. Personal Vaults and locked transport identities must be preserved.
+
+The following sections record historical transport releases and their original
+contracts.
 
 ## Historical Mote Transport target-selector bundle
 
@@ -526,7 +545,8 @@ Obsidian is the sole `external_prerequisites` record, with `name`, `version`,
 versioned official `obsidianmd/obsidian-releases` GitHub asset URL is admitted.
 Its SHA and Debian identity are checked separately; its DEB never enters the
 aggregate release or the published APT site. Installing Apps requires this
-upstream prerequisite to be installed first. Desktop installation does not
+upstream prerequisite to be available to APT in the same transaction or already
+installed. Desktop installation does not
 provision or modify user vaults.
 
 `retention_packages` is empty or contains one explicit `mote-chatd` package with
@@ -549,9 +569,9 @@ latter. APT uses native signature checks, resolves all canonical component
 versions automatically, and must select no retired runtime, guard, or removal.
 The signed index and actual pool bytes must match every approved SHA.
 
-Activation still requires real main-CI artifacts, reviewed source and release
-pins, protected workflow success, and signed deployed-index readback. No v3
-package availability or full runtime readiness is claimed by this source change.
+Activation requires real main-CI artifacts, reviewed source and release
+pins, protected workflow success, and signed deployed-index readback. Package
+publication does not establish full runtime readiness.
 Full uninstall remains unsupported pending a reviewed retention dependency
 migration. A v3 site serves the reviewed preflight at root `uninstall.sh`, with
 its own archive signature. It refuses the new composition before mutation and

@@ -1,4 +1,4 @@
-"""Run only the read-only preflight with a fake dpkg-query; never run uninstall."""
+"""Verify the current root refusal and retain historical read-only guard tests."""
 from pathlib import Path
 import ast
 import os
@@ -13,6 +13,24 @@ CODE = TEXT.split("<<'PY_UNINSTALL_PREFLIGHT'\n", 1)[1].split('\nPY_UNINSTALL_PR
 
 
 class UninstallPreflightTest(unittest.TestCase):
+    def test_current_root_refuses_before_any_external_command(self):
+        # Covers even a partial new host containing only shared package names
+        # such as medge/mlink/moted, which name-based detection cannot identify.
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            calls=root/'calls'
+            for name in ('id','dpkg','dpkg-query','apt-get','curl','systemctl','mktemp','python3','install','rm'):
+                command=root/name
+                command.write_text('#!/bin/sh\nprintf called >> "$REFUSAL_CALLS"\nexit 97\n')
+                command.chmod(0o755)
+            result=subprocess.run(['/bin/bash',str(ROOT/'uninstall.sh')],
+                                  env={'PATH':directory,'REFUSAL_CALLS':str(calls)},
+                                  capture_output=True,text=True)
+            self.assertNotEqual(result.returncode,0)
+            self.assertIn('current Agent Computer removal is unavailable',result.stderr)
+            self.assertIn('no packages, services, configuration or vaults were changed',result.stderr)
+            self.assertFalse(calls.exists(),'root blocker reached an external command')
+
     def run_preflight(self, states=None, conffiles=None, broken=False):
         # An isolated child runs the exact embedded code; its subprocess entry
         # point is replaced before evaluation. No real dpkg or host files run.
