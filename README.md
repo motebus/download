@@ -1,5 +1,16 @@
 # Install Sphere Debian Distribution
 
+The next signed release uses the v19 catalog and includes SS-WebOS 2.0.0-11
+with fullscreen controls, display detection, hostname tags, startup profiles,
+status inspection, and a searchable SmartScreen app icon. Model Node is added
+to the complete Sphere profile and stays disabled until configured. The v19
+catalog has eighteen packages; Sphere installs seventeen, excluding ultra-mcp-ssh.
+WebDesk and SSHKit keep their existing selected package sets.
+
+Historical releases remain immutable. New installer scripts are deployed with
+matching signed manifests through the protected APT publishing workflow.
+
+
 This public repository is the reviewed GitHub release and signed APT boundary
 for the Sphere/Mote Transport Debian aggregate. Private implementation source,
 GitLab addresses, credentials, topology, source packages, and loose env files
@@ -51,7 +62,7 @@ as one idempotent inbox record and never re-enters the outbound path. Mote
 Transport releases run this gate in their own GitHub Actions workflow. The
 older releases remain immutable historical evidence.
 
-## Current v18 package set
+## Published v18 package set
 
 The `medge-public-release/v18` contract replaces the physical `sphere` package
 with `sphered` and updates dependent packages and systemd references together.

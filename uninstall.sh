@@ -120,6 +120,7 @@ expected = (
     "ultra-mcp-ssh",
     "mcp-run",
     "cx-node",
+    "model-node",
     "mote-sync",
     "mote-syncd",
     "mote-chatd",
@@ -130,8 +131,8 @@ expected_installers = ("sphere.sh", "webdesk.sh", "sshkit.sh", "uninstall.sh")
 hex64_re = re.compile(r"^[0-9a-f]{64}$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
-if manifest.get("schema") != "medge-public-release/v18":
-    raise SystemExit("release manifest schema is not medge-public-release/v18")
+if manifest.get("schema") != "medge-public-release/v19":
+    raise SystemExit("release manifest schema is not medge-public-release/v19")
 if manifest.get("status") != "approved":
     raise SystemExit("release manifest is not approved")
 if (
@@ -153,7 +154,7 @@ for name in expected:
 PY
 
 mapfile -t APPROVED_PACKAGES <"$TEMP_DIR/package-plan"
-[[ "${#APPROVED_PACKAGES[@]}" -eq 17 ]] ||
+[[ "${#APPROVED_PACKAGES[@]}" -eq 18 ]] ||
     fail "release manifest package boundary is incomplete"
 
 if [[ -e "$KEYRING_PATH" ]]; then

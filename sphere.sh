@@ -118,6 +118,7 @@ expected = (
     "ultra-mcp-ssh",
     "mcp-run",
     "cx-node",
+    "model-node",
     "mote-sync",
     "mote-syncd",
     "mote-chatd",
@@ -128,8 +129,8 @@ selected = tuple(name for name in expected if name != "ultra-mcp-ssh")
 version_re = re.compile(r"^[0-9][0-9A-Za-z.+:~]*-[0-9]+$")
 with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
-if manifest.get("schema") != "medge-public-release/v18":
-    raise SystemExit("release manifest schema is not medge-public-release/v18")
+if manifest.get("schema") != "medge-public-release/v19":
+    raise SystemExit("release manifest schema is not medge-public-release/v19")
 if manifest.get("status") != "approved":
     raise SystemExit("release manifest is not approved")
 if (
@@ -160,7 +161,7 @@ for item in packages:
 PY
 
 mapfile -t PACKAGE_RECORDS <"$TEMP_DIR/package-plan"
-[[ "${#PACKAGE_RECORDS[@]}" -eq 16 ]] || fail "release manifest package plan is incomplete for $PROFILE_NAME"
+[[ "${#PACKAGE_RECORDS[@]}" -eq 17 ]] || fail "release manifest package plan is incomplete for $PROFILE_NAME"
 
 cat >"$TEMP_DIR/expected.sources" <<EOF
 Types: deb
