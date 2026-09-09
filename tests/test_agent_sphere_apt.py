@@ -51,7 +51,7 @@ class AgentSphereAptTest(unittest.TestCase):
 
     def test_application_and_retired_packages_are_rejected_even_outside_base_catalog(self) -> None:
         base, overlay, output = self.fixture()
-        for name in ("agos", "agent-app", "aport", "mdesk", "ss-webos", "mote-bridge-mcp",
+        for name in ("agos", "agent-app", "agent-apps", "aport", "mdesk", "ss-webos", "mote-bridge-mcp",
                      "cx-node", "codex-cli", "mcp-run", "ultra-mcp-ssh", "mote-chatd"):
             with self.subTest(package=name), self.assertRaises(fixtures.publish_apt.PublishError):
                 resolution.validate_plan(output + f"Inst {name} (1.0.0-1 source [amd64])\n", base, overlay)
