@@ -2,19 +2,19 @@
   "schema": "agent-computer-apt-overlay/v3",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.1.0-2",
-    "source_commit": "40b14cecbe819ce78b7ebb01601a86141207da37",
+    "tag": "agent-computer-v0.1.0-3",
+    "source_commit": "1743ce1254680453dbcaa44f71dbdc923c565548",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.1.0-7",
+        "version": "0.1.0-8",
         "architecture": "all",
-        "asset": "agent-sphere_0.1.0-7_all.deb",
-        "sha256": "758c9c23e3c8cfa74ee8e67825d1944792422f77b936c166b8df8368118268be",
+        "asset": "agent-sphere_0.1.0-8_all.deb",
+        "sha256": "6d32d771c0f735bbf14dbdf3c1a3006c8aadc94b03aff736189170a4b6270a26",
         "provenance": {
-          "source_commit": "4ae87d2e225bd36a88fe207438d06a6e92addd93",
+          "source_commit": "d306e8ea79df4f8463f883e6f312e9dac5691104",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 34342982980,
+          "main_pipeline_id": 34347895588,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -91,14 +91,14 @@
       },
       {
         "name": "medge",
-        "version": "3.0.0-2",
+        "version": "3.0.0-3",
         "architecture": "amd64",
-        "asset": "medge_3.0.0-2_amd64.deb",
-        "sha256": "c5986b4656793e9ae237b811c683b53649d4303c4a94c414ea4a0c15de66aabe",
+        "asset": "medge_3.0.0-3_amd64.deb",
+        "sha256": "7582ab24c0c4f1b4d8ddfffb58bfeb7eb3f6bbcfd65437ebd0f8eb17f1fdf94c",
         "provenance": {
-          "source_commit": "6a86caeb5049b4d9f5d2c615d218ff3fec427324",
+          "source_commit": "966945ec5ae4e2a46bd27d75abedbf4b653fe092",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26484,
+          "main_pipeline_id": 26528,
           "build_status": "success",
           "public_payload_reviewed": true
         }
