@@ -9,6 +9,10 @@ on:
         description: Approved published Install Sphere medge-v<version> release tag
         required: true
         type: string
+      agent_computer_tag:
+        description: Optional exact agent-computer-v<version> aggregate tag; must match reviewed active v3 pins
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -67,7 +71,16 @@ jobs:
       - name: Download pinned Agent Computer APT additions
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/publish_apt.py download-agent-computer-overlay . release-input/agent-computer
+          AGENT_COMPUTER_TAG: ${{ inputs.agent_computer_tag }}
+        run: |
+          set -euo pipefail
+          if test -n "$AGENT_COMPUTER_TAG"; then
+            python3 scripts/publish_apt.py validate-agent-computer-release-tag . "$AGENT_COMPUTER_TAG"
+          fi
+          python3 scripts/publish_apt.py download-agent-computer-overlay . release-input/agent-computer
+
+      - name: Verify official upstream prerequisites outside the published site
+        run: python3 scripts/publish_apt.py download-agent-computer-prerequisites . release-input/agent-computer-prerequisites
 
       - name: Import protected archive key
         env:
@@ -97,7 +110,7 @@ jobs:
           test "$(du -sb apt-site | cut -f1)" -lt 1000000000
 
       - name: Verify Agent Sphere automatic resolution from the signed APT index
-        run: python3 scripts/validate_agent_sphere_apt.py . apt-site
+        run: python3 scripts/validate_agent_sphere_apt.py . apt-site --external-prerequisites release-input/agent-computer-prerequisites
 
       - uses: actions/upload-pages-artifact@v3
         with:

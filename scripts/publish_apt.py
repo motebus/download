@@ -13,6 +13,8 @@ import re
 import shutil
 import subprocess
 import tempfile
+import tarfile
+import io
 
 
 LEGACY_PACKAGES = (
@@ -321,6 +323,20 @@ AGENT_COMPUTER_OVERLAY_FILE = "agent-computer-apt-overlay.json"
 AGENT_COMPUTER_OVERLAY_SCHEMA = "agent-computer-apt-overlay/v1"
 AGENT_COMPUTER_OVERLAY_REPOSITORY = "motebus/agent-sphere-deb"
 AGENT_COMPUTER_OVERLAY_PACKAGES = (("agent-sphere", "all"), ("mote-transportd", "amd64"))
+AGENT_COMPUTER_FULL_SCHEMA = "agent-computer-apt-overlay/v3"
+AGENT_COMPUTER_FULL_REPOSITORY = "motebus/download"
+AGENT_SPHERE_COMPONENTS = ("sphered", "moted", "mote-proxy", "mote-transportd", "medge", "mlink")
+AGENT_APPS_COMPONENTS = (
+    "agos", "ss-webos", "mdesk", "mote-bridge-mcp", "cx-agent", "uchat",
+    "mote-vault-sync", "mote-vault-syncd", "mote-secd", "codex-mesh", "obsidian",
+    "model-router", "model-llm",
+)
+AGENT_COMPUTER_CANONICAL = ("agent-sphere", "agent-apps", *AGENT_SPHERE_COMPONENTS, *AGENT_APPS_COMPONENTS)
+AGENT_COMPUTER_REDISTRIBUTABLE = tuple(name for name in AGENT_COMPUTER_CANONICAL if name != "obsidian")
+# Retention packages are migration evidence, never fresh-install components.
+AGENT_COMPUTER_RETENTION = ("mote-chatd",)
+AGENT_COMPUTER_RETIRED = {"mcp-run", "ultra-mcp-ssh", "model-node", "model-grid",
+                          "mote-sync", "mote-syncd", "cx-node", "mote-chatd", "agent-app"}
 AGENT_APPS_INSTALLER = "agent-sphere-apps.sh"
 AGENT_APPS_INSTALLER_SOURCE = "agent-sphere-apps.source.json"
 AGENT_APPS_INSTALLER_SCHEMA = "agent-sphere-apps-installer-source/v1"
@@ -405,9 +421,13 @@ def load_agent_computer_overlay(repository_root: Path) -> dict:
     config = json.loads(path.read_text(encoding="utf-8"))
     require(isinstance(config, dict) and set(config) == {"schema", "release"},
             "Agent Computer overlay config fields are invalid")
-    require(config["schema"] == AGENT_COMPUTER_OVERLAY_SCHEMA, "invalid Agent Computer overlay schema")
+    require(config["schema"] in (AGENT_COMPUTER_OVERLAY_SCHEMA, AGENT_COMPUTER_FULL_SCHEMA),
+            "invalid Agent Computer overlay schema")
     release = config["release"]
     if release is None:
+        return config
+    if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+        validate_full_overlay_config(release)
         return config
     require(isinstance(release, dict) and set(release) == {"repository", "tag", "packages"},
             "Agent Computer overlay release fields are invalid")
@@ -436,6 +456,105 @@ def load_agent_computer_overlay(repository_root: Path) -> dict:
     return config
 
 
+def validate_full_overlay_config(release: dict) -> None:
+    require(isinstance(release, dict) and set(release) == {
+        "repository", "tag", "source_commit", "packages", "external_prerequisites", "retention_packages"},
+        "full Agent Computer release fields are invalid")
+    require(release["repository"] == AGENT_COMPUTER_FULL_REPOSITORY,
+            "full Agent Computer source repository is not allowed")
+    require(isinstance(release["tag"], str)
+            and re.fullmatch(r"agent-computer-v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", release["tag"]),
+            "full Agent Computer tag must be an exact aggregate version")
+    require(isinstance(release["source_commit"], str)
+            and re.fullmatch(r"[0-9a-f]{40}", release["source_commit"]), "invalid aggregate source commit")
+    packages, retention = release["packages"], release["retention_packages"]
+    require(isinstance(packages, list) and all(isinstance(p, dict) for p in packages) and [p.get("name") for p in packages]
+            == list(AGENT_COMPUTER_REDISTRIBUTABLE), "full overlay must contain exactly 20 canonical redistributable packages")
+    require(isinstance(retention, list) and all(isinstance(p, dict) for p in retention)
+            and [p.get("name") for p in retention] == [name for name in AGENT_COMPUTER_RETENTION
+                                                     if any(p.get("name") == name for p in retention)],
+            "retention package identities must be unique, ordered and explicitly allowed")
+    for package in packages + retention:
+        require(set(package) == {"name", "version", "architecture", "asset", "sha256", "provenance"},
+                "full overlay package fields are invalid")
+        name = package["name"]
+        architecture = "all" if name in ("agent-sphere", "agent-apps", *AGENT_COMPUTER_RETENTION) else "amd64"
+        require(package["architecture"] == architecture, f"{name}: invalid full overlay architecture")
+        require(isinstance(package["version"], str)
+                and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", package["version"]),
+                f"{name}: full overlay requires a canonical release version, not a preview")
+        require(package["asset"] == f"{name}_{package['version']}_{architecture}.deb",
+                f"{name}: invalid full overlay asset")
+        require(isinstance(package["sha256"], str) and HEX64_RE.fullmatch(package["sha256"]),
+                f"{name}: invalid full overlay checksum")
+        proof = package["provenance"]
+        require(isinstance(proof, dict) and set(proof) == {
+            "source_commit", "source_ref", "main_pipeline_id", "build_status", "public_payload_reviewed"},
+            f"{name}: invalid public provenance fields")
+        require(isinstance(proof["source_commit"], str) and re.fullmatch(r"[0-9a-f]{40}", proof["source_commit"])
+                and proof["source_ref"] == "refs/heads/main"
+                and type(proof["main_pipeline_id"]) is int and proof["main_pipeline_id"] > 0
+                and proof["build_status"] == "success" and proof["public_payload_reviewed"] is True,
+                f"{name}: successful main CI and reviewed public payload evidence are required")
+    external = release["external_prerequisites"]
+    require(isinstance(external, list) and len(external) == 1 and isinstance(external[0], dict),
+            "full overlay requires exactly one official Obsidian prerequisite")
+    package = external[0]
+    require(set(package) == {"name", "version", "architecture", "asset", "sha256", "url", "redistribute"}
+            and package["name"] == "obsidian" and package["architecture"] == "amd64"
+            and isinstance(package["version"], str) and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", package["version"]),
+            "invalid Obsidian prerequisite identity")
+    require(package["asset"] == f"obsidian_{package['version']}_amd64.deb"
+            and package["url"] == "https://github.com/obsidianmd/obsidian-releases/releases/download/"
+            + f"v{package['version']}/{package['asset']}" and package["redistribute"] is False,
+            "Obsidian must remain an official upstream prerequisite without redistribution")
+    require(isinstance(package["sha256"], str) and HEX64_RE.fullmatch(package["sha256"]),
+            "invalid Obsidian prerequisite checksum")
+
+
+def overlay_packages(config: dict) -> list[dict]:
+    release = config["release"]
+    return [] if release is None else release["packages"] + release.get("retention_packages", [])
+
+
+def validate_meta_dependencies(asset: Path, expected: tuple[str, ...], approved: dict) -> None:
+    terms = [term.strip() for term in package_field(asset, "Depends").split(",")]
+    found = {}
+    for term in terms:
+        match = re.fullmatch(r"([a-z0-9][a-z0-9+.-]*)\s*\((>=|=)\s*([^\s()]+)\)", term)
+        require(match is not None, f"{asset.name}: meta dependency must have one exact owner and a version floor")
+        name, operator, version = match.groups()
+        require(name not in found and name in approved, f"{asset.name}: duplicate or unapproved dependency")
+        run("dpkg", "--compare-versions", approved[name]["version"], "ge" if operator == ">=" else "eq", version)
+        found[name] = version
+    require(set(found) == set(expected), f"{asset.name}: direct dependency ownership differs from the canonical composition")
+    for field in ("Pre-Depends", "Recommends", "Suggests"):
+        require(not package_field(asset, field), f"{asset.name}: undeclared additional dependency edge: {field}")
+
+
+def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
+    release = config["release"]
+    approved = {p["name"]: p for p in release["packages"] + release["external_prerequisites"]}
+    for name, dependencies in (("agent-sphere", AGENT_SPHERE_COMPONENTS), ("agent-apps", AGENT_APPS_COMPONENTS)):
+        validate_meta_dependencies(bundle / approved[name]["asset"], dependencies, approved)
+    # Inspect tar metadata without extracting or following payload links. Locked
+    # deployment identity belongs to its owner. Existing reviewed bootstrap
+    # templates under usr/share remain bound by the DEB digest/content review.
+    for package in overlay_packages(config):
+        asset = bundle / package["asset"]
+        data = subprocess.check_output(["dpkg-deb", "--fsys-tarfile", str(asset)])
+        with tarfile.open(fileobj=io.BytesIO(data)) as archive:
+            for member in archive:
+                name = member.name.removeprefix("./")
+                require(not (name.startswith("etc/") and name.endswith("-mchat.env")),
+                        f"{asset.name}: locked deployment identity payload is forbidden")
+                if package["name"] in AGENT_COMPUTER_RETENTION and not member.isdir():
+                    require(member.isfile() and name.startswith(f"usr/share/doc/{package['name']}/"),
+                            f"{asset.name}: retention package must contain documentation only")
+        if package["name"] in AGENT_COMPUTER_RETENTION:
+            require(not package_field(asset, "Provides"), f"{asset.name}: retention must not provide a retired runtime alias")
+
+
 def validate_agent_computer_overlay(repository_root: Path, bundle: Path | None) -> dict:
     config = load_agent_computer_overlay(repository_root)
     release = config["release"]
@@ -447,15 +566,17 @@ def validate_agent_computer_overlay(repository_root: Path, bundle: Path | None) 
     require(bundle is not None and bundle.is_dir() and not bundle.is_symlink(),
             "active Agent Computer overlay requires its downloaded bundle")
     require({path.name for path in bundle.iterdir()} == {
-        package["asset"] for package in release["packages"]},
+        package["asset"] for package in overlay_packages(config)},
         "Agent Computer overlay bundle must contain exactly the approved assets")
-    for package in release["packages"]:
+    for package in overlay_packages(config):
         asset = bundle / package["asset"]
         require(asset.is_file() and not asset.is_symlink(), f"overlay asset is not a regular file: {asset.name}")
         require(sha256(asset) == package["sha256"], f"overlay digest mismatch: {asset.name}")
         for field, key in (("Package", "name"), ("Version", "version"), ("Architecture", "architecture")):
             require(package_field(asset, field) == package[key], f"overlay {field} mismatch: {asset.name}")
         validate_public_deb_content(asset)
+    if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+        validate_full_overlay_payload(config, bundle)
     return config
 
 
@@ -471,14 +592,58 @@ def download_agent_computer_overlay(repository_root: Path, destination: Path) ->
                               "--json", "tagName,isDraft,assets", capture=True))
     require(metadata.get("tagName") == release["tag"] and metadata.get("isDraft") is False,
             "Agent Computer overlay source must be the exact published release")
+    if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+        commit = json.loads(run("gh", "api", f"repos/{release['repository']}/commits/{release['tag']}", capture=True))
+        require(commit.get("sha") == release["source_commit"], "aggregate tag differs from reviewed source commit")
     published = {asset["name"] for asset in metadata.get("assets", [])}
-    require(all(package["asset"] in published for package in release["packages"]),
+    require(all(package["asset"] in published for package in overlay_packages(config)),
             "Agent Computer overlay release is missing an approved asset")
+    if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+        require({name for name in published if name.endswith(".deb")}
+                == {p["asset"] for p in overlay_packages(config)},
+                "aggregate release must not redistribute Obsidian or undeclared DEBs")
     destination.mkdir(parents=True, exist_ok=True)
-    patterns = [argument for package in release["packages"] for argument in ("--pattern", package["asset"])]
+    patterns = [argument for package in overlay_packages(config) for argument in ("--pattern", package["asset"])]
     run("gh", "release", "download", release["tag"], "--repo", release["repository"],
         "--dir", str(destination), *patterns)
     validate_agent_computer_overlay(repository_root, destination)
+
+
+def validate_agent_computer_prerequisites(config: dict, destination: Path) -> None:
+    packages = config["release"].get("external_prerequisites", []) if config["release"] else []
+    if not packages:
+        require(not destination.exists() or (destination.is_dir() and not destination.is_symlink()
+                and not any(destination.iterdir())), "inactive external prerequisites must not contain assets")
+        return
+    require(destination.is_dir() and not destination.is_symlink()
+            and {p.name for p in destination.iterdir()} == {p["asset"] for p in packages},
+            "external prerequisite directory must contain exactly the approved upstream assets")
+    for package in packages:
+        asset = destination / package["asset"]
+        require(asset.is_file() and not asset.is_symlink() and sha256(asset) == package["sha256"],
+                "official prerequisite digest differs from the signed pins")
+        for field, key in (("Package", "name"), ("Version", "version"), ("Architecture", "architecture")):
+            require(package_field(asset, field) == package[key], f"official prerequisite {field} mismatch")
+
+
+def download_agent_computer_prerequisites(repository_root: Path, destination: Path) -> None:
+    config = load_agent_computer_overlay(repository_root)
+    if config["schema"] != AGENT_COMPUTER_FULL_SCHEMA or config["release"] is None:
+        validate_agent_computer_prerequisites(config, destination)
+        return
+    require(not destination.exists() or (destination.is_dir() and not destination.is_symlink()
+            and not any(destination.iterdir())), "external prerequisite download directory must be empty")
+    destination.mkdir(parents=True, exist_ok=True)
+    for package in config["release"]["external_prerequisites"]:
+        run("curl", "--proto", "=https", "--proto-redir", "=https", "--tlsv1.2", "-fLSs",
+            "--output", str(destination / package["asset"]), package["url"])
+    validate_agent_computer_prerequisites(config, destination)
+
+
+def validate_agent_computer_release_tag(repository_root: Path, tag: str) -> None:
+    config = load_agent_computer_overlay(repository_root)
+    require(config["schema"] == AGENT_COMPUTER_FULL_SCHEMA and config["release"] is not None
+            and tag == config["release"]["tag"], "aggregate dispatch tag must match active reviewed v3 pins")
 
 
 def require_no_gitlab_url_bytes(value: bytes, subject: str) -> None:
@@ -1419,7 +1584,42 @@ the pending compatible <code>agent-apps</code> package.</p>
             "The separate <code>agent-apps</code> package awaits a compatible AGOS release.</p>\n"
             '<p>Reviewed <a href="agent-computer-apt-overlay.json">additional package pins</a> '
             'and their <a href="agent-computer-apt-overlay.json.asc">archive signature</a>.</p>')
+        config = load_agent_computer_overlay(repository_root)
+        if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+            index = index.replace(
+                "With this signed APT source configured: <code>apt install agent-sphere</code>. "
+                "APT resolves its component dependencies, including <code>mote-transportd</code>. "
+                "The separate <code>agent-apps</code> package awaits a compatible AGOS release.",
+                "With the signed APT source configured and the checksum-verified official Obsidian "
+                "prerequisite installed: <code>apt install agent-sphere agent-apps</code>. "
+                "APT resolves the six Sphere and thirteen Apps components. Obsidian is not redistributed here.")
+            index = index.replace("Publishing this script does not provide\n"
+                "the pending compatible <code>agent-apps</code> package.",
+                "The signed overlay records the exact package versions and upstream prerequisite.")
+            index = index.replace("<code>uninstall.sh</code> performs bounded,\n"
+                "signed cleanup of the Sphere package boundary.",
+                "The current <code>uninstall.sh</code> refuses unsupported Agent Computer cleanup before mutation. "
+                "Full uninstall awaits a reviewed retention dependency migration. "
+                f'Immutable legacy evidence: <a href="legacy/medge-v{current_manifest["medge_version"]}/uninstall.sh">'
+                "original uninstaller</a> and "
+                f'<a href="legacy/medge-v{current_manifest["medge_version"]}/release-manifest.json">manifest</a>. '
+                "The legacy script is not suitable for Agent Computer cleanup.")
     (site / "index.html").write_text(index, encoding="utf-8")
+
+
+def stage_full_overlay_uninstaller(site: Path, repository_root: Path, current: dict, bundle: Path) -> None:
+    source = repository_root / "uninstall.sh"
+    require(source.is_file() and not source.is_symlink()
+            and "PY_UNINSTALL_PREFLIGHT" in source.read_text(), "v3 requires the reviewed uninstall preflight blocker")
+    require(source.stat().st_mode & 0o111 != 0, "v3 uninstall preflight must be executable")
+    run("bash", "-n", str(source))
+    legacy = site / "legacy" / ("medge-v" + current["medge_version"])
+    legacy.mkdir(parents=True)
+    for name in ("uninstall.sh", "release-manifest.json", "SHA256SUMS"):
+        shutil.copy2(bundle / name, legacy / name)
+    require(sha256(source) != sha256(legacy / "uninstall.sh"),
+            "v3 root blocker must differ from the immutable legacy uninstaller")
+    shutil.copy2(source, site / "uninstall.sh")
 
 
 def sign_release(site: Path, repository_root: Path) -> None:
@@ -1467,6 +1667,18 @@ def sign_release(site: Path, repository_root: Path) -> None:
     if overlay.is_file():
         run(*common, "--armor", "--detach-sign", "--output", str(overlay_signature),
             str(overlay), input_text=passphrase + "\n")
+        config = json.loads(overlay.read_text())
+        if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+            require(config == load_agent_computer_overlay(repository_root), "staged full overlay differs from reviewed pins")
+            require((site / "uninstall.sh").read_bytes() == (repository_root / "uninstall.sh").read_bytes(),
+                    "staged v3 uninstall preflight differs from reviewed source")
+            run(*common, "--armor", "--detach-sign", "--output", str(site / "uninstall.sh.asc"),
+                str(site / "uninstall.sh"), input_text=passphrase + "\n")
+            current = json.loads(manifest.read_text())
+            legacy = site / "legacy" / ("medge-v" + current["medge_version"])
+            require((legacy / "release-manifest.json").read_bytes() == manifest.read_bytes(),
+                    "legacy manifest changed while staging v3")
+            shutil.copy2(manifest_signature, legacy / "release-manifest.json.asc")
     for name in (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE):
         run(*common, "--armor", "--detach-sign", "--output", str(site / (name + ".asc")),
             str(site / name), input_text=passphrase + "\n")
@@ -1480,6 +1692,9 @@ def sign_release(site: Path, repository_root: Path) -> None:
         run("gpg", "--batch", "--verify", str(manifest_signature), str(manifest), env=env)
         if overlay.is_file():
             run("gpg", "--batch", "--verify", str(overlay_signature), str(overlay), env=env)
+            if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+                run("gpg", "--batch", "--verify", str(site / "uninstall.sh.asc"),
+                    str(site / "uninstall.sh"), env=env)
         for name in (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE):
             run("gpg", "--batch", "--verify", str(site / (name + ".asc")), str(site / name), env=env)
 
@@ -1491,21 +1706,24 @@ def build_site(repository_root: Path, site: Path, bundles: list[Path],
     manifests = [validate_bundle(bundle) for bundle in bundles]
     current = manifests[0]
     overlay = validate_agent_computer_overlay(repository_root, agent_computer_overlay)
-    overlay_packages = overlay["release"]["packages"] if overlay["release"] is not None else []
-    require(not {package["name"] for package in current["packages"]}.intersection(
-        package["name"] for package in overlay_packages),
-        "Agent Computer overlay must not replace a current aggregate package")
+    additions = overlay_packages(overlay)
+    if overlay["schema"] != AGENT_COMPUTER_FULL_SCHEMA:
+        require(not {package["name"] for package in current["packages"]}.intersection(
+            package["name"] for package in additions),
+            "Agent Computer overlay must not replace a current aggregate package")
 
     if site.exists():
         shutil.rmtree(site)
     site.mkdir(parents=True)
     for package in current["packages"]:
         copy_package(bundles[0] / package["asset"], site)
-    for package in overlay_packages:
+    for package in additions:
         copy_package(agent_computer_overlay / package["asset"], site)
-    if overlay_packages:
+    if additions:
         shutil.copy2(repository_root / AGENT_COMPUTER_OVERLAY_FILE, site)
     write_index(site, repository_root, current, bundles[0])
+    if overlay["schema"] == AGENT_COMPUTER_FULL_SCHEMA and additions:
+        stage_full_overlay_uninstaller(site, repository_root, current, bundles[0])
     validate_no_gitlab_urls(site)
     sign_release(site, repository_root)
 
@@ -1525,6 +1743,12 @@ def main() -> int:
     validate_overlay_parser = subparsers.add_parser("validate-agent-computer-overlay")
     validate_overlay_parser.add_argument("repository_root", type=Path)
     validate_overlay_parser.add_argument("bundle", type=Path)
+    prerequisites_parser = subparsers.add_parser("download-agent-computer-prerequisites")
+    prerequisites_parser.add_argument("repository_root", type=Path)
+    prerequisites_parser.add_argument("destination", type=Path)
+    tag_parser = subparsers.add_parser("validate-agent-computer-release-tag")
+    tag_parser.add_argument("repository_root", type=Path)
+    tag_parser.add_argument("tag")
     previous_parser = subparsers.add_parser("previous-tag")
     previous_parser.add_argument("bundle", type=Path)
     build_parser = subparsers.add_parser("build")
@@ -1544,6 +1768,10 @@ def main() -> int:
             download_agent_computer_overlay(args.repository_root, args.destination)
         elif args.command == "validate-agent-computer-overlay":
             validate_agent_computer_overlay(args.repository_root, args.bundle)
+        elif args.command == "download-agent-computer-prerequisites":
+            download_agent_computer_prerequisites(args.repository_root, args.destination)
+        elif args.command == "validate-agent-computer-release-tag":
+            validate_agent_computer_release_tag(args.repository_root, args.tag)
         elif args.command == "previous-tag":
             print(validate_bundle(args.bundle)["previous_release_tag"])
         elif args.command == "build":
