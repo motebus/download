@@ -1,8 +1,8 @@
 {
   "schema": "agent-sphere-apps-installer-source/v1",
   "repository": "motebus/agent-sphere-deb",
-  "tag": "v0.1.0-7",
-  "source_commit": "4ae87d2e225bd36a88fe207438d06a6e92addd93",
+  "tag": "v0.1.0-8",
+  "source_commit": "d306e8ea79df4f8463f883e6f312e9dac5691104",
   "asset": "agent-sphere-apps.sh",
-  "sha256": "8ec9fe8b926cc410e59a3e4354521f0c2f51fa936af9cc0448f45a54c6a0bb45"
+  "sha256": "6429e69e53b8f56af3dca5f72cc8c1b9eca8ff1c574006bc5f58c09676e82582"
 }

@@ -77,12 +77,17 @@ Existing wire/configuration identifiers remain where compatibility requires.
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.1.0-2`. The v3 contract admits
+`motebus/download` release `agent-computer-v0.1.0-3`. The v3 contract admits
 exactly twenty redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
+
+Sphere 0.1.0-8 requires MEdge 3.0.0-3, so rerunning the installer upgrades an
+existing installation to the socket-group fix. MEdge resolves the shared `mote`
+group independently of the `moted` account's primary group and preserves
+existing accounts, locked identities and MoteD-only peer authorization.
 
 The protected publication workflow validates those exact DEBs, their metadata
 and safe archive permissions, signs the APT index and public pin set with the existing archive key,
