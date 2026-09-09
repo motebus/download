@@ -12,11 +12,14 @@ matching signed manifests through the protected APT publishing workflow.
 
 ## Agent Computer APT composition
 
-The new top-level installation packages are `agent-sphere` and `agent-app`.
+The new top-level installation packages are `agent-sphere` and `agent-apps`.
 APT resolves their component dependencies. The initial additive publication
 path admits only `agent-sphere` and its renamed `mote-transportd` dependency
-from the public `motebus/agent-sphere-deb` release. `agent-app` and a compatible
+from the public `motebus/agent-sphere-deb` release. `agent-apps` and a compatible
 new AGOS release are not published by this change.
+The installer entry is `agent-sphere-apps.sh`, distributed by that separate
+release; it is not an APT overlay asset. The former `agent-app` package name
+is retired and does not become an installable alias.
 
 `agent-computer-apt-overlay.json` is the tracked, reviewed pin set. A `null`
 release keeps the overlay disabled until both real Debian artifacts have

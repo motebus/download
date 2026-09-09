@@ -1365,7 +1365,7 @@ signed cleanup of the Sphere package boundary.</p>
             "<h2>Agent Computer packages</h2>\n"
             "<p>With this signed APT source configured: <code>apt install agent-sphere</code>. "
             "APT resolves its component dependencies, including <code>mote-transportd</code>. "
-            "The separate <code>agent-app</code> package awaits a compatible AGOS release.</p>\n"
+            "The separate <code>agent-apps</code> package awaits a compatible AGOS release.</p>\n"
             '<p>Reviewed <a href="agent-computer-apt-overlay.json">additional package pins</a> '
             'and their <a href="agent-computer-apt-overlay.json.asc">archive signature</a>.</p>')
     (site / "index.html").write_text(index, encoding="utf-8")

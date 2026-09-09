@@ -71,6 +71,7 @@ class AgentComputerOverlayTest(unittest.TestCase):
                 lambda c: c["release"].update(tag="v0.1.0-2"),
                 lambda c: c["release"]["packages"].reverse(),
                 lambda c: c["release"]["packages"][0].update(name="agent-app"),
+                lambda c: c["release"]["packages"][0].update(name="agent-apps"),
                 lambda c: c["release"]["packages"][1].update(name="agos"),
                 lambda c: c["release"]["packages"][0].update(architecture="amd64"),
                 lambda c: c["release"]["packages"][0].update(asset="../escape.deb"),
@@ -189,7 +190,8 @@ class AgentComputerOverlayTest(unittest.TestCase):
             self.assertEqual((site / "release-manifest.json").read_bytes(), manifest_path.read_bytes())
             self.assertEqual(json.loads((site / publish_apt.AGENT_COMPUTER_OVERLAY_FILE).read_text()), config)
             self.assertIn("apt install agent-sphere", (site / "index.html").read_text())
-            self.assertIn("agent-app", (site / "index.html").read_text())
+            self.assertIn("agent-apps", (site / "index.html").read_text())
+            self.assertNotIn("<code>agent-app</code>", (site / "index.html").read_text())
             for installer in manifest["installers"]:
                 self.assertEqual((site / installer["name"]).read_bytes(), (bundle / installer["name"]).read_bytes())
             self.assertEqual(len(publish_apt.EXPECTED_PACKAGES_V18), 17)

@@ -52,7 +52,7 @@ def validate_plan(output: str, base: dict, overlay: dict) -> dict[str, str]:
     publish_apt.require(required <= set(selected), "Agent Sphere APT plan is missing a required runtime dependency")
     publish_apt.require(set(selected).intersection(approved) == required,
                         "Agent Sphere APT plan selects an application or an extra aggregate component")
-    forbidden = re.compile(r"^(?:agos|aport|agent-app|mdesk|desk|ss-webos|mote-chatd|uchat|qbix|model-node)(?:$|-)|"
+    forbidden = re.compile(r"^(?:agos|aport|agent-apps?|mdesk|desk|ss-webos|mote-chatd|uchat|qbix|model-node)(?:$|-)|"
                            r"^(?:codex|cx-|mcp-|ultra-mcp|mote-bridge-mcp)")
     publish_apt.require(not any(forbidden.search(name) for name in selected),
                         "Agent Sphere APT plan selects a forbidden application or retired package")
