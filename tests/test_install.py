@@ -56,14 +56,14 @@ RELEASE_SCRIPTS = (*INSTALLERS, "uninstall.sh")
 
 
 class InstallContractTest(unittest.TestCase):
-    def test_public_root_has_exact_four_release_scripts(self) -> None:
+    def test_public_root_has_four_release_scripts_and_pinned_agent_installer(self) -> None:
         actual = {
             path.name for path in ROOT.iterdir()
             if path.is_file()
             and path.name.endswith(".sh")
             and path.name != "github-setup.sh"
         }
-        self.assertEqual(actual, set(RELEASE_SCRIPTS))
+        self.assertEqual(actual, set(RELEASE_SCRIPTS) | {"agent-sphere-apps.sh"})
         for filename in RELEASE_SCRIPTS:
             installer = ROOT / filename
             self.assertTrue(installer.stat().st_mode & 0o111)

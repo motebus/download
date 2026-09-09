@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -565,6 +566,9 @@ class PublicAptTest(unittest.TestCase):
                 json.dumps({"schema": publish_apt.AGENT_COMPUTER_OVERLAY_SCHEMA, "release": None}),
                 encoding="utf-8",
             )
+            for name in (publish_apt.AGENT_APPS_INSTALLER, publish_apt.AGENT_APPS_INSTALLER_SOURCE):
+                shutil.copy2(Path(__file__).parents[1] / name, repository)
+                shutil.copy2(repository / name, site)
             with mock.patch.dict(
                 os.environ,
                 {
@@ -595,6 +599,14 @@ class PublicAptTest(unittest.TestCase):
                  str(overlay) + ".asc", str(overlay)],
                 check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
+            for name in (publish_apt.AGENT_APPS_INSTALLER, publish_apt.AGENT_APPS_INSTALLER_SOURCE):
+                asset = site / name
+                verify = ["gpgv", "--keyring", str(repository / "medge-archive-keyring.gpg"),
+                          str(asset) + ".asc", str(asset)]
+                subprocess.run(verify, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                asset.write_bytes(asset.read_bytes() + b"tampered")
+                result = subprocess.run(verify, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                self.assertNotEqual(result.returncode, 0, name)
 
     def test_v12_pages_index_exposes_exact_four_release_scripts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
