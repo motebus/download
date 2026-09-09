@@ -61,8 +61,11 @@ transport credentials.
 Fresh installation selects twenty-one canonical packages. A migrated host may
 also retain one documentation-only `mote-chatd` record protecting locked DPKG
 configuration ownership. Only `mote-transportd` owns the messaging runtime.
-The installer admits only the reviewed CX, Vault Sync and inference package
-renames, and checks the final APT transaction before DPKG runs. It refuses
+An ordinary `mote-chatd 2.0.0-4` installation whose locked file is not owned
+as a DPKG conffile uses native replacement by `mote-transportd`, without the
+retention record. The installer admits only this reviewed transport migration
+and the reviewed CX, Vault Sync and inference package renames, and checks
+the final APT transaction before DPKG runs. It refuses
 unrelated removals, downgrades and retirement of that protected record.
 
 The supported product names are `cx-agent`, `model-router`, `model-llm`,
@@ -74,7 +77,7 @@ Existing wire/configuration identifiers remain where compatibility requires.
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.1.0-1`. The v3 contract admits
+`motebus/download` release `agent-computer-v0.1.0-2`. The v3 contract admits
 exactly twenty redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
