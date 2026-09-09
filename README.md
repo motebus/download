@@ -33,6 +33,17 @@ I/O follows MoteD admission to MEdge and MLINK.
 
 ## Installation
 
+The permanent installer URL is
+**https://motebus.github.io/download/agent-sphere-apps.sh**.
+Every installer release must update this exact GitHub Pages path after the
+required package, signature and dependency checks. Keep the URL and plural
+`agent-sphere-apps.sh` filename stable across versions. Publish its matching
+`.asc`, `agent-sphere-apps.source.json` and source-record signature together.
+A release is complete only after download readback from this URL matches the
+reviewed installer digest and its archive signature verifies. GitHub Release
+assets retain versioned history; user-facing installation links use this
+permanent URL.
+
 Use [`agent-sphere-apps.sh`](https://motebus.github.io/download/agent-sphere-apps.sh)
 from this site after configuring the trusted signed MoteBus APT repository.
 The [detached signature](https://motebus.github.io/download/agent-sphere-apps.sh.asc)
