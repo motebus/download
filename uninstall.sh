@@ -14,6 +14,12 @@ fail() {
 }
 
 [[ "$#" -eq 0 ]] || fail "this uninstaller accepts no arguments"
+# The current distribution has no approved full or partial removal policy.
+# Shared package names cannot reliably distinguish new native runtimes from
+# the historical catalog. The immutable legacy script is archived separately.
+fail "current Agent Computer removal is unavailable; no packages, services, configuration or vaults were changed"
+
+# Historical implementation below is unreachable in the current root entry.
 [[ "$(id -u)" -eq 0 ]] || fail "run this uninstaller as root"
 [[ -r /etc/os-release ]] || fail "cannot identify the operating system"
 # shellcheck disable=SC1091

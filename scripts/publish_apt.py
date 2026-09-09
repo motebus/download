@@ -542,6 +542,7 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
     # templates under usr/share remain bound by the DEB digest/content review.
     for package in overlay_packages(config):
         asset = bundle / package["asset"]
+        validate_deb_archive_permissions(asset)
         data = subprocess.check_output(["dpkg-deb", "--fsys-tarfile", str(asset)])
         with tarfile.open(fileobj=io.BytesIO(data)) as archive:
             for member in archive:
@@ -553,6 +554,23 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
                             f"{asset.name}: retention package must contain documentation only")
         if package["name"] in AGENT_COMPUTER_RETENTION:
             require(not package_field(asset, "Provides"), f"{asset.name}: retention must not provide a retired runtime alias")
+
+
+def validate_deb_archive_permissions(asset: Path) -> None:
+    # CI checkouts may be writable by every user. Review the resulting archive,
+    # including maintainer hooks, rather than trusting a builder's umask.
+    for flag in ("--fsys-tarfile", "--ctrl-tarfile"):
+        data = subprocess.check_output(["dpkg-deb", flag, str(asset)])
+        with tarfile.open(fileobj=io.BytesIO(data)) as archive:
+            for member in archive:
+                require(member.uid == 0 and member.gid == 0,
+                        f"{asset.name}:{member.name}: archive entry must be root-owned")
+                if member.isfile() or member.isdir():
+                    require(member.mode & 0o7022 == 0,
+                            f"{asset.name}:{member.name}: unsafe archive permissions {member.mode:o}")
+                else:
+                    require(member.issym() or member.islnk(),
+                            f"{asset.name}:{member.name}: unsupported archive entry")
 
 
 def validate_agent_computer_overlay(repository_root: Path, bundle: Path | None) -> dict:
