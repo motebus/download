@@ -1,0 +1,41 @@
+name: Validate public Download source
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: download-source-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install source-validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends apt-utils gnupg
+          mkdir -m 0700 "$RUNNER_TEMP/download-source-public-keyring"
+          printf 'TMPDIR=%s\nGNUPGHOME=%s\n' "$RUNNER_TEMP" \
+            "$RUNNER_TEMP/download-source-public-keyring" >> "$GITHUB_ENV"
+
+      - name: Run public-source and fixture tests
+        # Signature tests use disposable synthetic keys. No archive signing
+        # credentials, release environment, artifact promotion or deployment.
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Validate the reviewed public tree
+        run: python3 scripts/publish_apt.py validate-tree .
