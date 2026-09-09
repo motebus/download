@@ -12,7 +12,7 @@ import subprocess
 import publish_apt
 
 
-RUNTIME_PACKAGES = {"sphered", "moted", "mote-proxy", "mote-transportd", "medge", "mlink"}
+RUNTIME_PACKAGES = set(publish_apt.AGENT_SPHERE_COMPONENTS)
 UBUNTU_IMAGES = (
     ("24.04", "docker.io/library/ubuntu@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea"),
     ("26.04", "docker.io/library/ubuntu@sha256:678c6550cc43645e08669028bc177f50be4e7c5b8cca677067b1914d4afc7a03"),
@@ -37,9 +37,16 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get --simulate --no-remove install agent-sphere
 '''
+FULL_SIMULATION = SIMULATION.removesuffix("apt-get --simulate --no-remove install agent-sphere\n") + r'''
+# Only the exact, independently SHA/control-verified upstream desktop package is
+# seeded. Never seed a runtime dependency to make the two-package solve pass.
+apt-get --no-install-recommends --no-remove -y install "/prerequisites/$2"
+printf 'Prerequisite obsidian %s\n' "$(dpkg-query -W -f='${Version}' obsidian)"
+apt-get --simulate --no-remove install agent-sphere agent-apps
+'''
 
 
-def validate_plan(output: str, base: dict, overlay: dict) -> dict[str, str]:
+def validate_plan(output: str, base: dict, overlay: dict, *, full: bool = False) -> dict[str, str]:
     publish_apt.require(not re.search(r"^Remv\s", output, re.MULTILINE), "Agent Sphere APT plan removes packages")
     selected = {}
     for match in re.finditer(r"^Inst\s+([a-z0-9][a-z0-9+.-]*)(?::[a-z0-9]+)?\s+(?:\[[^\]]*\]\s+)?\(([^\s)]+)",
@@ -47,22 +54,50 @@ def validate_plan(output: str, base: dict, overlay: dict) -> dict[str, str]:
         name, version = match.groups()
         publish_apt.require(name not in selected, f"duplicate APT selection: {name}")
         selected[name] = version
-    approved = {package["name"]: package for package in base["packages"] + overlay["release"]["packages"]}
-    required = RUNTIME_PACKAGES | {"agent-sphere"}
+    approved = {package["name"]: package for package in base["packages"] + publish_apt.overlay_packages(overlay)}
+    required = set(publish_apt.AGENT_COMPUTER_REDISTRIBUTABLE) if full else RUNTIME_PACKAGES | {"agent-sphere"}
     publish_apt.require(required <= set(selected), "Agent Sphere APT plan is missing a required runtime dependency")
     publish_apt.require(set(selected).intersection(approved) == required,
                         "Agent Sphere APT plan selects an application or an extra aggregate component")
-    forbidden = re.compile(r"^(?:agos|aport|agent-apps?|mdesk|desk|ss-webos|mote-chatd|uchat|qbix|model-node)(?:$|-)|"
-                           r"^(?:codex|cx-|mcp-|ultra-mcp|mote-bridge-mcp)")
+    forbidden = (re.compile(r"^(?:aport|qbix)(?:$|-)") if full else
+                 re.compile(r"^(?:agos|aport|agent-apps?|mdesk|desk|ss-webos|mote-chatd|uchat|qbix|model)(?:$|-)|"
+                            r"^(?:codex|cx-|mcp-|ultra-mcp|mote-bridge-mcp|obsidian)"))
     publish_apt.require(not any(forbidden.search(name) for name in selected),
                         "Agent Sphere APT plan selects a forbidden application or retired package")
+    publish_apt.require(not set(selected).intersection(publish_apt.AGENT_COMPUTER_RETIRED),
+                        "APT plan selects a retired runtime or retention package")
+    if full:
+        external = overlay["release"]["external_prerequisites"][0]
+        observations = re.findall(r"^Prerequisite obsidian (\S+)$", output, re.MULTILINE)
+        publish_apt.require(observations == [external["version"]] and "obsidian" not in selected,
+                            "full APT plan requires the exact official Obsidian prerequisite, already installed")
     for name in required:
         publish_apt.require(name in approved and selected[name] == approved[name]["version"],
                             f"Agent Sphere APT plan version differs from the signed pins: {name}")
     return selected
 
 
-def validate_signed_index(repository: Path, site: Path) -> None:
+def validate_full_index_pins(site: Path, overlay: dict) -> None:
+    records = {}
+    for paragraph in (site / "dists/stable/main/binary-amd64/Packages").read_text().split("\n\n"):
+        fields = dict(line.split(": ", 1) for line in paragraph.splitlines() if ": " in line and not line.startswith(" "))
+        if "Package" in fields:
+            key = (fields["Package"], fields["Version"], fields["Architecture"])
+            publish_apt.require(key not in records, "duplicate signed APT package identity")
+            records[key] = fields
+    publish_apt.require(not any(key[0] == "obsidian" for key in records), "Obsidian must not be redistributed in APT")
+    for package in publish_apt.overlay_packages(overlay):
+        key = (package["name"], package["version"], package["architecture"])
+        record = records.get(key, {})
+        name = package["name"]
+        filename = f"pool/main/{name[0]}/{name}/{package['asset']}"
+        publish_apt.require(record.get("SHA256") == package["sha256"] and record.get("Filename") == filename,
+                            f"signed index differs from approved package pins: {name}")
+        publish_apt.require(publish_apt.sha256(site / filename) == package["sha256"],
+                            f"signed site payload differs from approved pins: {name}")
+
+
+def validate_signed_index(repository: Path, site: Path, prerequisites: Path | None = None) -> None:
     overlay = publish_apt.load_agent_computer_overlay(repository)
     if overlay["release"] is None:
         publish_apt.require(not (site / publish_apt.AGENT_COMPUTER_OVERLAY_FILE).exists(),
@@ -78,6 +113,23 @@ def validate_signed_index(repository: Path, site: Path) -> None:
     publish_apt.require(json.loads((site / publish_apt.AGENT_COMPUTER_OVERLAY_FILE).read_text()) == overlay,
                         "signed overlay differs from reviewed pins")
     base = publish_apt.validate_manifest(json.loads((site / "release-manifest.json").read_text()))
+    full = overlay["schema"] == publish_apt.AGENT_COMPUTER_FULL_SCHEMA
+    if full:
+        publish_apt.require(prerequisites is not None, "full overlay requires separately verified upstream prerequisites")
+        publish_apt.validate_agent_computer_prerequisites(overlay, prerequisites)
+        validate_full_index_pins(site, overlay)
+        legacy = site / "legacy" / ("medge-v" + base["medge_version"])
+        for directory, name in ((site, "uninstall.sh"), (legacy, "release-manifest.json")):
+            publish_apt.run("gpgv", "--keyring", str(key.resolve()),
+                            str(directory / (name + ".asc")), str(directory / name))
+        publish_apt.require((site / "uninstall.sh").read_bytes() == (repository / "uninstall.sh").read_bytes(),
+                            "signed root uninstall preflight differs from reviewed source")
+        publish_apt.require((legacy / "release-manifest.json").read_bytes() == (site / "release-manifest.json").read_bytes(),
+                            "archived legacy manifest differs from immutable base")
+        expected = next(x["sha256"] for x in base["installers"] if x["name"] == "uninstall.sh")
+        publish_apt.require(publish_apt.sha256(legacy / "uninstall.sh") == expected
+                            and publish_apt.sha256(site / "uninstall.sh") != expected,
+                            "legacy callers must reject changed root uninstaller bytes")
     for version, image in UBUNTU_IMAGES:
         output = publish_apt.run("docker", "run", "--rm", "--pull=always", "--platform", "linux/amd64",
             "--log-driver", "none", "--mount", f"type=bind,src={site.resolve()},dst=/repo,readonly",
@@ -85,15 +137,25 @@ def validate_signed_index(repository: Path, site: Path) -> None:
         selected = validate_plan(output, base, overlay)
         print(f"Ubuntu {version}: signed-index apt install agent-sphere resolves all six runtime dependencies; "
               f"{len(selected)} total packages including native OS dependencies; no application packages or removals")
+        if full:
+            output = publish_apt.run("docker", "run", "--rm", "--pull=always", "--platform", "linux/amd64",
+                "--log-driver", "none", "--mount", f"type=bind,src={site.resolve()},dst=/repo,readonly",
+                "--mount", f"type=bind,src={prerequisites.resolve()},dst=/prerequisites,readonly",
+                image, "bash", "-ceu", FULL_SIMULATION, "bash", version,
+                overlay["release"]["external_prerequisites"][0]["asset"], capture=True)
+            selected = validate_plan(output, base, overlay, full=True)
+            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-apps resolves canonical21 "
+                  "with the exact official Obsidian prerequisite; no retired runtimes, retention guards or removals")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("repository", type=Path)
     parser.add_argument("site", type=Path)
+    parser.add_argument("--external-prerequisites", type=Path)
     args = parser.parse_args()
     try:
-        validate_signed_index(args.repository, args.site)
+        validate_signed_index(args.repository, args.site, args.external_prerequisites)
     except (publish_apt.PublishError, subprocess.CalledProcessError, OSError, json.JSONDecodeError) as error:
         parser.error(str(error))
     return 0

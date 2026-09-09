@@ -29,6 +29,50 @@ for command_name in apt-get awk chmod cmp curl dpkg dpkg-query gpg gpgv install 
         fail "required command is unavailable: $command_name"
 done
 
+# Refuse unsupported compositions before creating snapshots, contacting the
+# archive, stopping services, or asking APT to change packages. The signed
+# historical catalog below is intentionally unchanged.
+python3 - <<'PY_UNINSTALL_PREFLIGHT'
+import subprocess
+
+
+def query(package, field):
+    result = subprocess.run(
+        ["dpkg-query", "-W", "-f=" + field, package],
+        text=True, capture_output=True, check=False,
+    )
+    if result.returncode == 1 and not result.stdout.strip():
+        return ""
+    if result.returncode != 0:
+        raise SystemExit("uninstall preflight could not inspect DPKG; no changes were made")
+    return result.stdout
+
+
+unsupported = []
+for package in (
+    "agent-sphere", "agent-apps", "mote-transportd", "agos",
+    "mote-vault-sync", "mote-vault-syncd", "model-router", "model-grid", "model-llm", "cx-agent",
+):
+    state = query(package, "${db:Status-Status}").strip()
+    if state and state != "not-installed":
+        unsupported.append(package)
+if unsupported:
+    raise SystemExit(
+        "uninstall.sh does not yet support this Agent Sphere + Agent Apps composition ("
+        + ", ".join(unsupported)
+        + "); no packages, services, configuration or vaults were changed"
+    )
+
+protected_path = "/etc/mote/mote-chatd/mote-chatd-mchat.env"
+for package in ("mote-chatd", "mote-transportd", "schatd", "chatd"):
+    records = query(package, "${Conffiles}")
+    if any(line.split()[:1] == [protected_path] for line in records.splitlines()):
+        raise SystemExit(
+            "uninstall.sh cannot remove protected legacy configuration ownership under "
+            + package + "; owner migration is required and no changes were made"
+        )
+PY_UNINSTALL_PREFLIGHT
+
 # A local override is a pair; never mix local and downloaded release evidence.
 if [[ -n "${MEDGE_RELEASE_MANIFEST:-}" || -n "${MEDGE_RELEASE_MANIFEST_SIGNATURE:-}" ]]; then
     [[ -n "${MEDGE_RELEASE_MANIFEST:-}" && -n "${MEDGE_RELEASE_MANIFEST_SIGNATURE:-}" ]] ||

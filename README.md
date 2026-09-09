@@ -484,3 +484,80 @@ old `sphere` package removal. An APT pre-install hook checks the actual transact
 under the package-manager lock and rejects every other removal before dpkg runs.
 Ordinary installs keep APT removal disabled. Old conffiles remain available to the
 Sphered package migration; unrelated packages and user data remain outside this step.
+
+## Agent Computer overlay v3 (prepared, inactive)
+
+The existing tracked two-package overlay remains active until a separately
+reviewed release changes `agent-computer-apt-overlay.json`. Schema
+`agent-computer-apt-overlay/v3` adds the complete Agent Computer composition
+without changing any legacy `medge-public-release/v19` catalog or installer
+subset. It is a release publication contract, not a new package manager.
+
+The canonical composition is exactly 21 packages: `agent-sphere`, `agent-apps`,
+six Sphere components, and thirteen Apps components. The builder checks the
+actual metapackage `Depends` fields against these ownership boundaries:
+
+- Sphere: `sphered`, `moted`, `mote-proxy`, `mote-transportd`, `medge`, `mlink`.
+- Apps: `agos`, `ss-webos`, `mdesk`, `mote-bridge-mcp`, `cx-agent`, `uchat`,
+  `mote-vault-sync`, `mote-vault-syncd`, `mote-secd`, `codex-mesh`, `obsidian`,
+  `model-router`, `model-llm`.
+
+The v3 `release` object has exactly `repository`, `tag`, `source_commit`,
+`packages`, `external_prerequisites`, and `retention_packages`. Its sole archive
+source is `motebus/download`, with an exact `agent-computer-v<version>` tag
+resolved to the recorded public commit. `packages` lists the twenty
+redistributable packages in canonical order (the list above, excluding
+Obsidian). Each record contains `name`, `version`, `architecture`, `asset`,
+`sha256`, and `provenance`. The two metapackages are `all`; their runtime
+components are `amd64`. Local preview versions are not publishable.
+
+Each provenance record contains the actual `source_commit`,
+`source_ref: refs/heads/main`, positive `main_pipeline_id`,
+`build_status: success`, and `public_payload_reviewed: true`. These fields are
+reviewed promotion evidence, not permission to invent successful CI or infer
+approval. The publication owner must verify them against the completed source
+pipeline and exact downloaded artifact before activating pins. Private URLs and
+private deployment context must not be published. Existing public payload scans
+remain mandatory; direct payloads at locked `/etc/**-mchat.env` paths are
+rejected. Reviewed bootstrap templates remain bound to the exact DEB digest.
+
+Obsidian is the sole `external_prerequisites` record, with `name`, `version`,
+`architecture`, `asset`, `sha256`, `url`, and `redistribute: false`. Only the exact
+versioned official `obsidianmd/obsidian-releases` GitHub asset URL is admitted.
+Its SHA and Debian identity are checked separately; its DEB never enters the
+aggregate release or the published APT site. Installing Apps requires this
+upstream prerequisite to be installed first. Desktop installation does not
+provision or modify user vaults.
+
+`retention_packages` is empty or contains one explicit `mote-chatd` package with
+the same record fields and `Architecture: all`. It must have documentation-only
+payload and no `Provides` runtime alias. This guard is solely for reviewed
+migration of existing configuration ownership; it is excluded from fresh
+canonical membership and must not be selected by either fresh-install plan.
+CX uses direct replacement and has no retention package. Retired runtimes
+`mcp-run`, `ultra-mcp-ssh`, `model-node`, `model-grid`, `mote-sync`, `mote-syncd`,
+`cx-node`, and `mote-chatd` are forbidden in fresh plans. Historical base DEBs
+remain available byte-for-byte for legacy consumers.
+
+Every base publication reloads the approved overlay. Optional workflow input
+`agent_computer_tag` must match its active v3 tag; it cannot substitute another
+release. The existing protected signing environment and immutable base
+compatibility job remain in place. After signing, clean digest-pinned Ubuntu
+24.04 and 26.04 images each check Sphere alone and the two-package Apps
+composition. Only the exact official Obsidian prerequisite is seeded for the
+latter. APT uses native signature checks, resolves all canonical component
+versions automatically, and must select no retired runtime, guard, or removal.
+The signed index and actual pool bytes must match every approved SHA.
+
+Activation still requires real main-CI artifacts, reviewed source and release
+pins, protected workflow success, and signed deployed-index readback. No v3
+package availability or full runtime readiness is claimed by this source change.
+Full uninstall remains unsupported pending a reviewed retention dependency
+migration. A v3 site serves the reviewed preflight at root `uninstall.sh`, with
+its own archive signature. It refuses the new composition before mutation and
+preserves configuration and user vaults. The byte-identical base uninstaller,
+manifest, and checksums remain under `legacy/medge-v<base-version>/`; the copied
+manifest signature remains verifiable with the archive key. A legacy manifest
+cannot authenticate the changed root script: its recorded digest differs, so
+legacy signed callers reject it before mutation. The historical script remains
+unsuitable for full Agent Computer cleanup.
