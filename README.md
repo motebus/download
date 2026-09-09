@@ -10,6 +10,57 @@ WebDesk and SSHKit keep their existing selected package sets.
 Historical releases remain immutable. New installer scripts are deployed with
 matching signed manifests through the protected APT publishing workflow.
 
+## Agent Computer APT composition
+
+The new top-level installation packages are `agent-sphere` and `agent-app`.
+APT resolves their component dependencies. The initial additive publication
+path admits only `agent-sphere` and its renamed `mote-transportd` dependency
+from the public `motebus/agent-sphere-deb` release. `agent-app` and a compatible
+new AGOS release are not published by this change.
+
+`agent-computer-apt-overlay.json` is the tracked, reviewed pin set. A `null`
+release keeps the overlay disabled until both real Debian artifacts have
+passed their release gates. To activate it, replace `release` with an object
+containing the exact `repository` (`motebus/agent-sphere-deb`), `tag`
+(`v<agent-sphere-version>`), and ordered `packages` records for `agent-sphere`
+(`all`) and `mote-transportd` (`amd64`). Every package record contains exactly
+`name`, `version`, `architecture`, `asset`, and its verified `sha256`.
+Do not use placeholder checksums, mutable tags, another repository, or an
+incompatible historical AGOS package.
+
+Every protected APT publication checks out the reviewed `main` publication
+code and pin set, downloads this tracked overlay, verifies
+each digest and actual Debian identity, and adds the two archives to the
+signed APT index. An active overlay cannot be omitted on a future aggregate
+publication. The existing archive key signs both APT metadata and a separate
+copy of the overlay pin set. This uses the existing `release` environment;
+it introduces no signing key, credential source, repository dispatch, or
+public source-build path.
+
+The base `release-manifest.json`, its signature, historical v18/v19 package
+catalogs, and fixed legacy installer selections keep their own contracts.
+The overlay is not inserted into those manifests or scripts. Once activated,
+an already configured and trusted APT client can use `apt install
+agent-sphere`; it does not select `mote-transportd` manually. Publishing the
+package does not establish live Agent Sphere readiness.
+
+Before uploading Pages, the active-overlay gate verifies the archive
+signatures and runs `apt-get --simulate --no-remove install agent-sphere`
+against the signed index in clean, digest-pinned Ubuntu 24.04 and 26.04
+containers. It names no runtime component on the command line. The plan must
+select all six runtime dependencies at their signed versions and no App,
+AGOS, desktop, WebOS, MCP, CX, retired `mote-chatd`, or other aggregate
+component. OS dependencies are allowed. This is a resolver check, with no
+package installation or runtime-readiness claim; the legacy full-bundle
+compatibility job remains separate.
+
+To publish after the reviewed pins are committed to `main`, dispatch the
+existing **Publish approved Install Sphere APT repository** workflow with
+the exact currently approved base `medge-v<version>` release tag. The same
+overlay remains pinned during subsequent base publications. Changing the
+pins requires another reviewed commit; rewriting a released archive is
+rejected by checksum verification.
+
 
 This public repository is the reviewed GitHub release and signed APT boundary
 for the Sphere/Mote Transport Debian aggregate. Private implementation source,

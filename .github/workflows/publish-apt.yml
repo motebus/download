@@ -26,6 +26,8 @@ jobs:
     environment: release
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Validate binary-only public tree
         run: |
@@ -62,6 +64,11 @@ jobs:
       - name: Validate Ubuntu 24.04 and 26.04 package compatibility
         run: scripts/validate-ubuntu-compatibility.sh release-input/current
 
+      - name: Download pinned Agent Computer APT additions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/publish_apt.py download-agent-computer-overlay . release-input/agent-computer
+
       - name: Import protected archive key
         env:
           MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
@@ -75,11 +82,18 @@ jobs:
           MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
         run: |
           set -euo pipefail
-          python3 scripts/publish_apt.py build . apt-site release-input/current
+          python3 scripts/publish_apt.py build . apt-site release-input/current --agent-computer-overlay release-input/agent-computer
           test -s apt-site/release-manifest.json.asc
           gpgv --keyring ./medge-archive-keyring.gpg \
             apt-site/release-manifest.json.asc apt-site/release-manifest.json
+          if test -f apt-site/agent-computer-apt-overlay.json; then
+            gpgv --keyring ./medge-archive-keyring.gpg \
+              apt-site/agent-computer-apt-overlay.json.asc apt-site/agent-computer-apt-overlay.json
+          fi
           test "$(du -sb apt-site | cut -f1)" -lt 1000000000
+
+      - name: Verify Agent Sphere automatic resolution from the signed APT index
+        run: python3 scripts/validate_agent_sphere_apt.py . apt-site
 
       - uses: actions/upload-pages-artifact@v3
         with:

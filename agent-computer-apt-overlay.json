@@ -1,0 +1,23 @@
+{
+  "schema": "agent-computer-apt-overlay/v1",
+  "release": {
+    "repository": "motebus/agent-sphere-deb",
+    "tag": "v0.1.0-1",
+    "packages": [
+      {
+        "name": "agent-sphere",
+        "version": "0.1.0-1",
+        "architecture": "all",
+        "asset": "agent-sphere_0.1.0-1_all.deb",
+        "sha256": "7d41fb6687f06adedb93045342fc05b1376f96dfd03a85487118cab340e1a686"
+      },
+      {
+        "name": "mote-transportd",
+        "version": "2.0.0-5",
+        "architecture": "amd64",
+        "asset": "mote-transportd_2.0.0-5_amd64.deb",
+        "sha256": "085a607bdc212adf890ad42de06ddc1f7a70d25dab334c755ec956e382e32923"
+      }
+    ]
+  }
+}

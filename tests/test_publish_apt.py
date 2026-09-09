@@ -561,6 +561,10 @@ class PublicAptTest(unittest.TestCase):
                 json.dumps(self.manifest("medge-public-release/v12")),
                 encoding="utf-8",
             )
+            (site / publish_apt.AGENT_COMPUTER_OVERLAY_FILE).write_text(
+                json.dumps({"schema": publish_apt.AGENT_COMPUTER_OVERLAY_SCHEMA, "release": None}),
+                encoding="utf-8",
+            )
             with mock.patch.dict(
                 os.environ,
                 {
@@ -584,6 +588,12 @@ class PublicAptTest(unittest.TestCase):
                 check=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+            )
+            overlay = site / publish_apt.AGENT_COMPUTER_OVERLAY_FILE
+            subprocess.run(
+                ["gpgv", "--keyring", str(repository / "medge-archive-keyring.gpg"),
+                 str(overlay) + ".asc", str(overlay)],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
 
     def test_v12_pages_index_exposes_exact_four_release_scripts(self) -> None:
