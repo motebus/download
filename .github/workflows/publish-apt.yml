@@ -90,6 +90,10 @@ jobs:
             gpgv --keyring ./medge-archive-keyring.gpg \
               apt-site/agent-computer-apt-overlay.json.asc apt-site/agent-computer-apt-overlay.json
           fi
+          gpgv --keyring ./medge-archive-keyring.gpg \
+            apt-site/agent-sphere-apps.sh.asc apt-site/agent-sphere-apps.sh
+          gpgv --keyring ./medge-archive-keyring.gpg \
+            apt-site/agent-sphere-apps.source.json.asc apt-site/agent-sphere-apps.source.json
           test "$(du -sb apt-site | cut -f1)" -lt 1000000000
 
       - name: Verify Agent Sphere automatic resolution from the signed APT index

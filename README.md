@@ -17,9 +17,22 @@ APT resolves their component dependencies. The initial additive publication
 path admits only `agent-sphere` and its renamed `mote-transportd` dependency
 from the public `motebus/agent-sphere-deb` release. `agent-apps` and a compatible
 new AGOS release are not published by this change.
-The installer entry is `agent-sphere-apps.sh`, distributed by that separate
-release; it is not an APT overlay asset. The former `agent-app` package name
-is retired and does not become an installable alias.
+The installer entry is
+[`agent-sphere-apps.sh`](https://motebus.github.io/download/agent-sphere-apps.sh).
+This site publishes the exact reviewed script from the separate Agent Sphere
+release, along with its [detached signature](https://motebus.github.io/download/agent-sphere-apps.sh.asc)
+and [source release and SHA-256 record](https://motebus.github.io/download/agent-sphere-apps.source.json).
+Verify it with the trusted MoteBus archive key before running it. The script
+requires this signed APT repository to be configured and checks both packages
+before installation. Until compatible `agent-apps` is published, its preflight
+stops before installing packages.
+
+The committed `agent-sphere-apps.source.json` pins its public release, source
+commit, filename and digest. Publication validates that record and script,
+copies both, and signs both with the existing archive key. They are separate
+website assets and are not inserted into the two-package APT overlay or the
+legacy bundle manifest. The former `agent-app` package name is retired and
+does not become an installable alias.
 
 `agent-computer-apt-overlay.json` is the tracked, reviewed pin set. A `null`
 release keeps the overlay disabled until both real Debian artifacts have

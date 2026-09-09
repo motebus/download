@@ -301,6 +301,8 @@ MOTE_TRANSPORT_PACKAGES = (
 )
 ALLOWED_ROOT_FILES = {
     "agent-computer-apt-overlay.json",
+    "agent-sphere-apps.sh",
+    "agent-sphere-apps.source.json",
     ".gitignore",
     "github-setup.sh",
     "sphere.sh",
@@ -319,6 +321,9 @@ AGENT_COMPUTER_OVERLAY_FILE = "agent-computer-apt-overlay.json"
 AGENT_COMPUTER_OVERLAY_SCHEMA = "agent-computer-apt-overlay/v1"
 AGENT_COMPUTER_OVERLAY_REPOSITORY = "motebus/agent-sphere-deb"
 AGENT_COMPUTER_OVERLAY_PACKAGES = (("agent-sphere", "all"), ("mote-transportd", "amd64"))
+AGENT_APPS_INSTALLER = "agent-sphere-apps.sh"
+AGENT_APPS_INSTALLER_SOURCE = "agent-sphere-apps.source.json"
+AGENT_APPS_INSTALLER_SCHEMA = "agent-sphere-apps-installer-source/v1"
 
 
 class PublishError(RuntimeError):
@@ -360,6 +365,37 @@ def sha256(path: Path) -> str:
 
 def package_field(asset: Path, field: str) -> str:
     return run("dpkg-deb", "-f", str(asset), field, capture=True)
+
+
+def validate_agent_apps_installer(root: Path) -> dict:
+    """Admit only the reviewed script bytes bound to their public source release."""
+    source = root / AGENT_APPS_INSTALLER_SOURCE
+    installer = root / AGENT_APPS_INSTALLER
+    for path in (source, installer):
+        require(path.is_file() and not path.is_symlink(),
+                f"missing regular Agent Apps installer file: {path.name}")
+    record = json.loads(source.read_text(encoding="utf-8"))
+    require(isinstance(record, dict) and set(record) == {
+        "schema", "repository", "tag", "source_commit", "asset", "sha256"},
+        "Agent Apps installer source fields are invalid")
+    require(record["schema"] == AGENT_APPS_INSTALLER_SCHEMA,
+            "Agent Apps installer source schema is invalid")
+    require(record["repository"] == AGENT_COMPUTER_OVERLAY_REPOSITORY,
+            "Agent Apps installer source repository is not allowed")
+    require(isinstance(record["tag"], str)
+            and re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", record["tag"]),
+            "Agent Apps installer source must name an exact release")
+    require(isinstance(record["source_commit"], str)
+            and re.fullmatch(r"[0-9a-f]{40}", record["source_commit"]),
+            "Agent Apps installer source commit is invalid")
+    require(record["asset"] == AGENT_APPS_INSTALLER,
+            "Agent Apps installer asset name is not allowed")
+    require(isinstance(record["sha256"], str) and HEX64_RE.fullmatch(record["sha256"]),
+            "Agent Apps installer source checksum is invalid")
+    require(sha256(installer) == record["sha256"], "Agent Apps installer digest mismatch")
+    require(installer.stat().st_mode & 0o111 != 0, "Agent Apps installer must be executable")
+    run("bash", "-n", str(installer))
+    return record
 
 
 def load_agent_computer_overlay(repository_root: Path) -> dict:
@@ -1075,6 +1111,7 @@ def validate_tree(root: Path) -> None:
     ]
     require(unexpected == [], f"unexpected public repository paths: {sorted(unexpected)}")
     load_agent_computer_overlay(root)
+    validate_agent_apps_installer(root)
     tracked_forbidden = [
         str(path.relative_to(root))
         for path in root.rglob("*")
@@ -1117,7 +1154,7 @@ def validate_tree(root: Path) -> None:
         and path.name != "github-setup.sh"
     }
     require(
-        actual_shell_entries == set(RELEASE_SCRIPTS_V19),
+        actual_shell_entries == set(RELEASE_SCRIPTS_V19) | {AGENT_APPS_INSTALLER},
         "public repository must contain exactly the approved release scripts",
     )
     publish_workflow = (root / ".github/workflows/publish-apt.yml").read_text(
@@ -1136,6 +1173,9 @@ def validate_tree(root: Path) -> None:
             "publish workflow must retain the tracked Agent Computer overlay on every build")
     require("python3 scripts/validate_agent_sphere_apt.py . apt-site" in publish_workflow,
             "publish workflow must verify signed-index Agent Sphere dependency resolution")
+    for name in (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE):
+        require(f"apt-site/{name}.asc apt-site/{name}" in publish_workflow,
+                f"publish workflow must verify the signed {name}")
     for installer_name in INSTALLER_PROFILES_V19:
         installer_text = (root / installer_name).read_text(encoding="utf-8")
         for required_text in (
@@ -1285,6 +1325,7 @@ def write_index(
     current_manifest: dict,
     current_bundle: Path,
 ) -> None:
+    validate_agent_apps_installer(repository_root)
     packages_dir = site / "dists/stable/main/binary-amd64"
     packages_dir.mkdir(parents=True, exist_ok=True)
     packages_text = run("apt-ftparchive", "packages", "pool", cwd=site, capture=True) + "\n"
@@ -1315,6 +1356,8 @@ def write_index(
 
     shutil.copy2(repository_root / "medge-archive-keyring.gpg", site)
     shutil.copy2(repository_root / "medge.sources", site)
+    for name in (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE):
+        shutil.copy2(repository_root / name, site)
     if current_manifest.get("schema") == "medge-public-release/v17":
         release_scripts = RELEASE_SCRIPTS_V17
     elif current_manifest.get("schema") == "medge-public-release/v16":
@@ -1357,6 +1400,14 @@ sudo bash /tmp/sphere.sh</pre>
 (sphered + ss-webos + mdesk + mlink), and <code>sshkit.sh</code>
 (Mote Transport prerequisites). <code>uninstall.sh</code> performs bounded,
 signed cleanup of the Sphere package boundary.</p>
+<p>Native APT installer: <a href="agent-sphere-apps.sh">agent-sphere-apps.sh</a>
+(<a href="agent-sphere-apps.sh.asc">detached archive signature</a>).
+It requires the configured signed APT source and installs both
+<code>agent-sphere</code> and <code>agent-apps</code> only when their joint
+no-removal dependency plan succeeds. Publishing this script does not provide
+the pending compatible <code>agent-apps</code> package.</p>
+<p>Installer <a href="agent-sphere-apps.source.json">source release and SHA-256</a>
+(<a href="agent-sphere-apps.source.json.asc">archive signature</a>).</p>
 </html>
 """
     if (site / AGENT_COMPUTER_OVERLAY_FILE).is_file():
@@ -1372,6 +1423,11 @@ signed cleanup of the Sphere package boundary.</p>
 
 
 def sign_release(site: Path, repository_root: Path) -> None:
+    source = validate_agent_apps_installer(repository_root)
+    require(validate_agent_apps_installer(site) == source
+            and (site / AGENT_APPS_INSTALLER_SOURCE).read_bytes()
+            == (repository_root / AGENT_APPS_INSTALLER_SOURCE).read_bytes(),
+            "staged Agent Apps installer source differs from the reviewed record")
     passphrase = os.environ.get("MEDGE_APT_SIGNING_PASSPHRASE")
     require(passphrase is not None and passphrase != "", "signing passphrase is unavailable")
     fingerprint = archive_fingerprint(repository_root)
@@ -1411,6 +1467,9 @@ def sign_release(site: Path, repository_root: Path) -> None:
     if overlay.is_file():
         run(*common, "--armor", "--detach-sign", "--output", str(overlay_signature),
             str(overlay), input_text=passphrase + "\n")
+    for name in (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE):
+        run(*common, "--armor", "--detach-sign", "--output", str(site / (name + ".asc")),
+            str(site / name), input_text=passphrase + "\n")
 
     with tempfile.TemporaryDirectory(prefix="medge-public-gnupg-") as temp_name:
         env = {**os.environ, "GNUPGHOME": temp_name}
@@ -1421,11 +1480,14 @@ def sign_release(site: Path, repository_root: Path) -> None:
         run("gpg", "--batch", "--verify", str(manifest_signature), str(manifest), env=env)
         if overlay.is_file():
             run("gpg", "--batch", "--verify", str(overlay_signature), str(overlay), env=env)
+        for name in (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE):
+            run("gpg", "--batch", "--verify", str(site / (name + ".asc")), str(site / name), env=env)
 
 
 def build_site(repository_root: Path, site: Path, bundles: list[Path],
                agent_computer_overlay: Path | None = None) -> None:
     require(len(bundles) == 1, "build requires exactly one current public bundle")
+    validate_agent_apps_installer(repository_root)
     manifests = [validate_bundle(bundle) for bundle in bundles]
     current = manifests[0]
     overlay = validate_agent_computer_overlay(repository_root, agent_computer_overlay)
