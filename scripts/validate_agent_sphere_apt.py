@@ -50,8 +50,8 @@ chmod 0755 /usr/sbin/policy-rc.d
 # seeded. Never seed a runtime dependency to make the four-package solve pass.
 apt-get --no-install-recommends --no-remove -y install "/prerequisites/$2"
 printf 'Prerequisite obsidian %s\n' "$(dpkg-query -W -f='${Version}' obsidian)"
-apt-get --simulate --no-remove install agent-sphere agent-ultra sphere-manager agent-apps
-apt-get --no-remove -y install agent-sphere agent-ultra sphere-manager agent-apps
+apt-get --simulate --no-remove install agent-sphere agent-ultra agpc-manager agent-apps
+apt-get --no-remove -y install agent-sphere agent-ultra agpc-manager agent-apps
 test -z "$(dpkg --audit)"
 dpkg-query -W -f='InstalledAGPC\t${binary:Package}\t${Version}\t${db:Status-Abbrev}\n'
 '''
@@ -184,7 +184,7 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
                 overlay["release"]["external_prerequisites"][0]["asset"], capture=True)
             selected = validate_plan(output, base, overlay, full=True)
             validate_installed_cohort(output, overlay)
-            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra sphere-manager agent-apps resolves canonical26 "
+            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra agpc-manager agent-apps resolves canonical26 "
                   "with the exact official Obsidian prerequisite; all 26 packages installed and configured by native APT/DPKG; "
                   "no retired runtimes, retention guards or removals; service/owner readiness is separate")
 

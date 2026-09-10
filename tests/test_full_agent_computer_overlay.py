@@ -242,9 +242,12 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
         cases = [
             ('moted', {'Depends': 'agent-sphere (>= 9.0.0-1)'}, 'circular canonical'),
             ('agos', {'Pre-Depends': 'agent-sphere (>= 9.0.0-1)'}, 'circular canonical'),
-            ('agos', {'Depends': 'sphere-manager (>= 9.0.0-1)'}, 'management UI'),
+            ('agos', {'Depends': 'agpc-manager (>= 9.0.0-1)'}, 'management UI'),
             ('cx-mesh', {'Provides': 'cx-agent'}, 'retired cx-agent'),
             ('cx-mesh', {'Provides': 'codex-mesh'}, 'retired codex-mesh'),
+            *[('agpc-manager', {field: 'sphere-manager (= 3.1.0-1)'},
+               f'{field} retains the retired sphere-manager')
+              for field in ('Depends', 'Pre-Depends', 'Recommends', 'Suggests', 'Provides')],
         ]
         for name, fields, error in cases:
             with self.subTest(name=name, fields=fields), tempfile.TemporaryDirectory() as directory:
@@ -256,6 +259,17 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
                 write_config(root, config)
                 with self.assertRaisesRegex(p.PublishError, error):
                     p.validate_agent_computer_overlay(root, bundle)
+
+    def test_manager_replacement_relationships_do_not_restore_retired_provider(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config, bundle, _ = make_full_bundle(root)
+            package = next(x for x in config['release']['packages'] if x['name'] == 'agpc-manager')
+            asset = make_deb(root / 'reviewed-replacement', package, fields={
+                'Conflicts': 'sphere-manager', 'Replaces': 'sphere-manager'})
+            shutil.copy2(asset, bundle)
+            write_config(root, config)
+            p.validate_agent_computer_overlay(root, bundle)
 
     def test_aggregate_tag_sha_and_exact_deb_allowlist_are_required_before_download(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -362,7 +376,7 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
                     output.replace("Inst agos (9.0.0-1", "Inst agos (2.0.0-1"), output + "Remv unrelated [1]\n"):
             with self.assertRaises(p.PublishError):
                 resolution.validate_plan(bad, base, config, full=True)
-        self.assertIn("apt-get --simulate --no-remove install agent-sphere agent-ultra sphere-manager agent-apps", resolution.FULL_SIMULATION)
+        self.assertIn("apt-get --simulate --no-remove install agent-sphere agent-ultra agpc-manager agent-apps", resolution.FULL_SIMULATION)
         self.assertNotIn("trusted=yes", resolution.FULL_SIMULATION)
         self.assertNotIn("install agent-sphere\n", resolution.FULL_SIMULATION)
 
