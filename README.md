@@ -1,10 +1,5 @@
 # AGPC (Agent Computer) Debian Distribution
 
-This branch prepares the next release. The native Manager and MEdge artifacts passed
-committed-main acceptance. The Core replacement pin remains explicitly pending,
-so publication validation refuses this candidate. Installer and source-record snapshots still retain the immutable
-released 0.2.0-1 bytes until the reviewed Core 0.2.0-2 artifacts are available.
-
 ```text
 AGPC = Agent Computer, powered by AgentSphere
 AgentSphere = agent-sphere + agent-ultra + agpc-manager + agent-apps
@@ -119,7 +114,8 @@ ownership and retains the operator's masked/disabled service intent.
 
 `agpc-manager` replaces only the reviewed, unmodified `sphere-manager`
 3.1.0-1 frontend. Before downloads and again under the APT lock, the installer
-checks its exact package state, owned executable and shortcut, and absence of
+checks its exact package state and DPKG removal file list, owned executable
+and shortcut, and absence of
 hooks, conffiles or units. A changed or unknown predecessor fails before DPKG.
 The new frontend provides no old package or command alias and owns no service
 or runtime state. Its replacement preserves owner configuration and identities;

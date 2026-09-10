@@ -9,14 +9,14 @@
         "version": "0.2.0-2",
         "architecture": "all",
         "asset": "agent-sphere_0.2.0-2_all.deb",
-        "sha256": "PENDING_REVIEWED_CORE_SHA256",
+        "sha256": "5dce89ee022c97fbc8095003562cbf09f15b17e39fdbeb6afece0774452e193a",
         "name": "agent-sphere",
         "provenance": {
-          "source_commit": "PENDING_REVIEWED_CORE_MAIN",
+          "source_commit": "bb9e948ba1e5c76b34ff27d34b1491ba3d8d5660",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": null,
-          "build_status": "pending",
-          "public_payload_reviewed": false
+          "main_pipeline_id": 34451909305,
+          "build_status": "success",
+          "public_payload_reviewed": true
         }
       },
       {
