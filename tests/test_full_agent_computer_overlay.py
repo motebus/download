@@ -21,7 +21,7 @@ def config_fixture():
     proof = {"source_commit": "a" * 40, "source_ref": "refs/heads/main", "main_pipeline_id": 123,
              "build_status": "success", "public_payload_reviewed": True}
     def record(name):
-        architecture = "all" if name in ("agent-sphere", "agent-apps", "mote-chatd") else "amd64"
+        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "jujue", "mote-chatd") else "amd64"
         return {"name": name, "version": "9.0.0-1", "architecture": architecture,
                 "asset": f"{name}_9.0.0-1_{architecture}.deb", "sha256": "b" * 64,
                 "provenance": copy.deepcopy(proof)}
@@ -38,13 +38,17 @@ def write_config(root, config):
     (root / p.AGENT_COMPUTER_OVERLAY_FILE).write_text(json.dumps(config))
 
 
-def make_deb(root, package, depends=None, payload=None):
+def make_deb(root, package, depends=None, payload=None, fields=None):
     asset = fixtures.PublicAptTest().make_deb(root, package=package["name"], version=package["version"],
                                             architecture=package["architecture"])
     stage = root / ("package-" + package["name"])
     if depends:
         with (stage / "DEBIAN/control").open("a") as handle:
             handle.write("Depends: " + depends + "\n")
+    if fields:
+        with (stage / "DEBIAN/control").open("a") as handle:
+            for key, value in fields.items():
+                handle.write(f"{key}: {value}\n")
     for name, data in (payload or {}).items():
         path = stage / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,8 +69,8 @@ def make_full_bundle(root):
     bundle.mkdir()
     for package in p.overlay_packages(config):
         dependencies = None
-        if package["name"] in ("agent-sphere", "agent-apps"):
-            names = p.AGENT_SPHERE_COMPONENTS if package["name"] == "agent-sphere" else p.AGENT_APPS_COMPONENTS
+        if package["name"] in p.AGENT_META_DEPENDENCIES:
+            names = p.AGENT_META_DEPENDENCIES[package["name"]]
             dependencies = ", ".join(f"{name} (>= {'1.13.7' if name == 'obsidian' else '9.0.0-1'})" for name in names)
         asset = make_deb(root / "build", package, dependencies)
         shutil.copy2(asset, bundle)
@@ -118,7 +122,7 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
             legacy = site / "legacy" / ("medge-v" + base["medge_version"])
             legacy.mkdir(parents=True)
             (legacy / "release-manifest.json").write_text(manifest)
-            for name in (p.AGENT_APPS_INSTALLER, p.AGENT_APPS_INSTALLER_SOURCE, "uninstall.sh"):
+            for name in (*p.AGENT_INSTALLER_FILES, "uninstall.sh"):
                 shutil.copy2(Path(__file__).parents[1] / name, root)
                 shutil.copy2(root / name, site)
             gnupg = root / "fixture-gnupg"
@@ -151,9 +155,9 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
             root = Path(directory)
             write_config(root, config)
             self.assertEqual(p.load_agent_computer_overlay(root), config)
-            self.assertEqual(len(p.AGENT_COMPUTER_CANONICAL), 21)
-            self.assertEqual(len(p.AGENT_SPHERE_COMPONENTS), 6)
-            self.assertEqual(len(p.AGENT_APPS_COMPONENTS), 13)
+            self.assertEqual(len(p.AGENT_COMPUTER_CANONICAL), 26)
+            self.assertEqual(len(p.AGENT_SPHERE_COMPONENTS), 11)
+            self.assertEqual(len(p.AGENT_APPS_COMPONENTS), 5)
             mutations = [
                 lambda r: r.update(repository="motebus/agent-sphere-deb"),
                 lambda r: r.update(tag="latest"),
@@ -223,6 +227,36 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
             with self.assertRaisesRegex(p.PublishError, "digest differs"):
                 p.validate_agent_computer_prerequisites(config, external)
 
+    def test_transitive_bridge_dependency_cannot_restore_retired_package(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config, bundle, _ = make_full_bundle(root)
+            package = next(x for x in config["release"]["packages"] if x["name"] == "cx-mesh")
+            asset = make_deb(root / "old-dependency", package, "mote-bridge-mcp (>= 3.0.0-2)")
+            shutil.copy2(asset, bundle)
+            write_config(root, config)
+            with self.assertRaisesRegex(p.PublishError, "Depends retains the retired mote-bridge-mcp"):
+                p.validate_agent_computer_overlay(root, bundle)
+
+    def test_real_debs_reject_cycles_ui_backedges_and_retired_cx_providers(self):
+        cases = [
+            ('moted', {'Depends': 'agent-sphere (>= 9.0.0-1)'}, 'circular canonical'),
+            ('agos', {'Pre-Depends': 'agent-sphere (>= 9.0.0-1)'}, 'circular canonical'),
+            ('agos', {'Depends': 'sphere-manager (>= 9.0.0-1)'}, 'management UI'),
+            ('cx-mesh', {'Provides': 'cx-agent'}, 'retired cx-agent'),
+            ('cx-mesh', {'Provides': 'codex-mesh'}, 'retired codex-mesh'),
+        ]
+        for name, fields, error in cases:
+            with self.subTest(name=name, fields=fields), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                config, bundle, _ = make_full_bundle(root)
+                package = next(x for x in config['release']['packages'] if x['name'] == name)
+                asset = make_deb(root / 'invalid-edge', package, fields=fields)
+                shutil.copy2(asset, bundle)
+                write_config(root, config)
+                with self.assertRaisesRegex(p.PublishError, error):
+                    p.validate_agent_computer_overlay(root, bundle)
+
     def test_aggregate_tag_sha_and_exact_deb_allowlist_are_required_before_download(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -262,7 +296,7 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
             (bundle / "SHA256SUMS").write_text("".join(f"{p.sha256(path)}  {path.name}\n" for path in sorted(bundle.iterdir())))
             repository = Path(__file__).parents[1]
             for name in ("medge-archive-keyring.gpg", "medge-archive-keyring.fingerprint", "medge.sources",
-                         p.AGENT_APPS_INSTALLER, p.AGENT_APPS_INSTALLER_SOURCE, "uninstall.sh"):
+                         *p.AGENT_INSTALLER_FILES, "uninstall.sh"):
                 shutil.copy2(repository / name, root)
             site = root / "site"
             with mock.patch.object(p, "sign_release"):
@@ -285,9 +319,11 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
                 else:
                     self.assertEqual((site / script["name"]).read_bytes(), (bundle / script["name"]).read_bytes())
             sphere_output = "".join(f"Inst {x['name']} ({x['version']} MoteBus:stable [amd64])\n"
-                for x in config["release"]["packages"] if x["name"] in resolution.RUNTIME_PACKAGES | {"agent-sphere"})
+                for x in config["release"]["packages"] if x["name"] in resolution.CURRENT_RUNTIME_PACKAGES | {"agent-sphere"})
             full_output = "Prerequisite obsidian 1.13.7\n" + "".join(
                 f"Inst {x['name']} ({x['version']} MoteBus:stable [amd64])\n" for x in config["release"]["packages"])
+            full_output += "".join(f"InstalledAGPC\t{x['name']}\t{x['version']}\tii \n"
+                for x in config["release"]["packages"] + config["release"]["external_prerequisites"])
             commands = []
             original = p.run
             def run(*args, **kwargs):
@@ -326,7 +362,7 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
                     output.replace("Inst agos (9.0.0-1", "Inst agos (2.0.0-1"), output + "Remv unrelated [1]\n"):
             with self.assertRaises(p.PublishError):
                 resolution.validate_plan(bad, base, config, full=True)
-        self.assertIn("apt-get --simulate --no-remove install agent-sphere agent-apps", resolution.FULL_SIMULATION)
+        self.assertIn("apt-get --simulate --no-remove install agent-sphere agent-ultra sphere-manager agent-apps", resolution.FULL_SIMULATION)
         self.assertNotIn("trusted=yes", resolution.FULL_SIMULATION)
         self.assertNotIn("install agent-sphere\n", resolution.FULL_SIMULATION)
 

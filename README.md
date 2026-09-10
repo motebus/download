@@ -1,99 +1,144 @@
-# Agent Computer Debian Distribution
+# AGPC (Agent Computer) Debian Distribution
 
 ```text
-Agent Computer = agent-sphere.deb + agent-apps.deb
+AGPC = Agent Computer, powered by AgentSphere
+AgentSphere = agent-sphere + agent-ultra + sphere-manager + agent-apps
 
-agent-sphere                       agent-apps
-  sphered                            agos
-  moted                              model-router
-  mote-proxy                         model-llm
-  mote-transportd                     cx-agent
-  medge                              ss-webos
-  mlink                              mdesk
-                                     obsidian
-                                     uchat
-                                     mote-bridge-mcp
-                                     mote-vault-sync
-                                     mote-vault-syncd
-                                     mote-secd
-                                     codex-mesh
-
-MEdge = MBox + MDrive + MCP
+agent-sphere (RUN)
+  sphered · moted · mote-proxy · mote-transportd · mlink · mote-secd
+  agos · model-router · model-llm · mote-mcpd · cx-mesh
+agent-ultra (LOCAL SERVICES)
+  redixs · comm · obsidian · mote-vault-sync · mote-vault-syncd
+sphere-manager (MANAGE)
+  medge · native setup TUI and sphere CLI
+agent-apps (USE)
+  jujue · iagent · ss-webos · mdesk · uchat
 ```
 
-Agent Sphere supplies the system substrate. Agent Apps composes thirteen
-applications. APT/DPKG resolves the two entry packages and systemd manages each
-component's lifecycle. AGOS runs agent modules and requests model resources
-through the combined Model Router; Model LLM performs inference through its
-configured backend. CX Agent supplies admitted Codex execution.
+APT/DPKG owns the four entry packages and systemd owns their native service
+lifecycle. `sphered` provides the MoteBus and D Channel kernel. AGOS owns agent
+orchestration and model resource access through Model Router. Model LLM provides
+configured inference. CX-Mesh combines admitted agent execution and peer
+coordination in one package. Mesh messages do not themselves grant execution.
 
-MEdge owns MBox admission/dispatch, bounded local MDrive objects and fixed MCP
-tools. Its MCP extension uses the Apps-owned Mote Bridge MCP server. Local
-I/O follows MoteD admission to MEdge and MLINK.
+```text
+CX-Mesh
+├── AGPC-1: AgentSphere + local resources and applications
+└── AGPC-2: AgentSphere + local resources and applications
+```
+
+AGPC names identify individual computers in this architecture. The example
+labels do not provision network identities. Each computer retains its configured
+`.mote` endpoint and joins peer work through the existing admitted Mote Transport
+and Mesh contracts. The Debian package name is `cx-mesh`.
+
+AGPC must operate as a complete standalone system with its configured local
+agents, models, tools and knowledge. UltraOne and CX-Mesh peers are optional
+connections; their absence must not stop local work. The access contract has
+six paths:
+
+| Path | Target | Access |
+| --- | --- | --- |
+| A2H — Agent to Host | AGPC host | `moted` provides the host endpoint; Codex uses SSH for host access and execution. |
+| A2A — Agent to Agent | Agent on an AGPC | `mote-agd` provides agent access; CX-Mesh coordinates tasks and management over Mote Transport. |
+| A2M — Agent to MCP | MCP tools | An AGPC agent uses the on-demand `mote-mcpd` MCP interface. |
+| A2U — Agent to User | Human user | `mote-uerd` provides user interaction through the existing COMM channel owners. |
+| A2T — Agent to Things | Devices and physical I/O | `mote-things` exposes admitted device operations through MLINK. |
+| A2C — Agent to Commerce | Commerce services | `mote-commerced` provides access while business services retain transaction logic and authorization. |
+
+These are six separate endpoint components. `mote-agd`, `mote-uerd`,
+`mote-things` and `mote-commerced` are required target-design components and are not included in this
+26-package release candidate. AGOS and the receiving agent retain
+orchestration, task admission and execution authority. Current
+Mesh inbox delivery requires agent review; it does not automatically invoke
+the execution provider or MEdge management API. The access contract is distinct
+from end-to-end acceptance of a configured peer or tool.
+
+MEdge owns management, mode and diagnostics while retaining its MBox/MDrive/MCP
+workers. The separate sphere-manager TUI may exit without stopping execution.
+Local Redixs and knowledge storage work without UltraOne; external Telegram and
+UltraOne connectivity are reported independently from local service health.
 
 ## Installation
 
 The permanent installer URL is
-**https://motebus.github.io/download/agent-sphere-apps.sh**.
+**https://motebus.github.io/download/agpc.sh**.
 Every installer release must update this exact GitHub Pages path after the
-required package, signature and dependency checks. Keep the URL and plural
-`agent-sphere-apps.sh` filename stable across versions. Publish its matching
-`.asc`, `agent-sphere-apps.source.json` and source-record signature together.
+required package, signature and dependency checks. Keep the URL and
+`agpc.sh` filename stable across versions. Publish its matching
+`.asc`, `agpc.source.json` and source-record signature together.
 A release is complete only after download readback from this URL matches the
 reviewed installer digest and its archive signature verifies. GitHub Release
 assets retain versioned history; user-facing installation links use this
-permanent URL.
+permanent URL. The previous `agent-sphere-apps.sh` path remains a signed,
+byte-identical compatibility alias.
 
-Use [`agent-sphere-apps.sh`](https://motebus.github.io/download/agent-sphere-apps.sh)
-from this site after configuring the trusted signed MoteBus APT repository.
-The [detached signature](https://motebus.github.io/download/agent-sphere-apps.sh.asc)
-and [source release record](https://motebus.github.io/download/agent-sphere-apps.source.json)
+Use [`agpc.sh`](https://motebus.github.io/download/agpc.sh)
+from this site. It configures the trusted signed MoteBus APT repository when absent.
+The [detached signature](https://motebus.github.io/download/agpc.sh.asc)
+and [source release record](https://motebus.github.io/download/agpc.source.json)
 bind the script to the reviewed Agent Sphere release. Verify the signature
 with the trusted archive key before running the downloaded script using sudo.
 
 The installer downloads and verifies the official upstream Obsidian DEB, then
-installs both entry packages in one APT transaction. Obsidian is not mirrored
+installs all four entry packages in one APT transaction. Obsidian is not mirrored
 in this repository or the aggregate release. Its Vault and user configuration
 remain under the desktop user's ownership. The installer does not select a
 Vault, enable its sync plugin, download model weights, or provide model and
 transport credentials.
 
-Fresh installation selects twenty-one canonical packages. A migrated host may
+Fresh installation selects twenty-six canonical packages. A migrated host may
 also retain one documentation-only `mote-chatd` record protecting locked DPKG
 configuration ownership. Only `mote-transportd` owns the messaging runtime.
 An ordinary `mote-chatd 2.0.0-4` installation whose locked file is not owned
 as a DPKG conffile uses native replacement by `mote-transportd`, without the
 retention record. The installer admits only this reviewed transport migration
-and the reviewed CX, Vault Sync and inference package renames, and checks
+and the reviewed MCP, CX, Vault Sync and inference package renames, and checks
 the final APT transaction before DPKG runs. It refuses
 unrelated removals, downgrades and retirement of that protected record.
 
-The supported product names are `cx-agent`, `model-router`, `model-llm`,
+`mote-mcpd` replaces `mote-bridge-mcp`. It keeps the on-demand stdio
+`mote mcp serve|doctor` interface. The system Codex registration uses
+`mcp_servers.mote-mcpd`; existing locked topology, configuration and state
+paths remain in place. CX Mesh depends on the new MCP package name.
+
+`cx-mesh` replaces both `cx-agent` and `codex-mesh`. The canonical command and
+service are `cx-mesh` and `cx-mesh.service`. Existing execution aliases, owner
+configuration, transport identities and mesh packet/tool IDs are preserved for
+compatibility. The installer reviews both predecessor packages before merging
+ownership and retains the operator's masked/disabled service intent.
+
+The supported product names are `mote-mcpd`, `cx-mesh`, `model-router`, `model-llm`,
 `mote-vault-sync` and `mote-vault-syncd`. There is no generic `agent.deb` or
 separate Model Grid package. Historical `model-node`, `cx-node`, `mcp-run`,
-`ultra-mcp-ssh` and the singular `agent-app` are outside the new composition.
+`ultra-mcp-ssh`, `mote-bridge-mcp`, `cx-agent`, `codex-mesh` and the singular `agent-app` are outside the new composition.
 Existing wire/configuration identifiers remain where compatibility requires.
 
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.1.0-3`. The v3 contract admits
-exactly twenty redistributable canonical DEBs, the optional protected retention
+`motebus/download` release `agent-computer-v0.2.0-1`. The v4 contract admits
+exactly twenty-five redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-Sphere 0.1.0-8 requires MEdge 3.0.0-3, so rerunning the installer upgrades an
-existing installation to the socket-group fix. MEdge resolves the shared `mote`
-group independently of the `moted` account's primary group and preserves
-existing accounts, locked identities and MoteD-only peer authorization.
+The four entry versions are Agent Sphere 0.2.0-1, Agent Ultra 0.1.0-1,
+Sphere Manager 3.1.0-1 and Agent Apps 0.2.0-1. The signed overlay is the exact
+source of artifact versions and digests. New leaf packages require successful
+native main builds, public payload audits and reviewed migration fixtures.
+Existing accounts, locked identities, credentials, vaults and runtime state
+retain their owner contracts throughout installation and upgrades.
 
 The protected publication workflow validates those exact DEBs, their metadata
 and safe archive permissions, signs the APT index and public pin set with the existing archive key,
 and checks automatic resolution in clean Ubuntu 24.04 and 26.04 containers.
+It also installs all 26 actual packages using native APT/DPKG in those disposable
+containers, requiring every package to finish configuration; service starts are
+disabled there, so these checks do not claim live host readiness.
 The full fixture seeds only the verified official Obsidian prerequisite before
-resolving `apt install agent-sphere agent-apps`. It never seeds native runtime
+resolving `apt install agent-sphere agent-ultra sphere-manager agent-apps`. It never seeds native runtime
 components or the legacy retention record on a fresh host.
 
 Package availability and resolver success do not establish full system
@@ -107,13 +152,13 @@ MCP → MoteD → MBox → MDrive with isolated local objects.
 
 The existing v19 base remains available byte-for-byte alongside the new APT
 versions. Its fixed legacy installer profiles describe that historical release.
-They do not define the new two-package product.
+They do not define the new four-package product.
 
-For the active v3 composition, the root `uninstall.sh` refuses automatic removal
+For the active v4 composition, the root `uninstall.sh` refuses automatic removal
 before inspecting or changing services, packages or data. This also protects
 partial installations containing only shared runtime package names.
 Full removal awaits a safe migration of protected configuration ownership.
-Removing the two metapackages alone is not full runtime removal. The immutable
+Removing the entry packages alone is not full runtime removal. The immutable
 legacy uninstaller, manifest and checksum file are archived under
 `legacy/medge-v5.10.0-1/`; that script is unsuitable for current Agent Computer
 cleanup. Personal Vaults and locked transport identities must be preserved.
@@ -536,7 +581,7 @@ six Sphere components, and thirteen Apps components. The builder checks the
 actual metapackage `Depends` fields against these ownership boundaries:
 
 - Sphere: `sphered`, `moted`, `mote-proxy`, `mote-transportd`, `medge`, `mlink`.
-- Apps: `agos`, `ss-webos`, `mdesk`, `mote-bridge-mcp`, `cx-agent`, `uchat`,
+- Apps: `agos`, `ss-webos`, `mdesk`, `mote-mcpd`, `cx-mesh`, `uchat`,
   `mote-vault-sync`, `mote-vault-syncd`, `mote-secd`, `codex-mesh`, `obsidian`,
   `model-router`, `model-llm`.
 
@@ -575,7 +620,7 @@ migration of existing configuration ownership; it is excluded from fresh
 canonical membership and must not be selected by either fresh-install plan.
 CX uses direct replacement and has no retention package. Retired runtimes
 `mcp-run`, `ultra-mcp-ssh`, `model-node`, `model-grid`, `mote-sync`, `mote-syncd`,
-`cx-node`, and `mote-chatd` are forbidden in fresh plans. Historical base DEBs
+`cx-node`, `mote-chatd`, and `mote-bridge-mcp` are forbidden in fresh plans. Historical base DEBs
 remain available byte-for-byte for legacy consumers.
 
 Every base publication reloads the approved overlay. Optional workflow input

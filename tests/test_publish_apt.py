@@ -566,7 +566,7 @@ class PublicAptTest(unittest.TestCase):
                 json.dumps({"schema": publish_apt.AGENT_COMPUTER_OVERLAY_SCHEMA, "release": None}),
                 encoding="utf-8",
             )
-            for name in (publish_apt.AGENT_APPS_INSTALLER, publish_apt.AGENT_APPS_INSTALLER_SOURCE):
+            for name in publish_apt.AGENT_INSTALLER_FILES:
                 shutil.copy2(Path(__file__).parents[1] / name, repository)
                 shutil.copy2(repository / name, site)
             with mock.patch.dict(
@@ -599,7 +599,7 @@ class PublicAptTest(unittest.TestCase):
                  str(overlay) + ".asc", str(overlay)],
                 check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
-            for name in (publish_apt.AGENT_APPS_INSTALLER, publish_apt.AGENT_APPS_INSTALLER_SOURCE):
+            for name in publish_apt.AGENT_INSTALLER_FILES:
                 asset = site / name
                 verify = ["gpgv", "--keyring", str(repository / "medge-archive-keyring.gpg"),
                           str(asset) + ".asc", str(asset)]

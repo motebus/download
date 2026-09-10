@@ -303,6 +303,8 @@ MOTE_TRANSPORT_PACKAGES = (
 )
 ALLOWED_ROOT_FILES = {
     "agent-computer-apt-overlay.json",
+    "agpc.sh",
+    "agpc.source.json",
     "agent-sphere-apps.sh",
     "agent-sphere-apps.source.json",
     ".gitignore",
@@ -323,23 +325,34 @@ AGENT_COMPUTER_OVERLAY_FILE = "agent-computer-apt-overlay.json"
 AGENT_COMPUTER_OVERLAY_SCHEMA = "agent-computer-apt-overlay/v1"
 AGENT_COMPUTER_OVERLAY_REPOSITORY = "motebus/agent-sphere-deb"
 AGENT_COMPUTER_OVERLAY_PACKAGES = (("agent-sphere", "all"), ("mote-transportd", "amd64"))
-AGENT_COMPUTER_FULL_SCHEMA = "agent-computer-apt-overlay/v3"
+AGENT_COMPUTER_FULL_SCHEMA = "agent-computer-apt-overlay/v4"
 AGENT_COMPUTER_FULL_REPOSITORY = "motebus/download"
-AGENT_SPHERE_COMPONENTS = ("sphered", "moted", "mote-proxy", "mote-transportd", "medge", "mlink")
-AGENT_APPS_COMPONENTS = (
-    "agos", "ss-webos", "mdesk", "mote-bridge-mcp", "cx-agent", "uchat",
-    "mote-vault-sync", "mote-vault-syncd", "mote-secd", "codex-mesh", "obsidian",
-    "model-router", "model-llm",
+AGENT_SPHERE_COMPONENTS = (
+    "sphered", "moted", "mote-proxy", "mote-transportd", "mlink", "mote-secd",
+    "agos", "model-router", "model-llm", "mote-mcpd", "cx-mesh",
 )
-AGENT_COMPUTER_CANONICAL = ("agent-sphere", "agent-apps", *AGENT_SPHERE_COMPONENTS, *AGENT_APPS_COMPONENTS)
+AGENT_ULTRA_COMPONENTS = ("redixs", "comm", "obsidian", "mote-vault-sync", "mote-vault-syncd")
+AGENT_MANAGER_COMPONENTS = ("medge",)
+AGENT_APPS_COMPONENTS = ("jujue", "iagent", "ss-webos", "mdesk", "uchat")
+AGENT_ENTRY_PACKAGES = ("agent-sphere", "agent-ultra", "sphere-manager", "agent-apps")
+AGENT_META_DEPENDENCIES = {
+    "agent-sphere": AGENT_SPHERE_COMPONENTS,
+    "agent-ultra": ("agent-sphere", *AGENT_ULTRA_COMPONENTS),
+    "agent-apps": ("agent-sphere", "agent-ultra", *AGENT_APPS_COMPONENTS),
+}
+AGENT_COMPUTER_CANONICAL = (*AGENT_ENTRY_PACKAGES, *AGENT_SPHERE_COMPONENTS,
+    *AGENT_ULTRA_COMPONENTS, *AGENT_MANAGER_COMPONENTS, *AGENT_APPS_COMPONENTS)
 AGENT_COMPUTER_REDISTRIBUTABLE = tuple(name for name in AGENT_COMPUTER_CANONICAL if name != "obsidian")
 # Retention packages are migration evidence, never fresh-install components.
 AGENT_COMPUTER_RETENTION = ("mote-chatd",)
 AGENT_COMPUTER_RETIRED = {"mcp-run", "ultra-mcp-ssh", "model-node", "model-grid",
-                          "mote-sync", "mote-syncd", "cx-node", "mote-chatd", "agent-app"}
-AGENT_APPS_INSTALLER = "agent-sphere-apps.sh"
-AGENT_APPS_INSTALLER_SOURCE = "agent-sphere-apps.source.json"
-AGENT_APPS_INSTALLER_SCHEMA = "agent-sphere-apps-installer-source/v1"
+                          "mote-sync", "mote-syncd", "cx-node", "mote-chatd", "agent-app",
+                          "mote-bridge-mcp", "cx-agent", "codex-mesh"}
+AGENT_APPS_INSTALLER = "agpc.sh"
+AGENT_APPS_INSTALLER_SOURCE = "agpc.source.json"
+AGENT_APPS_INSTALLER_SCHEMA = "agpc-installer-source/v1"
+AGENT_INSTALLER_ALIASES = ("agent-sphere-apps.sh", "agent-sphere-apps.source.json")
+AGENT_INSTALLER_FILES = (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE, *AGENT_INSTALLER_ALIASES)
 
 
 class PublishError(RuntimeError):
@@ -411,6 +424,12 @@ def validate_agent_apps_installer(root: Path) -> dict:
     require(sha256(installer) == record["sha256"], "Agent Apps installer digest mismatch")
     require(installer.stat().st_mode & 0o111 != 0, "Agent Apps installer must be executable")
     run("bash", "-n", str(installer))
+    for canonical, alias in zip((installer, source), AGENT_INSTALLER_ALIASES):
+        path = root / alias
+        require(path.is_file() and not path.is_symlink(), f"missing regular installer alias: {alias}")
+        require(path.read_bytes() == canonical.read_bytes(), f"installer alias differs from canonical bytes: {alias}")
+        if alias.endswith(".sh"):
+            require(path.stat().st_mode & 0o111 != 0, "installer alias must be executable")
     return record
 
 
@@ -469,7 +488,7 @@ def validate_full_overlay_config(release: dict) -> None:
             and re.fullmatch(r"[0-9a-f]{40}", release["source_commit"]), "invalid aggregate source commit")
     packages, retention = release["packages"], release["retention_packages"]
     require(isinstance(packages, list) and all(isinstance(p, dict) for p in packages) and [p.get("name") for p in packages]
-            == list(AGENT_COMPUTER_REDISTRIBUTABLE), "full overlay must contain exactly 20 canonical redistributable packages")
+            == list(AGENT_COMPUTER_REDISTRIBUTABLE), "full overlay must contain exactly 25 canonical redistributable packages")
     require(isinstance(retention, list) and all(isinstance(p, dict) for p in retention)
             and [p.get("name") for p in retention] == [name for name in AGENT_COMPUTER_RETENTION
                                                      if any(p.get("name") == name for p in retention)],
@@ -478,7 +497,7 @@ def validate_full_overlay_config(release: dict) -> None:
         require(set(package) == {"name", "version", "architecture", "asset", "sha256", "provenance"},
                 "full overlay package fields are invalid")
         name = package["name"]
-        architecture = "all" if name in ("agent-sphere", "agent-apps", *AGENT_COMPUTER_RETENTION) else "amd64"
+        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "jujue", *AGENT_COMPUTER_RETENTION) else "amd64"
         require(package["architecture"] == architecture, f"{name}: invalid full overlay architecture")
         require(isinstance(package["version"], str)
                 and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", package["version"]),
@@ -524,10 +543,16 @@ def validate_meta_dependencies(asset: Path, expected: tuple[str, ...], approved:
         match = re.fullmatch(r"([a-z0-9][a-z0-9+.-]*)\s*\((>=|=)\s*([^\s()]+)\)", term)
         require(match is not None, f"{asset.name}: meta dependency must have one exact owner and a version floor")
         name, operator, version = match.groups()
+        if name == "init-system-helpers" and asset.name.startswith(("agent-sphere_", "agent-ultra_")):
+            require(operator == ">=", f"{asset.name}: native systemd helper requires a version floor")
+            run("dpkg", "--compare-versions", version, "ge", "1.54")
+            require(name not in found, f"{asset.name}: duplicate helper dependency")
+            found[name] = version
+            continue
         require(name not in found and name in approved, f"{asset.name}: duplicate or unapproved dependency")
         run("dpkg", "--compare-versions", approved[name]["version"], "ge" if operator == ">=" else "eq", version)
         found[name] = version
-    require(set(found) == set(expected), f"{asset.name}: direct dependency ownership differs from the canonical composition")
+    require(set(found) - {"init-system-helpers"} == set(expected), f"{asset.name}: direct dependency ownership differs from the canonical composition")
     for field in ("Pre-Depends", "Recommends", "Suggests"):
         require(not package_field(asset, field), f"{asset.name}: undeclared additional dependency edge: {field}")
 
@@ -535,13 +560,38 @@ def validate_meta_dependencies(asset: Path, expected: tuple[str, ...], approved:
 def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
     release = config["release"]
     approved = {p["name"]: p for p in release["packages"] + release["external_prerequisites"]}
-    for name, dependencies in (("agent-sphere", AGENT_SPHERE_COMPONENTS), ("agent-apps", AGENT_APPS_COMPONENTS)):
+    for name, dependencies in AGENT_META_DEPENDENCIES.items():
         validate_meta_dependencies(bundle / approved[name]["asset"], dependencies, approved)
+    # Runtime composition must never pull the management UI back into execution.
+    graph = {}
+    for package in release["packages"]:
+        asset = bundle / package["asset"]
+        edges = set()
+        for term in (package_field(asset, "Depends") + "," + package_field(asset, "Pre-Depends")).split(","):
+            for alternative in term.split("|"):
+                match = re.match(r"\s*([a-z0-9][a-z0-9+.-]*)", alternative)
+                if match and match[1] in approved:
+                    edges.add(match[1])
+        graph[package["name"]] = edges
+    def visit(name, ancestors):
+        require(name not in ancestors, f"{name}: circular canonical package dependency")
+        for child in graph.get(name, ()):
+            visit(child, ancestors | {name})
+    for name in graph:
+        visit(name, set())
+        if name != "sphere-manager":
+            require("sphere-manager" not in graph[name],
+                    f"{name}: runtime must not depend on the management UI")
     # Inspect tar metadata without extracting or following payload links. Locked
     # deployment identity belongs to its owner. Existing reviewed bootstrap
     # templates under usr/share remain bound by the DEB digest/content review.
     for package in overlay_packages(config):
         asset = bundle / package["asset"]
+        for field in ("Depends", "Pre-Depends", "Recommends", "Suggests", "Provides"):
+            for retired in ("mote-bridge-mcp", "cx-agent", "codex-mesh"):
+                require(not re.search(r"(?<![a-z0-9+.-])" + re.escape(retired) + r"(?![a-z0-9+.-])",
+                                      package_field(asset, field)),
+                        f"{asset.name}: {field} retains the retired {retired} package")
         validate_deb_archive_permissions(asset)
         data = subprocess.check_output(["dpkg-deb", "--fsys-tarfile", str(asset)])
         with tarfile.open(fileobj=io.BytesIO(data)) as archive:
@@ -661,7 +711,7 @@ def download_agent_computer_prerequisites(repository_root: Path, destination: Pa
 def validate_agent_computer_release_tag(repository_root: Path, tag: str) -> None:
     config = load_agent_computer_overlay(repository_root)
     require(config["schema"] == AGENT_COMPUTER_FULL_SCHEMA and config["release"] is not None
-            and tag == config["release"]["tag"], "aggregate dispatch tag must match active reviewed v3 pins")
+            and tag == config["release"]["tag"], "aggregate dispatch tag must match active reviewed v4 pins")
 
 
 def require_no_gitlab_url_bytes(value: bytes, subject: str) -> None:
@@ -1337,7 +1387,7 @@ def validate_tree(root: Path) -> None:
         and path.name != "github-setup.sh"
     }
     require(
-        actual_shell_entries == set(RELEASE_SCRIPTS_V19) | {AGENT_APPS_INSTALLER},
+        actual_shell_entries == set(RELEASE_SCRIPTS_V19) | {AGENT_APPS_INSTALLER, AGENT_INSTALLER_ALIASES[0]},
         "public repository must contain exactly the approved release scripts",
     )
     publish_workflow = (root / ".github/workflows/publish-apt.yml").read_text(
@@ -1356,7 +1406,7 @@ def validate_tree(root: Path) -> None:
             "publish workflow must retain the tracked Agent Computer overlay on every build")
     require("python3 scripts/validate_agent_sphere_apt.py . apt-site" in publish_workflow,
             "publish workflow must verify signed-index Agent Sphere dependency resolution")
-    for name in (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE):
+    for name in AGENT_INSTALLER_FILES:
         require(f"apt-site/{name}.asc apt-site/{name}" in publish_workflow,
                 f"publish workflow must verify the signed {name}")
     for installer_name in INSTALLER_PROFILES_V19:
@@ -1539,7 +1589,7 @@ def write_index(
 
     shutil.copy2(repository_root / "medge-archive-keyring.gpg", site)
     shutil.copy2(repository_root / "medge.sources", site)
-    for name in (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE):
+    for name in AGENT_INSTALLER_FILES:
         shutil.copy2(repository_root / name, site)
     if current_manifest.get("schema") == "medge-public-release/v17":
         release_scripts = RELEASE_SCRIPTS_V17
@@ -1583,14 +1633,14 @@ sudo bash /tmp/sphere.sh</pre>
 (sphered + ss-webos + mdesk + mlink), and <code>sshkit.sh</code>
 (Mote Transport prerequisites). <code>uninstall.sh</code> performs bounded,
 signed cleanup of the Sphere package boundary.</p>
-<p>Native APT installer: <a href="agent-sphere-apps.sh">agent-sphere-apps.sh</a>
-(<a href="agent-sphere-apps.sh.asc">detached archive signature</a>).
+<p>Native APT installer: <a href="agpc.sh">agpc.sh</a>
+(<a href="agpc.sh.asc">detached archive signature</a>).
 It requires the configured signed APT source and installs both
 <code>agent-sphere</code> and <code>agent-apps</code> only when their joint
 no-removal dependency plan succeeds. Publishing this script does not provide
 the pending compatible <code>agent-apps</code> package.</p>
-<p>Installer <a href="agent-sphere-apps.source.json">source release and SHA-256</a>
-(<a href="agent-sphere-apps.source.json.asc">archive signature</a>).</p>
+<p>Installer <a href="agpc.source.json">source release and SHA-256</a>
+(<a href="agpc.source.json.asc">archive signature</a>).</p>
 </html>
 """
     if (site / AGENT_COMPUTER_OVERLAY_FILE).is_file():
@@ -1604,39 +1654,74 @@ the pending compatible <code>agent-apps</code> package.</p>
             'and their <a href="agent-computer-apt-overlay.json.asc">archive signature</a>.</p>')
         config = load_agent_computer_overlay(repository_root)
         if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
-            index = index.replace(
-                "With this signed APT source configured: <code>apt install agent-sphere</code>. "
-                "APT resolves its component dependencies, including <code>mote-transportd</code>. "
-                "The separate <code>agent-apps</code> package awaits a compatible AGOS release.",
-                "With the signed APT source configured and the checksum-verified official Obsidian "
-                "prerequisite installed: <code>apt install agent-sphere agent-apps</code>. "
-                "APT resolves the six Sphere and thirteen Apps components. Obsidian is not redistributed here.")
-            index = index.replace("Publishing this script does not provide\n"
-                "the pending compatible <code>agent-apps</code> package.",
-                "The signed overlay records the exact package versions and upstream prerequisite.")
-            index = index.replace("<code>uninstall.sh</code> performs bounded,\n"
-                "signed cleanup of the Sphere package boundary.",
-                "The current <code>uninstall.sh</code> refuses unsupported Agent Computer cleanup before mutation. "
-                "Full uninstall awaits a reviewed retention dependency migration. "
-                f'Immutable legacy evidence: <a href="legacy/medge-v{current_manifest["medge_version"]}/uninstall.sh">'
-                "original uninstaller</a> and "
-                f'<a href="legacy/medge-v{current_manifest["medge_version"]}/release-manifest.json">manifest</a>. '
-                "The legacy script is not suitable for Agent Computer cleanup.")
+            index = f"""<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>AgentSphere Debian Repository</title>
+<h1>AGPC — Agent Computer by AgentSphere</h1>
+<p>Release: <code>{config['release']['tag']}</code>. Ubuntu 24.04 and 26.04, amd64.</p>
+<ul>
+<li><code>agent-sphere</code>: headless execution, agents, models and CX-Mesh.</li>
+<li><code>agent-ultra</code>: local Redixs, COMM and knowledge services.</li>
+<li><code>sphere-manager</code>: setup and management TUI.</li>
+<li><code>agent-apps</code>: Jujue, iAgent and desktop applications.</li>
+</ul>
+<p>One installer selects all four packages and their 26 canonical package names.
+It configures the signed APT source when absent and obtains Obsidian from its
+checksum-verified official upstream asset. Obsidian is not redistributed here.</p>
+<pre>curl -fsSLo agpc.sh https://motebus.github.io/download/agpc.sh &amp;&amp;
+sudo bash ./agpc.sh</pre>
+<p>Re-running preserves existing identity, configuration and user data.
+Run <code>sudo sphere-manager</code> for owner setup. Installing packages does
+not configure credentials, model weights or grant application access.</p>
+<p><code>cx-mesh</code> replaces the separate <code>cx-agent</code> and
+<code>codex-mesh</code> packages while preserving their established configuration.</p>
+<p>CX-Mesh connects collaborating computers such as AGPC-1 and AGPC-2.
+Each AGPC runs its own AgentSphere installation and local resources.</p>
+<p>AGPC requires standalone operation with configured local resources.
+Optional access paths are A2H (SSH through the <code>moted</code> host endpoint),
+A2A (agent access through the planned <code>mote-agd</code> endpoint, coordinated
+by CX-Mesh over Mote Transport), A2M (MCP tools through <code>mote-mcpd</code>),
+A2U (users through <code>mote-uerd</code>), A2T (devices through <code>mote-things</code>),
+and A2C (commerce through <code>mote-commerced</code>).
+The new agent, user, things and commerce endpoints are not part of this 26-package release candidate.
+Mesh message delivery retains receiving-agent review and does not itself
+authorize execution or system management.</p>
+<p><a href="agpc.sh">Installer</a> ·
+<a href="agpc.sh.asc">Installer signature</a> ·
+<a href="agpc.source.json">Installer provenance</a> ·
+<a href="agpc.source.json.asc">Provenance signature</a> ·
+<a href="agent-computer-apt-overlay.json">Exact package pins</a> ·
+<a href="agent-computer-apt-overlay.json.asc">Package pins signature</a></p>
+<p>Archive signing fingerprint: <code>{fingerprint}</code>.</p>
+<p>The current <code>uninstall.sh</code> refuses unsupported Agent Computer cleanup
+before mutation. The <a href="legacy/medge-v{current_manifest['medge_version']}/release-manifest.json">historical release manifest</a>
+and original installer assets are retained as immutable evidence; the legacy
+uninstaller is not suitable for this Agent Computer.</p>
+</html>
+"""
+    index = index.replace("</html>", """<p>Previous installer URL:
+<a href="agent-sphere-apps.sh">agent-sphere-apps.sh</a>
+(<a href="agent-sphere-apps.sh.asc">installer signature</a>) and its
+<a href="agent-sphere-apps.source.json">source record</a>
+(<a href="agent-sphere-apps.source.json.asc">source signature</a>)
+remain byte-identical aliases of the canonical AGPC installer and source record.</p>
+</html>""")
     (site / "index.html").write_text(index, encoding="utf-8")
 
 
 def stage_full_overlay_uninstaller(site: Path, repository_root: Path, current: dict, bundle: Path) -> None:
     source = repository_root / "uninstall.sh"
     require(source.is_file() and not source.is_symlink()
-            and "PY_UNINSTALL_PREFLIGHT" in source.read_text(), "v3 requires the reviewed uninstall preflight blocker")
-    require(source.stat().st_mode & 0o111 != 0, "v3 uninstall preflight must be executable")
+            and "PY_UNINSTALL_PREFLIGHT" in source.read_text(), "v4 requires the reviewed uninstall preflight blocker")
+    require(source.stat().st_mode & 0o111 != 0, "v4 uninstall preflight must be executable")
     run("bash", "-n", str(source))
     legacy = site / "legacy" / ("medge-v" + current["medge_version"])
     legacy.mkdir(parents=True)
     for name in ("uninstall.sh", "release-manifest.json", "SHA256SUMS"):
         shutil.copy2(bundle / name, legacy / name)
     require(sha256(source) != sha256(legacy / "uninstall.sh"),
-            "v3 root blocker must differ from the immutable legacy uninstaller")
+            "v4 root blocker must differ from the immutable legacy uninstaller")
     shutil.copy2(source, site / "uninstall.sh")
 
 
@@ -1689,15 +1774,15 @@ def sign_release(site: Path, repository_root: Path) -> None:
         if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
             require(config == load_agent_computer_overlay(repository_root), "staged full overlay differs from reviewed pins")
             require((site / "uninstall.sh").read_bytes() == (repository_root / "uninstall.sh").read_bytes(),
-                    "staged v3 uninstall preflight differs from reviewed source")
+                    "staged v4 uninstall preflight differs from reviewed source")
             run(*common, "--armor", "--detach-sign", "--output", str(site / "uninstall.sh.asc"),
                 str(site / "uninstall.sh"), input_text=passphrase + "\n")
             current = json.loads(manifest.read_text())
             legacy = site / "legacy" / ("medge-v" + current["medge_version"])
             require((legacy / "release-manifest.json").read_bytes() == manifest.read_bytes(),
-                    "legacy manifest changed while staging v3")
+                    "legacy manifest changed while staging v4")
             shutil.copy2(manifest_signature, legacy / "release-manifest.json.asc")
-    for name in (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE):
+    for name in AGENT_INSTALLER_FILES:
         run(*common, "--armor", "--detach-sign", "--output", str(site / (name + ".asc")),
             str(site / name), input_text=passphrase + "\n")
 
@@ -1713,7 +1798,7 @@ def sign_release(site: Path, repository_root: Path) -> None:
             if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
                 run("gpg", "--batch", "--verify", str(site / "uninstall.sh.asc"),
                     str(site / "uninstall.sh"), env=env)
-        for name in (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE):
+        for name in AGENT_INSTALLER_FILES:
             run("gpg", "--batch", "--verify", str(site / (name + ".asc")), str(site / name), env=env)
 
 

@@ -177,7 +177,7 @@ class AgentComputerOverlayTest(unittest.TestCase):
             (bundle / "SHA256SUMS").write_text(checksums)
             repo = Path(__file__).parents[1]
             for name in ("medge-archive-keyring.gpg", "medge-archive-keyring.fingerprint", "medge.sources",
-                         publish_apt.AGENT_APPS_INSTALLER, publish_apt.AGENT_APPS_INSTALLER_SOURCE):
+                         *publish_apt.AGENT_INSTALLER_FILES):
                 shutil.copy2(repo / name, root)
             site = root / "site"
             with mock.patch.object(publish_apt, "sign_release") as sign:
@@ -193,7 +193,7 @@ class AgentComputerOverlayTest(unittest.TestCase):
             self.assertIn("apt install agent-sphere", (site / "index.html").read_text())
             self.assertIn("agent-apps", (site / "index.html").read_text())
             self.assertNotIn("<code>agent-app</code>", (site / "index.html").read_text())
-            for name in (publish_apt.AGENT_APPS_INSTALLER, publish_apt.AGENT_APPS_INSTALLER_SOURCE):
+            for name in publish_apt.AGENT_INSTALLER_FILES:
                 self.assertEqual((site / name).read_bytes(), (repo / name).read_bytes())
                 self.assertIn(f'href="{name}"', (site / "index.html").read_text())
             for installer in manifest["installers"]:
