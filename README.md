@@ -1,8 +1,8 @@
 # AGPC (Agent Computer) Debian Distribution
 
-This branch prepares the next release. The three replacement artifact pins are
-explicitly pending committed-main acceptance, so publication validation refuses
-this candidate. Installer and source-record snapshots still retain the immutable
+This branch prepares the next release. The native Manager and MEdge artifacts passed
+committed-main acceptance. The Core replacement pin remains explicitly pending,
+so publication validation refuses this candidate. Installer and source-record snapshots still retain the immutable
 released 0.2.0-1 bytes until the reviewed Core 0.2.0-2 artifacts are available.
 
 ```text

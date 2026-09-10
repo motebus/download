@@ -37,14 +37,14 @@
         "version": "3.1.0-2",
         "architecture": "amd64",
         "asset": "agpc-manager_3.1.0-2_amd64.deb",
-        "sha256": "PENDING_REVIEWED_AGPC_MANAGER_SHA256",
+        "sha256": "cc1a1f2727dbf91c1cee3ffac7d273131f22e0f2cc1ade787173bf7ebbfae9fc",
         "name": "agpc-manager",
         "provenance": {
-          "source_commit": "PENDING_REVIEWED_AGPC_MANAGER_MAIN",
+          "source_commit": "42badf7997d9abf3b4bc0167e288c8eb83ef76be",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": null,
-          "build_status": "pending",
-          "public_payload_reviewed": false
+          "main_pipeline_id": 26611,
+          "build_status": "success",
+          "public_payload_reviewed": true
         }
       },
       {
@@ -275,14 +275,14 @@
         "version": "3.1.0-2",
         "architecture": "amd64",
         "asset": "medge_3.1.0-2_amd64.deb",
-        "sha256": "PENDING_REVIEWED_MEDGE_SHA256",
+        "sha256": "770549e98b051b0952549bf7ab0b162f4f04749898863134aef8bfabd6cab896",
         "name": "medge",
         "provenance": {
-          "source_commit": "PENDING_REVIEWED_MEDGE_MAIN",
+          "source_commit": "42badf7997d9abf3b4bc0167e288c8eb83ef76be",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": null,
-          "build_status": "pending",
-          "public_payload_reviewed": false
+          "main_pipeline_id": 26611,
+          "build_status": "success",
+          "public_payload_reviewed": true
         }
       },
       {
