@@ -356,7 +356,7 @@ MCP_PREFLIGHT
 
 classify_legacy_cx() {
 python3 - <<'CX_PREFLIGHT'
-import hashlib,json,os,pwd,stat,subprocess,sys
+import hashlib,json,os,pwd,stat,subprocess,sys,tomllib
 from pathlib import Path
 
 REVIEWED = {('cx-agent', '0.3.4-2'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('cx-agent', '0.3.4-3'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('codex-mesh', '1.0.0-1'): {'prerm': None, 'postrm': None}, ('codex-mesh', '1.0.0-2'): {'prerm': None, 'postrm': None}, ('cx-node', '0.3.3-4'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.3-6'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.4-1~local20260909'): {'prerm': '2721920390b04cef164a34b5347a36a8794c3bb443462224ed83fbd440453cba', 'postrm': 'f6f8be756d1d6b62dd906b7587e55f15cf060073c0e0cbf46d4bb31840640087'}}
@@ -449,6 +449,90 @@ def cx4_state(state, files):
     diverted=subprocess.run(['dpkg-divert','--list','/usr/bin/cx'],capture_output=True,text=True)
     if diverted.returncode or diverted.stdout.strip():raise ValueError('old4 drain command is diverted')
 
+CX6_OBSOLETE_ROW = ['/etc/cx-node/cx-node.toml','d137b03f7f14c9c1369d3e85a9062130','obsolete']
+CX6_OBSOLETE_INSTALLED = {
+    '/var/lib/dpkg/info/cx-node.list': ('8aa5dbd95406f5ef29cb1cb11c9fe7048d2c4dec84b73d8f118094869ac15e0d',0o644),
+    '/var/lib/dpkg/info/cx-node.md5sums': ('4a25baab18944de75e7514c27a4d73bc1ce2216752df3f967b4b541ffa57eb6a',0o644),
+    '/var/lib/dpkg/info/cx-node.preinst': ('a23e97567e7055e177696fb8f630227fce9e719fe9b4139c48e31eb134b543b8',0o755),
+    '/var/lib/dpkg/info/cx-node.postinst': ('9541131b3d13f23d17877dabcfb04b8cb5671a906180c223c1281cf013bfbd1f',0o755),
+    '/usr/bin/cx': ('493c5faa394c13b0641b936c9e3c02f9d39c0e4e52eb1b52f027240e2383fa9d',0o755),
+}
+CX6_OBSOLETE_RESIDUAL_LIST = 'e6c9f3a963553f457f2e0da73074a433dc673cf0a158020a74b6caf5b12bd154'
+
+def sole_owner(path, expected):
+    owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
+    if owner.returncode or owner.stdout.strip()!=expected+': '+path:
+        raise ValueError('obsolete CX migration file lacks sole expected package ownership: '+path)
+    diverted=subprocess.run(['dpkg-divert','--list',path],capture_output=True,text=True)
+    if diverted.returncode or diverted.stdout.strip():raise ValueError('obsolete CX migration file is diverted: '+path)
+
+def cx6_drain_state(files, owner_uid):
+    # The genuine old prerm runs cx drain as root. Only its established state
+    # root is admitted; never let owner TOML redirect a privileged file write.
+    config=CX6_OBSOLETE_ROW[0]
+    fd=os.open(config,os.O_RDONLY|os.O_NOFOLLOW|os.O_NOATIME)
+    try:
+        before=os.fstat(fd)
+        with os.fdopen(fd,'rb',closefd=False) as stream:data=stream.read(1048577)
+        after=os.fstat(fd)
+    finally:os.close(fd)
+    identity=[hashlib.sha256(data).hexdigest(),after.st_ino,after.st_mtime_ns,after.st_ctime_ns,after.st_mode,after.st_uid,after.st_gid,after.st_nlink]
+    if len(data)>1048576 or before!=after or identity!=files[config]:raise ValueError('obsolete CX config changed during state inspection')
+    try:document=tomllib.loads(data.decode('utf-8'))
+    except (UnicodeError,tomllib.TOMLDecodeError):raise ValueError('obsolete CX configuration is not valid TOML') from None
+    if not isinstance(document.get('state'),dict) or document['state'].get('path')!='/var/lib/cx-node':
+        raise ValueError('obsolete CX drain requires the reviewed state directory')
+    for path in ('/','/var','/var/lib','/var/lib/cx-node','/var/lib/cx-node/state'):
+        meta=os.lstat(path)
+        allowed=(0,owner_uid) if path.startswith('/var/lib/cx-node') else (0,)
+        if not stat.S_ISDIR(meta.st_mode) or meta.st_uid not in allowed or meta.st_mode&0o022:
+            raise ValueError('unsafe obsolete CX state directory: '+path)
+        files[path]=[meta.st_dev,meta.st_ino,meta.st_mtime_ns,meta.st_ctime_ns,meta.st_mode,meta.st_uid,meta.st_gid,meta.st_nlink]
+    marker='/var/lib/cx-node/state/draining'
+    if os.path.lexists(marker):
+        meta=os.lstat(marker)
+        if meta.st_uid not in (0,owner_uid):raise ValueError('unsafe obsolete CX drain marker owner')
+        files[marker]=checked(marker,uid=meta.st_uid)
+        if files[marker][-1]!=1:raise ValueError('unsafe obsolete CX drain marker link count')
+    else:files[marker]=None
+
+def cx6_obsolete_state(state, rows, files):
+    if rows!=[CX6_OBSOLETE_ROW]:raise ValueError('unreviewed CX predecessor conffile ownership')
+    # Actual 0.3.1-4 -> 0.3.3-1 -> 0.3.3-6 DPKG history leaves no
+    # .conffiles file. Its obsolete TOML remains in both installed and rc lists.
+    for suffix in ('conffiles','triggers'):
+        if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):raise ValueError('unexpected obsolete CX ownership or triggers')
+    for path in ('/etc','/etc/cx-node'):
+        meta=os.lstat(path)
+        if not stat.S_ISDIR(meta.st_mode) or meta.st_uid!=0 or meta.st_mode&0o022:
+            raise ValueError('unsafe obsolete CX configuration directory: '+path)
+        files[path]=[meta.st_dev,meta.st_ino,meta.st_mtime_ns,meta.st_ctime_ns,meta.st_mode,meta.st_uid,meta.st_gid,meta.st_nlink]
+    for path in (CX6_OBSOLETE_ROW[0],'/etc/cx-node/cx-node-mchat.env'):
+        files[path]=checked(path)
+        if files[path][-1]!=1:raise ValueError('unsafe obsolete CX owner file link count')
+    sole_owner(CX6_OBSOLETE_ROW[0],'cx-node') # Residual predecessor retains the actual conffile ownership.
+    if state=='install ok installed':
+        checks=CX6_OBSOLETE_INSTALLED
+        expected_owner='cx-node'
+        try:owner_uid=pwd.getpwnam('cx-node').pw_uid
+        except KeyError:raise ValueError('obsolete CX service account is missing')
+        cx6_drain_state(files,owner_uid)
+        receipt='/var/lib/cx-node/state/runtime-migration.json'
+        files[receipt]=checked(receipt,uid=owner_uid)
+        if files[receipt][-1]!=1:raise ValueError('unsafe obsolete CX migration receipt link count')
+    else:
+        successor=query('cx-mesh')
+        if successor is None or successor.splitlines()[:3]!=['1.1.0-1','amd64','install ok installed']:
+            raise ValueError('obsolete CX residual requires exact installed CX-Mesh successor')
+        for suffix in ('preinst','postinst','prerm','md5sums'):
+            if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):raise ValueError('unexpected obsolete CX residual payload or hook')
+        checks={'/var/lib/dpkg/info/cx-node.list':(CX6_OBSOLETE_RESIDUAL_LIST,0o644)}
+        expected_owner='cx-mesh'
+    for path,(digest,mode) in checks.items():
+        files[path]=checked(path,digest=digest,mode=mode,limit=2097152 if path=='/usr/bin/cx' else 1048576)
+        if files[path][-1]!=1:raise ValueError('unsafe obsolete CX migration file link count')
+    sole_owner('/usr/bin/cx',expected_owner)
+
 def classify():
     records={name:query(name) for name in ('cx-node','cx-agent','codex-mesh')}
     if all(record is None for record in records.values()):return 'absent'
@@ -462,7 +546,9 @@ def classify():
             raise ValueError('unsupported CX predecessor version, architecture or DPKG state')
         hooks=REVIEWED[(name,version)]
         rows=[line.split() for line in lines[3:] if line.strip()]
-        if name!='codex-mesh' and rows:raise ValueError('unreviewed CX predecessor conffile ownership')
+        cx6_obsolete=(name,version)==('cx-node','0.3.3-6') and bool(rows)
+        if cx6_obsolete:cx6_obsolete_state(state,rows,files)
+        elif name!='codex-mesh' and rows:raise ValueError('unreviewed CX predecessor conffile ownership')
         if (name,version)==('cx-node','0.3.3-4'):cx4_state(state,files)
         if name=='codex-mesh':
             wanted=sorted([[path,digest] for path,digest in MESH_FILES.items()])
@@ -482,7 +568,7 @@ def classify():
                 if hook=='prerm' and state!='install ok installed':continue
                 path='/var/lib/dpkg/info/'+name+'.'+hook
                 files[path]=checked(path,digest=hooks[hook],mode=0o755)
-                if version=='0.3.3-4' and files[path][-1]!=1:raise ValueError('unsafe old4 removal hook link count')
+                if (version=='0.3.3-4' or cx6_obsolete) and files[path][-1]!=1:raise ValueError('unsafe CX removal hook link count')
         if state=='install ok installed':installed[name]=version
     files.update(unit_policy())
     config='/etc/cx-node/cx-node.toml';identity='/etc/cx-node/cx-node-mchat.env'
@@ -620,7 +706,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-3 agent-ultra=0.1.0-1 agpc-manager=3.1.0-2 agent-apps=0.2.0-1 "$obsidian")
+packages=(agent-sphere=0.2.0-4 agent-ultra=0.1.0-1 agpc-manager=3.1.0-2 agent-apps=0.2.0-1 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -681,7 +767,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-3 [agent-ultra]=0.1.0-1 [agpc-manager]=3.1.0-2 [agent-apps]=0.2.0-1 [moted]=3.6.0-2 [medge]=3.1.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-4 [agent-ultra]=0.1.0-1 [agpc-manager]=3.1.0-2 [agent-apps]=0.2.0-1 [moted]=3.6.0-2 [medge]=3.1.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'

@@ -119,6 +119,19 @@ under the APT lock. This supported state needs no separate baseline upgrade;
 existing configuration and identities are preserved. Unknown or modified
 predecessors, including unreviewed obsolete conffile ownership, remain blocked.
 
+A genuine `cx-node 0.3.3-6` installation retaining the reviewed historical
+obsolete normal-configuration record is also supported, including its native
+residual state on repeat installs. The installer binds the exact removal list,
+hooks, checksum record and drain executable, requires the existing migration
+receipt and safe state path, and repeats those checks under the APT lock.
+Owner configuration and locked identities remain in place; no purge or DPKG
+database edit is performed. The old drain marker is an expected lifecycle
+write, so package installation does not imply an undrained runtime. APT locking
+does not freeze service-owned files against concurrent writes; this bounded
+migration assumes the existing service is trusted. Other obsolete records and
+unsafe state paths remain refused. Installation-success event delivery is not
+included in this release.
+
 `agpc-manager` replaces only the reviewed, unmodified `sphere-manager`
 3.1.0-1 frontend. Before downloads and again under the APT lock, the installer
 checks its exact package state and DPKG removal file list, owned executable
@@ -138,14 +151,14 @@ Existing wire/configuration identifiers remain where compatibility requires.
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-3`. The v4 contract admits
+`motebus/download` release `agent-computer-v0.2.0-4`. The v4 contract admits
 exactly twenty-five redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-3, Agent Ultra 0.1.0-1,
+The four entry versions are Agent Sphere 0.2.0-4, Agent Ultra 0.1.0-1,
 AGPC Manager 3.1.0-2 and Agent Apps 0.2.0-1. AGPC Manager requires the paired
 MEdge 3.1.0-2 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
