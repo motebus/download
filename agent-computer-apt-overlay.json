@@ -2,21 +2,21 @@
   "schema": "agent-computer-apt-overlay/v4",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.2.0-1",
-    "source_commit": "83ec3e40abea03b0bc5c25ff6ba3c4f11e5f9227",
+    "tag": "agent-computer-v0.2.0-2",
+    "source_commit": "2771c746e2205059b3dbe09e760768fc9a6addd5",
     "packages": [
       {
-        "version": "0.2.0-1",
+        "version": "0.2.0-2",
         "architecture": "all",
-        "asset": "agent-sphere_0.2.0-1_all.deb",
-        "sha256": "6098b6a325be70300956374a1cac6d8134c55bb8ae27f82169f833d7fbed9a45",
+        "asset": "agent-sphere_0.2.0-2_all.deb",
+        "sha256": "PENDING_REVIEWED_CORE_SHA256",
         "name": "agent-sphere",
         "provenance": {
-          "source_commit": "7546ade53359e1ed53f9f036f29ba7ae43b82d2d",
+          "source_commit": "PENDING_REVIEWED_CORE_MAIN",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 34442818851,
-          "build_status": "success",
-          "public_payload_reviewed": true
+          "main_pipeline_id": null,
+          "build_status": "pending",
+          "public_payload_reviewed": false
         }
       },
       {
@@ -34,17 +34,17 @@
         }
       },
       {
-        "version": "3.1.0-1",
+        "version": "3.1.0-2",
         "architecture": "amd64",
-        "asset": "sphere-manager_3.1.0-1_amd64.deb",
-        "sha256": "6e935d8f6be40062556829361999b67de2595f9393b8ae9477dd4e6eb4c8bf64",
-        "name": "sphere-manager",
+        "asset": "agpc-manager_3.1.0-2_amd64.deb",
+        "sha256": "PENDING_REVIEWED_AGPC_MANAGER_SHA256",
+        "name": "agpc-manager",
         "provenance": {
-          "source_commit": "e25928557d6ce75b0eb80df6a13ab868bcd063e8",
+          "source_commit": "PENDING_REVIEWED_AGPC_MANAGER_MAIN",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26597,
-          "build_status": "success",
-          "public_payload_reviewed": true
+          "main_pipeline_id": null,
+          "build_status": "pending",
+          "public_payload_reviewed": false
         }
       },
       {
@@ -272,17 +272,17 @@
         }
       },
       {
-        "version": "3.1.0-1",
+        "version": "3.1.0-2",
         "architecture": "amd64",
-        "asset": "medge_3.1.0-1_amd64.deb",
-        "sha256": "4002645ef3c948354aaf97542b60906bcb1bb7abf12a95e570916c484537b8fe",
+        "asset": "medge_3.1.0-2_amd64.deb",
+        "sha256": "PENDING_REVIEWED_MEDGE_SHA256",
         "name": "medge",
         "provenance": {
-          "source_commit": "e25928557d6ce75b0eb80df6a13ab868bcd063e8",
+          "source_commit": "PENDING_REVIEWED_MEDGE_MAIN",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26597,
-          "build_status": "success",
-          "public_payload_reviewed": true
+          "main_pipeline_id": null,
+          "build_status": "pending",
+          "public_payload_reviewed": false
         }
       },
       {

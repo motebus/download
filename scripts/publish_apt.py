@@ -334,7 +334,7 @@ AGENT_SPHERE_COMPONENTS = (
 AGENT_ULTRA_COMPONENTS = ("redixs", "comm", "obsidian", "mote-vault-sync", "mote-vault-syncd")
 AGENT_MANAGER_COMPONENTS = ("medge",)
 AGENT_APPS_COMPONENTS = ("jujue", "iagent", "ss-webos", "mdesk", "uchat")
-AGENT_ENTRY_PACKAGES = ("agent-sphere", "agent-ultra", "sphere-manager", "agent-apps")
+AGENT_ENTRY_PACKAGES = ("agent-sphere", "agent-ultra", "agpc-manager", "agent-apps")
 AGENT_META_DEPENDENCIES = {
     "agent-sphere": AGENT_SPHERE_COMPONENTS,
     "agent-ultra": ("agent-sphere", *AGENT_ULTRA_COMPONENTS),
@@ -347,7 +347,7 @@ AGENT_COMPUTER_REDISTRIBUTABLE = tuple(name for name in AGENT_COMPUTER_CANONICAL
 AGENT_COMPUTER_RETENTION = ("mote-chatd",)
 AGENT_COMPUTER_RETIRED = {"mcp-run", "ultra-mcp-ssh", "model-node", "model-grid",
                           "mote-sync", "mote-syncd", "cx-node", "mote-chatd", "agent-app",
-                          "mote-bridge-mcp", "cx-agent", "codex-mesh"}
+                          "mote-bridge-mcp", "cx-agent", "codex-mesh", "sphere-manager"}
 AGENT_APPS_INSTALLER = "agpc.sh"
 AGENT_APPS_INSTALLER_SOURCE = "agpc.source.json"
 AGENT_APPS_INSTALLER_SCHEMA = "agpc-installer-source/v1"
@@ -579,8 +579,8 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
             visit(child, ancestors | {name})
     for name in graph:
         visit(name, set())
-        if name != "sphere-manager":
-            require("sphere-manager" not in graph[name],
+        if name != "agpc-manager":
+            require("agpc-manager" not in graph[name],
                     f"{name}: runtime must not depend on the management UI")
     # Inspect tar metadata without extracting or following payload links. Locked
     # deployment identity belongs to its owner. Existing reviewed bootstrap
@@ -588,7 +588,7 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
     for package in overlay_packages(config):
         asset = bundle / package["asset"]
         for field in ("Depends", "Pre-Depends", "Recommends", "Suggests", "Provides"):
-            for retired in ("mote-bridge-mcp", "cx-agent", "codex-mesh"):
+            for retired in ("mote-bridge-mcp", "cx-agent", "codex-mesh", "sphere-manager"):
                 require(not re.search(r"(?<![a-z0-9+.-])" + re.escape(retired) + r"(?![a-z0-9+.-])",
                                       package_field(asset, field)),
                         f"{asset.name}: {field} retains the retired {retired} package")
@@ -1663,7 +1663,7 @@ the pending compatible <code>agent-apps</code> package.</p>
 <ul>
 <li><code>agent-sphere</code>: headless execution, agents, models and CX-Mesh.</li>
 <li><code>agent-ultra</code>: local Redixs, COMM and knowledge services.</li>
-<li><code>sphere-manager</code>: setup and management TUI.</li>
+<li><code>agpc-manager</code>: setup and management TUI.</li>
 <li><code>agent-apps</code>: Jujue, iAgent and desktop applications.</li>
 </ul>
 <p>One installer selects all four packages and their 26 canonical package names.
@@ -1672,7 +1672,7 @@ checksum-verified official upstream asset. Obsidian is not redistributed here.</
 <pre>curl -fsSLo agpc.sh https://motebus.github.io/download/agpc.sh &amp;&amp;
 sudo bash ./agpc.sh</pre>
 <p>Re-running preserves existing identity, configuration and user data.
-Run <code>sudo sphere-manager</code> for owner setup. Installing packages does
+Installation exits without opening a UI. Run <code>sudo agpc-manager</code> for owner setup. Installing packages does
 not configure credentials, model weights or grant application access.</p>
 <p><code>cx-mesh</code> replaces the separate <code>cx-agent</code> and
 <code>codex-mesh</code> packages while preserving their established configuration.</p>

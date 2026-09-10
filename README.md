@@ -1,15 +1,20 @@
 # AGPC (Agent Computer) Debian Distribution
 
+This branch prepares the next release. The three replacement artifact pins are
+explicitly pending committed-main acceptance, so publication validation refuses
+this candidate. Installer and source-record snapshots still retain the immutable
+released 0.2.0-1 bytes until the reviewed Core 0.2.0-2 artifacts are available.
+
 ```text
 AGPC = Agent Computer, powered by AgentSphere
-AgentSphere = agent-sphere + agent-ultra + sphere-manager + agent-apps
+AgentSphere = agent-sphere + agent-ultra + agpc-manager + agent-apps
 
 agent-sphere (RUN)
   sphered · moted · mote-proxy · mote-transportd · mlink · mote-secd
   agos · model-router · model-llm · mote-mcpd · cx-mesh
 agent-ultra (LOCAL SERVICES)
   redixs · comm · obsidian · mote-vault-sync · mote-vault-syncd
-sphere-manager (MANAGE)
+agpc-manager (MANAGE)
   medge · native setup TUI and sphere CLI
 agent-apps (USE)
   jujue · iagent · ss-webos · mdesk · uchat
@@ -55,7 +60,7 @@ the execution provider or MEdge management API. The access contract is distinct
 from end-to-end acceptance of a configured peer or tool.
 
 MEdge owns management, mode and diagnostics while retaining its MBox/MDrive/MCP
-workers. The separate sphere-manager TUI may exit without stopping execution.
+workers. The separate agpc-manager TUI may exit without stopping execution.
 Local Redixs and knowledge storage work without UltraOne; external Telegram and
 UltraOne connectivity are reported independently from local service health.
 
@@ -81,7 +86,11 @@ bind the script to the reviewed Agent Sphere release. Verify the signature
 with the trusted archive key before running the downloaded script using sudo.
 
 The installer downloads and verifies the official upstream Obsidian DEB, then
-installs all four entry packages in one APT transaction. Obsidian is not mirrored
+installs all four entry packages in one APT transaction. After a successful
+installation it reports completion and exits without launching a UI. Open
+AGPC Manager explicitly with `sudo agpc-manager`; the established `sphere`
+short command points to the same frontend. Normal service startup and APT
+confirmation remain enabled. Obsidian is not mirrored
 in this repository or the aggregate release. Its Vault and user configuration
 remain under the desktop user's ownership. The installer does not select a
 Vault, enable its sync plugin, download model weights, or provide model and
@@ -93,7 +102,7 @@ configuration ownership. Only `mote-transportd` owns the messaging runtime.
 An ordinary `mote-chatd 2.0.0-4` installation whose locked file is not owned
 as a DPKG conffile uses native replacement by `mote-transportd`, without the
 retention record. The installer admits only this reviewed transport migration
-and the reviewed MCP, CX, Vault Sync and inference package renames, and checks
+and the reviewed MCP, CX, Vault Sync, inference and Manager package renames, and checks
 the final APT transaction before DPKG runs. It refuses
 unrelated removals, downgrades and retirement of that protected record.
 
@@ -108,24 +117,34 @@ configuration, transport identities and mesh packet/tool IDs are preserved for
 compatibility. The installer reviews both predecessor packages before merging
 ownership and retains the operator's masked/disabled service intent.
 
+`agpc-manager` replaces only the reviewed, unmodified `sphere-manager`
+3.1.0-1 frontend. Before downloads and again under the APT lock, the installer
+checks its exact package state, owned executable and shortcut, and absence of
+hooks, conffiles or units. A changed or unknown predecessor fails before DPKG.
+The new frontend provides no old package or command alias and owns no service
+or runtime state. Its replacement preserves owner configuration and identities;
+the paired MEdge upgrade retains its ordinary backend lifecycle, including
+existing disabled or masked intent.
+
 The supported product names are `mote-mcpd`, `cx-mesh`, `model-router`, `model-llm`,
 `mote-vault-sync` and `mote-vault-syncd`. There is no generic `agent.deb` or
 separate Model Grid package. Historical `model-node`, `cx-node`, `mcp-run`,
-`ultra-mcp-ssh`, `mote-bridge-mcp`, `cx-agent`, `codex-mesh` and the singular `agent-app` are outside the new composition.
+`ultra-mcp-ssh`, `mote-bridge-mcp`, `cx-agent`, `codex-mesh`, `sphere-manager` and the singular `agent-app` are outside the new composition.
 Existing wire/configuration identifiers remain where compatibility requires.
 
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-1`. The v4 contract admits
+`motebus/download` release `agent-computer-v0.2.0-2`. The v4 contract admits
 exactly twenty-five redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-1, Agent Ultra 0.1.0-1,
-Sphere Manager 3.1.0-1 and Agent Apps 0.2.0-1. The signed overlay is the exact
+The four entry versions are Agent Sphere 0.2.0-2, Agent Ultra 0.1.0-1,
+AGPC Manager 3.1.0-2 and Agent Apps 0.2.0-1. AGPC Manager requires the paired
+MEdge 3.1.0-2 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
 native main builds, public payload audits and reviewed migration fixtures.
 Existing accounts, locked identities, credentials, vaults and runtime state
@@ -138,7 +157,7 @@ It also installs all 26 actual packages using native APT/DPKG in those disposabl
 containers, requiring every package to finish configuration; service starts are
 disabled there, so these checks do not claim live host readiness.
 The full fixture seeds only the verified official Obsidian prerequisite before
-resolving `apt install agent-sphere agent-ultra sphere-manager agent-apps`. It never seeds native runtime
+resolving `apt install agent-sphere agent-ultra agpc-manager agent-apps`. It never seeds native runtime
 components or the legacy retention record on a fresh host.
 
 Package availability and resolver success do not establish full system
