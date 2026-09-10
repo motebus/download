@@ -21,18 +21,18 @@ class AgentAppsInstallerTest(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        for name in (publish_apt.AGENT_APPS_INSTALLER, publish_apt.AGENT_APPS_INSTALLER_SOURCE):
+        for name in publish_apt.AGENT_INSTALLER_FILES:
             shutil.copy2(REPOSITORY / name, self.root)
         self.installer = self.root / publish_apt.AGENT_APPS_INSTALLER
         self.source = self.root / publish_apt.AGENT_APPS_INSTALLER_SOURCE
 
-    def test_snapshot_matches_the_reviewed_v0108_release(self) -> None:
+    def test_snapshot_matches_the_reviewed_v0201_release(self) -> None:
         record = publish_apt.validate_agent_apps_installer(self.root)
         self.assertEqual(record["repository"], "motebus/agent-sphere-deb")
-        self.assertEqual(record["tag"], "v0.1.0-8")
-        self.assertEqual(record["source_commit"], "d306e8ea79df4f8463f883e6f312e9dac5691104")
+        self.assertEqual(record["tag"], "v0.2.0-1")
+        self.assertEqual(record["source_commit"], "7546ade53359e1ed53f9f036f29ba7ae43b82d2d")
         self.assertEqual(record["sha256"],
-                         "6429e69e53b8f56af3dca5f72cc8c1b9eca8ff1c574006bc5f58c09676e82582")
+                         "0981c02eab037c761e0575d8b0a1b17cdf429b6ba39f176d04a24e61fe0899c7")
 
     def test_missing_or_symlinked_input_fails(self) -> None:
         for path in (self.installer, self.source):
@@ -57,6 +57,27 @@ class AgentAppsInstallerTest(unittest.TestCase):
         self.installer.write_bytes(content)
         self.installer.chmod(0o644)
         with self.assertRaisesRegex(publish_apt.PublishError, "must be executable"):
+            publish_apt.validate_agent_apps_installer(self.root)
+
+    def test_compatibility_aliases_must_be_regular_and_byte_identical(self) -> None:
+        for name in publish_apt.AGENT_INSTALLER_ALIASES:
+            alias = self.root / name
+            original = alias.read_bytes()
+            mode = alias.stat().st_mode
+            with self.subTest(alias=name):
+                alias.write_bytes(original + b"changed")
+                with self.assertRaisesRegex(publish_apt.PublishError, "alias differs"):
+                    publish_apt.validate_agent_apps_installer(self.root)
+                alias.unlink()
+                alias.symlink_to(REPOSITORY / name)
+                with self.assertRaisesRegex(publish_apt.PublishError, "missing regular installer alias"):
+                    publish_apt.validate_agent_apps_installer(self.root)
+                alias.unlink()
+                alias.write_bytes(original)
+                alias.chmod(mode)
+        alias = self.root / publish_apt.AGENT_INSTALLER_ALIASES[0]
+        alias.chmod(0o644)
+        with self.assertRaisesRegex(publish_apt.PublishError, "alias must be executable"):
             publish_apt.validate_agent_apps_installer(self.root)
 
     def test_invalid_shell_fails_even_when_its_digest_is_updated(self) -> None:
@@ -97,12 +118,13 @@ class AgentAppsInstallerTest(unittest.TestCase):
     def test_staged_record_drift_fails_before_accessing_signing_key(self) -> None:
         site = self.root / "site"
         site.mkdir()
-        for path in (self.installer, self.source):
-            shutil.copy2(path, site)
+        for name in publish_apt.AGENT_INSTALLER_FILES:
+            shutil.copy2(self.root / name, site)
         staged_source = site / self.source.name
         record = json.loads(staged_source.read_text())
         record["tag"] = "v0.1.0-3"
         staged_source.write_text(json.dumps(record))
+        (site / publish_apt.AGENT_INSTALLER_ALIASES[1]).write_bytes(staged_source.read_bytes())
         with mock.patch.dict("os.environ", {}, clear=True):
             with self.assertRaisesRegex(publish_apt.PublishError, "differs from the reviewed record"):
                 publish_apt.sign_release(site, self.root)

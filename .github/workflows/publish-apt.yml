@@ -10,7 +10,7 @@ on:
         required: true
         type: string
       agent_computer_tag:
-        description: Optional exact agent-computer-v<version> aggregate tag; must match reviewed active v3 pins
+        description: Optional exact agent-computer-v<version> aggregate tag; must match reviewed active v4 pins
         required: false
         type: string
 
@@ -104,12 +104,16 @@ jobs:
               apt-site/agent-computer-apt-overlay.json.asc apt-site/agent-computer-apt-overlay.json
           fi
           gpgv --keyring ./medge-archive-keyring.gpg \
+            apt-site/agpc.sh.asc apt-site/agpc.sh
+          gpgv --keyring ./medge-archive-keyring.gpg \
+            apt-site/agpc.source.json.asc apt-site/agpc.source.json
+          gpgv --keyring ./medge-archive-keyring.gpg \
             apt-site/agent-sphere-apps.sh.asc apt-site/agent-sphere-apps.sh
           gpgv --keyring ./medge-archive-keyring.gpg \
             apt-site/agent-sphere-apps.source.json.asc apt-site/agent-sphere-apps.source.json
           test "$(du -sb apt-site | cut -f1)" -lt 1000000000
 
-      - name: Verify Agent Sphere automatic resolution from the signed APT index
+      - name: Verify signed Core resolution and complete native AGPC installation
         run: python3 scripts/validate_agent_sphere_apt.py . apt-site --external-prerequisites release-input/agent-computer-prerequisites
 
       - uses: actions/upload-pages-artifact@v3

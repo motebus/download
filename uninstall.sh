@@ -56,7 +56,7 @@ def query(package, field):
 
 unsupported = []
 for package in (
-    "agent-sphere", "agent-apps", "mote-transportd", "agos",
+    "agent-sphere", "agent-ultra", "sphere-manager", "agent-apps", "cx-mesh", "mote-transportd", "mote-mcpd", "agos",
     "mote-vault-sync", "mote-vault-syncd", "model-router", "model-grid", "model-llm", "cx-agent",
 ):
     state = query(package, "${db:Status-Status}").strip()

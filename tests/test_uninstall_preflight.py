@@ -65,7 +65,7 @@ subprocess.run=query_fixture
         self.assertIn('preflight passed',result.stdout)
 
     def test_each_current_composition_identity_blocks(self):
-        for package in ('agent-sphere','agent-apps','mote-transportd','agos','mote-vault-sync','mote-vault-syncd','model-router','model-grid','model-llm','cx-agent'):
+        for package in ('agent-sphere','agent-apps','mote-transportd','mote-mcpd','agos','mote-vault-sync','mote-vault-syncd','model-router','model-grid','model-llm','cx-agent'):
             for state in ('installed','config-files','unpacked','half-configured','half-installed','triggers-pending'):
                 with self.subTest(package=package,state=state):
                     result=self.run_preflight(states={package:state})

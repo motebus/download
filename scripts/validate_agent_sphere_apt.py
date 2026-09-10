@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve only agent-sphere from the real signed index in clean Ubuntu images."""
+"""Resolve Core and install the complete signed AGPC cohort in isolated Ubuntu images."""
 
 from __future__ import annotations
 
@@ -12,7 +12,9 @@ import subprocess
 import publish_apt
 
 
-RUNTIME_PACKAGES = set(publish_apt.AGENT_SPHERE_COMPONENTS)
+# Historical v1 remains independently resolvable; v4 expands the core boundary.
+RUNTIME_PACKAGES = {"sphered", "moted", "mote-proxy", "mote-transportd", "medge", "mlink"}
+CURRENT_RUNTIME_PACKAGES = set(publish_apt.AGENT_SPHERE_COMPONENTS)
 UBUNTU_IMAGES = (
     ("24.04", "docker.io/library/ubuntu@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea"),
     ("26.04", "docker.io/library/ubuntu@sha256:678c6550cc43645e08669028bc177f50be4e7c5b8cca677067b1914d4afc7a03"),
@@ -38,11 +40,20 @@ apt-get update
 apt-get --simulate --no-remove install agent-sphere
 '''
 FULL_SIMULATION = SIMULATION.removesuffix("apt-get --simulate --no-remove install agent-sphere\n") + r'''
+# Native maintainer hooks run in this disposable container; services stay stopped.
+cat > /usr/sbin/policy-rc.d <<'POLICY'
+#!/bin/sh
+exit 101
+POLICY
+chmod 0755 /usr/sbin/policy-rc.d
 # Only the exact, independently SHA/control-verified upstream desktop package is
-# seeded. Never seed a runtime dependency to make the two-package solve pass.
+# seeded. Never seed a runtime dependency to make the four-package solve pass.
 apt-get --no-install-recommends --no-remove -y install "/prerequisites/$2"
 printf 'Prerequisite obsidian %s\n' "$(dpkg-query -W -f='${Version}' obsidian)"
-apt-get --simulate --no-remove install agent-sphere agent-apps
+apt-get --simulate --no-remove install agent-sphere agent-ultra sphere-manager agent-apps
+apt-get --no-remove -y install agent-sphere agent-ultra sphere-manager agent-apps
+test -z "$(dpkg --audit)"
+dpkg-query -W -f='InstalledAGPC\t${binary:Package}\t${Version}\t${db:Status-Abbrev}\n'
 '''
 
 
@@ -55,15 +66,17 @@ def validate_plan(output: str, base: dict, overlay: dict, *, full: bool = False)
         publish_apt.require(name not in selected, f"duplicate APT selection: {name}")
         selected[name] = version
     approved = {package["name"]: package for package in base["packages"] + publish_apt.overlay_packages(overlay)}
-    required = set(publish_apt.AGENT_COMPUTER_REDISTRIBUTABLE) if full else RUNTIME_PACKAGES | {"agent-sphere"}
+    runtime = CURRENT_RUNTIME_PACKAGES if overlay["schema"] == publish_apt.AGENT_COMPUTER_FULL_SCHEMA else RUNTIME_PACKAGES
+    required = set(publish_apt.AGENT_COMPUTER_REDISTRIBUTABLE) if full else runtime | {"agent-sphere"}
     publish_apt.require(required <= set(selected), "Agent Sphere APT plan is missing a required runtime dependency")
     publish_apt.require(set(selected).intersection(approved) == required,
                         "Agent Sphere APT plan selects an application or an extra aggregate component")
-    forbidden = (re.compile(r"^(?:aport|qbix)(?:$|-)") if full else
+    forbidden = (re.compile(r"^(?:aport|qbix)(?:$|-)")
+                 if overlay["schema"] == publish_apt.AGENT_COMPUTER_FULL_SCHEMA else
                  re.compile(r"^(?:agos|aport|agent-apps?|mdesk|desk|ss-webos|mote-chatd|uchat|qbix|model)(?:$|-)|"
-                            r"^(?:codex|cx-|mcp-|ultra-mcp|mote-bridge-mcp|obsidian)"))
+                            r"^(?:codex|cx-|mcp-|ultra-mcp|mote-bridge-mcp|mote-mcpd|obsidian)"))
     publish_apt.require(not any(forbidden.search(name) for name in selected),
-                        "Agent Sphere APT plan selects a forbidden application or retired package")
+                        "Agent Sphere APT plan selects a retired application package")
     publish_apt.require(not set(selected).intersection(publish_apt.AGENT_COMPUTER_RETIRED),
                         "APT plan selects a retired runtime or retention package")
     if full:
@@ -75,6 +88,32 @@ def validate_plan(output: str, base: dict, overlay: dict, *, full: bool = False)
         publish_apt.require(name in approved and selected[name] == approved[name]["version"],
                             f"Agent Sphere APT plan version differs from the signed pins: {name}")
     return selected
+
+
+
+def validate_installed_cohort(output: str, overlay: dict) -> dict[str, str]:
+    expected = {p["name"]: p["version"] for p in overlay["release"]["packages"]
+                + overlay["release"]["external_prerequisites"]}
+    installed = {}
+    for line in output.splitlines():
+        if not line.startswith("InstalledAGPC\t"):
+            continue
+        parts = line.split("\t")
+        publish_apt.require(len(parts) == 4, "malformed installed package observation")
+        _, name, version, status = parts
+        name = name.split(":", 1)[0]
+        # DPKG can report unknown/not-installed relationship names without versions.
+        # This fresh-container observation checks installation state only; the
+        # bootstrap separately checks legacy files and ownership before migration.
+        if name in publish_apt.AGENT_COMPUTER_RETIRED and version == "" and status.strip() == "un":
+            continue
+        if name in expected or name in publish_apt.AGENT_COMPUTER_RETIRED:
+            publish_apt.require(name not in installed, "duplicate installed package observation")
+            publish_apt.require(status.strip() == "ii", "canonical package is not fully configured: " + name)
+            installed[name] = version
+    publish_apt.require(installed == expected,
+                        "joint APT installation differs from the exact 26 canonical package pins")
+    return installed
 
 
 def validate_full_index_pins(site: Path, overlay: dict) -> None:
@@ -135,8 +174,8 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
             "--log-driver", "none", "--mount", f"type=bind,src={site.resolve()},dst=/repo,readonly",
             image, "bash", "-ceu", SIMULATION, "bash", version, capture=True)
         selected = validate_plan(output, base, overlay)
-        print(f"Ubuntu {version}: signed-index apt install agent-sphere resolves all six runtime dependencies; "
-              f"{len(selected)} total packages including native OS dependencies; no application packages or removals")
+        print(f"Ubuntu {version}: signed-index apt install agent-sphere resolves the reviewed core runtime dependencies; "
+              f"{len(selected)} total packages including native OS dependencies; no excluded components or removals")
         if full:
             output = publish_apt.run("docker", "run", "--rm", "--pull=always", "--platform", "linux/amd64",
                 "--log-driver", "none", "--mount", f"type=bind,src={site.resolve()},dst=/repo,readonly",
@@ -144,8 +183,10 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
                 image, "bash", "-ceu", FULL_SIMULATION, "bash", version,
                 overlay["release"]["external_prerequisites"][0]["asset"], capture=True)
             selected = validate_plan(output, base, overlay, full=True)
-            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-apps resolves canonical21 "
-                  "with the exact official Obsidian prerequisite; no retired runtimes, retention guards or removals")
+            validate_installed_cohort(output, overlay)
+            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra sphere-manager agent-apps resolves canonical26 "
+                  "with the exact official Obsidian prerequisite; all 26 packages installed and configured by native APT/DPKG; "
+                  "no retired runtimes, retention guards or removals; service/owner readiness is separate")
 
 
 def main() -> int:

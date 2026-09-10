@@ -51,10 +51,28 @@ class AgentSphereAptTest(unittest.TestCase):
 
     def test_application_and_retired_packages_are_rejected_even_outside_base_catalog(self) -> None:
         base, overlay, output = self.fixture()
-        for name in ("agos", "agent-app", "agent-apps", "aport", "mdesk", "ss-webos", "mote-bridge-mcp",
+        for name in ("agos", "agent-app", "agent-apps", "aport", "mdesk", "ss-webos", "mote-bridge-mcp", "mote-mcpd",
                      "cx-node", "codex-cli", "mcp-run", "ultra-mcp-ssh", "mote-chatd"):
             with self.subTest(package=name), self.assertRaises(fixtures.publish_apt.PublishError):
                 resolution.validate_plan(output + f"Inst {name} (1.0.0-1 source [amd64])\n", base, overlay)
+
+    def test_complete_install_requires_each_configured_exact_package(self) -> None:
+        names = fixtures.publish_apt.AGENT_COMPUTER_REDISTRIBUTABLE
+        overlay = {"release": {"packages": [{"name": name, "version": "1.0.0-1"} for name in names],
+                               "external_prerequisites": [{"name": "obsidian", "version": "1.13.7"}]}}
+        output = "".join(f"InstalledAGPC\t{name}\t1.0.0-1\tii \n" for name in names)
+        output += "InstalledAGPC\tobsidian\t1.13.7\tii \n"
+        self.assertEqual(len(resolution.validate_installed_cohort(output, overlay)), 26)
+        self.assertEqual(len(resolution.validate_installed_cohort(
+            output + "InstalledAGPC\tcx-agent\t\tun \n", overlay)), 26)
+        for invalid in (output.replace("InstalledAGPC\tagos", "Missing\tagos"),
+                        output.replace("1.13.7", "1.13.6"), output.replace("ii ", "iU ", 1),
+                        output + "InstalledAGPC\tcx-agent\t0.3.4-2\tii \n",
+                        output + "InstalledAGPC\tcx-agent\t0.3.4-2\trc \n",
+                        output + "InstalledAGPC\tcx-agent\t0.3.4-2\tun \n",
+                        output + "InstalledAGPC\tagos\t1.0.0-1\tii \n"):
+            with self.subTest(observation=invalid), self.assertRaises(fixtures.publish_apt.PublishError):
+                resolution.validate_installed_cohort(invalid, overlay)
 
     def test_inactive_config_never_runs_docker_or_signing_commands(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
