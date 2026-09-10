@@ -356,28 +356,28 @@ MCP_PREFLIGHT
 
 classify_legacy_cx() {
 python3 - <<'CX_PREFLIGHT'
-import hashlib,json,os,stat,subprocess,sys
+import hashlib,json,os,pwd,stat,subprocess,sys
 from pathlib import Path
 
-REVIEWED = {('cx-agent', '0.3.4-2'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('cx-agent', '0.3.4-3'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('codex-mesh', '1.0.0-1'): {'prerm': None, 'postrm': None}, ('codex-mesh', '1.0.0-2'): {'prerm': None, 'postrm': None}, ('cx-node', '0.3.3-6'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.4-1~local20260909'): {'prerm': '2721920390b04cef164a34b5347a36a8794c3bb443462224ed83fbd440453cba', 'postrm': 'f6f8be756d1d6b62dd906b7587e55f15cf060073c0e0cbf46d4bb31840640087'}}
+REVIEWED = {('cx-agent', '0.3.4-2'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('cx-agent', '0.3.4-3'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('codex-mesh', '1.0.0-1'): {'prerm': None, 'postrm': None}, ('codex-mesh', '1.0.0-2'): {'prerm': None, 'postrm': None}, ('cx-node', '0.3.3-4'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.3-6'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.4-1~local20260909'): {'prerm': '2721920390b04cef164a34b5347a36a8794c3bb443462224ed83fbd440453cba', 'postrm': 'f6f8be756d1d6b62dd906b7587e55f15cf060073c0e0cbf46d4bb31840640087'}}
 MESH_FILES = {'/etc/codex/skills/codex-mesh/SKILL.md':'382087d284fed820b9a96a0ad4c4fd8c',
               '/etc/mote/codex-mesh/config.json':'f60b18dbe124af2bec9eb264cd6598af'}
 
-def checked(path, digest=None, mode=None, optional=False):
+def checked(path, digest=None, mode=None, optional=False, limit=1048576, uid=0):
     try: before=os.lstat(path)
     except FileNotFoundError:
         if optional:return None
         raise ValueError('required CX migration file missing: '+path)
-    if not stat.S_ISREG(before.st_mode) or before.st_uid!=0 or before.st_mode&0o022 or before.st_size>1048576:
+    if not stat.S_ISREG(before.st_mode) or before.st_uid!=uid or before.st_mode&0o022 or before.st_size>limit:
         raise ValueError('unsafe CX migration file metadata: '+path)
     if mode is not None and (stat.S_IMODE(before.st_mode)!=mode or before.st_gid!=0):
         raise ValueError('unreviewed CX removal hook metadata')
     fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NOATIME)
     try:
         if os.fstat(fd)!=before:raise ValueError('CX migration file changed during inspection')
-        with os.fdopen(fd,'rb',closefd=False) as stream:data=stream.read(1048577)
+        with os.fdopen(fd,'rb',closefd=False) as stream:data=stream.read(limit+1)
         after=os.fstat(fd)
-        if len(data)>1048576 or before!=after:raise ValueError('CX migration file changed during inspection')
+        if len(data)>limit or before!=after:raise ValueError('CX migration file changed during inspection')
     finally:os.close(fd)
     sha=hashlib.sha256(data).hexdigest()
     if digest is not None and sha!=digest:raise ValueError('unreviewed CX removal hook: '+path)
@@ -407,6 +407,48 @@ def unit_policy():
                 found[str(drop)]=[meta.st_ino,meta.st_mtime_ns,meta.st_ctime_ns,meta.st_mode,meta.st_uid,meta.st_gid]
     return found
 
+# Only the genuine native old4 state is newly admitted. The old prerm invokes
+# /usr/bin/cx, and DPKG removes its recorded .list, so bind both as well as hooks.
+CX4_INSTALLED = {
+    '/var/lib/dpkg/info/cx-node.list': ('000ac3041e1c83ad39706c55bf0e54d238ff8884667c45a777324cb7f29501af',0o644),
+    '/var/lib/dpkg/info/cx-node.md5sums': ('6801c59d6faad1b6395446d2bc99acc9adfb368162d68fa25cf0f47ed8ebd104',0o644),
+    '/var/lib/dpkg/info/cx-node.preinst': ('a23e97567e7055e177696fb8f630227fce9e719fe9b4139c48e31eb134b543b8',0o755),
+    '/var/lib/dpkg/info/cx-node.postinst': ('9541131b3d13f23d17877dabcfb04b8cb5671a906180c223c1281cf013bfbd1f',0o755),
+    '/usr/bin/cx': ('a1f6b6df70fee6ecc91810c9a16cede69fdc1484f392128a085be08221dc350e',0o755),
+}
+CX4_RESIDUAL_LIST = '9b1929abc85d2fe7261cc539a6705afdd34214ffddc18e994df2179222d9a30a'
+
+def cx4_state(state, files):
+    for suffix in ('conffiles','triggers'):
+        if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):
+            raise ValueError('unreviewed old4 ownership or triggers')
+    if state=='install ok installed':
+        checks=CX4_INSTALLED
+        expected_owner='cx-node: /usr/bin/cx'
+        # This receipt excludes the native recursive legacy-state copy/chown.
+        receipt='/var/lib/cx-node/state/runtime-migration.json'
+        try: owner_uid=pwd.getpwnam('cx-node').pw_uid
+        except KeyError: raise ValueError('old4 service account is missing')
+        files[receipt]=checked(receipt,uid=owner_uid)
+        if files[receipt][-1]!=1:raise ValueError('unsafe old4 migration receipt link count')
+    else:
+        successor=query('cx-mesh')
+        if successor is None or successor.splitlines()[:3]!=['1.1.0-1','amd64','install ok installed']:
+            raise ValueError('old4 residual requires exact installed CX-Mesh successor')
+        for suffix in ('preinst','postinst','prerm','md5sums'):
+            if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):
+                raise ValueError('unexpected old4 residual payload or hook')
+        checks={'/var/lib/dpkg/info/cx-node.list':(CX4_RESIDUAL_LIST,0o644)}
+        expected_owner='cx-mesh: /usr/bin/cx'
+    for path,(digest,mode) in checks.items():
+        files[path]=checked(path,digest=digest,mode=mode,limit=2097152 if path=='/usr/bin/cx' else 1048576)
+        if files[path][-1]!=1:raise ValueError('unsafe old4 file link count')
+    owner=subprocess.run(['dpkg-query','-S','/usr/bin/cx'],capture_output=True,text=True)
+    if owner.returncode or owner.stdout.strip()!=expected_owner:
+        raise ValueError('old4 drain command lacks sole expected package ownership')
+    diverted=subprocess.run(['dpkg-divert','--list','/usr/bin/cx'],capture_output=True,text=True)
+    if diverted.returncode or diverted.stdout.strip():raise ValueError('old4 drain command is diverted')
+
 def classify():
     records={name:query(name) for name in ('cx-node','cx-agent','codex-mesh')}
     if all(record is None for record in records.values()):return 'absent'
@@ -421,6 +463,7 @@ def classify():
         hooks=REVIEWED[(name,version)]
         rows=[line.split() for line in lines[3:] if line.strip()]
         if name!='codex-mesh' and rows:raise ValueError('unreviewed CX predecessor conffile ownership')
+        if (name,version)==('cx-node','0.3.3-4'):cx4_state(state,files)
         if name=='codex-mesh':
             wanted=sorted([[path,digest] for path,digest in MESH_FILES.items()])
             if state=='deinstall ok config-files' and sorted(rows)==[row+['obsolete'] for row in wanted]:
@@ -439,6 +482,7 @@ def classify():
                 if hook=='prerm' and state!='install ok installed':continue
                 path='/var/lib/dpkg/info/'+name+'.'+hook
                 files[path]=checked(path,digest=hooks[hook],mode=0o755)
+                if version=='0.3.3-4' and files[path][-1]!=1:raise ValueError('unsafe old4 removal hook link count')
         if state=='install ok installed':installed[name]=version
     files.update(unit_policy())
     config='/etc/cx-node/cx-node.toml';identity='/etc/cx-node/cx-node-mchat.env'
@@ -576,7 +620,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-2 agent-ultra=0.1.0-1 agpc-manager=3.1.0-2 agent-apps=0.2.0-1 "$obsidian")
+packages=(agent-sphere=0.2.0-3 agent-ultra=0.1.0-1 agpc-manager=3.1.0-2 agent-apps=0.2.0-1 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -637,7 +681,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-2 [agent-ultra]=0.1.0-1 [agpc-manager]=3.1.0-2 [agent-apps]=0.2.0-1 [moted]=3.6.0-2 [medge]=3.1.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-3 [agent-ultra]=0.1.0-1 [agpc-manager]=3.1.0-2 [agent-apps]=0.2.0-1 [moted]=3.6.0-2 [medge]=3.1.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
