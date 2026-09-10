@@ -112,6 +112,13 @@ configuration, transport identities and mesh packet/tool IDs are preserved for
 compatibility. The installer reviews both predecessor packages before merging
 ownership and retains the operator's masked/disabled service intent.
 
+The installer also admits a verified direct migration from `cx-node 0.3.3-4`
+to CX Mesh for the exact reviewed predecessor state. Its package records,
+removal helper and migration receipt are checked before downloads and again
+under the APT lock. This supported state needs no separate baseline upgrade;
+existing configuration and identities are preserved. Unknown or modified
+predecessors, including unreviewed obsolete conffile ownership, remain blocked.
+
 `agpc-manager` replaces only the reviewed, unmodified `sphere-manager`
 3.1.0-1 frontend. Before downloads and again under the APT lock, the installer
 checks its exact package state and DPKG removal file list, owned executable
@@ -131,14 +138,14 @@ Existing wire/configuration identifiers remain where compatibility requires.
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-2`. The v4 contract admits
+`motebus/download` release `agent-computer-v0.2.0-3`. The v4 contract admits
 exactly twenty-five redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-2, Agent Ultra 0.1.0-1,
+The four entry versions are Agent Sphere 0.2.0-3, Agent Ultra 0.1.0-1,
 AGPC Manager 3.1.0-2 and Agent Apps 0.2.0-1. AGPC Manager requires the paired
 MEdge 3.1.0-2 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
