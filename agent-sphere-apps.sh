@@ -7,7 +7,7 @@ usage() {
         'Install agent-sphere, agent-ultra, agpc-manager and agent-apps using the signed MoteBus APT repository.' \
         'Supports Ubuntu 24.04 and 26.04 amd64; creates only missing reviewed APT key/source files.' \
         'Downloads the pinned official Obsidian DEB for the same APT transaction.' \
-        'Run as root. APT asks for confirmation unless --yes is supplied.'
+        'Run as root. Confirm the displayed plan unless --yes is supplied; installation continues in a detached systemd job.'
 }
 fail() { printf '%s\n' "$*" >&2; exit 1; }
 confirmation=()
@@ -158,10 +158,313 @@ agentsphere_apt_bootstrap() (
 
 # END SIGNED BOOTSTRAP
 
+# BEGIN DETACHED INSTALL SUPPORT
+write_ssh_readiness_helper() {
+    cat <<'AGPC_SSH_READINESS_PY'
+#!/usr/bin/python3
+"""Validate and activate Ubuntu SSH without modifying its owner configuration."""
+import json
+import os
+import socket
+import stat
+import subprocess
+import sys
+import time
+
+
+class Refused(Exception):
+    pass
+
+
+def command(args, timeout=30):
+    return subprocess.run(args, stdin=subprocess.DEVNULL, capture_output=True,
+                          text=True, timeout=timeout, env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"})
+
+
+def unit(name):
+    result = command(["/usr/bin/systemctl", "show", name,
+                      "--property=LoadState,ActiveState,SubState,UnitFileState"])
+    if result.returncode:
+        raise Refused("systemd-unit-inspection-failed")
+    fields = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
+    expected = {"LoadState", "ActiveState", "SubState", "UnitFileState"}
+    if set(fields) != expected or any(not value.replace("-", "").isalnum() for value in fields.values() if value):
+        raise Refused("systemd-unit-state-invalid")
+    return fields
+
+
+def trusted_runtime_directory():
+    # sshd -t needs its privilege-separation directory on fresh Ubuntu installs.
+    # Create only this missing directory; never follow a link or repair ownership.
+    root = os.lstat("/run")
+    if not stat.S_ISDIR(root.st_mode) or root.st_uid != 0 or root.st_mode & 0o022:
+        raise Refused("ssh-runtime-parent-untrusted")
+    try:
+        previous = os.umask(0o022)
+        try:
+            os.mkdir("/run/sshd", 0o755)
+        finally:
+            os.umask(previous)
+    except FileExistsError:
+        pass
+    metadata = os.lstat("/run/sshd")
+    if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_mode & 0o022:
+        raise Refused("ssh-runtime-directory-untrusted")
+
+
+def banner_ready():
+    # This is the existing MoteD host handoff target, not a MoteC reachability test.
+    try:
+        with socket.create_connection(("127.0.0.1", 22), timeout=2) as stream:
+            deadline = time.monotonic() + 2
+            data = bytearray()
+            while len(data) < 255:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                stream.settimeout(remaining)
+                part = stream.recv(1)
+                if not part:
+                    break
+                data.extend(part)
+                if part == b"\n":
+                    return bytes(data).startswith((b"SSH-2.0-", b"SSH-1.99-"))
+    except (OSError, TimeoutError):
+        pass
+    return False
+
+
+def ensure_ssh_ready():
+    result = {"schema": "agpc.ssh-readiness/v1", "package_installed": False,
+              "configuration_valid": False, "activation_unit": None,
+              "boot_enabled": False, "loopback_ssh_ready": False,
+              "mote_reachability": "not-tested", "full_runtime_ready": False,
+              "units": {}, "error": None}
+    try:
+        if os.geteuid() != 0:
+            raise Refused("root-required")
+        package = command(["/usr/bin/dpkg-query", "-W", "-f=${Status}", "openssh-server"])
+        if package.returncode or package.stdout != "install ok installed":
+            raise Refused("openssh-server-not-configured")
+        result["package_installed"] = True
+        trusted_runtime_directory()
+        if command(["/usr/sbin/sshd", "-t"]).returncode:
+            raise Refused("sshd-configuration-invalid")
+        result["configuration_valid"] = True
+        service, listener = unit("ssh.service"), unit("ssh.socket")
+        result["units"] = {"ssh.service": service, "ssh.socket": listener}
+        if service["LoadState"] != "loaded" or service["UnitFileState"] in {"masked", "masked-runtime"}:
+            raise Refused("ssh-service-masked-or-unavailable")
+        active = {"active", "activating", "reloading"}
+        enabled = {"enabled", "enabled-runtime"}
+        socket_selected = listener["LoadState"] == "loaded" and listener["UnitFileState"] not in {"masked", "masked-runtime"} and (
+            listener["UnitFileState"] in enabled or listener["ActiveState"] in active)
+        selected = "ssh.socket" if socket_selected else "ssh.service"
+        result["activation_unit"] = selected
+        state = listener if socket_selected else service
+        # Preserve the existing socket/service choice. No restart, stop, unmask,
+        # key generation, authentication edits, listen changes or firewall edits.
+        if state["UnitFileState"] != "enabled":
+            if command(["/usr/bin/systemctl", "enable", selected]).returncode:
+                raise Refused("ssh-enable-failed")
+        # An enabled socket may currently be stopped while its already-running
+        # service owns port 22. Preserve that live listener instead of starting
+        # a second socket on the occupied address; socket boot intent remains.
+        if state["ActiveState"] not in active and not (socket_selected and service["ActiveState"] in active):
+            if command(["/usr/bin/systemctl", "start", selected]).returncode:
+                raise Refused("ssh-start-failed")
+        for _ in range(10):
+            if banner_ready():
+                result["loopback_ssh_ready"] = True
+                break
+            time.sleep(0.5)
+        result["units"] = {name: unit(name) for name in ("ssh.service", "ssh.socket")}
+        final = result["units"][selected]
+        result["boot_enabled"] = final["UnitFileState"] == "enabled"
+        current_listener_active = final["ActiveState"] == "active" or (
+            socket_selected and result["units"]["ssh.service"]["ActiveState"] == "active")
+        if not result["boot_enabled"] or not current_listener_active:
+            raise Refused("ssh-activation-not-ready")
+        if not result["loopback_ssh_ready"]:
+            raise Refused("loopback-ssh-banner-unavailable")
+    except Refused as error:
+        result["error"] = str(error)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        # Never include command output or owner configuration in the report.
+        result["error"] = "ssh-verification-unavailable"
+    return result
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] != ["--ensure"]:
+        sys.exit("Usage: ssh-readiness.py --ensure")
+    report = ensure_ssh_ready()
+    print(json.dumps(report, sort_keys=True))
+    sys.exit(0 if report["error"] is None else 1)
+AGPC_SSH_READINESS_PY
+}
+
+# Embedded verbatim in agpc.sh; defining these functions performs no mutation.
+agentsphere_job_platform_check() {
+    command -v systemd-run >/dev/null && command -v systemctl >/dev/null || return 1
+    python3 - <<'JOB_PLATFORM'
+import os, stat, sys
+try:
+    for path in ('/', '/var', '/var/lib', '/run', '/run/systemd/system'):
+        value=os.lstat(path)
+        assert stat.S_ISDIR(value.st_mode) and value.st_uid==0 and not value.st_mode&0o022
+except (AssertionError, OSError):
+    sys.exit('Detached installation requires running systemd and trusted root-owned directories.')
+JOB_PLATFORM
+}
+
+agentsphere_run_detached() {
+    local stage worker_guard worker_obsidian unit result code count state argument
+    stage=$job_stage
+    [[ $stage =~ ^/var/lib/agpc-install\.[A-Za-z0-9]{8}$ ]] || return 1
+    python3 - "$stage" <<'AGPC_STAGE' || return
+import os,stat,sys
+m=os.lstat(sys.argv[1])
+assert stat.S_ISDIR(m.st_mode) and m.st_uid==0 and m.st_gid==0 and stat.S_IMODE(m.st_mode)==0o700
+assert not os.listdir(sys.argv[1])
+AGPC_STAGE
+    worker_guard=$stage/guard
+    worker_obsidian=$stage/obsidian_1.13.7_amd64.deb
+    # The existing temporary inputs are root-owned; copy into the durable root
+    # stage so caller exit/cleanup cannot remove inputs from the detached job.
+    cp -- "$guard" "$worker_guard" || return
+    cp -- "$obsidian" "$worker_obsidian" || return
+    chmod 0700 "$worker_guard" || return
+    chmod 0600 "$worker_obsidian" || return
+    write_ssh_readiness_helper > "$stage/ssh-readiness.py" || return
+    {
+        printf '%s\n' '#!/bin/bash' 'set -euo pipefail' 'umask 077' 'export LC_ALL=C' 'export PATH=/usr/sbin:/usr/bin:/sbin:/bin'
+        printf 'stage=%q\n' "$stage"
+        printf 'guard=%q\n' "$worker_guard"
+        printf 'packages=('
+        for argument in "${packages[@]}"; do
+            [[ $argument != "$obsidian" ]] || argument=$worker_obsidian
+            printf '%q ' "$argument"
+        done
+        printf ')\n'
+        cat <<'AGPC_WORKER'
+phase=inputs
+finish() {
+    code=$?
+    trap - EXIT
+    python3 - "$stage" "$code" "$phase" <<'AGPC_RESULT' || { [[ $code != 0 ]] || code=1; }
+import json, os, sys
+stage, code, phase=sys.argv[1:]
+body={'schema':'agpc.detached-install-result/v1','exit_code':int(code),'phase':phase,
+      'packages_verified':phase in ('ssh','complete'),'ssh_ready':phase=='complete',
+      'mote_reachability':'not-tested','full_runtime_ready':False}
+path=stage+'/result.json.tmp'
+fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+with os.fdopen(fd,'w') as file:
+    json.dump(body,file,sort_keys=True);file.write('\n');file.flush();os.fsync(file.fileno())
+os.rename(path,stage+'/result.json')
+fd=os.open(stage,os.O_RDONLY|os.O_DIRECTORY)
+try:os.fsync(fd)
+finally:os.close(fd)
+AGPC_RESULT
+    exit "$code"
+}
+trap finish EXIT
+sha256sum --check --status "$stage/inputs.sha256"
+phase=apt
+apt-get -o "DPkg::Pre-Install-Pkgs::=$guard" \
+    -o "DPkg::Tools::Options::$guard::Version=3" \
+    -o "DPkg::Tools::Options::$guard::InfoFD=0" \
+    -o 'Dpkg::Options::=--force-confold' --yes install "${packages[@]}" </dev/null
+phase=package-verification
+apt-get check
+dpkg --audit > "$stage/dpkg-audit.txt"
+test ! -s "$stage/dpkg-audit.txt"
+python3 - "${packages[@]}" > "$stage/packages.json" <<'AGPC_PACKAGES'
+import json,subprocess,sys
+records=[]
+for argument in sys.argv[1:]:
+    if not argument.startswith(('agent-sphere=','agent-ultra=','agpc-manager=','agent-apps=')):continue
+    name, version=argument.split('=',1)
+    fields=subprocess.check_output(['dpkg-query','-W','-f=${Version}\n${Status}',name],text=True).splitlines()
+    if fields!=[version,'install ok installed']:sys.exit('Expected AGPC entry package is not fully configured: '+name)
+    records.append({'name':name,'version':version,'configured':True})
+assert len(records)==4
+print(json.dumps({'schema':'agpc.installed-entries/v1','packages':records,'full_runtime_ready':False},sort_keys=True))
+AGPC_PACKAGES
+phase=ssh
+if python3 "$stage/ssh-readiness.py" --ensure > "$stage/ssh.json"; then
+    :
+else
+    code=$?
+    cat "$stage/ssh.json"
+    exit "$code"
+fi
+phase=complete
+AGPC_WORKER
+    } > "$stage/worker" || return
+    chmod 0600 "$stage/worker" "$stage/ssh-readiness.py" || return
+    sha256sum "$stage/guard" "$stage/worker" "$stage/ssh-readiness.py" "$worker_obsidian" > "$stage/inputs.sha256" || return
+    chmod 0600 "$stage/inputs.sha256" || return
+    unit=agpc-install-${stage##*.}
+    printf 'Installation job: %s\nLog: %s/install.log\nResult: %s/result.json\n' "$unit" "$stage" "$stage"
+    # No PTY/session binding: systemd owns the worker independently of this SSH
+    # caller. The caller never removes its durable stage or stops its unit.
+    systemd-run --quiet --no-block --unit="$unit" --service-type=exec \
+        --property=UMask=0077 --property="StandardOutput=append:$stage/install.log" \
+        --property=StandardError=inherit -- /bin/bash "$stage/worker" || return
+    trap 'printf "Installation continues independently; inspect %s/result.json and %s/install.log.\n" "$stage" "$stage" >&2; exit 130' INT TERM HUP
+    for ((count=0; count<3600; count++)); do
+        if [[ -f $stage/result.json && ! -L $stage/result.json ]]; then
+            code=$(python3 - "$stage/result.json" <<'AGPC_OBSERVE'
+import json,os,stat,sys
+fd=os.open(sys.argv[1],os.O_RDONLY|os.O_NOFOLLOW)
+with os.fdopen(fd) as file:
+    st=os.fstat(file.fileno());assert stat.S_ISREG(st.st_mode) and st.st_uid==0 and st.st_gid==0 and st.st_nlink==1 and not st.st_mode&0o077 and st.st_size<=4096
+    result=json.load(file)
+assert result['schema']=='agpc.detached-install-result/v1' and type(result['exit_code']) is int and 0<=result['exit_code']<=255
+print(result['exit_code'])
+AGPC_OBSERVE
+            ) || return
+            trap - INT TERM HUP
+            if [[ $code != 0 ]]; then
+                printf 'Installation job failed (exit %s); retained log: %s/install.log\n' "$code" "$stage" >&2
+                tail -n 8 "$stage/install.log" >&2
+            fi
+            return "$code"
+        fi
+        state=$(systemctl show "$unit" --property=ActiveState --value) || state=unknown
+        if ((count>2)) && [[ $state == failed || $state == inactive || $state == unknown || -z $state ]]; then
+            trap - INT TERM HUP
+            printf 'Installation result is unavailable; inspect %s/install.log and systemd unit %s.\n' "$stage" "$unit" >&2
+            return 1
+        fi
+        sleep 1
+    done
+    trap - INT TERM HUP
+    printf 'Installation is still running; inspect %s/result.json. The worker was not interrupted.\n' "$stage" >&2
+    return 1
+}
+# END DETACHED INSTALL SUPPORT
+
 agentsphere_platform_check || fail 'Platform preflight failed. No package or source change was started.'
+agentsphere_job_platform_check || fail 'Detached installation preflight failed. No package or source change was started.'
+# Create the durable directory before ownership snapshots: the reviewed CX6
+# guard fingerprints /var/lib and must not be invalidated by our own staging.
+job_stage=$(mktemp -d /var/lib/agpc-install.XXXXXXXX)
+chmod 0700 "$job_stage"
+trap 'rmdir -- "$job_stage" 2>/dev/null || true' EXIT
 
 # One classifier is used before downloads and again under APT's lock.
 # It reads package metadata and hook bytes, never topology values.
+# Standard AGPC uses native packages; do not add a container runtime to this transaction.
+agentsphere_container_runtime_package() {
+    case "${1%%:*}" in
+        docker|docker[.+-]*|moby|moby-*|podman|podman-*|containerd|containerd[.-]*|runc|crun|buildah|nerdctl|cri-o|cri-o-*|lxc|lxc-*|lxd|lxd-*|incus|incus-*|systemd-container) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 classify_legacy_chatd() {
     local record query_status state version line path digest flag extra
     local protected=0 normal=0 other=0 identity hook expected actual
@@ -693,7 +996,7 @@ agentsphere_apt_bootstrap || fail 'Signed APT bootstrap failed. Package installa
 
 umask 077
 temporary=$(mktemp -d /var/tmp/agent-sphere-apps.XXXXXXXX)
-trap 'rm -rf -- "$temporary"' EXIT
+trap 'rm -rf -- "$temporary"; rmdir -- "$job_stage" 2>/dev/null || true' EXIT
 obsidian="$temporary/obsidian_1.13.7_amd64.deb"
 curl --fail --location --proto '=https' --proto-redir '=https' --retry 2 \
     --output "$obsidian" \
@@ -706,7 +1009,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-4 agent-ultra=0.1.0-1 agpc-manager=3.1.0-2 agent-apps=0.2.0-1 "$obsidian")
+packages=(agent-sphere=0.2.0-6 agent-ultra=0.1.0-1 agpc-manager=3.1.0-2 agent-apps=0.2.0-2 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -720,7 +1023,7 @@ fi
 # APT protocol v3 is checked again under APT's lock before any DPKG action.
 {
 printf '%s\n' '#!/bin/bash' 'set -euo pipefail'
-declare -f classify_legacy_chatd classify_legacy_mcp classify_legacy_cx classify_legacy_manager
+declare -f agentsphere_container_runtime_package classify_legacy_chatd classify_legacy_mcp classify_legacy_cx classify_legacy_manager
 printf 'expected_legacy_state=%q\n' "$legacy_state"
 printf 'expected_mcp_state=%q\n' "$mcp_state"
 printf 'expected_cx_state=%q\n' "$cx_state"
@@ -767,7 +1070,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-4 [agent-ultra]=0.1.0-1 [agpc-manager]=3.1.0-2 [agent-apps]=0.2.0-1 [moted]=3.6.0-2 [medge]=3.1.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-6 [agent-ultra]=0.1.0-1 [agpc-manager]=3.1.0-2 [agent-apps]=0.2.0-2 [moted]=3.6.0-2 [medge]=3.1.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -780,6 +1083,7 @@ while IFS= read -r line; do
         [[ -n ${replacement[$name]:-} && $old == "${reviewed_old[$name]}" && $new == - && -z ${removed[$name]:-} ]] || fail "removal of $name"
         removed[$name]=true
     elif [[ $action == '**CONFIGURE**' || $action == /*.deb ]]; then
+        ! agentsphere_container_runtime_package "$name" || fail "container runtime package $name is outside native AGPC installation"
         [[ $name != mote-chatd || $legacy_state == retention:* ]] || fail 'retention is not admitted for this ownership state'
         case "$name" in sphere-manager|mote-sync|mote-syncd|cx-node|cx-agent|codex-mesh|model-node|model-grid|mcp-run|ultra-mcp-ssh|mote-bridge-mcp) fail "retired package $name" ;; esac
         [[ $new != - ]] || fail 'missing target version'
@@ -877,7 +1181,9 @@ while read -r action package rest; do
                 *) fail "Refusing package removal: $name. Package installation was not started." ;;
             esac ;;
         Purg|E:) fail 'APT error or purge refused. Package installation was not started.' ;;
-        Inst) planned[$name]=true ;;
+        Inst)
+            ! agentsphere_container_runtime_package "$name" || fail "Refusing container runtime package $name. Package installation was not started."
+            planned[$name]=true ;;
     esac
 done < "$temporary/plan"
 for name in "${!removed[@]}"; do
@@ -892,10 +1198,18 @@ if [[ ${#confirmation[@]} == 0 && ! -t 0 ]]; then
 else
     exec {confirmation_fd}<&0
 fi
-apt-get -o "DPkg::Pre-Install-Pkgs::=$guard" \
-    -o "DPkg::Tools::Options::$guard::Version=3" \
-    -o "DPkg::Tools::Options::$guard::InfoFD=0" \
-    -o 'Dpkg::Options::=--force-confold' \
-    "${confirmation[@]}" install "${packages[@]}" <&"$confirmation_fd"
+if [[ ${#confirmation[@]} == 0 ]]; then
+    printf 'Proceed with the displayed package plan and SSH readiness check? [y/N] ' >&2
+    IFS= read -r answer <&"$confirmation_fd" || fail 'Installation was not confirmed.'
+    [[ $answer == y || $answer == Y || $answer == yes || $answer == YES ]] || fail 'Installation was not confirmed.'
+fi
+if agentsphere_run_detached; then
+    :
+else
+    code=$?
+    printf '%s\n' 'Installation or SSH verification did not complete successfully. The durable job result identifies the failed phase.' >&2
+    exit "$code"
+fi
+printf '%s\n' 'SSH configuration and loopback port 22 are ready; remote Mote reachability is a separate check.'
 printf '%s\n' 'Agent Sphere, Agent Ultra, AGPC Manager and Agent Apps packages installed. Runtime configuration and health are separate checks.'
 printf '%s\n' 'Use agpc-manager to configure owner grants and inspect live status.'

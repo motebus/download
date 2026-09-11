@@ -62,9 +62,9 @@ class AgentSphereAptTest(unittest.TestCase):
                                "external_prerequisites": [{"name": "obsidian", "version": "1.13.7"}]}}
         output = "".join(f"InstalledAGPC\t{name}\t1.0.0-1\tii \n" for name in names)
         output += "InstalledAGPC\tobsidian\t1.13.7\tii \n"
-        self.assertEqual(len(resolution.validate_installed_cohort(output, overlay)), 26)
+        self.assertEqual(len(resolution.validate_installed_cohort(output, overlay)), 27)
         self.assertEqual(len(resolution.validate_installed_cohort(
-            output + "InstalledAGPC\tcx-agent\t\tun \n", overlay)), 26)
+            output + "InstalledAGPC\tcx-agent\t\tun \n", overlay)), 27)
         for invalid in (output.replace("InstalledAGPC\tagos", "Missing\tagos"),
                         output.replace("1.13.7", "1.13.6"), output.replace("ii ", "iU ", 1),
                         output + "InstalledAGPC\tcx-agent\t0.3.4-2\tii \n",
