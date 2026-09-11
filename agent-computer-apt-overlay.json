@@ -1,20 +1,20 @@
 {
-  "schema": "agent-computer-apt-overlay/v5",
+  "schema": "agent-computer-apt-overlay/v6",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.2.0-8",
-    "source_commit": "d703d1b459bb6fdc0b044f6c87d9539a35bd63f0",
+    "tag": "agent-computer-v0.2.0-9",
+    "source_commit": "a2bdaf10cf6dbd7a2c7a204724f1235f86e7a175",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.2.0-8",
+        "version": "0.2.0-9",
         "architecture": "all",
-        "asset": "agent-sphere_0.2.0-8_all.deb",
-        "sha256": "b5ca56129c4899690b44af5f4ae3348c5a580f99a137f38f84ce2cdc5a854d74",
+        "asset": "agent-sphere_0.2.0-9_all.deb",
+        "sha256": "89fe251740e30a3666230e2ddb31ab154a61cdbbc417cf1b7c67bd45f469dc48",
         "provenance": {
-          "source_commit": "3d3b7eead40351d401453561e05f42f61ef88fa7",
+          "source_commit": "17b37104a435a5c302268eab9f712206dd7f7a3d",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 34592797643,
+          "main_pipeline_id": 34598052345,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -188,15 +188,29 @@
         }
       },
       {
-        "version": "3.0.0-3",
-        "architecture": "amd64",
-        "asset": "mote-mcpd_3.0.0-3_amd64.deb",
-        "sha256": "b4b1b640cb32f087af0a22b40f3edc85562bc9c87551ea60b7f6f7d80ca5fcf7",
         "name": "mote-mcpd",
+        "version": "3.1.0-1",
+        "architecture": "amd64",
+        "asset": "mote-mcpd_3.1.0-1_amd64.deb",
+        "sha256": "fae185fc735571c73adee70fb3095851541fce3a7b13b468c41cae32bec44a60",
         "provenance": {
-          "source_commit": "73c831a163eefb6dbad457a0df68e0ee9e01e74c",
+          "source_commit": "454726b1a277645dbdfbc20a0741bc51bab1e775",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26596,
+          "main_pipeline_id": 26690,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "mote-mcp-ultra",
+        "version": "0.1.0-1",
+        "architecture": "amd64",
+        "asset": "mote-mcp-ultra_0.1.0-1_amd64.deb",
+        "sha256": "ac9dcda941181da26d16a32bc26053f851011213322e5c7af24bc5e13c392c9e",
+        "provenance": {
+          "source_commit": "454726b1a277645dbdfbc20a0741bc51bab1e775",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26690,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -211,6 +225,20 @@
           "source_commit": "1f5e8b3f87998cfdfe9e9b6ff2a57c6f01976e13",
           "source_ref": "refs/heads/main",
           "main_pipeline_id": 26685,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "cx-loop",
+        "version": "0.1.0-4",
+        "architecture": "amd64",
+        "asset": "cx-loop_0.1.0-4_amd64.deb",
+        "sha256": "2a2a96c074dcd7b398ecb4cc9ababcf859a91b26375276fe17ee4368aa1de474",
+        "provenance": {
+          "source_commit": "78a5cf46cfa2a74503017fd9c188176eeedc609b",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26691,
           "build_status": "success",
           "public_payload_reviewed": true
         }
