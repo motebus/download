@@ -373,6 +373,20 @@ def run(
     input_text: str | None = None,
     env: dict[str, str] | None = None,
 ) -> str:
+    if capture and args[:2] == ("docker", "run"):
+        # Native verification has long APT phases. Keep parser input intact while
+        # reporting explicit progress markers from its disposable containers.
+        lines = []
+        with subprocess.Popen(args, cwd=cwd, text=True, stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, env=env) as process:
+            for line in process.stdout:
+                lines.append(line)
+                if line.startswith(("AGPC verification:", "Installed uChat:", "E:", "Traceback", "TimeoutError")):
+                    print(line, end="", flush=True)
+            output = "".join(lines)
+            if process.wait():
+                raise subprocess.CalledProcessError(process.returncode, args, output=output[-16000:])
+        return output.strip()
     result = subprocess.run(
         args,
         cwd=cwd,

@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import pwd
+import signal
 import socket
 import subprocess
 import tempfile
@@ -59,6 +60,11 @@ class Session:
 
 def main():
     assert Path('/.dockerenv').is_file() and os.getuid() == 0, 'disposable root container required'
+    def expired(*_):
+        raise TimeoutError('installed uChat smoke check exceeded 60 seconds')
+    signal.signal(signal.SIGALRM, expired)
+    signal.alarm(60)
+    print('AGPC verification: starting installed uChat smoke check', flush=True)
     default = json.loads(Path('/etc/uchatd/uchatd.json').read_text())
     assert default['principals'] == [] and default['peers'] == {}
     account = pwd.getpwnam('uchatd')
@@ -93,6 +99,7 @@ def main():
                 sent = human.call('SEND', to=['@worker'], type='task', conversation_id='fixture',
                                   thread_id='fixture-thread', content={'text': 'installation fixture'},
                                   reply_policy={'mode': 'auto'})['inbox_id']
+                print('AGPC verification: offline message persisted; restarting uChat and Redis', flush=True)
                 # Kill both processes before the offline recipient subscribes.
                 human.close(); sessions.clear()
                 for process in reversed(processes):
@@ -106,6 +113,7 @@ def main():
                 worker = Session(root / 'u.sock', '@worker'); sessions.append(worker)
                 worker.call('REGISTER', agent_id='fixture-worker'); worker.call('SUB')
                 delivery = worker.message(sent)
+                print('AGPC verification: recovered offline delivery; checking automatic reply', flush=True)
                 attempt = dict(inbox_id=sent, attempt_id=delivery['attempt_id'])
                 worker.call('ACK', **attempt); worker.call('CLAIM', **attempt)
                 reply = worker.call('REPLY', **attempt, content={'text': 'fixture completed'})['result_id']
