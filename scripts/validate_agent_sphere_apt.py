@@ -37,6 +37,7 @@ Signed-By: /repo/medge-archive-keyring.gpg
 SOURCES
 export LC_ALL=C
 export DEBIAN_FRONTEND=noninteractive
+printf 'AGPC verification: Ubuntu %s updating APT metadata\n' "$1"
 apt-get update
 apt-get --simulate --no-remove install agent-sphere
 '''
@@ -49,9 +50,11 @@ POLICY
 chmod 0755 /usr/sbin/policy-rc.d
 # Only the exact, independently SHA/control-verified upstream desktop package is
 # seeded. Never seed a runtime dependency to make the four-package solve pass.
+printf 'AGPC verification: Ubuntu %s installing official Obsidian prerequisite\n' "$1"
 apt-get --no-install-recommends --no-remove -y install "/prerequisites/$2"
 printf 'Prerequisite obsidian %s\n' "$(dpkg-query -W -f='${Version}' obsidian)"
 apt-get --simulate --no-remove install agent-sphere agent-ultra agpc-manager agent-apps
+printf 'AGPC verification: Ubuntu %s installing the four AGPC entry packages\n' "$1"
 apt-get --no-remove -y install agent-sphere agent-ultra agpc-manager agent-apps
 test -z "$(dpkg --audit)"
 dpkg-query -W -f='InstalledAGPC\t${binary:Package}\t${Version}\t${db:Status-Abbrev}\n'
@@ -106,7 +109,7 @@ def validate_installed_cohort(output: str, overlay: dict) -> dict[str, str]:
         _, name, version, status = parts
         name = name.split(":", 1)[0]
         # Check the complete installed closure, including OS dependencies outside
-        # the signed component catalog. This is a fresh CI root, not host cleanup.
+# the signed component catalog. This is a fresh CI root, not host cleanup.
         if status.strip() not in ('un', 'rc', 'pn'):
             native_install_policy.reject_runtime_packages([name])
         # DPKG can report unknown/not-installed relationship names without versions.
@@ -141,6 +144,7 @@ def validate_full_index_pins(site: Path, overlay: dict) -> None:
                             f"signed index differs from approved package pins: {name}")
         publish_apt.require(publish_apt.sha256(site / filename) == package["sha256"],
                             f"signed site payload differs from approved pins: {name}")
+        print(f'AGPC verification: auditing {package["asset"]}', flush=True)
         native_install_policy.audit_deb(site / filename)
 
 
@@ -182,7 +186,7 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
     for version, image in UBUNTU_IMAGES:
         output = publish_apt.run("docker", "run", "--rm", "--pull=always", "--platform", "linux/amd64",
             "--log-driver", "none", "--mount", f"type=bind,src={site.resolve()},dst=/repo,readonly",
-            image, "bash", "-ceu", SIMULATION, "bash", version, capture=True)
+            image, "timeout", "--kill-after=10", "600", "bash", "-ceu", SIMULATION, "bash", version, capture=True)
         selected = validate_plan(output, base, overlay)
         print(f"Ubuntu {version}: signed-index apt install agent-sphere resolves the reviewed core runtime dependencies; "
               f"{len(selected)} total packages including native OS dependencies; no excluded components or removals")
@@ -191,7 +195,7 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
                 "--log-driver", "none", "--mount", f"type=bind,src={site.resolve()},dst=/repo,readonly",
                 "--mount", f"type=bind,src={prerequisites.resolve()},dst=/prerequisites,readonly",
                 "--mount", f"type=bind,src={(repository / 'scripts').resolve()},dst=/verification,readonly",
-                image, "bash", "-ceu", FULL_SIMULATION, "bash", version,
+                image, "timeout", "--kill-after=10", "600", "bash", "-ceu", FULL_SIMULATION, "bash", version,
                 overlay["release"]["external_prerequisites"][0]["asset"], capture=True)
             selected = validate_plan(output, base, overlay, full=True)
             validate_installed_cohort(output, overlay)
@@ -208,7 +212,12 @@ def main() -> int:
     args = parser.parse_args()
     try:
         validate_signed_index(args.repository, args.site, args.external_prerequisites)
-    except (publish_apt.PublishError, ValueError, subprocess.CalledProcessError, OSError) as error:
+    except subprocess.CalledProcessError as error:
+        for output in (error.stdout, error.stderr):
+            if output:
+                print(output[-16000:])
+        parser.error(str(error))
+    except (publish_apt.PublishError, ValueError, OSError) as error:
         parser.error(str(error))
     return 0
 
