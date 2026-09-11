@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     printf '%s\n' \
-        'Usage: agpc.sh [--yes] [--help]' \
+        'Usage: agpc.sh [--yes] [--user USER] [--help]' \
         'Install agent-sphere, agent-ultra, agpc-manager and agent-apps using the signed MoteBus APT repository.' \
         'Supports Ubuntu 24.04 and 26.04 amd64; creates only missing reviewed APT key/source files.' \
         'Downloads the pinned official Obsidian DEB for the same APT transaction.' \
@@ -11,13 +11,25 @@ usage() {
 }
 fail() { printf '%s\n' "$*" >&2; exit 1; }
 confirmation=()
-for arg in "$@"; do
-    case "$arg" in
-        --yes) confirmation=(--yes) ;;
+agpc_chat_user=${SUDO_USER:-}
+[[ $agpc_chat_user != root ]] || agpc_chat_user=
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --yes) confirmation=(--yes); shift ;;
+        --user) [[ $# -ge 2 && -n $2 ]] || fail '--user requires an existing local login account'; agpc_chat_user=$2; shift 2 ;;
         --help) usage; exit 0 ;;
-        *) printf 'Unsupported argument: %s\n' "$arg" >&2; usage >&2; exit 2 ;;
+        *) printf 'Unsupported argument: %s\n' "$1" >&2; usage >&2; exit 2 ;;
     esac
 done
+if [[ -n $agpc_chat_user ]]; then
+    python3 - "$agpc_chat_user" <<'AGPC_USER' || fail 'Select an existing local login account with --user. No installation was started.'
+import pwd,re,sys
+name=sys.argv[1]
+assert re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}',name)
+p=pwd.getpwnam(name)
+assert 1000<=p.pw_uid<65534 and not p.pw_shell.endswith(('nologin','/false'))
+AGPC_USER
+fi
 [[ $(id -u) == 0 ]] || fail 'Run this installer as root (for example, with sudo).'
 for command in apt-get curl sha256sum dpkg dpkg-deb dpkg-query mktemp chmod realpath stat python3; do
     command -v "$command" >/dev/null 2>&1 || fail "$command is required. Package installation was not started."
@@ -341,6 +353,7 @@ AGPC_STAGE
         printf '%s\n' '#!/bin/bash' 'set -euo pipefail' 'umask 077' 'export LC_ALL=C' 'export PATH=/usr/sbin:/usr/bin:/sbin:/bin'
         printf 'stage=%q\n' "$stage"
         printf 'guard=%q\n' "$worker_guard"
+        printf 'agpc_chat_user=%q\n' "${agpc_chat_user:-}"
         printf 'packages=('
         for argument in "${packages[@]}"; do
             [[ $argument != "$obsidian" ]] || argument=$worker_obsidian
@@ -356,7 +369,7 @@ finish() {
 import json, os, sys
 stage, code, phase=sys.argv[1:]
 body={'schema':'agpc.detached-install-result/v1','exit_code':int(code),'phase':phase,
-      'packages_verified':phase in ('ssh','complete'),'ssh_ready':phase=='complete',
+      'packages_verified':phase in ('uchat','ssh','complete'),'ssh_ready':phase=='complete',
       'mote_reachability':'not-tested','full_runtime_ready':False}
 path=stage+'/result.json.tmp'
 fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
@@ -392,6 +405,10 @@ for argument in sys.argv[1:]:
 assert len(records)==4
 print(json.dumps({'schema':'agpc.installed-entries/v1','packages':records,'full_runtime_ready':False},sort_keys=True))
 AGPC_PACKAGES
+phase=uchat
+if [[ -n $agpc_chat_user ]]; then
+    /usr/libexec/uchat/setup-default.py --user "$agpc_chat_user" > "$stage/uchat.json"
+fi
 phase=ssh
 if python3 "$stage/ssh-readiness.py" --ensure > "$stage/ssh.json"; then
     :
@@ -736,7 +753,7 @@ def cx4_state(state, files):
         if files[receipt][-1]!=1:raise ValueError('unsafe old4 migration receipt link count')
     else:
         successor=query('cx-mesh')
-        if successor is None or successor.splitlines()[:3]!=['1.1.0-1','amd64','install ok installed']:
+        if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed']):
             raise ValueError('old4 residual requires exact installed CX-Mesh successor')
         for suffix in ('preinst','postinst','prerm','md5sums'):
             if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):
@@ -825,7 +842,7 @@ def cx6_obsolete_state(state, rows, files):
         if files[receipt][-1]!=1:raise ValueError('unsafe obsolete CX migration receipt link count')
     else:
         successor=query('cx-mesh')
-        if successor is None or successor.splitlines()[:3]!=['1.1.0-1','amd64','install ok installed']:
+        if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed']):
             raise ValueError('obsolete CX residual requires exact installed CX-Mesh successor')
         for suffix in ('preinst','postinst','prerm','md5sums'):
             if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):raise ValueError('unexpected obsolete CX residual payload or hook')
@@ -857,7 +874,7 @@ def classify():
             wanted=sorted([[path,digest] for path,digest in MESH_FILES.items()])
             if state=='deinstall ok config-files' and sorted(rows)==[row+['obsolete'] for row in wanted]:
                 successor=query('cx-mesh')
-                if successor is None or successor.splitlines()[:3]!=['1.1.0-1','amd64','install ok installed']:
+                if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed']):
                     raise ValueError('residual Mesh conffiles require exact installed successor')
                 for path in MESH_FILES:
                     owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
@@ -1009,7 +1026,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-6 agent-ultra=0.1.0-1 agpc-manager=3.1.0-2 agent-apps=0.2.0-2 "$obsidian")
+packages=(agent-sphere=0.2.0-7 agent-ultra=0.1.0-1 agpc-manager=3.2.0-1 agent-apps=0.2.0-3 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -1070,7 +1087,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-6 [agent-ultra]=0.1.0-1 [agpc-manager]=3.1.0-2 [agent-apps]=0.2.0-2 [moted]=3.6.0-2 [medge]=3.1.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.1.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-7 [agent-ultra]=0.1.0-1 [agpc-manager]=3.2.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.2.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1121,7 +1138,7 @@ for name in "${!removed[@]}"; do
     [[ -n ${installed[${replacement[$name]}]:-} ]] || fail "$name removal lacks its reviewed replacement"
 done
 if $public_cx_migration; then
-    [[ ${installed[cx-mesh]:-} == 1.1.0-1 ]] || fail 'public CX migration requires exact cx-mesh 1.1.0-1'
+    [[ ${installed[cx-mesh]:-} == 1.2.0-1 ]] || fail 'public CX migration requires exact cx-mesh 1.2.0-1'
     path=${artifacts[cx-mesh]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe CX artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected CX artifact architecture'
@@ -1135,7 +1152,7 @@ if [[ -n ${removed[mote-bridge-mcp]:-} ]]; then
     printf '%s  %s\n' b4b1b640cb32f087af0a22b40f3edc85562bc9c87551ea60b7f6f7d80ca5fcf7 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
 fi
 if [[ -n ${removed[sphere-manager]:-} ]]; then
-    [[ ${installed[agpc-manager]:-} == 3.1.0-2 ]] || fail 'Manager migration requires exact agpc-manager 3.1.0-2'
+    [[ ${installed[agpc-manager]:-} == 3.2.0-1 ]] || fail 'Manager migration requires exact agpc-manager 3.2.0-1'
     path=${artifacts[agpc-manager]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe Manager artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected Manager artifact architecture'
@@ -1212,4 +1229,5 @@ else
 fi
 printf '%s\n' 'SSH configuration and loopback port 22 are ready; remote Mote reachability is a separate check.'
 printf '%s\n' 'Agent Sphere, Agent Ultra, AGPC Manager and Agent Apps packages installed. Runtime configuration and health are separate checks.'
-printf '%s\n' 'Use agpc-manager to configure owner grants and inspect live status.'
+printf '%s\n' 'Use agpc-manager to configure Mesh → uChat and inspect live status.'
+if [[ -z $agpc_chat_user ]]; then printf '%s\n' 'No login account was supplied. Set up the permanent machine name using agpc-manager mesh setup-user USER.'; fi

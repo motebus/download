@@ -625,8 +625,8 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
 
 def validate_uchat_dependencies(bundle: Path, approved: dict) -> None:
     """Keep Redis private and make the daemon/transport migration inseparable."""
-    for owner, dependency, floor in (("agent-apps", "uchat", "3.0.0-1"),
-                                     ("uchat", "uchatd", "0.1.0-1"),
+    for owner, dependency, floor in (("agent-apps", "uchat", "3.1.0-1"),
+                                     ("uchat", "uchatd", "0.2.0-1"),
                                      ("uchatd", "redis-server", "5:6.2"),
                                      ("uchatd", "mote-transportd", "2.0.0-6")):
         asset = bundle / approved[owner]["asset"]
@@ -1703,16 +1703,17 @@ the pending compatible <code>agent-apps</code> package.</p>
 <li><code>agpc-manager</code>: setup and management TUI.</li>
 <li><code>agent-apps</code>: Jujue, iAgent and desktop applications.</li>
 </ul>
-<p>One installer selects all four packages and their 26 canonical package names.
+<p>One installer selects all four packages and their 27 canonical package names.
 It configures the signed APT source when absent and obtains Obsidian from its
 checksum-verified official upstream asset. Obsidian is not redistributed here.</p>
 <pre>curl -fsSLo agpc.sh https://motebus.github.io/download/agpc.sh &amp;&amp;
 sudo bash ./agpc.sh</pre>
 <p>Re-running preserves existing identity, configuration and user data.
 Installation exits without opening a UI. Run <code>sudo agpc-manager</code> for owner setup. Installing packages does
-not configure credentials, model weights or grant application access.</p>
+not configure credentials or model weights. The selected local account receives its protected machine uChat name.</p>
 <p><code>cx-mesh</code> replaces the separate <code>cx-agent</code> and
 <code>codex-mesh</code> packages while preserving their established configuration.</p>
+<p>uChat runs on CX-Mesh membership. Use <code>sudo agpc-manager</code>, then Mesh → uChat, to configure the network and name authority. Each AGPC keeps <code>@machine-name</code>; additional names such as <code>@chief</code> have their own Inboxes. Manage names with <code>uchat uname</code> and messages with <code>uchat ubox</code>, <code>uget</code>, and <code>uput</code>.</p>
 <p>CX-Mesh connects collaborating computers such as AGPC-1 and AGPC-2.
 Each AGPC runs its own AgentSphere installation and local resources.</p>
 <p>AGPC requires standalone operation with configured local resources.

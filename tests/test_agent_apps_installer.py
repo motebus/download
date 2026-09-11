@@ -26,13 +26,13 @@ class AgentAppsInstallerTest(unittest.TestCase):
         self.installer = self.root / publish_apt.AGENT_APPS_INSTALLER
         self.source = self.root / publish_apt.AGENT_APPS_INSTALLER_SOURCE
 
-    def test_snapshot_matches_the_reviewed_v0206_release(self) -> None:
+    def test_snapshot_matches_the_reviewed_v0207_release(self) -> None:
         record = publish_apt.validate_agent_apps_installer(self.root)
         self.assertEqual(record["repository"], "motebus/agent-sphere-deb")
-        self.assertEqual(record["tag"], "v0.2.0-6")
-        self.assertEqual(record["source_commit"], "f23a2b60edba890103b89882283fb392e4d79cb2")
+        self.assertEqual(record["tag"], "v0.2.0-7")
+        self.assertEqual(record["source_commit"], "8a1f3c6dd87a5f1a88fcbc392b346128dd1fa2c6")
         self.assertEqual(record["sha256"],
-                         "cdc99304f9ac77dd0d94c501ddb01e50d6c1be3fcf3664f05a70b95ebed88b70")
+                         "9b463845e45b4a0f85a37961b5494eeac7eb1e42292aa1f4a246afcfd47965f8")
 
     def test_missing_or_symlinked_input_fails(self) -> None:
         for path in (self.installer, self.source):
