@@ -37,6 +37,7 @@ Signed-By: /repo/medge-archive-keyring.gpg
 SOURCES
 export LC_ALL=C
 export DEBIAN_FRONTEND=noninteractive
+bash /verification/configure-ci-ubuntu-apt.sh
 printf 'AGPC verification: Ubuntu %s updating APT metadata\n' "$1"
 apt-get update
 apt-get --simulate --no-remove install agent-sphere
@@ -186,6 +187,7 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
     for version, image in UBUNTU_IMAGES:
         output = publish_apt.run("docker", "run", "--rm", "--pull=always", "--platform", "linux/amd64",
             "--log-driver", "none", "--mount", f"type=bind,src={site.resolve()},dst=/repo,readonly",
+            "--mount", f"type=bind,src={(repository / 'scripts').resolve()},dst=/verification,readonly",
             image, "timeout", "--kill-after=10", "600", "bash", "-ceu", SIMULATION, "bash", version, capture=True)
         selected = validate_plan(output, base, overlay)
         print(f"Ubuntu {version}: signed-index apt install agent-sphere resolves the reviewed core runtime dependencies; "
