@@ -33,7 +33,8 @@ class NativeInstallPolicyTest(unittest.TestCase):
 
     def test_actual_system_and_user_units_reject_dependency_and_socket_grants(self):
         for user in (False, True):
-            for directive in ('Requires=docker.service', 'Requisite=containerd.service',
+            for directive in ('Requires=docker.service', 'Requires = docker.service',
+                              'ExecStart = /usr/bin/docker info', 'Requisite=containerd.service',
                               'Wants=podman.socket', 'BindsTo=containerd.socket',
                               'BindPaths=-/run/docker.sock',
                               'BindReadOnlyPaths=/run/podman/podman.sock:/run/engine.sock'):

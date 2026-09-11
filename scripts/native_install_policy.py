@@ -61,6 +61,7 @@ def unit_directives(text):
         if '=' not in line or line.lstrip().startswith(('#', ';')):
             continue
         key, value = line.strip().split('=', 1)
+        key = key.strip()
         if re.fullmatch(r'Exec[A-Za-z]+', key):
             direct_command(value)
         if key in ('Requires', 'Requisite', 'Wants', 'BindsTo', 'Upholds', 'Sockets', 'Unit'):
