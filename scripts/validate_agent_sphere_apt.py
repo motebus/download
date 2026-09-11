@@ -10,6 +10,7 @@ import re
 import subprocess
 
 import publish_apt
+import native_install_policy
 
 
 # Historical v1 remains independently resolvable; v4 expands the core boundary.
@@ -65,6 +66,7 @@ def validate_plan(output: str, base: dict, overlay: dict, *, full: bool = False)
         name, version = match.groups()
         publish_apt.require(name not in selected, f"duplicate APT selection: {name}")
         selected[name] = version
+    native_install_policy.reject_runtime_packages(selected)
     approved = {package["name"]: package for package in base["packages"] + publish_apt.overlay_packages(overlay)}
     runtime = CURRENT_RUNTIME_PACKAGES if overlay["schema"] == publish_apt.AGENT_COMPUTER_FULL_SCHEMA else RUNTIME_PACKAGES
     required = set(publish_apt.AGENT_COMPUTER_REDISTRIBUTABLE) if full else runtime | {"agent-sphere"}
@@ -102,6 +104,10 @@ def validate_installed_cohort(output: str, overlay: dict) -> dict[str, str]:
         publish_apt.require(len(parts) == 4, "malformed installed package observation")
         _, name, version, status = parts
         name = name.split(":", 1)[0]
+        # Check the complete installed closure, including OS dependencies outside
+        # the signed component catalog. This is a fresh CI root, not host cleanup.
+        if status.strip() not in ('un', 'rc', 'pn'):
+            native_install_policy.reject_runtime_packages([name])
         # DPKG can report unknown/not-installed relationship names without versions.
         # This fresh-container observation checks installation state only; the
         # bootstrap separately checks legacy files and ownership before migration.
@@ -134,6 +140,7 @@ def validate_full_index_pins(site: Path, overlay: dict) -> None:
                             f"signed index differs from approved package pins: {name}")
         publish_apt.require(publish_apt.sha256(site / filename) == package["sha256"],
                             f"signed site payload differs from approved pins: {name}")
+        native_install_policy.audit_deb(site / filename)
 
 
 def validate_signed_index(repository: Path, site: Path, prerequisites: Path | None = None) -> None:
@@ -157,6 +164,8 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
         publish_apt.require(prerequisites is not None, "full overlay requires separately verified upstream prerequisites")
         publish_apt.validate_agent_computer_prerequisites(overlay, prerequisites)
         validate_full_index_pins(site, overlay)
+        for package in overlay["release"]["external_prerequisites"]:
+            native_install_policy.audit_deb(prerequisites / package["asset"])
         legacy = site / "legacy" / ("medge-v" + base["medge_version"])
         for directory, name in ((site, "uninstall.sh"), (legacy, "release-manifest.json")):
             publish_apt.run("gpgv", "--keyring", str(key.resolve()),
@@ -186,7 +195,7 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
             validate_installed_cohort(output, overlay)
             print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra agpc-manager agent-apps resolves canonical26 "
                   "with the exact official Obsidian prerequisite; all 26 packages installed and configured by native APT/DPKG; "
-                  "no retired runtimes, retention guards or removals; service/owner readiness is separate")
+                  "no container runtime packages, retired runtimes, retention guards or removals; service/owner readiness is separate")
 
 
 def main() -> int:
@@ -197,7 +206,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         validate_signed_index(args.repository, args.site, args.external_prerequisites)
-    except (publish_apt.PublishError, subprocess.CalledProcessError, OSError, json.JSONDecodeError) as error:
+    except (publish_apt.PublishError, ValueError, subprocess.CalledProcessError, OSError) as error:
         parser.error(str(error))
     return 0
 
