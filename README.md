@@ -6,7 +6,7 @@ AgentSphere = agent-sphere + agent-ultra + agpc-manager + agent-apps
 
 agent-sphere (RUN)
   sphered · moted · mote-proxy · mote-transportd · mlink · mote-secd
-  agos · model-router · model-llm · mote-mcpd · cx-mesh
+  agos · model-router · model-llm · mote-mcpd · mote-mcp-ultra · cx-mesh · cx-loop → uchatd
 agent-ultra (LOCAL SERVICES)
   redixs · comm · obsidian · mote-vault-sync · mote-vault-syncd
 agpc-manager (MANAGE)
@@ -50,7 +50,7 @@ six paths:
 
 These are six separate endpoint components. `mote-agd`, `mote-uerd`,
 `mote-things` and `mote-commerced` are required target-design components and are not included in this
-27-package release candidate. AGOS and the receiving agent retain
+29-package release candidate. AGOS and the receiving agent retain
 orchestration, task admission and execution authority. Current
 Mesh inbox delivery requires agent review; it does not automatically invoke
 the execution provider or MEdge management API. The access contract is distinct
@@ -200,14 +200,14 @@ combined retirement and repeated installation.
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-8`. The v5 contract admits
-exactly twenty-six redistributable canonical DEBs, the optional protected retention
+`motebus/download` release `agent-computer-v0.2.0-9`. The v6 contract admits
+exactly twenty-eight redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-8, Agent Ultra 0.1.0-1,
+The four entry versions are Agent Sphere 0.2.0-9, Agent Ultra 0.1.0-1,
 AGPC Manager 3.2.0-1 and Agent Apps 0.2.0-3. AGPC Manager requires the paired
 MEdge 3.2.0-1 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
@@ -222,12 +222,12 @@ The native-install policy rejects container runtime dependencies in direct
 `Depends`, `Pre-Depends` and `Recommends`, direct container commands in maintainer
 hooks, systemd `Exec` or required-unit directives and positive container socket
 grants (including user units), and runtime package names in the resolved
-and installed OS dependency closure. It audits the 26 canonical redistributed
+and installed OS dependency closure. It audits the 28 canonical redistributed
 DEBs, the optional retention artifact, and separately verified official Obsidian.
 Intentional `InaccessiblePaths` restrictions on container sockets remain valid.
 This bounded static audit does not interpret arbitrary shell or execute application
 workloads. The outer Docker process is CI isolation, not a target dependency.
-It also installs all 27 actual packages using native APT/DPKG in those disposable
+It also installs all 29 actual packages using native APT/DPKG in those disposable
 containers, requiring every package to finish configuration; service starts are
 disabled there, so these checks do not claim live host readiness.
 The full fixture seeds only the verified official Obsidian prerequisite before
@@ -738,3 +738,24 @@ manifest signature remains verifiable with the archive key. A legacy manifest
 cannot authenticate the changed root script: its recorded digest differs, so
 legacy signed callers reject it before mutation. The historical script remains
 unsuitable for full Agent Computer cleanup.
+
+## Codex MCP and CX-Loop installation
+
+AGPC includes `mote-mcpd` 3.1.0-1 and `mote-mcp-ultra` 0.1.0-1. The gateway
+package registers `mote mcp serve` as `mote-mcpd` through the system
+`/etc/codex/config.toml` layer shared by the Codex app, CLI and IDE. It preserves
+unrelated settings and user/project overrides. Restart the MCP server in
+existing clients after upgrading. No duplicate user registration is required.
+The Ultra provider is installed without identity grants; ungranted tools stay
+hidden. Installation does not establish external service readiness.
+
+The `cx-loop` 0.1.0-4 package contains both `cx-loop` and `cx-loopd`. It brings
+`uchatd` into headless Core installations and uses its single persistent Inbox;
+Redis remains internal to uchatd. The Loop daemon stays disabled and dispatch
+requires a separately admitted Mesh gateway. This release does not include or
+enable the development gateway/worker.
+
+The v6 publication tests verify the provider ABI dependency bounds, Core-only
+resolution with uchatd, native installation, shared Codex registration, MCP
+initialization, and disabled Loop defaults. Historical v5 catalogs retain
+their original package membership and validation contract.

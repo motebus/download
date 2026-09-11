@@ -633,7 +633,7 @@ def classify():
         successor = subprocess.run(['dpkg-query', '-W', '-f=${Version}|${Architecture}|${Status}',
                                     'mote-mcpd'], capture_output=True, text=True)
         if (owner.returncode or owner.stdout.strip() != 'mote-mcpd: ' + NORMAL or
-                successor.returncode or successor.stdout != '3.0.0-3|amd64|install ok installed'):
+                successor.returncode or successor.stdout not in ('3.0.0-3|amd64|install ok installed', '3.1.0-1|amd64|install ok installed')):
             raise ValueError('obsolete legacy MCP conffile lacks its exact installed successor owner')
     # No old postrm exists in the reviewed release, including residual records.
     for hook in ('preinst', 'postrm'):
@@ -700,7 +700,7 @@ def checked(path, digest=None, mode=None, optional=False, limit=1048576, uid=0):
         if len(data)>limit or before!=after:raise ValueError('CX migration file changed during inspection')
     finally:os.close(fd)
     sha=hashlib.sha256(data).hexdigest()
-    if digest is not None and sha!=digest:raise ValueError('unreviewed CX removal hook: '+path)
+    if digest is not None and sha not in (digest if isinstance(digest,tuple) else (digest,)):raise ValueError('unreviewed CX removal hook: '+path)
     return [sha,after.st_ino,after.st_mtime_ns,after.st_ctime_ns,after.st_mode,after.st_uid,after.st_gid,after.st_nlink]
 
 def query(name):
@@ -787,6 +787,9 @@ CX6_OBSOLETE_INSTALLED = {
     '/usr/bin/cx': ('493c5faa394c13b0641b936c9e3c02f9d39c0e4e52eb1b52f027240e2383fa9d',0o755),
 }
 CX6_OBSOLETE_RESIDUAL_LIST = 'e6c9f3a963553f457f2e0da73074a433dc673cf0a158020a74b6caf5b12bd154'
+# Native DPKG omits directories already owned by the installed base system.
+CX6_CONFFILE_ONLY_RESIDUAL_LIST = 'a23ac038fce0108c1af26c8542cc7b2445fbd76c1da22b5fb725dd0cbcca9600'
+CX6_RESIDUAL_LISTS = (CX6_OBSOLETE_RESIDUAL_LIST,CX6_CONFFILE_ONLY_RESIDUAL_LIST)
 
 def sole_owner(path, expected):
     owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
@@ -856,7 +859,7 @@ def cx6_obsolete_state(state, rows, files, version="0.3.3-6"):
             raise ValueError('obsolete CX residual requires exact installed CX-Mesh successor')
         for suffix in ('preinst','postinst','prerm','md5sums'):
             if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):raise ValueError('unexpected obsolete CX residual payload or hook')
-        checks={'/var/lib/dpkg/info/cx-node.list':(CX6_OBSOLETE_RESIDUAL_LIST,0o644)}
+        checks={'/var/lib/dpkg/info/cx-node.list':(CX6_RESIDUAL_LISTS,0o644)}
         expected_owner='cx-mesh'
     for path,(digest,mode) in checks.items():
         files[path]=checked(path,digest=digest,mode=mode,limit=2097152 if path=='/usr/bin/cx' else 1048576)
@@ -1037,7 +1040,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-8 agent-ultra=0.1.0-1 agpc-manager=3.2.0-1 agent-apps=0.2.0-3 "$obsidian")
+packages=(agent-sphere=0.2.0-9 agent-ultra=0.1.0-1 agpc-manager=3.2.0-1 agent-apps=0.2.0-3 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -1098,7 +1101,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-8 [agent-ultra]=0.1.0-1 [agpc-manager]=3.2.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.2.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-9 [agent-ultra]=0.1.0-1 [agpc-manager]=3.2.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.2.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1156,11 +1159,11 @@ if $public_cx_migration; then
     printf '%s  %s\n' caa078bdd810580dc8b35380d2fe8abbda6ff6c4338f2a8c8dbbba3051d02af0 "$path" | sha256sum --check --status || fail 'CX artifact changed'
 fi
 if [[ -n ${removed[mote-bridge-mcp]:-} ]]; then
-    [[ ${installed[mote-mcpd]:-} == 3.0.0-3 ]] || fail 'MCP migration requires exact mote-mcpd 3.0.0-3'
+    [[ ${installed[mote-mcpd]:-} == 3.1.0-1 ]] || fail 'MCP migration requires exact mote-mcpd 3.1.0-1'
     path=${artifacts[mote-mcpd]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe MCP artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected MCP artifact architecture'
-    printf '%s  %s\n' b4b1b640cb32f087af0a22b40f3edc85562bc9c87551ea60b7f6f7d80ca5fcf7 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
+    printf '%s  %s\n' fae185fc735571c73adee70fb3095851541fce3a7b13b468c41cae32bec44a60 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
 fi
 if [[ -n ${removed[sphere-manager]:-} ]]; then
     [[ ${installed[agpc-manager]:-} == 3.2.0-1 ]] || fail 'Manager migration requires exact agpc-manager 3.2.0-1'

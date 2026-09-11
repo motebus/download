@@ -326,6 +326,7 @@ AGENT_COMPUTER_OVERLAY_SCHEMA = "agent-computer-apt-overlay/v1"
 AGENT_COMPUTER_OVERLAY_REPOSITORY = "motebus/agent-sphere-deb"
 AGENT_COMPUTER_OVERLAY_PACKAGES = (("agent-sphere", "all"), ("mote-transportd", "amd64"))
 AGENT_COMPUTER_FULL_SCHEMA = "agent-computer-apt-overlay/v5"
+AGENT_COMPUTER_LOOP_SCHEMA = "agent-computer-apt-overlay/v6"
 AGENT_COMPUTER_FULL_REPOSITORY = "motebus/download"
 AGENT_SPHERE_COMPONENTS = (
     "sphered", "moted", "mote-proxy", "mote-transportd", "mlink", "mote-secd",
@@ -345,6 +346,19 @@ AGENT_META_DEPENDENCIES = {
 AGENT_COMPUTER_CANONICAL = (*AGENT_ENTRY_PACKAGES, *AGENT_SPHERE_COMPONENTS,
     *AGENT_ULTRA_COMPONENTS, *AGENT_MANAGER_COMPONENTS, *AGENT_APPS_COMPONENTS, *AGENT_APP_SERVICES)
 AGENT_COMPUTER_REDISTRIBUTABLE = tuple(name for name in AGENT_COMPUTER_CANONICAL if name != "obsidian")
+AGENT_LOOP_SPHERE_COMPONENTS = (*AGENT_SPHERE_COMPONENTS, "mote-mcp-ultra", "cx-loop")
+AGENT_LOOP_REDISTRIBUTABLE = tuple(name for old in AGENT_COMPUTER_REDISTRIBUTABLE
+    for name in ((old, "cx-loop") if old == "cx-mesh" else (old, "mote-mcp-ultra") if old == "mote-mcpd" else (old,)))
+
+def is_full_overlay(config):
+    return config["schema"] in (AGENT_COMPUTER_FULL_SCHEMA, AGENT_COMPUTER_LOOP_SCHEMA)
+
+def core_components(config):
+    return AGENT_LOOP_SPHERE_COMPONENTS if config["schema"] == AGENT_COMPUTER_LOOP_SCHEMA else AGENT_SPHERE_COMPONENTS
+
+def canonical_packages(config):
+    return AGENT_LOOP_REDISTRIBUTABLE if config["schema"] == AGENT_COMPUTER_LOOP_SCHEMA else AGENT_COMPUTER_REDISTRIBUTABLE
+
 # Retention packages are migration evidence, never fresh-install components.
 AGENT_COMPUTER_RETENTION = ("mote-chatd",)
 AGENT_COMPUTER_RETIRED = {"mcp-run", "ultra-mcp-ssh", "model-node", "model-grid",
@@ -456,13 +470,13 @@ def load_agent_computer_overlay(repository_root: Path) -> dict:
     config = json.loads(path.read_text(encoding="utf-8"))
     require(isinstance(config, dict) and set(config) == {"schema", "release"},
             "Agent Computer overlay config fields are invalid")
-    require(config["schema"] in (AGENT_COMPUTER_OVERLAY_SCHEMA, AGENT_COMPUTER_FULL_SCHEMA),
+    require(config["schema"] in (AGENT_COMPUTER_OVERLAY_SCHEMA, AGENT_COMPUTER_FULL_SCHEMA, AGENT_COMPUTER_LOOP_SCHEMA),
             "invalid Agent Computer overlay schema")
     release = config["release"]
     if release is None:
         return config
-    if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
-        validate_full_overlay_config(release)
+    if is_full_overlay(config):
+        validate_full_overlay_config(release, schema=config["schema"])
         return config
     require(isinstance(release, dict) and set(release) == {"repository", "tag", "packages"},
             "Agent Computer overlay release fields are invalid")
@@ -491,7 +505,8 @@ def load_agent_computer_overlay(repository_root: Path) -> dict:
     return config
 
 
-def validate_full_overlay_config(release: dict) -> None:
+def validate_full_overlay_config(release: dict, *, schema=AGENT_COMPUTER_FULL_SCHEMA) -> None:
+    required = canonical_packages({"schema": schema})
     require(isinstance(release, dict) and set(release) == {
         "repository", "tag", "source_commit", "packages", "external_prerequisites", "retention_packages"},
         "full Agent Computer release fields are invalid")
@@ -504,7 +519,7 @@ def validate_full_overlay_config(release: dict) -> None:
             and re.fullmatch(r"[0-9a-f]{40}", release["source_commit"]), "invalid aggregate source commit")
     packages, retention = release["packages"], release["retention_packages"]
     require(isinstance(packages, list) and all(isinstance(p, dict) for p in packages) and [p.get("name") for p in packages]
-            == list(AGENT_COMPUTER_REDISTRIBUTABLE), "full overlay must contain exactly 26 canonical redistributable packages")
+            == list(required), f"full overlay must contain exactly {len(required)} canonical redistributable packages")
     require(isinstance(retention, list) and all(isinstance(p, dict) for p in retention)
             and [p.get("name") for p in retention] == [name for name in AGENT_COMPUTER_RETENTION
                                                      if any(p.get("name") == name for p in retention)],
@@ -576,9 +591,12 @@ def validate_meta_dependencies(asset: Path, expected: tuple[str, ...], approved:
 def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
     release = config["release"]
     approved = {p["name"]: p for p in release["packages"] + release["external_prerequisites"]}
-    for name, dependencies in AGENT_META_DEPENDENCIES.items():
+    for name, dependencies in {**AGENT_META_DEPENDENCIES, "agent-sphere": core_components(config)}.items():
         validate_meta_dependencies(bundle / approved[name]["asset"], dependencies, approved)
     validate_uchat_dependencies(bundle, approved)
+    if config["schema"] == AGENT_COMPUTER_LOOP_SCHEMA:
+        validate_cx_loop_dependencies(bundle, approved)
+        validate_mcp_ultra_dependencies(bundle, approved)
     # Runtime composition must never pull the management UI back into execution.
     graph = {}
     for package in release["packages"]:
@@ -643,6 +661,41 @@ def validate_uchat_dependencies(bundle: Path, approved: dict) -> None:
                 "uchat: Redis must remain a private uchatd dependency")
 
 
+def validate_cx_loop_dependencies(bundle: Path, approved: dict) -> None:
+    """Core admits Loop; uchatd exclusively owns Redis and Inbox persistence."""
+    for owner, dependency, floor in (("agent-sphere", "cx-loop", "0.1.0-4"),
+                                      ("agent-sphere", "cx-mesh", "1.2.0-1"),
+                                      ("cx-loop", "uchatd", "0.2.0-1")):
+        terms = package_field(bundle / approved[owner]["asset"], "Depends").split(",")
+        versions = [m[1] for term in terms if (m := re.fullmatch(
+            re.escape(dependency) + r" \(>= ([^\s()]+)\)", term.strip()))]
+        require(len(versions) == 1, f"{owner}: required direct dependency is missing: {dependency}")
+        run("dpkg", "--compare-versions", versions[0], "ge", floor)
+        run("dpkg", "--compare-versions", approved[dependency]["version"], "ge", versions[0])
+    for field in ("Depends", "Pre-Depends", "Recommends", "Suggests"):
+        require(not re.search(r"(?<![a-z0-9+.-])(?:redis(?:-server|-tools)?|inboxd)(?![a-z0-9+.-])",
+            package_field(bundle / approved["cx-loop"]["asset"], field)),
+            "cx-loop: Redis and Inbox must remain private to uchatd")
+
+
+def validate_mcp_ultra_dependencies(bundle: Path, approved: dict) -> None:
+    """The provider ABI is bounded to the compatible gateway minor release."""
+    asset = bundle / approved["mote-mcp-ultra"]["asset"]
+    terms = [term.strip() for term in package_field(asset, "Depends").split(",")]
+    bounds = [m.groups() for term in terms if (m := re.fullmatch(
+        r"mote-mcpd \((>=|<<) ([^\s()]+)\)", term))]
+    require(len(bounds) == 2 and dict(bounds) == {">=": "3.1.0-1", "<<": "3.2.0"},
+            "mote-mcp-ultra: gateway ABI requires >= 3.1.0-1 and << 3.2.0")
+    for relation, version in bounds:
+        run("dpkg", "--compare-versions", approved["mote-mcpd"]["version"],
+            "ge" if relation == ">=" else "lt", version)
+    for owner in ("mote-mcpd", "mote-mcp-ultra"):
+        for field in ("Depends", "Pre-Depends", "Recommends", "Suggests"):
+            require(not re.search(r"(?<![a-z0-9+.-])(?:redis(?:-server|-tools)?|inboxd)(?![a-z0-9+.-])",
+                package_field(bundle / approved[owner]["asset"], field)),
+                f"{owner}: provider packages must not own Inbox storage")
+
+
 def validate_deb_archive_permissions(asset: Path) -> None:
     # CI checkouts may be writable by every user. Review the resulting archive,
     # including maintainer hooks, rather than trusting a builder's umask.
@@ -680,7 +733,7 @@ def validate_agent_computer_overlay(repository_root: Path, bundle: Path | None) 
         for field, key in (("Package", "name"), ("Version", "version"), ("Architecture", "architecture")):
             require(package_field(asset, field) == package[key], f"overlay {field} mismatch: {asset.name}")
         validate_public_deb_content(asset)
-    if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+    if is_full_overlay(config):
         validate_full_overlay_payload(config, bundle)
     return config
 
@@ -697,13 +750,13 @@ def download_agent_computer_overlay(repository_root: Path, destination: Path) ->
                               "--json", "tagName,isDraft,assets", capture=True))
     require(metadata.get("tagName") == release["tag"] and metadata.get("isDraft") is False,
             "Agent Computer overlay source must be the exact published release")
-    if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+    if is_full_overlay(config):
         commit = json.loads(run("gh", "api", f"repos/{release['repository']}/commits/{release['tag']}", capture=True))
         require(commit.get("sha") == release["source_commit"], "aggregate tag differs from reviewed source commit")
     published = {asset["name"] for asset in metadata.get("assets", [])}
     require(all(package["asset"] in published for package in overlay_packages(config)),
             "Agent Computer overlay release is missing an approved asset")
-    if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+    if is_full_overlay(config):
         require({name for name in published if name.endswith(".deb")}
                 == {p["asset"] for p in overlay_packages(config)},
                 "aggregate release must not redistribute Obsidian or undeclared DEBs")
@@ -733,7 +786,7 @@ def validate_agent_computer_prerequisites(config: dict, destination: Path) -> No
 
 def download_agent_computer_prerequisites(repository_root: Path, destination: Path) -> None:
     config = load_agent_computer_overlay(repository_root)
-    if config["schema"] != AGENT_COMPUTER_FULL_SCHEMA or config["release"] is None:
+    if not is_full_overlay(config) or config["release"] is None:
         validate_agent_computer_prerequisites(config, destination)
         return
     require(not destination.exists() or (destination.is_dir() and not destination.is_symlink()
@@ -747,8 +800,8 @@ def download_agent_computer_prerequisites(repository_root: Path, destination: Pa
 
 def validate_agent_computer_release_tag(repository_root: Path, tag: str) -> None:
     config = load_agent_computer_overlay(repository_root)
-    require(config["schema"] == AGENT_COMPUTER_FULL_SCHEMA and config["release"] is not None
-            and tag == config["release"]["tag"], "aggregate dispatch tag must match active reviewed v5 pins")
+    require(is_full_overlay(config) and config["release"] is not None
+            and tag == config["release"]["tag"], "aggregate dispatch tag must match active reviewed full-overlay pins")
 
 
 def require_no_gitlab_url_bytes(value: bytes, subject: str) -> None:
@@ -1690,7 +1743,7 @@ the pending compatible <code>agent-apps</code> package.</p>
             '<p>Reviewed <a href="agent-computer-apt-overlay.json">additional package pins</a> '
             'and their <a href="agent-computer-apt-overlay.json.asc">archive signature</a>.</p>')
         config = load_agent_computer_overlay(repository_root)
-        if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+        if is_full_overlay(config):
             index = f"""<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
@@ -1703,7 +1756,7 @@ the pending compatible <code>agent-apps</code> package.</p>
 <li><code>agpc-manager</code>: setup and management TUI.</li>
 <li><code>agent-apps</code>: Jujue, iAgent and desktop applications.</li>
 </ul>
-<p>One installer selects all four packages and their 27 canonical package names.
+<p>One installer selects all four packages and their {len(canonical_packages(config)) + len(config['release']['external_prerequisites'])} canonical package names.
 It configures the signed APT source when absent and obtains Obsidian from its
 checksum-verified official upstream asset. Obsidian is not redistributed here.</p>
 <pre>curl -fsSLo agpc.sh https://motebus.github.io/download/agpc.sh &amp;&amp;
@@ -1722,7 +1775,7 @@ A2A (agent access through the planned <code>mote-agd</code> endpoint, coordinate
 by CX-Mesh over Mote Transport), A2M (MCP tools through <code>mote-mcpd</code>),
 A2U (users through <code>mote-uerd</code>), A2T (devices through <code>mote-things</code>),
 and A2C (commerce through <code>mote-commerced</code>).
-The new agent, user, things and commerce endpoints are not part of this 27-package release candidate.
+The new agent, user, things and commerce endpoints are not part of this {len(canonical_packages(config)) + len(config['release']['external_prerequisites'])}-package release candidate.
 Mesh message delivery retains receiving-agent review and does not itself
 authorize execution or system management.</p>
 <p><a href="agpc.sh">Installer</a> ·
@@ -1809,7 +1862,7 @@ def sign_release(site: Path, repository_root: Path) -> None:
         run(*common, "--armor", "--detach-sign", "--output", str(overlay_signature),
             str(overlay), input_text=passphrase + "\n")
         config = json.loads(overlay.read_text())
-        if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+        if is_full_overlay(config):
             require(config == load_agent_computer_overlay(repository_root), "staged full overlay differs from reviewed pins")
             require((site / "uninstall.sh").read_bytes() == (repository_root / "uninstall.sh").read_bytes(),
                     "staged v5 uninstall preflight differs from reviewed source")
@@ -1833,7 +1886,7 @@ def sign_release(site: Path, repository_root: Path) -> None:
         run("gpg", "--batch", "--verify", str(manifest_signature), str(manifest), env=env)
         if overlay.is_file():
             run("gpg", "--batch", "--verify", str(overlay_signature), str(overlay), env=env)
-            if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
+            if is_full_overlay(config):
                 run("gpg", "--batch", "--verify", str(site / "uninstall.sh.asc"),
                     str(site / "uninstall.sh"), env=env)
         for name in AGENT_INSTALLER_FILES:
@@ -1848,7 +1901,7 @@ def build_site(repository_root: Path, site: Path, bundles: list[Path],
     current = manifests[0]
     overlay = validate_agent_computer_overlay(repository_root, agent_computer_overlay)
     additions = overlay_packages(overlay)
-    if overlay["schema"] != AGENT_COMPUTER_FULL_SCHEMA:
+    if not is_full_overlay(overlay):
         require(not {package["name"] for package in current["packages"]}.intersection(
             package["name"] for package in additions),
             "Agent Computer overlay must not replace a current aggregate package")
@@ -1863,7 +1916,7 @@ def build_site(repository_root: Path, site: Path, bundles: list[Path],
     if additions:
         shutil.copy2(repository_root / AGENT_COMPUTER_OVERLAY_FILE, site)
     write_index(site, repository_root, current, bundles[0])
-    if overlay["schema"] == AGENT_COMPUTER_FULL_SCHEMA and additions:
+    if is_full_overlay(overlay) and additions:
         stage_full_overlay_uninstaller(site, repository_root, current, bundles[0])
     validate_no_gitlab_urls(site)
     sign_release(site, repository_root)
