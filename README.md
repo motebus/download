@@ -150,38 +150,58 @@ separate Model Grid package. Historical `model-node`, `cx-node`, `mcp-run`,
 `ultra-mcp-ssh`, `mote-bridge-mcp`, `cx-agent`, `codex-mesh`, `sphere-manager` and the singular `agent-app` are outside the new composition.
 Existing wire/configuration identifiers remain where compatibility requires.
 
-## uChat v0.2 MVP
+## uChat on CX-Mesh
 
-AGPC installs `uchat 3.0.0-1` and its service dependency `uchatd 0.1.0-1`.
-The client and `uchat-cx-mcp` use the public `uchat/v1` protocol. The daemon
-owns the persistent Inbox, address registration/subscription, offline recovery,
-thread lineage, presence and automatic replies. Its local Redis dependency is
-private; agents never connect to Redis. `mote-chatd` is retired as a chat service.
-The existing `mote-transportd >= 2.0.0-6` remains the D/MSG transport owner.
+AGPC installs `uchat 3.1.0-1` and `uchatd 0.2.0-1`. CX-Mesh owns one
+membership profile, `/etc/cx-mesh/network.json`; uChat uses that membership
+for communication. There is no separate chat-network join. `uchatd` owns
+logical names, independent Inboxes, subscriptions, recovery and replies.
+Redis remains private to the daemon. Mote Transport owns D/MSG delivery.
 
-The four entry packages retain their existing direct ownership. `uchatd` is a
-transitive dependency of `uchat`, included in the signed canonical catalog;
-Redis is an Ubuntu dependency of `uchatd`. No execution, model inference or
-AGPC placement is performed by this messaging daemon. Agents/CX-Mesh retain
-those responsibilities. Installation creates a deny-all default policy;
-authenticated local principals and permitted conversations must be configured
-in `/etc/uchatd/uchatd.json` before agents can register. This release implements
-`any` instance delivery; other subscription policies are not yet implemented.
-Legacy chat journals are preserved and are not imported into the new Inbox.
+The installer configures the existing account selected by `--user USER` or
+`SUDO_USER`. Its permanent `@machine-name` is always retained. A root-only
+installation without a selected account reports the required setup step.
+Use `sudo agpc-manager` → **Mesh → uChat** to set the local account, create
+or join a mesh using an approved profile, enroll members, and select the
+name authority and Chief member. Profile validation and saving do not by
+themselves establish live connectivity.
+
+```text
+uchat uname                   List the machine and additional names
+uchat uname add @chief        Register an independent Agent name
+uchat ubox --as @chief        Read that name's Inbox
+uchat uput @recipient text    Send a message
+uchat uget INBOX_ID           Read one item
+uchat u-cmd                   Show command help
+```
+
+In the TUI, `/uname add @chief` creates the extra name and `/uname use @chief`
+selects it. `@chief` has its own Inbox; it is not an alias of the machine name.
+One configured authority reserves unique names within the mesh. Offline
+registrations remain pending until that authority accepts them. One active
+Chief registration holds a renewable leadership lease. Chief coordinates work;
+it does not acquire registry administration or execution authority from its name.
+
+Existing memberships and trust remain owner-managed. Moving an existing
+network namespace, name authority or Chief ownership requires an explicit
+migration; the initial setup refuses changes that would strand existing
+Inbox ownership. The daemon never infers intent, starts Codex, selects an
+AGPC or executes work. Legacy chat journals remain preserved without import.
+`mote-chatd` is retired as a chat service; `mote-transportd` retains transport.
 
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-6`. The v5 contract admits
+`motebus/download` release `agent-computer-v0.2.0-7`. The v5 contract admits
 exactly twenty-six redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-6, Agent Ultra 0.1.0-1,
-AGPC Manager 3.1.0-2 and Agent Apps 0.2.0-2. AGPC Manager requires the paired
-MEdge 3.1.0-2 backend. The signed overlay is the exact
+The four entry versions are Agent Sphere 0.2.0-7, Agent Ultra 0.1.0-1,
+AGPC Manager 3.2.0-1 and Agent Apps 0.2.0-3. AGPC Manager requires the paired
+MEdge 3.2.0-1 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
 native main builds, public payload audits and reviewed migration fixtures.
 Existing accounts, locked identities, credentials, vaults and runtime state
@@ -194,12 +214,12 @@ The native-install policy rejects container runtime dependencies in direct
 `Depends`, `Pre-Depends` and `Recommends`, direct container commands in maintainer
 hooks, systemd `Exec` or required-unit directives and positive container socket
 grants (including user units), and runtime package names in the resolved
-and installed OS dependency closure. It audits the 25 canonical redistributed
+and installed OS dependency closure. It audits the 26 canonical redistributed
 DEBs, the optional retention artifact, and separately verified official Obsidian.
 Intentional `InaccessiblePaths` restrictions on container sockets remain valid.
 This bounded static audit does not interpret arbitrary shell or execute application
 workloads. The outer Docker process is CI isolation, not a target dependency.
-It also installs all 26 actual packages using native APT/DPKG in those disposable
+It also installs all 27 actual packages using native APT/DPKG in those disposable
 containers, requiring every package to finish configuration; service starts are
 disabled there, so these checks do not claim live host readiness.
 The full fixture seeds only the verified official Obsidian prerequisite before
