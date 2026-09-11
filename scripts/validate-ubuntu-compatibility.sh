@@ -13,6 +13,7 @@ command -v docker >/dev/null 2>&1 || {
 }
 
 BUNDLE_DIR="$(realpath "$1")"
+CI_APT_HELPER="$(dirname "$(realpath "$0")")/configure-ci-ubuntu-apt.sh"
 [[ -d "$BUNDLE_DIR" ]] || {
     printf 'release bundle directory does not exist: %s\n' "$BUNDLE_DIR" >&2
     exit 1
@@ -57,6 +58,7 @@ run_target() {
         -e "EXPECTED_UBUNTU_RELEASE=$release" \
         -e "EXPECTED_PACKAGE_NAMES=${EXPECTED_PACKAGES[*]}" \
         -v "$BUNDLE_DIR:/bundle:ro" \
+        -v "$CI_APT_HELPER:/verification/configure-ci-ubuntu-apt.sh:ro" \
         "$image_ref" \
         bash -ceu '
             . /etc/os-release
@@ -67,6 +69,7 @@ run_target() {
             printf "#!/bin/sh\nexit 101\n" >/usr/sbin/policy-rc.d
             chmod 0755 /usr/sbin/policy-rc.d
             export DEBIAN_FRONTEND=noninteractive
+            bash /verification/configure-ci-ubuntu-apt.sh
             apt-get update
 
             # Reproduce the clean v2 migration from the retired package and
