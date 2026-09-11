@@ -3,7 +3,7 @@
   "release": {
     "repository": "motebus/download",
     "tag": "agent-computer-v0.2.0-6",
-    "source_commit": "1259428ca4b42ade832d53bef2e4d640a3a75041",
+    "source_commit": "5af8b6946b5243fb4b50e12592e163263fa98ffd",
     "packages": [
       {
         "version": "0.2.0-6",
