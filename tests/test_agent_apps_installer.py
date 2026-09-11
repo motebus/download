@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -26,13 +27,27 @@ class AgentAppsInstallerTest(unittest.TestCase):
         self.installer = self.root / publish_apt.AGENT_APPS_INSTALLER
         self.source = self.root / publish_apt.AGENT_APPS_INSTALLER_SOURCE
 
-    def test_snapshot_matches_the_reviewed_v0207_release(self) -> None:
+    def test_snapshot_matches_the_reviewed_v0208_release(self) -> None:
         record = publish_apt.validate_agent_apps_installer(self.root)
         self.assertEqual(record["repository"], "motebus/agent-sphere-deb")
-        self.assertEqual(record["tag"], "v0.2.0-7")
-        self.assertEqual(record["source_commit"], "8a1f3c6dd87a5f1a88fcbc392b346128dd1fa2c6")
+        self.assertEqual(record["tag"], "v0.2.0-8")
+        self.assertEqual(record["source_commit"], "3d3b7eead40351d401453561e05f42f61ef88fa7")
         self.assertEqual(record["sha256"],
-                         "9b463845e45b4a0f85a37961b5494eeac7eb1e42292aa1f4a246afcfd47965f8")
+                         "adcafb4a5d90c1ae672278c8b1785c912c4e6d7be8efd1932e7b4a7a279bd949")
+
+    def test_migration_hashes_match_the_active_signed_package_catalog(self) -> None:
+        catalog = json.loads((REPOSITORY / 'agent-computer-apt-overlay.json').read_text())
+        packages = {p['name']: p for p in catalog['release']['packages']}
+        script = self.installer.read_text()
+        for name, failure in {'cx-mesh': 'CX artifact changed',
+                              'agpc-manager': 'Manager artifact changed',
+                              'mote-mcpd': 'MCP artifact changed',
+                              'mote-transportd': 'transport artifact changed'}.items():
+            with self.subTest(package=name):
+                lines = [line for line in script.splitlines() if failure in line]
+                self.assertEqual(len(lines), 1)
+                hashes = re.findall(r'(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])', lines[0])
+                self.assertEqual(hashes, [packages[name]['sha256']])
 
     def test_missing_or_symlinked_input_fails(self) -> None:
         for path in (self.installer, self.source):

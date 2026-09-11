@@ -189,17 +189,25 @@ Inbox ownership. The daemon never infers intent, starts Codex, selects an
 AGPC or executes work. Legacy chat journals remain preserved without import.
 `mote-chatd` is retired as a chat service; `mote-transportd` retains transport.
 
+The legacy `cx-node` and `codex-mesh` Debian packages are retired into
+`cx-mesh`. The reviewed historical `cx-node 0.3.3-1` lineage can migrate
+directly with `codex-mesh 1.0.0-1`, preserving its obsolete owner configuration
+through native residual records. Configuration, identities and work data are
+retained; the installer does not purge the old records. Current migration
+hashes match the signed catalog, and genuine-archive tests exercise the
+combined retirement and repeated installation.
+
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-7`. The v5 contract admits
+`motebus/download` release `agent-computer-v0.2.0-8`. The v5 contract admits
 exactly twenty-six redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-7, Agent Ultra 0.1.0-1,
+The four entry versions are Agent Sphere 0.2.0-8, Agent Ultra 0.1.0-1,
 AGPC Manager 3.2.0-1 and Agent Apps 0.2.0-3. AGPC Manager requires the paired
 MEdge 3.2.0-1 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
