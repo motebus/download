@@ -679,7 +679,7 @@ python3 - <<'CX_PREFLIGHT'
 import hashlib,json,os,pwd,stat,subprocess,sys,tomllib
 from pathlib import Path
 
-REVIEWED = {('cx-agent', '0.3.4-2'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('cx-agent', '0.3.4-3'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('codex-mesh', '1.0.0-1'): {'prerm': None, 'postrm': None}, ('codex-mesh', '1.0.0-2'): {'prerm': None, 'postrm': None}, ('cx-node', '0.3.3-4'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.3-6'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.4-1~local20260909'): {'prerm': '2721920390b04cef164a34b5347a36a8794c3bb443462224ed83fbd440453cba', 'postrm': 'f6f8be756d1d6b62dd906b7587e55f15cf060073c0e0cbf46d4bb31840640087'}}
+REVIEWED = {('cx-node', '0.3.3-1'): {'prerm': '6f8bd5bdd9cd01e2ac11e5eccd3806ec8cf0550702b219ad2fb34f96eb650cd4', 'postrm': '70a40e034e0dbed5e29954a848a85541eb648907096da632d4943ce91fbd8cdc'}, ('cx-agent', '0.3.4-2'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('cx-agent', '0.3.4-3'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('codex-mesh', '1.0.0-1'): {'prerm': None, 'postrm': None}, ('codex-mesh', '1.0.0-2'): {'prerm': None, 'postrm': None}, ('cx-node', '0.3.3-4'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.3-6'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.4-1~local20260909'): {'prerm': '2721920390b04cef164a34b5347a36a8794c3bb443462224ed83fbd440453cba', 'postrm': 'f6f8be756d1d6b62dd906b7587e55f15cf060073c0e0cbf46d4bb31840640087'}}
 MESH_FILES = {'/etc/codex/skills/codex-mesh/SKILL.md':'382087d284fed820b9a96a0ad4c4fd8c',
               '/etc/mote/codex-mesh/config.json':'f60b18dbe124af2bec9eb264cd6598af'}
 
@@ -769,6 +769,15 @@ def cx4_state(state, files):
     diverted=subprocess.run(['dpkg-divert','--list','/usr/bin/cx'],capture_output=True,text=True)
     if diverted.returncode or diverted.stdout.strip():raise ValueError('old4 drain command is diverted')
 
+# Genuine 0.3.3-1 ownership from the historical conffile lineage.
+CX1_OBSOLETE_INSTALLED = {
+    '/var/lib/dpkg/info/cx-node.list': ('0178622bfe5c09ad7b864bbdfdb9a592f6c2201dadc0bebf359d55b21037cc38',0o644),
+    '/var/lib/dpkg/info/cx-node.md5sums': ('42ae44216aac9ae8d4b5d653470c53a3bde196ff7f9b5a406e2f8918826a015b',0o644),
+    '/var/lib/dpkg/info/cx-node.preinst': ('a23e97567e7055e177696fb8f630227fce9e719fe9b4139c48e31eb134b543b8',0o755),
+    '/var/lib/dpkg/info/cx-node.postinst': ('11b322817cad828999351f3948bc8d3992c8fff8367b03041bde9a75726d2885',0o755),
+    '/usr/bin/cx': ('589afb2e339e01ad22775af93360e966265ba8ea0977fc761ef981027f803f6e',0o755),
+}
+
 CX6_OBSOLETE_ROW = ['/etc/cx-node/cx-node.toml','d137b03f7f14c9c1369d3e85a9062130','obsolete']
 CX6_OBSOLETE_INSTALLED = {
     '/var/lib/dpkg/info/cx-node.list': ('8aa5dbd95406f5ef29cb1cb11c9fe7048d2c4dec84b73d8f118094869ac15e0d',0o644),
@@ -816,7 +825,8 @@ def cx6_drain_state(files, owner_uid):
         if files[marker][-1]!=1:raise ValueError('unsafe obsolete CX drain marker link count')
     else:files[marker]=None
 
-def cx6_obsolete_state(state, rows, files):
+def cx6_obsolete_state(state, rows, files, version="0.3.3-6"):
+    if version not in ("0.3.3-1", "0.3.3-6"):raise ValueError("unreviewed obsolete CX version")
     if rows!=[CX6_OBSOLETE_ROW]:raise ValueError('unreviewed CX predecessor conffile ownership')
     # Actual 0.3.1-4 -> 0.3.3-1 -> 0.3.3-6 DPKG history leaves no
     # .conffiles file. Its obsolete TOML remains in both installed and rc lists.
@@ -832,7 +842,7 @@ def cx6_obsolete_state(state, rows, files):
         if files[path][-1]!=1:raise ValueError('unsafe obsolete CX owner file link count')
     sole_owner(CX6_OBSOLETE_ROW[0],'cx-node') # Residual predecessor retains the actual conffile ownership.
     if state=='install ok installed':
-        checks=CX6_OBSOLETE_INSTALLED
+        checks=CX1_OBSOLETE_INSTALLED if version=="0.3.3-1" else CX6_OBSOLETE_INSTALLED
         expected_owner='cx-node'
         try:owner_uid=pwd.getpwnam('cx-node').pw_uid
         except KeyError:raise ValueError('obsolete CX service account is missing')
@@ -866,8 +876,9 @@ def classify():
             raise ValueError('unsupported CX predecessor version, architecture or DPKG state')
         hooks=REVIEWED[(name,version)]
         rows=[line.split() for line in lines[3:] if line.strip()]
-        cx6_obsolete=(name,version)==('cx-node','0.3.3-6') and bool(rows)
-        if cx6_obsolete:cx6_obsolete_state(state,rows,files)
+        cx6_obsolete=name=='cx-node' and version in ('0.3.3-1','0.3.3-6') and bool(rows)
+        if (name,version)==('cx-node','0.3.3-1') and not cx6_obsolete:raise ValueError('old1 requires reviewed obsolete conffile ownership')
+        if cx6_obsolete:cx6_obsolete_state(state,rows,files,version)
         elif name!='codex-mesh' and rows:raise ValueError('unreviewed CX predecessor conffile ownership')
         if (name,version)==('cx-node','0.3.3-4'):cx4_state(state,files)
         if name=='codex-mesh':
@@ -1026,7 +1037,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-7 agent-ultra=0.1.0-1 agpc-manager=3.2.0-1 agent-apps=0.2.0-3 "$obsidian")
+packages=(agent-sphere=0.2.0-8 agent-ultra=0.1.0-1 agpc-manager=3.2.0-1 agent-apps=0.2.0-3 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -1087,7 +1098,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-7 [agent-ultra]=0.1.0-1 [agpc-manager]=3.2.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.2.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-8 [agent-ultra]=0.1.0-1 [agpc-manager]=3.2.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.2.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.0.0-3 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1142,7 +1153,7 @@ if $public_cx_migration; then
     path=${artifacts[cx-mesh]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe CX artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected CX artifact architecture'
-    printf '%s  %s\n' 5c8de2c9ff7fe2143514be6069c8a7c10fe83da8cab8bee30731c360324c8746 "$path" | sha256sum --check --status || fail 'CX artifact changed'
+    printf '%s  %s\n' caa078bdd810580dc8b35380d2fe8abbda6ff6c4338f2a8c8dbbba3051d02af0 "$path" | sha256sum --check --status || fail 'CX artifact changed'
 fi
 if [[ -n ${removed[mote-bridge-mcp]:-} ]]; then
     [[ ${installed[mote-mcpd]:-} == 3.0.0-3 ]] || fail 'MCP migration requires exact mote-mcpd 3.0.0-3'
@@ -1156,7 +1167,7 @@ if [[ -n ${removed[sphere-manager]:-} ]]; then
     path=${artifacts[agpc-manager]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe Manager artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected Manager artifact architecture'
-    printf '%s  %s\n' cc1a1f2727dbf91c1cee3ffac7d273131f22e0f2cc1ade787173bf7ebbfae9fc "$path" | sha256sum --check --status || fail 'Manager artifact changed'
+    printf '%s  %s\n' 88ebcf630818e8e9940c7f179010669fd61ef367350d49804c93af2e45617e51 "$path" | sha256sum --check --status || fail 'Manager artifact changed'
 fi
 GUARD
 } > "$temporary/guard"
