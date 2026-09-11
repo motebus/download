@@ -60,6 +60,9 @@ apt-get --no-remove -y install agent-sphere agent-ultra agpc-manager agent-apps
 test -z "$(dpkg --audit)"
 dpkg-query -W -f='InstalledAGPC\t${binary:Package}\t${Version}\t${db:Status-Abbrev}\n'
 python3 /verification/verify_uchat_install.py
+if [ "$(dpkg-query -W -f='${Status}' cx-loop 2>/dev/null || true)" = "install ok installed" ]; then
+    python3 /verification/verify_mcp_loop_install.py
+fi
 '''
 
 
@@ -73,13 +76,15 @@ def validate_plan(output: str, base: dict, overlay: dict, *, full: bool = False)
         selected[name] = version
     native_install_policy.reject_runtime_packages(selected)
     approved = {package["name"]: package for package in base["packages"] + publish_apt.overlay_packages(overlay)}
-    runtime = CURRENT_RUNTIME_PACKAGES if overlay["schema"] == publish_apt.AGENT_COMPUTER_FULL_SCHEMA else RUNTIME_PACKAGES
-    required = set(publish_apt.AGENT_COMPUTER_REDISTRIBUTABLE) if full else runtime | {"agent-sphere"}
+    runtime = set(publish_apt.core_components(overlay)) if publish_apt.is_full_overlay(overlay) else RUNTIME_PACKAGES
+    if overlay["schema"] == publish_apt.AGENT_COMPUTER_LOOP_SCHEMA:
+        runtime |= {"uchatd"}
+    required = set(publish_apt.canonical_packages(overlay)) if full else runtime | {"agent-sphere"}
     publish_apt.require(required <= set(selected), "Agent Sphere APT plan is missing a required runtime dependency")
     publish_apt.require(set(selected).intersection(approved) == required,
                         "Agent Sphere APT plan selects an application or an extra aggregate component")
     forbidden = (re.compile(r"^(?:aport|qbix)(?:$|-)")
-                 if overlay["schema"] == publish_apt.AGENT_COMPUTER_FULL_SCHEMA else
+                 if publish_apt.is_full_overlay(overlay) else
                  re.compile(r"^(?:agos|aport|agent-apps?|mdesk|desk|ss-webos|mote-chatd|uchat|qbix|model)(?:$|-)|"
                             r"^(?:codex|cx-|mcp-|ultra-mcp|mote-bridge-mcp|mote-mcpd|obsidian)"))
     publish_apt.require(not any(forbidden.search(name) for name in selected),
@@ -123,7 +128,7 @@ def validate_installed_cohort(output: str, overlay: dict) -> dict[str, str]:
             publish_apt.require(status.strip() == "ii", "canonical package is not fully configured: " + name)
             installed[name] = version
     publish_apt.require(installed == expected,
-                        "joint APT installation differs from the exact 27 canonical package pins")
+                        f"joint APT installation differs from the exact {len(expected)} canonical package pins")
     return installed
 
 
@@ -165,7 +170,7 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
     publish_apt.require(json.loads((site / publish_apt.AGENT_COMPUTER_OVERLAY_FILE).read_text()) == overlay,
                         "signed overlay differs from reviewed pins")
     base = publish_apt.validate_manifest(json.loads((site / "release-manifest.json").read_text()))
-    full = overlay["schema"] == publish_apt.AGENT_COMPUTER_FULL_SCHEMA
+    full = publish_apt.is_full_overlay(overlay)
     if full:
         publish_apt.require(prerequisites is not None, "full overlay requires separately verified upstream prerequisites")
         publish_apt.validate_agent_computer_prerequisites(overlay, prerequisites)
@@ -201,8 +206,8 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
                 overlay["release"]["external_prerequisites"][0]["asset"], capture=True)
             selected = validate_plan(output, base, overlay, full=True)
             validate_installed_cohort(output, overlay)
-            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra agpc-manager agent-apps resolves canonical27 "
-                  "with the exact official Obsidian prerequisite; all 27 packages installed and configured by native APT/DPKG; "
+            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra agpc-manager agent-apps resolves the canonical package set "
+                  f"with the exact official Obsidian prerequisite; all {len(overlay['release']['packages']) + 1} packages installed and configured by native APT/DPKG; "
                   "no container runtime packages, retired runtimes, retention guards or removals; service/owner readiness is separate")
 
 

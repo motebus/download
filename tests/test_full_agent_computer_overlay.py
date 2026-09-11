@@ -17,17 +17,18 @@ p = fixtures.publish_apt
 resolution = apt_fixtures.resolution
 
 
-def config_fixture():
+def config_fixture(loop=False):
     proof = {"source_commit": "a" * 40, "source_ref": "refs/heads/main", "main_pipeline_id": 123,
              "build_status": "success", "public_payload_reviewed": True}
     def record(name):
         architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "jujue", "mote-chatd") else "amd64"
-        return {"name": name, "version": "9.0.0-1", "architecture": architecture,
-                "asset": f"{name}_9.0.0-1_{architecture}.deb", "sha256": "b" * 64,
+        version = "3.1.0-1" if loop and name == "mote-mcpd" else "9.0.0-1"
+        return {"name": name, "version": version, "architecture": architecture,
+                "asset": f"{name}_{version}_{architecture}.deb", "sha256": "b" * 64,
                 "provenance": copy.deepcopy(proof)}
-    return {"schema": p.AGENT_COMPUTER_FULL_SCHEMA, "release": {
+    return {"schema": p.AGENT_COMPUTER_LOOP_SCHEMA if loop else p.AGENT_COMPUTER_FULL_SCHEMA, "release": {
         "repository": "motebus/download", "tag": "agent-computer-v0.1.0-1", "source_commit": "c" * 40,
-        "packages": [record(name) for name in p.AGENT_COMPUTER_REDISTRIBUTABLE],
+        "packages": [record(name) for name in (p.AGENT_LOOP_REDISTRIBUTABLE if loop else p.AGENT_COMPUTER_REDISTRIBUTABLE)],
         "retention_packages": [record("mote-chatd")],
         "external_prerequisites": [{"name": "obsidian", "version": "1.13.7", "architecture": "amd64",
             "asset": "obsidian_1.13.7_amd64.deb", "sha256": "d" * 64, "redistribute": False,
@@ -63,15 +64,20 @@ def make_deb(root, package, depends=None, payload=None, fields=None):
     return asset
 
 
-def make_full_bundle(root):
-    config = config_fixture()
+def make_full_bundle(root, loop=False):
+    config = config_fixture(loop=loop)
     bundle = root / "overlay"
     bundle.mkdir()
+    versions = {x["name"]: x["version"] for x in config["release"]["packages"] + config["release"]["external_prerequisites"]}
     for package in p.overlay_packages(config):
         dependencies = None
         if package["name"] in p.AGENT_META_DEPENDENCIES:
-            names = p.AGENT_META_DEPENDENCIES[package["name"]]
-            dependencies = ", ".join(f"{name} (>= {'1.13.7' if name == 'obsidian' else '9.0.0-1'})" for name in names)
+            names = p.core_components(config) if package["name"] == "agent-sphere" else p.AGENT_META_DEPENDENCIES[package["name"]]
+            dependencies = ", ".join(f"{name} (>= {versions[name]})" for name in names)
+        elif package["name"] == "cx-loop":
+            dependencies = "uchatd (>= 9.0.0-1)"
+        elif package["name"] == "mote-mcp-ultra":
+            dependencies = "mote-mcpd (>= 3.1.0-1), mote-mcpd (<< 3.2.0)"
         elif package["name"] == "uchat":
             dependencies = "uchatd (>= 9.0.0-1)"
         elif package["name"] == "uchatd":
