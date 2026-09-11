@@ -16,7 +16,7 @@ MODULE = Path(__file__).parents[1] / "scripts/validate_agent_sphere_apt.py"
 SPEC = importlib.util.spec_from_file_location("validate_agent_sphere_apt", MODULE)
 assert SPEC and SPEC.loader
 resolution = importlib.util.module_from_spec(SPEC)
-with mock.patch.dict(sys.modules, {"publish_apt": fixtures.publish_apt}):
+with mock.patch.dict(sys.modules, {"publish_apt": fixtures.publish_apt}), mock.patch.object(sys, "path", [str(MODULE.parent), *sys.path]):
     SPEC.loader.exec_module(resolution)
 
 
@@ -73,6 +73,19 @@ class AgentSphereAptTest(unittest.TestCase):
                         output + "InstalledAGPC\tagos\t1.0.0-1\tii \n"):
             with self.subTest(observation=invalid), self.assertRaises(fixtures.publish_apt.PublishError):
                 resolution.validate_installed_cohort(invalid, overlay)
+
+    def test_container_runtime_in_transitive_plan_is_rejected(self) -> None:
+        base, overlay, output = self.fixture()
+        for name in ('docker.io', 'podman', 'containerd.io', 'runc', 'moby-engine'):
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'container runtime packages'):
+                resolution.validate_plan(output + f'Inst {name} (1.0 stable)\n', base, overlay)
+
+    def test_installed_container_runtime_outside_catalog_is_rejected(self) -> None:
+        overlay = {'release': {'packages': [], 'external_prerequisites': []}}
+        for status in ('ii ', 'iU ', 'iF '):
+            with self.subTest(status=status), self.assertRaisesRegex(ValueError, 'container runtime packages'):
+                resolution.validate_installed_cohort(f'InstalledAGPC\tdocker.io:amd64\t1.0\t{status}\n', overlay)
+        self.assertEqual(resolution.validate_installed_cohort('InstalledAGPC\tdocker.io\t\tun \n',overlay),{})
 
     def test_inactive_config_never_runs_docker_or_signing_commands(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

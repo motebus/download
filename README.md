@@ -15,6 +15,8 @@ agent-apps (USE)
   jujue · iagent · ss-webos · mdesk · uchat
 ```
 
+Standard AGPC installation needs no Docker, Podman or other container runtime.
+Existing unrelated container software and data on an owner's host are preserved.
 APT/DPKG owns the four entry packages and systemd owns their native service
 lifecycle. `sphered` provides the MoteBus and D Channel kernel. AGOS owns agent
 orchestration and model resource access through Model Router. Model LLM provides
@@ -169,6 +171,15 @@ retain their owner contracts throughout installation and upgrades.
 The protected publication workflow validates those exact DEBs, their metadata
 and safe archive permissions, signs the APT index and public pin set with the existing archive key,
 and checks automatic resolution in clean Ubuntu 24.04 and 26.04 containers.
+The native-install policy rejects container runtime dependencies in direct
+`Depends`, `Pre-Depends` and `Recommends`, direct container commands in maintainer
+hooks, systemd `Exec` or required-unit directives and positive container socket
+grants (including user units), and runtime package names in the resolved
+and installed OS dependency closure. It audits the 25 canonical redistributed
+DEBs, the optional retention artifact, and separately verified official Obsidian.
+Intentional `InaccessiblePaths` restrictions on container sockets remain valid.
+This bounded static audit does not interpret arbitrary shell or execute application
+workloads. The outer Docker process is CI isolation, not a target dependency.
 It also installs all 26 actual packages using native APT/DPKG in those disposable
 containers, requiring every package to finish configuration; service starts are
 disabled there, so these checks do not claim live host readiness.
