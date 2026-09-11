@@ -13,7 +13,7 @@ import publish_apt
 import native_install_policy
 
 
-# Historical v1 remains independently resolvable; v4 expands the core boundary.
+# Historical v1 remains independently resolvable; v5 expands the core boundary.
 RUNTIME_PACKAGES = {"sphered", "moted", "mote-proxy", "mote-transportd", "medge", "mlink"}
 CURRENT_RUNTIME_PACKAGES = set(publish_apt.AGENT_SPHERE_COMPONENTS)
 UBUNTU_IMAGES = (
@@ -55,6 +55,7 @@ apt-get --simulate --no-remove install agent-sphere agent-ultra agpc-manager age
 apt-get --no-remove -y install agent-sphere agent-ultra agpc-manager agent-apps
 test -z "$(dpkg --audit)"
 dpkg-query -W -f='InstalledAGPC\t${binary:Package}\t${Version}\t${db:Status-Abbrev}\n'
+python3 /verification/verify_uchat_install.py
 '''
 
 
@@ -118,7 +119,7 @@ def validate_installed_cohort(output: str, overlay: dict) -> dict[str, str]:
             publish_apt.require(status.strip() == "ii", "canonical package is not fully configured: " + name)
             installed[name] = version
     publish_apt.require(installed == expected,
-                        "joint APT installation differs from the exact 26 canonical package pins")
+                        "joint APT installation differs from the exact 27 canonical package pins")
     return installed
 
 
@@ -189,12 +190,13 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
             output = publish_apt.run("docker", "run", "--rm", "--pull=always", "--platform", "linux/amd64",
                 "--log-driver", "none", "--mount", f"type=bind,src={site.resolve()},dst=/repo,readonly",
                 "--mount", f"type=bind,src={prerequisites.resolve()},dst=/prerequisites,readonly",
+                "--mount", f"type=bind,src={(repository / 'scripts').resolve()},dst=/verification,readonly",
                 image, "bash", "-ceu", FULL_SIMULATION, "bash", version,
                 overlay["release"]["external_prerequisites"][0]["asset"], capture=True)
             selected = validate_plan(output, base, overlay, full=True)
             validate_installed_cohort(output, overlay)
-            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra agpc-manager agent-apps resolves canonical26 "
-                  "with the exact official Obsidian prerequisite; all 26 packages installed and configured by native APT/DPKG; "
+            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra agpc-manager agent-apps resolves canonical27 "
+                  "with the exact official Obsidian prerequisite; all 27 packages installed and configured by native APT/DPKG; "
                   "no container runtime packages, retired runtimes, retention guards or removals; service/owner readiness is separate")
 
 

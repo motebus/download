@@ -72,6 +72,10 @@ def make_full_bundle(root):
         if package["name"] in p.AGENT_META_DEPENDENCIES:
             names = p.AGENT_META_DEPENDENCIES[package["name"]]
             dependencies = ", ".join(f"{name} (>= {'1.13.7' if name == 'obsidian' else '9.0.0-1'})" for name in names)
+        elif package["name"] == "uchat":
+            dependencies = "uchatd (>= 9.0.0-1)"
+        elif package["name"] == "uchatd":
+            dependencies = "redis-server (>= 5:6.2), mote-transportd (>= 9.0.0-1)"
         asset = make_deb(root / "build", package, dependencies)
         shutil.copy2(asset, bundle)
     external = root / "external"
@@ -155,7 +159,7 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
             root = Path(directory)
             write_config(root, config)
             self.assertEqual(p.load_agent_computer_overlay(root), config)
-            self.assertEqual(len(p.AGENT_COMPUTER_CANONICAL), 26)
+            self.assertEqual(len(p.AGENT_COMPUTER_CANONICAL), 27)
             self.assertEqual(len(p.AGENT_SPHERE_COMPONENTS), 11)
             self.assertEqual(len(p.AGENT_APPS_COMPONENTS), 5)
             mutations = [
@@ -199,6 +203,7 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
             write_config(root, config)
             with self.assertRaisesRegex(p.PublishError, "direct dependency ownership"):
                 p.validate_agent_computer_overlay(root, bundle)
+
             (bundle / sphere["asset"]).write_bytes(good)
             sphere["sha256"] = p.sha256(bundle / sphere["asset"])
             guard = config["release"]["retention_packages"][0]
@@ -213,6 +218,20 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
             write_config(root, config)
             with self.assertRaisesRegex(p.PublishError, "locked deployment identity"):
                 p.validate_agent_computer_overlay(root, bundle)
+
+    def test_uchat_archives_require_private_redis_and_safe_transport(self):
+        for name, depends in (("uchat", "redis-server, uchatd (>= 9.0.0-1)"),
+                              ("uchat", "libc6"),
+                              ("uchatd", "redis-server (>= 5:6.2), mote-transportd (>= 2.0.0-5)"),
+                              ("uchatd", "redis-server (>= 6.2), mote-transportd (>= 9.0.0-1)")):
+            with self.subTest(package=name, depends=depends), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                config, bundle, _ = make_full_bundle(root)
+                package = next(p for p in config["release"]["packages"] if p["name"] == name)
+                shutil.copy2(make_deb(root / "changed", package, depends), bundle)
+                write_config(root, config)
+                with self.assertRaises((p.PublishError, subprocess.CalledProcessError)):
+                    p.validate_agent_computer_overlay(root, bundle)
 
     def test_external_prerequisite_is_separate_exact_and_not_an_overlay_asset(self):
         with tempfile.TemporaryDirectory() as directory:

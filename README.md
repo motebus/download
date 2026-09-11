@@ -12,7 +12,7 @@ agent-ultra (LOCAL SERVICES)
 agpc-manager (MANAGE)
   medge · native setup TUI and sphere CLI
 agent-apps (USE)
-  jujue · iagent · ss-webos · mdesk · uchat
+  jujue · iagent · ss-webos · mdesk · uchat → uchatd
 ```
 
 Standard AGPC installation needs no Docker, Podman or other container runtime.
@@ -50,7 +50,7 @@ six paths:
 
 These are six separate endpoint components. `mote-agd`, `mote-uerd`,
 `mote-things` and `mote-commerced` are required target-design components and are not included in this
-26-package release candidate. AGOS and the receiving agent retain
+27-package release candidate. AGOS and the receiving agent retain
 orchestration, task admission and execution authority. Current
 Mesh inbox delivery requires agent review; it does not automatically invoke
 the execution provider or MEdge management API. The access contract is distinct
@@ -93,9 +93,9 @@ remain under the desktop user's ownership. The installer does not select a
 Vault, enable its sync plugin, download model weights, or provide model and
 transport credentials.
 
-Fresh installation selects twenty-six canonical packages. A migrated host may
+Fresh installation selects twenty-seven canonical packages. A migrated host may
 also retain one documentation-only `mote-chatd` record protecting locked DPKG
-configuration ownership. Only `mote-transportd` owns the messaging runtime.
+configuration ownership. `mote-transportd` owns D/MSG transport; `uchatd` owns the persistent chat Inbox.
 An ordinary `mote-chatd 2.0.0-4` installation whose locked file is not owned
 as a DPKG conffile uses native replacement by `mote-transportd`, without the
 retention record. The installer admits only this reviewed transport migration
@@ -150,18 +150,37 @@ separate Model Grid package. Historical `model-node`, `cx-node`, `mcp-run`,
 `ultra-mcp-ssh`, `mote-bridge-mcp`, `cx-agent`, `codex-mesh`, `sphere-manager` and the singular `agent-app` are outside the new composition.
 Existing wire/configuration identifiers remain where compatibility requires.
 
+## uChat v0.2 MVP
+
+AGPC installs `uchat 3.0.0-1` and its service dependency `uchatd 0.1.0-1`.
+The client and `uchat-cx-mcp` use the public `uchat/v1` protocol. The daemon
+owns the persistent Inbox, address registration/subscription, offline recovery,
+thread lineage, presence and automatic replies. Its local Redis dependency is
+private; agents never connect to Redis. `mote-chatd` is retired as a chat service.
+The existing `mote-transportd >= 2.0.0-6` remains the D/MSG transport owner.
+
+The four entry packages retain their existing direct ownership. `uchatd` is a
+transitive dependency of `uchat`, included in the signed canonical catalog;
+Redis is an Ubuntu dependency of `uchatd`. No execution, model inference or
+AGPC placement is performed by this messaging daemon. Agents/CX-Mesh retain
+those responsibilities. Installation creates a deny-all default policy;
+authenticated local principals and permitted conversations must be configured
+in `/etc/uchatd/uchatd.json` before agents can register. This release implements
+`any` instance delivery; other subscription policies are not yet implemented.
+Legacy chat journals are preserved and are not imported into the new Inbox.
+
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-4`. The v4 contract admits
-exactly twenty-five redistributable canonical DEBs, the optional protected retention
+`motebus/download` release `agent-computer-v0.2.0-6`. The v5 contract admits
+exactly twenty-six redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-4, Agent Ultra 0.1.0-1,
-AGPC Manager 3.1.0-2 and Agent Apps 0.2.0-1. AGPC Manager requires the paired
+The four entry versions are Agent Sphere 0.2.0-6, Agent Ultra 0.1.0-1,
+AGPC Manager 3.1.0-2 and Agent Apps 0.2.0-2. AGPC Manager requires the paired
 MEdge 3.1.0-2 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
 native main builds, public payload audits and reviewed migration fixtures.
@@ -200,7 +219,7 @@ The existing v19 base remains available byte-for-byte alongside the new APT
 versions. Its fixed legacy installer profiles describe that historical release.
 They do not define the new four-package product.
 
-For the active v4 composition, the root `uninstall.sh` refuses automatic removal
+For the active v5 composition, the root `uninstall.sh` refuses automatic removal
 before inspecting or changing services, packages or data. This also protects
 partial installations containing only shared runtime package names.
 Full removal awaits a safe migration of protected configuration ownership.
@@ -333,7 +352,7 @@ that could appear as `Target MMA not found` in Mote Proxy. This service update
 is distributed as a Redixs OCI release; the signed Sphere Debian package
 manifest remains the package-version authority.
 
-### Terminal setup and chat
+### Historical Sphere terminal setup and chat
 
 `medge-v5.9.0-3` updates MLink to `2.0.0-3`. Run `mlink` or `mlink setup`
 for a single reader list: press **Y** to use a reader or **N** to disable it.
@@ -614,10 +633,10 @@ under the package-manager lock and rejects every other removal before dpkg runs.
 Ordinary installs keep APT removal disabled. Old conffiles remain available to the
 Sphered package migration; unrelated packages and user data remain outside this step.
 
-## Agent Computer overlay v3 (prepared, inactive)
+## Historical Agent Computer overlay v3
 
-The existing tracked two-package overlay remains active until a separately
-reviewed release changes `agent-computer-apt-overlay.json`. Schema
+This section records the superseded v3 design. The active v5 composition and
+installer are documented above. Schema
 `agent-computer-apt-overlay/v3` adds the complete Agent Computer composition
 without changing any legacy `medge-public-release/v19` catalog or installer
 subset. It is a release publication contract, not a new package manager.

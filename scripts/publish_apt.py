@@ -325,7 +325,7 @@ AGENT_COMPUTER_OVERLAY_FILE = "agent-computer-apt-overlay.json"
 AGENT_COMPUTER_OVERLAY_SCHEMA = "agent-computer-apt-overlay/v1"
 AGENT_COMPUTER_OVERLAY_REPOSITORY = "motebus/agent-sphere-deb"
 AGENT_COMPUTER_OVERLAY_PACKAGES = (("agent-sphere", "all"), ("mote-transportd", "amd64"))
-AGENT_COMPUTER_FULL_SCHEMA = "agent-computer-apt-overlay/v4"
+AGENT_COMPUTER_FULL_SCHEMA = "agent-computer-apt-overlay/v5"
 AGENT_COMPUTER_FULL_REPOSITORY = "motebus/download"
 AGENT_SPHERE_COMPONENTS = (
     "sphered", "moted", "mote-proxy", "mote-transportd", "mlink", "mote-secd",
@@ -334,6 +334,8 @@ AGENT_SPHERE_COMPONENTS = (
 AGENT_ULTRA_COMPONENTS = ("redixs", "comm", "obsidian", "mote-vault-sync", "mote-vault-syncd")
 AGENT_MANAGER_COMPONENTS = ("medge",)
 AGENT_APPS_COMPONENTS = ("jujue", "iagent", "ss-webos", "mdesk", "uchat")
+# uchat owns its daemon dependency; the four entry package boundaries stay fixed.
+AGENT_APP_SERVICES = ("uchatd",)
 AGENT_ENTRY_PACKAGES = ("agent-sphere", "agent-ultra", "agpc-manager", "agent-apps")
 AGENT_META_DEPENDENCIES = {
     "agent-sphere": AGENT_SPHERE_COMPONENTS,
@@ -341,7 +343,7 @@ AGENT_META_DEPENDENCIES = {
     "agent-apps": ("agent-sphere", "agent-ultra", *AGENT_APPS_COMPONENTS),
 }
 AGENT_COMPUTER_CANONICAL = (*AGENT_ENTRY_PACKAGES, *AGENT_SPHERE_COMPONENTS,
-    *AGENT_ULTRA_COMPONENTS, *AGENT_MANAGER_COMPONENTS, *AGENT_APPS_COMPONENTS)
+    *AGENT_ULTRA_COMPONENTS, *AGENT_MANAGER_COMPONENTS, *AGENT_APPS_COMPONENTS, *AGENT_APP_SERVICES)
 AGENT_COMPUTER_REDISTRIBUTABLE = tuple(name for name in AGENT_COMPUTER_CANONICAL if name != "obsidian")
 # Retention packages are migration evidence, never fresh-install components.
 AGENT_COMPUTER_RETENTION = ("mote-chatd",)
@@ -488,7 +490,7 @@ def validate_full_overlay_config(release: dict) -> None:
             and re.fullmatch(r"[0-9a-f]{40}", release["source_commit"]), "invalid aggregate source commit")
     packages, retention = release["packages"], release["retention_packages"]
     require(isinstance(packages, list) and all(isinstance(p, dict) for p in packages) and [p.get("name") for p in packages]
-            == list(AGENT_COMPUTER_REDISTRIBUTABLE), "full overlay must contain exactly 25 canonical redistributable packages")
+            == list(AGENT_COMPUTER_REDISTRIBUTABLE), "full overlay must contain exactly 26 canonical redistributable packages")
     require(isinstance(retention, list) and all(isinstance(p, dict) for p in retention)
             and [p.get("name") for p in retention] == [name for name in AGENT_COMPUTER_RETENTION
                                                      if any(p.get("name") == name for p in retention)],
@@ -562,6 +564,7 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
     approved = {p["name"]: p for p in release["packages"] + release["external_prerequisites"]}
     for name, dependencies in AGENT_META_DEPENDENCIES.items():
         validate_meta_dependencies(bundle / approved[name]["asset"], dependencies, approved)
+    validate_uchat_dependencies(bundle, approved)
     # Runtime composition must never pull the management UI back into execution.
     graph = {}
     for package in release["packages"]:
@@ -604,6 +607,26 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
                             f"{asset.name}: retention package must contain documentation only")
         if package["name"] in AGENT_COMPUTER_RETENTION:
             require(not package_field(asset, "Provides"), f"{asset.name}: retention must not provide a retired runtime alias")
+
+
+def validate_uchat_dependencies(bundle: Path, approved: dict) -> None:
+    """Keep Redis private and make the daemon/transport migration inseparable."""
+    for owner, dependency, floor in (("agent-apps", "uchat", "3.0.0-1"),
+                                     ("uchat", "uchatd", "0.1.0-1"),
+                                     ("uchatd", "redis-server", "5:6.2"),
+                                     ("uchatd", "mote-transportd", "2.0.0-6")):
+        asset = bundle / approved[owner]["asset"]
+        terms = [term.strip() for term in package_field(asset, "Depends").split(",")]
+        matches = [re.fullmatch(re.escape(dependency) + r" \(>= ([^\s()]+)\)", term) for term in terms]
+        versions = [match[1] for match in matches if match]
+        require(len(versions) == 1, f"{owner}: required direct dependency is missing: {dependency}")
+        run("dpkg", "--compare-versions", versions[0], "ge", floor)
+        if dependency in approved:
+            run("dpkg", "--compare-versions", approved[dependency]["version"], "ge", versions[0])
+    for field in ("Depends", "Pre-Depends", "Recommends", "Suggests"):
+        require(not re.search(r"(?<![a-z0-9+.-])redis(?:-server|-tools)?(?![a-z0-9+.-])",
+                              package_field(bundle / approved["uchat"]["asset"], field)),
+                "uchat: Redis must remain a private uchatd dependency")
 
 
 def validate_deb_archive_permissions(asset: Path) -> None:
@@ -711,7 +734,7 @@ def download_agent_computer_prerequisites(repository_root: Path, destination: Pa
 def validate_agent_computer_release_tag(repository_root: Path, tag: str) -> None:
     config = load_agent_computer_overlay(repository_root)
     require(config["schema"] == AGENT_COMPUTER_FULL_SCHEMA and config["release"] is not None
-            and tag == config["release"]["tag"], "aggregate dispatch tag must match active reviewed v4 pins")
+            and tag == config["release"]["tag"], "aggregate dispatch tag must match active reviewed v5 pins")
 
 
 def require_no_gitlab_url_bytes(value: bytes, subject: str) -> None:
@@ -1684,7 +1707,7 @@ A2A (agent access through the planned <code>mote-agd</code> endpoint, coordinate
 by CX-Mesh over Mote Transport), A2M (MCP tools through <code>mote-mcpd</code>),
 A2U (users through <code>mote-uerd</code>), A2T (devices through <code>mote-things</code>),
 and A2C (commerce through <code>mote-commerced</code>).
-The new agent, user, things and commerce endpoints are not part of this 26-package release candidate.
+The new agent, user, things and commerce endpoints are not part of this 27-package release candidate.
 Mesh message delivery retains receiving-agent review and does not itself
 authorize execution or system management.</p>
 <p><a href="agpc.sh">Installer</a> ·
@@ -1713,15 +1736,15 @@ remain byte-identical aliases of the canonical AGPC installer and source record.
 def stage_full_overlay_uninstaller(site: Path, repository_root: Path, current: dict, bundle: Path) -> None:
     source = repository_root / "uninstall.sh"
     require(source.is_file() and not source.is_symlink()
-            and "PY_UNINSTALL_PREFLIGHT" in source.read_text(), "v4 requires the reviewed uninstall preflight blocker")
-    require(source.stat().st_mode & 0o111 != 0, "v4 uninstall preflight must be executable")
+            and "PY_UNINSTALL_PREFLIGHT" in source.read_text(), "v5 requires the reviewed uninstall preflight blocker")
+    require(source.stat().st_mode & 0o111 != 0, "v5 uninstall preflight must be executable")
     run("bash", "-n", str(source))
     legacy = site / "legacy" / ("medge-v" + current["medge_version"])
     legacy.mkdir(parents=True)
     for name in ("uninstall.sh", "release-manifest.json", "SHA256SUMS"):
         shutil.copy2(bundle / name, legacy / name)
     require(sha256(source) != sha256(legacy / "uninstall.sh"),
-            "v4 root blocker must differ from the immutable legacy uninstaller")
+            "v5 root blocker must differ from the immutable legacy uninstaller")
     shutil.copy2(source, site / "uninstall.sh")
 
 
@@ -1774,13 +1797,13 @@ def sign_release(site: Path, repository_root: Path) -> None:
         if config["schema"] == AGENT_COMPUTER_FULL_SCHEMA:
             require(config == load_agent_computer_overlay(repository_root), "staged full overlay differs from reviewed pins")
             require((site / "uninstall.sh").read_bytes() == (repository_root / "uninstall.sh").read_bytes(),
-                    "staged v4 uninstall preflight differs from reviewed source")
+                    "staged v5 uninstall preflight differs from reviewed source")
             run(*common, "--armor", "--detach-sign", "--output", str(site / "uninstall.sh.asc"),
                 str(site / "uninstall.sh"), input_text=passphrase + "\n")
             current = json.loads(manifest.read_text())
             legacy = site / "legacy" / ("medge-v" + current["medge_version"])
             require((legacy / "release-manifest.json").read_bytes() == manifest.read_bytes(),
-                    "legacy manifest changed while staging v4")
+                    "legacy manifest changed while staging v5")
             shutil.copy2(manifest_signature, legacy / "release-manifest.json.asc")
     for name in AGENT_INSTALLER_FILES:
         run(*common, "--armor", "--detach-sign", "--output", str(site / (name + ".asc")),

@@ -10,7 +10,7 @@ on:
         required: true
         type: string
       agent_computer_tag:
-        description: Optional exact agent-computer-v<version> aggregate tag; must match reviewed active v4 pins
+        description: Optional exact agent-computer-v<version> aggregate tag; must match reviewed active v5 pins
         required: false
         type: string
 
