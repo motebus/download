@@ -1040,7 +1040,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-9 agent-ultra=0.1.0-1 agpc-manager=3.2.0-1 agent-apps=0.2.0-3 "$obsidian")
+packages=(agent-sphere=0.2.0-10 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 agent-apps=0.2.0-3 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -1101,7 +1101,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-9 [agent-ultra]=0.1.0-1 [agpc-manager]=3.2.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.2.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-10 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1166,11 +1166,11 @@ if [[ -n ${removed[mote-bridge-mcp]:-} ]]; then
     printf '%s  %s\n' fae185fc735571c73adee70fb3095851541fce3a7b13b468c41cae32bec44a60 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
 fi
 if [[ -n ${removed[sphere-manager]:-} ]]; then
-    [[ ${installed[agpc-manager]:-} == 3.2.0-1 ]] || fail 'Manager migration requires exact agpc-manager 3.2.0-1'
+    [[ ${installed[agpc-manager]:-} == 3.3.0-1 ]] || fail 'Manager migration requires exact agpc-manager 3.3.0-1'
     path=${artifacts[agpc-manager]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe Manager artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected Manager artifact architecture'
-    printf '%s  %s\n' 88ebcf630818e8e9940c7f179010669fd61ef367350d49804c93af2e45617e51 "$path" | sha256sum --check --status || fail 'Manager artifact changed'
+    printf '%s  %s\n' 044e4f7431a6b0bf7e905658ddc82e9232ad3127dea1c295c030b788eb4077b0 "$path" | sha256sum --check --status || fail 'Manager artifact changed'
 fi
 GUARD
 } > "$temporary/guard"
@@ -1243,5 +1243,5 @@ else
 fi
 printf '%s\n' 'SSH configuration and loopback port 22 are ready; remote Mote reachability is a separate check.'
 printf '%s\n' 'Agent Sphere, Agent Ultra, AGPC Manager and Agent Apps packages installed. Runtime configuration and health are separate checks.'
-printf '%s\n' 'Use agpc-manager to configure Mesh → uChat and inspect live status.'
-if [[ -z $agpc_chat_user ]]; then printf '%s\n' 'No login account was supplied. Set up the permanent machine name using agpc-manager mesh setup-user USER.'; fi
+printf '%s\n' 'Use agpc-manager to open Chat, or run uchat and enter @machine-name.'
+if [[ -z $agpc_chat_user ]]; then printf '%s\n' 'Machine chat is open by default. Extra agent names can be managed separately in agpc-manager.'; fi

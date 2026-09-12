@@ -210,7 +210,7 @@ records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-9, Agent Ultra 0.1.0-1,
+The four entry versions are Agent Sphere 0.2.0-10, Agent Ultra 0.1.0-1,
 AGPC Manager 3.3.0-1 and Agent Apps 0.2.0-3. AGPC Manager requires the paired
 MEdge 3.3.0-1 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
