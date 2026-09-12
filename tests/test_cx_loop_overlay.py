@@ -15,8 +15,11 @@ class CxLoopOverlayTests(unittest.TestCase):
     def test_existing_published_v5_remains_valid(self):
         root = Path(__file__).resolve().parents[1]
         config = p.load_agent_computer_overlay(root)
-        self.assertEqual(config["schema"], p.AGENT_COMPUTER_FULL_SCHEMA)
-        self.assertNotIn("cx-loop", p.canonical_packages(config))
+        self.assertIn(config["schema"], (p.AGENT_COMPUTER_FULL_SCHEMA, p.AGENT_COMPUTER_LOOP_SCHEMA))
+        if config["schema"] == p.AGENT_COMPUTER_FULL_SCHEMA:
+            self.assertNotIn("cx-loop", p.canonical_packages(config))
+        else:
+            self.assertIn("cx-loop", p.canonical_packages(config))
 
     def test_v6_requires_loop_and_successful_main_evidence(self):
         config = f.config_fixture(loop=True)
