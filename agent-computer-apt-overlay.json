@@ -2,19 +2,19 @@
   "schema": "agent-computer-apt-overlay/v6",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.2.0-10",
-    "source_commit": "549bf2c1b69c30c64f948892f34d566e005f2ee6",
+    "tag": "agent-computer-v0.2.0-11",
+    "source_commit": "98e34e07190abd30143c5aa28547129d6474ed28",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.2.0-9",
+        "version": "0.2.0-10",
         "architecture": "all",
-        "asset": "agent-sphere_0.2.0-9_all.deb",
-        "sha256": "89fe251740e30a3666230e2ddb31ab154a61cdbbc417cf1b7c67bd45f469dc48",
+        "asset": "agent-sphere_0.2.0-10_all.deb",
+        "sha256": "f46bcf6c77261a7aade963f7138d0972a323941f6b4bcc4f091af3d412d9cd08",
         "provenance": {
-          "source_commit": "17b37104a435a5c302268eab9f712206dd7f7a3d",
+          "source_commit": "c9335524d044d634a1aae9fb83bb078430d95dc6",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 34598052345,
+          "main_pipeline_id": 34707289644,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -35,14 +35,14 @@
       },
       {
         "name": "agpc-manager",
-        "version": "3.2.0-1",
+        "version": "3.3.0-1",
         "architecture": "amd64",
-        "asset": "agpc-manager_3.2.0-1_amd64.deb",
-        "sha256": "88ebcf630818e8e9940c7f179010669fd61ef367350d49804c93af2e45617e51",
+        "asset": "agpc-manager_3.3.0-1_amd64.deb",
+        "sha256": "044e4f7431a6b0bf7e905658ddc82e9232ad3127dea1c295c030b788eb4077b0",
         "provenance": {
-          "source_commit": "054a658561630689cb637c32ce52f26d6ff0d10e",
+          "source_commit": "75a1c6120572a3bbde80ea539d5b9d18b476a092",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26683,
+          "main_pipeline_id": 26712,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -301,14 +301,14 @@
       },
       {
         "name": "medge",
-        "version": "3.2.0-1",
+        "version": "3.3.0-1",
         "architecture": "amd64",
-        "asset": "medge_3.2.0-1_amd64.deb",
-        "sha256": "770f390eea45e42ea750850b4b9d933dcb56e4599db3466050ae9079d7d49454",
+        "asset": "medge_3.3.0-1_amd64.deb",
+        "sha256": "dc62f1028c6b88f3420083eafe92821c77ee0d798cee26b02bc5113e514b2407",
         "provenance": {
-          "source_commit": "054a658561630689cb637c32ce52f26d6ff0d10e",
+          "source_commit": "75a1c6120572a3bbde80ea539d5b9d18b476a092",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26683,
+          "main_pipeline_id": 26712,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -371,28 +371,28 @@
       },
       {
         "name": "uchat",
-        "version": "3.1.0-1",
+        "version": "3.2.0-1",
         "architecture": "amd64",
-        "asset": "uchat_3.1.0-1_amd64.deb",
-        "sha256": "2912d4e08727c70371e11f5f6043a6dd87b44db849adf1f3e5282a67005ce75a",
+        "asset": "uchat_3.2.0-1_amd64.deb",
+        "sha256": "07d0485ec66875bf0ae0fcd893b3c97d6b6a868259796b6a5d70b36a143b216b",
         "provenance": {
-          "source_commit": "3fe3bf7ce38c13a6d56a4481f68ee2fe6be253f5",
+          "source_commit": "72359a49e20d7d3a2566c329fd2f7a5e48c02fbd",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26686,
+          "main_pipeline_id": 26711,
           "build_status": "success",
           "public_payload_reviewed": true
         }
       },
       {
         "name": "uchatd",
-        "version": "0.2.0-1",
+        "version": "0.3.0-1",
         "architecture": "amd64",
-        "asset": "uchatd_0.2.0-1_amd64.deb",
-        "sha256": "eda697756230c261744b77736b55dcd1f20dd3e3bbd2a5deea6ea6fdcf8e742a",
+        "asset": "uchatd_0.3.0-1_amd64.deb",
+        "sha256": "abc5659307ecc9af22c59a108e4df443b1e6faf9b0c4aa03caf943efb6e934c1",
         "provenance": {
-          "source_commit": "3fe3bf7ce38c13a6d56a4481f68ee2fe6be253f5",
+          "source_commit": "72359a49e20d7d3a2566c329fd2f7a5e48c02fbd",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26686,
+          "main_pipeline_id": 26711,
           "build_status": "success",
           "public_payload_reviewed": true
         }
