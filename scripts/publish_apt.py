@@ -695,7 +695,6 @@ def validate_mcp_ultra_dependencies(bundle: Path, approved: dict) -> None:
                 package_field(bundle / approved[owner]["asset"], field)),
                 f"{owner}: provider packages must not own Inbox storage")
 
-
 def validate_deb_archive_permissions(asset: Path) -> None:
     # CI checkouts may be writable by every user. Review the resulting archive,
     # including maintainer hooks, rather than trusting a builder's umask.
