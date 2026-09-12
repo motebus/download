@@ -13,7 +13,7 @@ import publish_apt
 import native_install_policy
 
 
-# Historical v1 remains independently resolvable; v5 expands the core boundary.
+# Historical v1/v5 stay resolvable; v6 adds Loop and shared uchatd to Core.
 RUNTIME_PACKAGES = {"sphered", "moted", "mote-proxy", "mote-transportd", "medge", "mlink"}
 CURRENT_RUNTIME_PACKAGES = set(publish_apt.AGENT_SPHERE_COMPONENTS)
 UBUNTU_IMAGES = (
@@ -206,10 +206,11 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
                 overlay["release"]["external_prerequisites"][0]["asset"], capture=True)
             selected = validate_plan(output, base, overlay, full=True)
             validate_installed_cohort(output, overlay)
-            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra agpc-manager agent-apps resolves the canonical package set "
-                  f"with the exact official Obsidian prerequisite; all {len(overlay['release']['packages']) + 1} packages installed and configured by native APT/DPKG; "
+            count = len(publish_apt.canonical_packages(overlay))
+            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra agpc-manager agent-apps "
+                  f"resolves canonical{count} with the exact official Obsidian prerequisite; "
+                  f"all {count + len(overlay['release']['external_prerequisites'])} packages installed and configured by native APT/DPKG; "
                   "no container runtime packages, retired runtimes, retention guards or removals; service/owner readiness is separate")
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)

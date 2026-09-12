@@ -739,23 +739,20 @@ cannot authenticate the changed root script: its recorded digest differs, so
 legacy signed callers reject it before mutation. The historical script remains
 unsuitable for full Agent Computer cleanup.
 
-## Codex MCP and CX-Loop installation
+## CX-Loop catalog staging
 
-AGPC includes `mote-mcpd` 3.1.0-1 and `mote-mcp-ultra` 0.1.0-1. The gateway
-package registers `mote mcp serve` as `mote-mcpd` through the system
-`/etc/codex/config.toml` layer shared by the Codex app, CLI and IDE. It preserves
-unrelated settings and user/project overrides. Restart the MCP server in
-existing clients after upgrading. No duplicate user registration is required.
-The Ultra provider is installed without identity grants; ungranted tools stay
-hidden. Installation does not establish external service readiness.
+## CX-Loop catalog staging
 
-The `cx-loop` 0.1.0-4 package contains both `cx-loop` and `cx-loopd`. It brings
-`uchatd` into headless Core installations and uses its single persistent Inbox;
-Redis remains internal to uchatd. The Loop daemon stays disabled and dispatch
-requires a separately admitted Mesh gateway. This release does not include or
-enable the development gateway/worker.
+The publisher also accepts `agent-computer-apt-overlay/v6` for the next AGPC
+composition: 28 redistributable packages plus the external official Obsidian
+prerequisite. `agent-sphere 0.2.0-7` adds independent `cx-loop >= 0.1.0-4` and
+`mote-mcp-ultra` 0.1.0-1; the legacy gateway remains `mote-mcpd` 3.1.0-1.
+Core APT resolution therefore includes `uchatd` transitively without importing the
+uChat Apps client. The Loop daemon stays disabled and dispatch requires a separately
+admitted Mesh/Loop gateway.
 
-The v6 publication tests verify the provider ABI dependency bounds, Core-only
-resolution with uchatd, native installation, shared Codex registration, MCP
-initialization, and disabled Loop defaults. Historical v5 catalogs retain
-their original package membership and validation contract.
+The v6 path requires the same successful-main-CI, exact artifact hash and public
+payload review evidence as earlier releases. It rejects missing CX-Loop, old
+Mesh/uchatd floors, gateway ABI drift, direct Loop-to-Redis dependencies, and
+additional mailbox/storage ownership. No locally built binary is silently promoted
+to signed/public status.
