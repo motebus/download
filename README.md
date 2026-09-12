@@ -200,7 +200,7 @@ combined retirement and repeated installation.
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-9`. The v6 contract admits
+`motebus/download` release `agent-computer-v0.2.0-10`. The v6 contract admits
 exactly twenty-eight redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.

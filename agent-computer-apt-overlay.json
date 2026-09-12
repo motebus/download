@@ -2,8 +2,8 @@
   "schema": "agent-computer-apt-overlay/v6",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.2.0-9",
-    "source_commit": "a2bdaf10cf6dbd7a2c7a204724f1235f86e7a175",
+    "tag": "agent-computer-v0.2.0-10",
+    "source_commit": "7d50e74246ecc62a44a9762f38dc6936fe036632",
     "packages": [
       {
         "name": "agent-sphere",
