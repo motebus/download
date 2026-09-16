@@ -1018,6 +1018,33 @@ if __name__ == '__main__':
 MANAGER_PREFLIGHT
 }
 
+# A Redis-backed Inbox must complete the separately reviewed component upgrade
+# before this aggregate transaction. Never migrate or inspect message content here.
+classify_legacy_uchat() {
+    local record result
+    local -a fields
+    if record=$(dpkg-query -W -f='${Status}\n${Version}\n' uchatd 2>/dev/null); then
+        mapfile -t fields <<< "$record"
+        if [[ ${#fields[@]} == 2 && ${fields[0]} == 'install ok installed' ]] &&
+            dpkg --compare-versions "${fields[1]}" ge 0.4.0-1; then
+            printf 'sqlite:%s\n' "${fields[1]}"
+            return 0
+        fi
+    else
+        result=$?
+        [[ $result == 1 ]] || { printf '%s\n' 'Cannot inspect uchatd package state.' >&2; return 1; }
+        if [[ ! -e /etc/uchatd/uchatd.json && ! -L /etc/uchatd/uchatd.json &&
+              ! -e /var/lib/uchatd && ! -L /var/lib/uchatd ]]; then
+            printf '%s\n' absent
+            return 0
+        fi
+    fi
+    printf '%s\n' 'Complete the uchatd SQLite migration and component upgrade before installing this AGPC release. Existing Inbox data was not changed.' \
+        'Guide: https://github.com/motebus/download/releases/download/uchat-v3.2.0-2/UPGRADE.md' >&2
+    return 1
+}
+
+uchat_state=$(classify_legacy_uchat) || fail 'uChat migration preflight failed. No download or package change was started.'
 legacy_state=$(classify_legacy_chatd) || fail 'Legacy preflight failed. No download or package change was started.'
 mcp_state=$(classify_legacy_mcp) || fail 'MCP preflight failed. No download or package change was started.'
 cx_state=$(classify_legacy_cx) || fail 'CX preflight failed. No download or package change was started.'
@@ -1040,7 +1067,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-10 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 agent-apps=0.2.0-3 "$obsidian")
+packages=(agent-sphere=0.2.0-11 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 agent-apps=0.2.0-3 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -1054,13 +1081,16 @@ fi
 # APT protocol v3 is checked again under APT's lock before any DPKG action.
 {
 printf '%s\n' '#!/bin/bash' 'set -euo pipefail'
-declare -f agentsphere_container_runtime_package classify_legacy_chatd classify_legacy_mcp classify_legacy_cx classify_legacy_manager
+declare -f agentsphere_container_runtime_package classify_legacy_chatd classify_legacy_mcp classify_legacy_cx classify_legacy_manager classify_legacy_uchat
+printf 'expected_uchat_state=%q\n' "$uchat_state"
 printf 'expected_legacy_state=%q\n' "$legacy_state"
 printf 'expected_mcp_state=%q\n' "$mcp_state"
 printf 'expected_cx_state=%q\n' "$cx_state"
 printf 'expected_manager_state=%q\n' "$manager_state"
 cat <<'GUARD'
 fail() { printf 'Agent Computer transaction refused: %s\n' "$*" >&2; exit 1; }
+uchat_state=$(classify_legacy_uchat) || fail 'uChat migration is required at transaction time'
+[[ $uchat_state == "$expected_uchat_state" ]] || fail 'uChat state changed after preflight'
 legacy_state=$(classify_legacy_chatd) || fail 'legacy ownership is unsupported at transaction time'
 [[ $legacy_state == "$expected_legacy_state" ]] || fail 'legacy ownership changed after preflight'
 mcp_state=$(classify_legacy_mcp) || fail 'legacy MCP state is unsupported at transaction time'
@@ -1101,7 +1131,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-10 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3)
+declare -A floor=([agent-sphere]=0.2.0-11 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-2 [uchatd]=0.4.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
