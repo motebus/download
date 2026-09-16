@@ -152,12 +152,22 @@ Existing wire/configuration identifiers remain where compatibility requires.
 
 ## uChat on CX-Mesh
 
-AGPC installs `uchat 3.2.0-1` and `uchatd 0.3.0-1`. Machine chat is open by
+AGPC installs `uchat 3.2.0-2` and `uchatd 0.4.0-1`. Machine chat is open by
 default: open `uchat`, type `@medge-home`, and chat. No chat login, mesh join,
 pair keys or permission setup is required. Each computer keeps its own
 `@machine-name` and inbox. `uchatd` owns
 logical names, independent Inboxes, subscriptions, recovery and replies.
-Redis remains private to the daemon. Mote Transport owns D/MSG delivery.
+SQLite owns durable messages, queued work, approvals and recovery records.
+Redis remains a private RAM-only cache with no AOF, snapshots or swap.
+Mote Transport owns D/MSG delivery.
+
+Existing Redis-backed installations must complete the
+[uChat migration and component upgrade](https://github.com/motebus/download/releases/download/uchat-v3.2.0-2/UPGRADE.md)
+before running the new AGPC installer. It refuses legacy/incomplete uchatd or
+orphaned Inbox state before downloads/package changes and rechecks under APT's
+lock. No message data is migrated or deleted by `agpc.sh`. Fresh installations
+and already-upgraded daemons are supported. The installed-package acceptance
+gate checks SQLite recovery after losing the Redis cache on both Ubuntu targets.
 
 The installer configures the existing account selected by `--user USER` or
 `SUDO_USER`. Its permanent `@machine-name` is always retained. A root-only
@@ -203,14 +213,14 @@ combined retirement and repeated installation.
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-11`. The v6 contract admits
+`motebus/download` release `agent-computer-v0.2.0-12`. The v6 contract admits
 exactly twenty-eight redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-10, Agent Ultra 0.1.0-1,
+The four entry versions are Agent Sphere 0.2.0-11, Agent Ultra 0.1.0-1,
 AGPC Manager 3.3.0-1 and Agent Apps 0.2.0-3. AGPC Manager requires the paired
 MEdge 3.3.0-1 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
