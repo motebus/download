@@ -8,9 +8,10 @@ def run(*args):
     if result.returncode:raise RuntimeError(str(args)+'\n'+result.stdout+'\n'+result.stderr)
     return result.stdout+result.stderr
 
-def dummy(name):
+def dummy(name, directories=()):
     root=Path('/tmp/deps')/name;(root/'DEBIAN').mkdir(parents=True)
     (root/'DEBIAN/control').write_text(f'Package: {name}\nVersion: 99.0\nArchitecture: all\nMaintainer: Fixture <fixture@example.invalid>\nDescription: Isolated dependency stand-in\n')
+    for directory in directories:(root/directory).mkdir(parents=True,exist_ok=True)
     output='/tmp/'+name+'.deb';run('dpkg-deb','--build','--root-owner-group',str(root),output);return output
 
 def fingerprint(path):
@@ -39,11 +40,18 @@ def main():
     os.environ['DEBIAN_FRONTEND']='noninteractive'
     for name in ['moted','mote-bridge-mcp','mote-mcpd','mote-chatd','mote-transportd','codex','chatgpt','motemcp']:
         run('dpkg','-i',dummy(name))
+    # Minimal containers omit ownership of shared directories present on the
+    # reviewed hosts. Supply real DPKG ownership, without editing its database.
+    run('dpkg','-i',dummy('system-directory-owner',('usr/bin','usr/lib','usr/libexec')))
     run('dpkg','-i','/packages/historical.deb')
     run('dpkg','-i','/packages/old1.deb')
     if scenario=='old6':run('dpkg','-i','/packages/old6.deb')
     run('dpkg','-i','/packages/old-mesh.deb')
     apt=['apt-get','-y','-o','APT::Sandbox::User=root','-o','Dpkg::Options::=--force-confold']
+    if scenario=='old6':
+        # Match the previously reviewed lab sequence through CX Mesh 1.1.
+        run(*apt,'install','/packages/baseline.deb')
+        assert Path('/var/lib/dpkg/info/cx-node.list').read_text()=='/etc/cx-node/cx-node.toml\n'
     run(*apt,'install','/packages/consolidated.deb')
     old=pwd.getpwnam('cx-node');old_gid=grp.getgrnam('cx-node').gr_gid
     assert old.pw_uid>0 and old_gid>0
