@@ -182,7 +182,7 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
             publish_apt.run("gpgv", "--keyring", str(key.resolve()),
                             str(directory / (name + ".asc")), str(directory / name))
         publish_apt.require((site / "uninstall.sh").read_bytes() == (repository / "uninstall.sh").read_bytes(),
-                            "signed root uninstall preflight differs from reviewed source")
+                            "signed root native uninstaller differs from reviewed source")
         publish_apt.require((legacy / "release-manifest.json").read_bytes() == (site / "release-manifest.json").read_bytes(),
                             "archived legacy manifest differs from immutable base")
         expected = next(x["sha256"] for x in base["installers"] if x["name"] == "uninstall.sh")

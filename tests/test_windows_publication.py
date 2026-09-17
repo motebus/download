@@ -20,10 +20,10 @@ class WindowsPublicationTests(unittest.TestCase):
             shutil.copy2(ROOT / name, self.root)
         self.source = self.root / p.WINDOWS_INSTALLER_SOURCE
 
-    def test_both_scripts_match_source_record(self):
+    def test_all_scripts_match_source_record(self):
         record = p.validate_windows_installer(self.root)
         self.assertEqual(record["tag"], "agpc-windows-v0.1.0")
-        self.assertEqual(set(record["assets"]), {"agpc-win.ps1", "agpc.ps1"})
+        self.assertEqual(set(record["assets"]), {"agpc-win.ps1", "agpc.ps1", "agpc-win-uninstall.ps1", "agpc-unistall.ps1"})
 
     def test_missing_symlinked_or_tampered_assets_fail(self):
         for name in p.WINDOWS_INSTALLERS:
