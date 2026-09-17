@@ -1,14 +1,14 @@
 {
   "schema": "reviewed-native-publication/v1",
-  "tag": "agent-computer-v0.2.0-13",
+  "tag": "agent-computer-v0.2.0-14",
   "public_source_commit": "1f12f383a39918b0fcdf5b9de82073f813fc5da8",
-  "title": "AGPC 0.2.0-13 \u2014 CX-Mesh account and path retirement",
-  "notes": "CX-Mesh 2.0.0-1 replaces retired local command/account/path names. Agent Sphere 0.2.0-13 validates the new paths while preserving reviewed historical package ownership checks. Other component pins are unchanged. Signed APT activation and live-host readiness are separate from this immutable package bundle.",
+  "title": "AGPC 0.2.0-14 \u2014 CX-Mesh account and path retirement",
+  "notes": "CX-Mesh 2.0.0-1 replaces retired local command/account/path names. Agent Sphere 0.2.0-14 validates the new paths while preserving reviewed historical package ownership checks. Other component pins are unchanged. Signed APT activation and live-host readiness are separate from this immutable package bundle.",
   "assets": [
     {
-      "name": "agent-sphere_0.2.0-13_all.deb",
-      "sha256": "fefc1d6010a297d1712e66519bf52d2c7a2165e159e6aee6ab7e07cef72dcb95",
-      "source_tag": "candidate-agent-computer-v0.2.0-13"
+      "name": "agent-sphere_0.2.0-14_all.deb",
+      "sha256": "4162fa0807edf23b4e9aa266777b39827aec079979e2d139c3f08c1b6454cfd7",
+      "source_tag": "candidate-agent-computer-v0.2.0-14"
     },
     {
       "name": "agent-ultra_0.1.0-1_all.deb",
@@ -152,43 +152,43 @@
     },
     {
       "name": "UPGRADE.md",
-      "sha256": "5a13f6849c0dab69f40d467bce08eb00c9d60330606d1a1e3f36ca49f874609e",
-      "source_tag": "candidate-agent-computer-v0.2.0-13"
+      "sha256": "6702e62270638fb995f58e148d95b2b20ff923d23d003c38869f3a2fa60c4b15",
+      "source_tag": "candidate-agent-computer-v0.2.0-14"
     },
     {
       "name": "acceptance.json",
-      "sha256": "28da0509b13f234df77fd06f4aa3b2b8140733bee747931fbdf367846d85ad39",
-      "source_tag": "candidate-agent-computer-v0.2.0-13"
+      "sha256": "78367f591016ee685ee8f976f339b9ba8204fc1a8a4e7b03cdd7bc15cdea1ce2",
+      "source_tag": "candidate-agent-computer-v0.2.0-14"
     },
     {
       "name": "agent-computer-apt-overlay.json",
-      "sha256": "c01ee4c5a38515e5e0f8ead1c1c83c2b7fea6d7b7dfc2f3048e1bc3627387f0f",
-      "source_tag": "candidate-agent-computer-v0.2.0-13"
+      "sha256": "fab04da4726fb89d1f58873564e71d8333055141d86daaebb86ed02ec4c2814b",
+      "source_tag": "candidate-agent-computer-v0.2.0-14"
     },
     {
       "name": "agent-sphere-apps.sh",
-      "sha256": "605401620dc9213137826f46eb18185657918ebcedab27f4474f3c543907a032",
-      "source_tag": "candidate-agent-computer-v0.2.0-13"
+      "sha256": "72a36b4f9734cb344ac05f81f98a3c0a03bf21d7a59d4bed12453631ad92921d",
+      "source_tag": "candidate-agent-computer-v0.2.0-14"
     },
     {
       "name": "agent-sphere-apps.source.json",
-      "sha256": "38088093ee14672abdc9ddf7a0c88b8fd5c56dbfc611f8702ad70b482f937b10",
-      "source_tag": "candidate-agent-computer-v0.2.0-13"
+      "sha256": "1f90b405b55714c40b84e77c9b0ef593d5c48d9b1e4c65ffcb0b8e21cd72e075",
+      "source_tag": "candidate-agent-computer-v0.2.0-14"
     },
     {
       "name": "agpc.sh",
-      "sha256": "605401620dc9213137826f46eb18185657918ebcedab27f4474f3c543907a032",
-      "source_tag": "candidate-agent-computer-v0.2.0-13"
+      "sha256": "72a36b4f9734cb344ac05f81f98a3c0a03bf21d7a59d4bed12453631ad92921d",
+      "source_tag": "candidate-agent-computer-v0.2.0-14"
     },
     {
       "name": "agpc.source.json",
-      "sha256": "38088093ee14672abdc9ddf7a0c88b8fd5c56dbfc611f8702ad70b482f937b10",
-      "source_tag": "candidate-agent-computer-v0.2.0-13"
+      "sha256": "1f90b405b55714c40b84e77c9b0ef593d5c48d9b1e4c65ffcb0b8e21cd72e075",
+      "source_tag": "candidate-agent-computer-v0.2.0-14"
     },
     {
       "name": "SHA256SUMS",
-      "sha256": "04add7062dc3eafc7b25808b2eec8bfc61fe251e872e74332d6ed78ac890d260",
-      "source_tag": "candidate-agent-computer-v0.2.0-13"
+      "sha256": "af6d9a1a5fdd03c34ab5cc86fcdbb66ea866a72d4d2202b0448ab846c58916af",
+      "source_tag": "candidate-agent-computer-v0.2.0-14"
     }
   ]
 }

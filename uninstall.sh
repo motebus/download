@@ -48,9 +48,9 @@ from pathlib import Path
 import subprocess
 import sys
 
-POLICY = {'agent-sphere': {'version': '0.2.0-13',
+POLICY = {'agent-sphere': {'version': '0.2.0-14',
                   'architecture': 'all',
-                  'sha256': 'fefc1d6010a297d1712e66519bf52d2c7a2165e159e6aee6ab7e07cef72dcb95',
+                  'sha256': '4162fa0807edf23b4e9aa266777b39827aec079979e2d139c3f08c1b6454cfd7',
                   'hooks': {'prerm': '1bd6bdbedefa3da7e7d776d186f2a6905f65d622e6d79d2d4822cb25aedca79d',
                             'postrm': '1bb6bcd08933a82ea83ece4395fa4e144418bd78395d6e84073918d7d28ea370'},
                   'units': ['agentsphere.target'],
@@ -242,7 +242,7 @@ POLICY = {'agent-sphere': {'version': '0.2.0-13',
                       'postrm': '70cffb5d79933daff701a544c4e992bcea528a684fe879e5004e16620d247343'},
             'units': ['uchatd-redis.service', 'uchatd.service'],
             'retained_payloads': []}}
-RELEASE_TAG = 'agent-computer-v0.2.0-13'
+RELEASE_TAG = 'agent-computer-v0.2.0-14'
 
 def fail(message):
     raise RuntimeError(message)

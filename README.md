@@ -234,14 +234,14 @@ and repeated installation, preserving identity, credentials and numeric UID/GID.
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-13`. The v6 contract admits
+`motebus/download` release `agent-computer-v0.2.0-14`. The v6 contract admits
 exactly twenty-eight redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-13, Agent Ultra 0.1.0-1,
+The four entry versions are Agent Sphere 0.2.0-14, Agent Ultra 0.1.0-1,
 AGPC Manager 3.3.0-1 and Agent Apps 0.2.0-3. AGPC Manager requires the paired
 MEdge 3.3.0-1 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
@@ -282,7 +282,7 @@ versions. Its fixed legacy installer profiles describe that historical release.
 They do not define the new four-package product.
 
 The current root `uninstall.sh` removes the reviewed 28-package
-`agent-computer-v0.2.0-13` native AGPC set. It verifies the signed catalog,
+`agent-computer-v0.2.0-14` native AGPC set. It verifies the signed catalog,
 installed versions, package removal hooks, and the exact APT transaction.
 Configuration, topology files, user data, Vaults, models, Obsidian, OS dependencies
 and APT registration are retained. It does not purge or automatically remove
