@@ -1,0 +1,34 @@
+{
+  "schema": "reviewed-native-publication/v1",
+  "tag": "cx-mesh-v2.0.0-1",
+  "public_source_commit": "1f12f383a39918b0fcdf5b9de82073f813fc5da8",
+  "title": "CX Mesh 2.0.0-1 \u2014 retire cx-node commands, account and paths",
+  "notes": "Verified committed-main package and seven migration acceptance scenarios. Replaces cx-node local commands, service account and paths with cx-mesh, preserving numeric UID/GID, owner configuration, identity, credentials and state. No compatibility command aliases. Protected publication also verifies historical DPKG residual upgrades with the production AGPC guard. Signed AGPC activation and live-host readiness are separate.",
+  "assets": [
+    {
+      "name": "README.md",
+      "sha256": "2fcdc5aaed3b62f3f92329f08baa8dc57e9ebb42448f57f05817d83923d4704d",
+      "source_tag": "candidate-cx-mesh-v2.0.0-1"
+    },
+    {
+      "name": "SHA256SUMS",
+      "sha256": "9472296ea3856d4bc5da3453db54bf7859aabec2e486cfb2dedb382aba402b4c",
+      "source_tag": "candidate-cx-mesh-v2.0.0-1"
+    },
+    {
+      "name": "acceptance.json",
+      "sha256": "ba467e0b16b832a71a4a6ecab5a058c9057ed09519b8a67403da85b9d573cc3c",
+      "source_tag": "candidate-cx-mesh-v2.0.0-1"
+    },
+    {
+      "name": "cx-mesh_2.0.0-1_amd64.deb",
+      "sha256": "7e7e9e36f79c3a406bfb987bc18b2055ec8306cd5c3508fd88614f1d0ae2e89e",
+      "source_tag": "candidate-cx-mesh-v2.0.0-1"
+    },
+    {
+      "name": "release-manifest.json",
+      "sha256": "0e2366605a9630754ce0cd96d44932b1dffb1d8a028ec7e5ca3d3dbc31080532",
+      "source_tag": "candidate-cx-mesh-v2.0.0-1"
+    }
+  ]
+}
