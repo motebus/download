@@ -302,6 +302,13 @@ MOTE_TRANSPORT_PACKAGES = (
     ("mote-proxy", "1.3.0-35", "all"),
 )
 ALLOWED_ROOT_FILES = {
+    ".gitattributes",
+    "agpc-win-uninstall.ps1",
+    "agpc-unistall.ps1",
+    "agpc-win.ps1",
+    "agpc.ps1",
+    "agpc.windows.source.json",
+    "AGPC-WINDOWS.md",
     "agent-computer-apt-overlay.json",
     "agpc.sh",
     "agpc.source.json",
@@ -368,7 +375,10 @@ AGENT_APPS_INSTALLER = "agpc.sh"
 AGENT_APPS_INSTALLER_SOURCE = "agpc.source.json"
 AGENT_APPS_INSTALLER_SCHEMA = "agpc-installer-source/v1"
 AGENT_INSTALLER_ALIASES = ("agent-sphere-apps.sh", "agent-sphere-apps.source.json")
-AGENT_INSTALLER_FILES = (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE, *AGENT_INSTALLER_ALIASES)
+WINDOWS_INSTALLERS = ("agpc-win.ps1", "agpc.ps1", "agpc-win-uninstall.ps1", "agpc-unistall.ps1")
+WINDOWS_INSTALLER_SOURCE = "agpc.windows.source.json"
+AGENT_INSTALLER_FILES = (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE,
+                         *AGENT_INSTALLER_ALIASES, *WINDOWS_INSTALLERS, WINDOWS_INSTALLER_SOURCE)
 
 
 class PublishError(RuntimeError):
@@ -426,6 +436,35 @@ def package_field(asset: Path, field: str) -> str:
     return run("dpkg-deb", "-f", str(asset), field, capture=True)
 
 
+def validate_windows_installer(root: Path) -> dict:
+    """Bind both Windows entry points to the same reviewed public source snapshot."""
+    for name in (*WINDOWS_INSTALLERS, WINDOWS_INSTALLER_SOURCE):
+        path = root / name
+        require(path.is_file() and not path.is_symlink(),
+                f"missing regular Windows installer file: {name}")
+    record = json.loads((root / WINDOWS_INSTALLER_SOURCE).read_text(encoding="utf-8"))
+    require(isinstance(record, dict) and set(record) == {
+        "schema", "repository", "tag", "source_commit", "assets"},
+        "Windows installer source fields are invalid")
+    require(record["schema"] == "agpc-windows-installer-source/v1",
+            "Windows installer source schema is invalid")
+    require(record["repository"] == "motebus/download",
+            "Windows installer source repository is not allowed")
+    require(isinstance(record["tag"], str)
+            and re.fullmatch(r"agpc-windows-v[0-9]+\.[0-9]+\.[0-9]+", record["tag"]),
+            "Windows installer source must name an exact release")
+    require(isinstance(record["source_commit"], str)
+            and re.fullmatch(r"[0-9a-f]{40}", record["source_commit"]),
+            "Windows installer source commit is invalid")
+    require(isinstance(record["assets"], dict) and set(record["assets"]) == set(WINDOWS_INSTALLERS),
+            "Windows installer asset names are invalid")
+    for name, digest in record["assets"].items():
+        require(isinstance(digest, str) and HEX64_RE.fullmatch(digest),
+                "Windows installer source checksum is invalid")
+        require(sha256(root / name) == digest, f"Windows installer digest mismatch: {name}")
+    return record
+
+
 def validate_agent_apps_installer(root: Path) -> dict:
     """Admit only the reviewed script bytes bound to their public source release."""
     source = root / AGENT_APPS_INSTALLER_SOURCE
@@ -460,6 +499,7 @@ def validate_agent_apps_installer(root: Path) -> dict:
         require(path.read_bytes() == canonical.read_bytes(), f"installer alias differs from canonical bytes: {alias}")
         if alias.endswith(".sh"):
             require(path.stat().st_mode & 0o111 != 0, "installer alias must be executable")
+    validate_windows_installer(root)
     return record
 
 
@@ -1578,37 +1618,18 @@ def validate_tree(root: Path) -> None:
 
     uninstall_text = (root / "uninstall.sh").read_text(encoding="utf-8")
     for required_text in (
-        "medge-public-release/v19",
-        fingerprint,
-        "release-manifest.json.asc",
-        "gpgv --keyring",
-        "apt-get --simulate purge",
-        'apt-get purge -y "${PURGE_ARGS[@]}"',
-        "purge plan would remove packages outside Sphere",
-        "/etc/ssh/ssh_config.d/50-mote-proxy.conf",
-        "package-owned SSH proxy profile",
-        "refusing removal",
-        "remove_managed_ssh_proxy_profile",
+        fingerprint, "agent-computer-apt-overlay.json.asc", "gpgv --keyring",
+        "PY_UNINSTALL_PREFLIGHT", "DPkg::Pre-Install-Pkgs::=",
+        "APT::Get::AutomaticRemove=false", "APT::Get::Purge=false",
+        "--no-download", "--no-rename", "retained_payloads",
+        "AGPC package removal verified",
     ):
-        require(
-            required_text in uninstall_text,
-            f"uninstall.sh is missing required contract: {required_text}",
-        )
-    for forbidden_text in (
-        "apt-get autoremove",
-        "apt-get remove",
-        "rm -rf",
-        "/home/",
-        "~/.ssh",
-        "MCHAT_",
-        "medge-home.mote",
-        "gitlab.",
-        'elif [[ -n "$SCRIPT_SOURCE" ]]',
-    ):
-        require(
-            forbidden_text not in uninstall_text,
-            f"uninstall.sh contains forbidden content: {forbidden_text}",
-        )
+        require(required_text in uninstall_text,
+                f"uninstall.sh is missing required contract: {required_text}")
+    for forbidden_text in ("apt-get autoremove", "apt-get purge", "rm -rf",
+                           "~/.ssh", "MCHAT_", "gitlab."):
+        require(forbidden_text not in uninstall_text,
+                f"uninstall.sh contains forbidden content: {forbidden_text}")
 
     compatibility = root / "scripts/validate-ubuntu-compatibility.sh"
     require(compatibility.is_file(), "public repository is missing Ubuntu compatibility validation")
@@ -1784,10 +1805,10 @@ authorize execution or system management.</p>
 <a href="agent-computer-apt-overlay.json">Exact package pins</a> ·
 <a href="agent-computer-apt-overlay.json.asc">Package pins signature</a></p>
 <p>Archive signing fingerprint: <code>{fingerprint}</code>.</p>
-<p>The current <code>uninstall.sh</code> refuses unsupported Agent Computer cleanup
-before mutation. The <a href="legacy/medge-v{current_manifest['medge_version']}/release-manifest.json">historical release manifest</a>
+<p>The current <a href="uninstall.sh">uninstall.sh</a> removes the reviewed AGPC packages
+while retaining owner configuration, topology files and data. Use <code>--plan</code> to inspect first. The <a href="legacy/medge-v{current_manifest['medge_version']}/release-manifest.json">historical release manifest</a>
 and original installer assets are retained as immutable evidence; the legacy
-uninstaller is not suitable for this Agent Computer.</p>
+uninstaller is not suitable for this Agent Computer. Current removal keeps Ubuntu, Obsidian and OS dependencies.</p>
 </html>
 """
     index = index.replace("</html>", """<p>Previous installer URL:
@@ -1797,21 +1818,42 @@ uninstaller is not suitable for this Agent Computer.</p>
 (<a href="agent-sphere-apps.source.json.asc">source signature</a>)
 remain byte-identical aliases of the canonical AGPC installer and source record.</p>
 </html>""")
+    index = index.replace("</html>", """<h2>Windows (preview)</h2>
+<p>New Windows PC: <a href="agpc-win.ps1">agpc-win.ps1</a>
+(<a href="agpc-win.ps1.asc">signature</a>) installs WSL 2, Ubuntu and AGPC,
+creates jujue and configures Ubuntu startup after Windows boot.</p>
+<pre>curl.exe -fL https://motebus.github.io/download/agpc-win.ps1 -o "$env:TEMP\\agpc-win.ps1"
+&amp; "$env:TEMP\\agpc-win.ps1"</pre>
+<p>Update AGPC in an existing prepared Ubuntu:
+<a href="agpc.ps1">agpc.ps1</a> (<a href="agpc.ps1.asc">signature</a>).</p>
+<pre>curl.exe -fL https://motebus.github.io/download/agpc.ps1 -o "$env:TEMP\\agpc.ps1"
+&amp; "$env:TEMP\\agpc.ps1"</pre>
+<p>Remove a selected Ubuntu and its AGPC startup tasks:
+<a href="agpc-win-uninstall.ps1">agpc-win-uninstall.ps1</a>
+(<a href="agpc-win-uninstall.ps1.asc">signature</a>).
+Remove AGPC packages while retaining Ubuntu:
+<a href="agpc-unistall.ps1">agpc-unistall.ps1</a>
+(<a href="agpc-unistall.ps1.asc">signature</a>).</p>
+<p><a href="agpc.windows.source.json">Windows source snapshot and SHA-256</a>
+(<a href="agpc.windows.source.json.asc">signature</a>).
+Read the <a href="https://github.com/motebus/download/blob/main/AGPC-WINDOWS.md">Windows instructions</a>.
+Clean-PC installation, restart/resume and actual before-login boot remain unverified.</p>
+</html>""")
     (site / "index.html").write_text(index, encoding="utf-8")
 
 
 def stage_full_overlay_uninstaller(site: Path, repository_root: Path, current: dict, bundle: Path) -> None:
     source = repository_root / "uninstall.sh"
     require(source.is_file() and not source.is_symlink()
-            and "PY_UNINSTALL_PREFLIGHT" in source.read_text(), "v5 requires the reviewed uninstall preflight blocker")
-    require(source.stat().st_mode & 0o111 != 0, "v5 uninstall preflight must be executable")
+            and "PY_UNINSTALL_PREFLIGHT" in source.read_text(), "full overlay requires the reviewed native uninstaller")
+    require(source.stat().st_mode & 0o111 != 0, "native uninstaller must be executable")
     run("bash", "-n", str(source))
     legacy = site / "legacy" / ("medge-v" + current["medge_version"])
     legacy.mkdir(parents=True)
     for name in ("uninstall.sh", "release-manifest.json", "SHA256SUMS"):
         shutil.copy2(bundle / name, legacy / name)
     require(sha256(source) != sha256(legacy / "uninstall.sh"),
-            "v5 root blocker must differ from the immutable legacy uninstaller")
+            "current uninstaller must differ from the immutable legacy uninstaller")
     shutil.copy2(source, site / "uninstall.sh")
 
 
@@ -1821,6 +1863,10 @@ def sign_release(site: Path, repository_root: Path) -> None:
             and (site / AGENT_APPS_INSTALLER_SOURCE).read_bytes()
             == (repository_root / AGENT_APPS_INSTALLER_SOURCE).read_bytes(),
             "staged Agent Apps installer source differs from the reviewed record")
+    require(validate_windows_installer(site) == validate_windows_installer(repository_root)
+            and (site / WINDOWS_INSTALLER_SOURCE).read_bytes()
+            == (repository_root / WINDOWS_INSTALLER_SOURCE).read_bytes(),
+            "staged Windows installer source differs from the reviewed record")
     passphrase = os.environ.get("MEDGE_APT_SIGNING_PASSPHRASE")
     require(passphrase is not None and passphrase != "", "signing passphrase is unavailable")
     fingerprint = archive_fingerprint(repository_root)
@@ -1864,7 +1910,7 @@ def sign_release(site: Path, repository_root: Path) -> None:
         if is_full_overlay(config):
             require(config == load_agent_computer_overlay(repository_root), "staged full overlay differs from reviewed pins")
             require((site / "uninstall.sh").read_bytes() == (repository_root / "uninstall.sh").read_bytes(),
-                    "staged v5 uninstall preflight differs from reviewed source")
+                    "staged native uninstaller differs from reviewed source")
             run(*common, "--armor", "--detach-sign", "--output", str(site / "uninstall.sh.asc"),
                 str(site / "uninstall.sh"), input_text=passphrase + "\n")
             current = json.loads(manifest.read_text())

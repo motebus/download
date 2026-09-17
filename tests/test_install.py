@@ -171,39 +171,18 @@ class InstallContractTest(unittest.TestCase):
         ):
             self.assertNotIn(excluded, webdesk)
 
-    def test_uninstaller_is_signed_bounded_and_preserves_non_sphere_state(self) -> None:
+    def test_uninstaller_is_signed_bounded_and_preserves_owner_state(self) -> None:
         text = (ROOT / "uninstall.sh").read_text(encoding="utf-8")
-        for package_name in EXPECTED_ALL:
-            self.assertIn(f'    "{package_name}",', text)
         for required in (
-            "medge-public-release/v19",
             "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
-            "release-manifest.json.asc",
-            "gpgv --keyring",
-            "apt-get --simulate purge",
-            'apt-get purge -y "${PURGE_ARGS[@]}"',
-            "purge plan would remove packages outside Sphere",
-            "/etc/ssh/ssh_config.d/50-mote-proxy.conf",
-            "package-owned SSH proxy profile",
-            "refusing removal",
-            "remove_managed_ssh_proxy_profile",
-            "this uninstaller accepts no arguments",
-            "Sphere approved packages, SSH proxy profile, and installer-managed APT registration were removed",
-            "User data, SSH identities, unrelated packages, and non-Sphere services were preserved",
+            "agent-computer-apt-overlay.json.asc", "gpgv --keyring",
+            "DPkg::Pre-Install-Pkgs::=", "APT::Get::AutomaticRemove=false",
+            "APT::Get::Purge=false", "--no-rename", "--plan",
+            "AGPC package removal verified", "retained_payloads",
         ):
             self.assertIn(required, text)
-        self.assertIn('readonly MANIFEST_PATH="$TEMP_DIR/verified/release-manifest.json"', text)
-        self.assertNotIn('elif [[ -n "$SCRIPT_SOURCE" ]]', text)
-        for forbidden in (
-            "apt-get autoremove",
-            "apt-get remove",
-            "rm -rf",
-            "/home/",
-            "~/.ssh",
-            "MCHAT_",
-            "medge-home.mote",
-            "Supporting Center",
-        ):
+        for forbidden in ("apt-get autoremove", "apt-get purge", "rm -rf",
+                          "~/.ssh", "MCHAT_", "medge-home.mote"):
             self.assertNotIn(forbidden, text)
 
     def test_installers_accept_stdin_without_bash_source(self) -> None:
@@ -242,7 +221,7 @@ class InstallContractTest(unittest.TestCase):
     def test_supported_ubuntu_targets_are_exact(self) -> None:
         for filename in RELEASE_SCRIPTS:
             text = (ROOT / filename).read_text(encoding="utf-8")
-            self.assertIn("ubuntu:24.04|ubuntu:26.04)", text)
+            self.assertRegex(text, r"ubuntu:24\.04(?::amd64)?\|ubuntu:26\.04(?::amd64)?\)")
             self.assertNotIn("ubuntu:22.04", text)
         compatibility = COMPATIBILITY.read_text(encoding="utf-8")
         self.assertIn("run_target 24.04", compatibility)
