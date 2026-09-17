@@ -4,6 +4,7 @@ import hashlib,subprocess,sys,tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 INPUTS={
+ 'baseline.deb':('agent-computer-v0.2.0-4','cx-mesh_1.1.0-1_amd64.deb','5c8de2c9ff7fe2143514be6069c8a7c10fe83da8cab8bee30731c360324c8746'),
  'historical.deb':('deb-v2026.08.25-2','cx-node_0.3.1-4_amd64.deb','06a2507ea7e66d0efc41241e38f94ecf91f930b4bdb48ae34c3f7f3bb82ef020'),
  'old1.deb':('medge-v5.7.0-5','cx-node_0.3.3-1_amd64.deb','23be77845703665634e82760bf6add620eeb12014b982d91e503caa8e5947d88'),
  'old6.deb':('medge-v5.10.0-1','cx-node_0.3.3-6_amd64.deb','6aba1df2ebd5e5f844ee7f1ad4383580e26a1f0403cbb50d458ee9c5e6e01397'),
