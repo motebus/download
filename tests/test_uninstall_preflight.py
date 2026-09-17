@@ -1,115 +1,183 @@
-"""Verify the current root refusal and retain historical read-only guard tests."""
-from pathlib import Path
+"""Exercise native removal admission and exact APT actions without touching host packages."""
 import ast
+import copy
+import hashlib
+import json
 import os
+from pathlib import Path
+import re
 import subprocess
-import sys
 import tempfile
 import unittest
+from unittest import mock
+from types import SimpleNamespace
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).parents[1]
 TEXT = (ROOT / 'uninstall.sh').read_text()
 CODE = TEXT.split("<<'PY_UNINSTALL_PREFLIGHT'\n", 1)[1].split('\nPY_UNINSTALL_PREFLIGHT\n', 1)[0]
 
+def engine():
+    namespace = {'__name__': 'uninstall_fixture'}
+    exec(compile(CODE, 'uninstall-engine', 'exec'), namespace)
+    return namespace
 
 class UninstallPreflightTest(unittest.TestCase):
-    def test_current_root_refuses_before_any_external_command(self):
-        # Covers even a partial new host containing only shared package names
-        # such as medge/mlink/moted, which name-based detection cannot identify.
-        with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)
-            calls=root/'calls'
-            for name in ('id','dpkg','dpkg-query','apt-get','curl','systemctl','mktemp','python3','install','rm'):
-                command=root/name
-                command.write_text('#!/bin/sh\nprintf called >> "$REFUSAL_CALLS"\nexit 97\n')
-                command.chmod(0o755)
-            result=subprocess.run(['/bin/bash',str(ROOT/'uninstall.sh')],
-                                  env={'PATH':directory,'REFUSAL_CALLS':str(calls)},
-                                  capture_output=True,text=True)
-            self.assertNotEqual(result.returncode,0)
-            self.assertIn('current Agent Computer removal is unavailable',result.stderr)
-            self.assertIn('no packages, services, configuration or vaults were changed',result.stderr)
-            self.assertFalse(calls.exists(),'root blocker reached an external command')
+    def setUp(self):
+        self.module = engine()
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.policy = {'fixture': {'version': '1.0-1', 'architecture': 'all', 'sha256': 'a' * 64,
+                                  'hooks': {'prerm': None, 'postrm': None}, 'units': [], 'retained_payloads': []}}
+        self.records = {'fixture': 'installed|1.0-1|all'}
+        self.conffiles = {}
+        self.listing = ''
+        self.module['query'] = lambda name, field: self.conffiles.get(name, '') if field == '$' + '{Conffiles}' else self.records.get(name, '')
+        self.module['run'] = lambda args, **kwargs: SimpleNamespace(stdout=self.listing)
+        self.packages = {'fixture': {'version': '1.0-1', 'architecture': 'all'}}
 
-    def run_preflight(self, states=None, conffiles=None, broken=False):
-        # An isolated child runs the exact embedded code; its subprocess entry
-        # point is replaced before evaluation. No real dpkg or host files run.
-        prefix = '''
-import subprocess,types
-states=STATES
-conffiles=CONFFILES
-broken=BROKEN
-calls=[]
-def query_fixture(args, **kwargs):
-    assert args[:2] == ['dpkg-query','-W'], 'unexpected process action'
-    assert len(args) == 4, 'unexpected query arguments'
-    calls.append(args)
-    package=args[-1]
-    if broken:
-        return types.SimpleNamespace(returncode=2,stdout='',stderr='fixture DPKG error')
-    if args[2] == '-f=${db:Status-Status}':
-        value=states.get(package)
-    elif args[2] == '-f=${Conffiles}':
-        value=conffiles.get(package)
-    else:
-        raise AssertionError('unexpected DPKG field')
-    return types.SimpleNamespace(returncode=1 if value is None else 0,stdout=value or '',stderr='')
-subprocess.run=query_fixture
-'''.replace('STATES',repr(states or {})).replace('CONFFILES',repr(conffiles or {})).replace('BROKEN',repr(broken))
-        return subprocess.run([sys.executable,'-'],input=prefix+CODE+'\nprint("preflight passed")\n',
-                              text=True,capture_output=True,check=False)
+    def inspect(self):
+        return self.module['inspect'](self.policy, self.root)
 
-    def test_legacy_or_empty_host_remains_supported(self):
-        result=self.run_preflight(conffiles={'mote-chatd':' /etc/mote/mote-chatd/mote-chatd-deb.env '+('a'*32)+'\n'})
-        self.assertEqual(result.returncode,0,result.stderr)
-        self.assertIn('preflight passed',result.stdout)
+    def test_policy_matches_reviewed_catalog_and_known_hooks(self):
+        current = json.loads((ROOT / 'agent-computer-apt-overlay.json').read_text())
+        self.module['validate_catalog'](current)
+        for package in self.module['POLICY'].values():
+            for digest in package['hooks'].values():
+                self.assertTrue(digest is None or re.fullmatch('[0-9a-f]{64}', digest))
+            self.assertTrue(all(re.fullmatch('[a-zA-Z0-9_.-]+[.](service|target|socket|timer)', u) for u in package['units']))
 
-    def test_each_current_composition_identity_blocks(self):
-        for package in ('agent-sphere','agent-apps','mote-transportd','mote-mcpd','agos','mote-vault-sync','mote-vault-syncd','model-router','model-grid','model-llm','cx-agent'):
-            for state in ('installed','config-files','unpacked','half-configured','half-installed','triggers-pending'):
-                with self.subTest(package=package,state=state):
-                    result=self.run_preflight(states={package:state})
-                    self.assertNotEqual(result.returncode,0)
-                    self.assertIn(package,result.stderr)
-                    self.assertIn('no packages, services, configuration or vaults were changed',result.stderr)
-                    self.assertNotIn('preflight passed',result.stdout)
+    def test_installed_packages_are_selected_and_conffiles_preserved(self):
+        conf = self.root / 'owner.conf'
+        conf.write_text('owner content')
+        self.conffiles['fixture'] = str(conf) + ' ' + 'b' * 32
+        result = self.inspect()
+        self.assertEqual(result['packages'], self.packages)
+        self.assertEqual(result['retained'][str(conf)]['sha256'], hashlib.sha256(conf.read_bytes()).hexdigest())
 
-    def test_not_installed_records_are_not_a_false_block(self):
-        result=self.run_preflight(states={'agent-sphere':'not-installed','agent-apps':''})
-        self.assertEqual(result.returncode,0,result.stderr)
+    def test_residual_configuration_is_not_purged(self):
+        for value in ('', 'not-installed||', 'config-files|0.1|amd64'):
+            self.records['fixture'] = value
+            self.assertEqual(self.inspect()['packages'], {})
 
-    def test_active_and_obsolete_legacy_topology_ownership_block(self):
-        path='/etc/mote/mote-chatd/mote-chatd-mchat.env'
-        for package in ('mote-chatd','mote-transportd','schatd','chatd'):
-            for suffix in ('',' obsolete'):
-                with self.subTest(package=package,suffix=suffix):
-                    result=self.run_preflight(conffiles={package:' '+path+' '+('a'*32)+suffix+'\n'})
-                    self.assertNotEqual(result.returncode,0)
-                    self.assertIn('protected legacy configuration ownership',result.stderr)
-                    self.assertIn('owner migration is required',result.stderr)
+    def test_partial_or_unreviewed_packages_are_rejected(self):
+        for value in ('half-configured|1.0-1|all', 'installed|0.1|all', 'installed|1.0-1|arm64'):
+            self.records['fixture'] = value
+            with self.assertRaises(RuntimeError):
+                self.inspect()
 
-    def test_dpkg_inspection_error_stops_preflight(self):
-        result=self.run_preflight(broken=True)
-        self.assertNotEqual(result.returncode,0)
-        self.assertIn('could not inspect DPKG',result.stderr)
+    def test_changed_or_new_removal_hooks_are_rejected(self):
+        hook = self.root / 'fixture.prerm'
+        hook.write_text('unexpected')
+        with self.assertRaisesRegex(RuntimeError, 'Unexpected removal hook'):
+            self.inspect()
+        self.policy['fixture']['hooks']['prerm'] = hashlib.sha256(b'approved').hexdigest()
+        with self.assertRaisesRegex(RuntimeError, 'differs from reviewed'):
+            self.inspect()
+        hook.write_bytes(b'approved')
+        self.assertEqual(self.inspect()['packages'], self.packages)
 
-    def test_no_identity_contents_or_mutating_commands_are_accessed(self):
-        parsed=ast.parse(CODE)
-        calls=[n for n in ast.walk(parsed) if isinstance(n,ast.Call)]
-        for call in calls:
-            self.assertFalse(isinstance(call.func,ast.Name) and call.func.id in {'open','exec','eval'})
-        self.assertNotIn('apt-get',CODE)
-        self.assertNotIn('systemctl',CODE)
-        self.assertNotIn('os.remove',CODE)
-        self.assertNotIn('read_text',CODE)
+    def test_locked_payload_and_legacy_transport_ownership_are_rejected(self):
+        self.listing = '/etc/mote/example/example-mchat.env\n'
+        with self.assertRaisesRegex(RuntimeError, 'Locked topology'):
+            self.inspect()
+        self.listing = ''
+        self.policy = {'mote-transportd': self.policy['fixture']}
+        self.records = {'mote-transportd': 'installed|1.0-1|all'}
+        self.conffiles = {'mote-transportd': '/etc/mote/mote-chatd/mote-chatd-mchat.env ' + 'c' * 32 + ' obsolete'}
+        with self.assertRaisesRegex(RuntimeError, 'owner migration'):
+            self.inspect()
 
-    def test_preflight_precedes_all_uninstaller_mutation_and_network(self):
-        end=TEXT.index('\nPY_UNINSTALL_PREFLIGHT\n')
-        for later in ('TEMP_DIR="$(mktemp', 'install -d -m 0700', "curl --proto", 'apt-get --simulate purge', 'apt-get purge -y'):
-            self.assertLess(end,TEXT.index(later))
-        self.assertIn('medge-public-release/v19',TEXT[end:])
-        self.assertIn('"${#APPROVED_PACKAGES[@]}" -eq 18',TEXT[end:])
+    def test_simulation_requires_exact_removals(self):
+        validate = self.module['validate_plan']
+        validate('Remv fixture [1.0-1]\n', self.packages)
+        for plan in ('', 'Remv other [1.0-1]\n', 'Remv fixture [0.1]\n',
+                     'Purg fixture [1.0-1]\n', 'Inst other (1)\n',
+                     'Remv fixture [1.0-1]\nConf other (1)\n',
+                     'Remv fixture [1.0-1]\nRemv fixture [1.0-1]\n'):
+            with self.subTest(plan=plan), self.assertRaises(RuntimeError):
+                validate(plan, self.packages)
 
+    def test_actual_apt_protocol_cannot_expand_or_change_the_plan(self):
+        validate = self.module['validate_protocol']
+        prefix = 'VERSION 3\nAPT::Architecture=amd64\n\n'
+        valid = 'fixture 1.0-1 all none > - - none **REMOVE**\n'
+        validate(prefix + valid, self.packages)
+        for payload in ('', 'VERSION 2\n\n' + valid, prefix,
+                        prefix + valid + valid, prefix + valid.replace('fixture', 'other'),
+                        prefix + valid.replace('1.0-1', '0.1'),
+                        prefix + valid.replace('**REMOVE**', '**CONFIGURE**'),
+                        prefix + valid.replace('all', 'amd64')):
+            with self.subTest(payload=payload), self.assertRaises(RuntimeError):
+                validate(payload, self.packages)
 
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    def test_no_purge_or_unbounded_cleanup_command(self):
+        ast.parse(CODE)
+        self.assertNotIn('apt-get purge', TEXT)
+        self.assertNotIn('apt-get autoremove', TEXT)
+        self.assertNotIn('rm -rf', TEXT)
+        self.assertIn('DPkg::Pre-Install-Pkgs::=', CODE)
+        self.assertIn('APT::Get::Purge=false', CODE)
+
+class NativeRemovalTransactionTest(unittest.TestCase):
+    def test_real_apt_removal_uses_protocol_guard_and_retains_configuration(self):
+        # All apt/dpkg state, logs, and files live under this disposable fixture.
+        # Host apt configuration and maintainer scripts are never consumed.
+        with tempfile.TemporaryDirectory(prefix='agpc-removal-test-') as folder:
+            base = Path(folder)
+            target = base / 'target'
+            info = target / 'var/lib/dpkg'
+            info.mkdir(parents=True)
+            (info / 'status').write_text('')
+            package = base / 'package'
+            (package / 'DEBIAN').mkdir(parents=True)
+            (package / 'etc').mkdir()
+            (package / 'etc/agpc-removal-fixture.conf').write_text('retain owner settings\n')
+            (package / 'etc/agpc-removal-fixture-mchat.env').write_text('retained topology fixture\n')
+            (package / 'DEBIAN/conffiles').write_text('/etc/agpc-removal-fixture.conf\n')
+            (package / 'DEBIAN/control').write_text('Package: agpc-removal-fixture\nVersion: 1.0-1\nArchitecture: all\nMaintainer: Fixture <fixture@example.invalid>\nDescription: isolated removal test\n')
+            deb = base / 'fixture.deb'
+            subprocess.run(['dpkg-deb', '--build', str(package), str(deb)], check=True, capture_output=True)
+            subprocess.run(['dpkg', '--root=' + str(target), '--log=' + str(base / 'dpkg.log'),
+                            '--force-not-root', '-i', str(deb)], check=True, capture_output=True)
+            policy = {'agpc-removal-fixture': {'version': '1.0-1', 'architecture': 'all',
+                      'sha256': hashlib.sha256(deb.read_bytes()).hexdigest(),
+                      'hooks': {'prerm': None, 'postrm': None}, 'units': [], 'retained_payloads': ['/etc/agpc-removal-fixture-mchat.env']}}
+            code = CODE[:CODE.index('POLICY = ')] + 'POLICY = ' + repr(policy) + '\n' + CODE[CODE.index('RELEASE_TAG = '):]
+            code = code.replace("Path('/var/lib/dpkg/info')", 'Path(' + repr(str(info / 'info')) + ')')
+            code = code.replace("Path('/var/lib/dpkg')", 'Path(' + repr(str(info)) + ')')
+            code = code.replace("['dpkg-query', '-W'", "['dpkg-query', '--admindir=" + str(info) + "', '-W'")
+            code = code.replace("['dpkg-query', '-L'", "['dpkg-query', '--admindir=" + str(info) + "', '-L'")
+            code = code.replace('def retained_file(path):\n    path = Path(path)',
+                                'def retained_file(path):\n    path = Path(' + repr(str(target)) + ') / str(path).lstrip("/")')
+            stage = base / 'stage'
+            stage.mkdir()
+            (stage / 'engine.py').write_text(code)
+            release = {'schema': 'agent-computer-apt-overlay/v6', 'release': {
+                'repository': 'motebus/download', 'tag': engine()['RELEASE_TAG'],
+                'packages': [dict(name=name, **{k:v for k,v in row.items() if k in ('version','architecture','sha256')}) for name,row in policy.items()]}}
+            (stage / 'agent-computer-apt-overlay.json').write_text(json.dumps(release))
+            apt = base / 'apt'
+            for sub in ('etc', 'state/lists/partial', 'cache/archives/partial', 'log'):
+                (apt / sub).mkdir(parents=True)
+            config = base / 'apt.conf'
+            config.write_text(
+                'Dir::Etc "' + str(apt / 'etc') + '";\n'
+                'Dir::State "' + str(apt / 'state') + '";\n'
+                'Dir::State::status "' + str(info / 'status') + '";\n'
+                'Dir::Cache "' + str(apt / 'cache') + '";\n'
+                'Dir::Log "' + str(apt / 'log') + '";\n'
+                'DPkg::Options { "--root=' + str(target) + '"; "--log=' + str(base / 'dpkg.log') + '"; "--force-not-root"; };\n')
+            result = subprocess.run(['python3', str(stage / 'engine.py'), '--yes', str(stage)],
+                                    env=dict(os.environ, APT_CONFIG=str(config), LC_ALL='C'),
+                                    text=True, capture_output=True, timeout=40)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue((stage / 'guard-ran').exists())
+            self.assertEqual((target / 'etc/agpc-removal-fixture.conf').read_text(), 'retain owner settings\n')
+            state = subprocess.run(['dpkg-query', '--admindir=' + str(info), '-W', '-f=' + '$' + '{db:Status-Status}', 'agpc-removal-fixture'],
+                                   text=True, capture_output=True, check=True).stdout
+            self.assertEqual(state, 'config-files')
+            self.assertEqual((target / 'etc/agpc-removal-fixture-mchat.env').read_text(), 'retained topology fixture\n')
+            diverted = subprocess.run(['dpkg-divert', '--admindir=' + str(info), '--truename', '/etc/agpc-removal-fixture-mchat.env'],
+                                      check=True, capture_output=True, text=True).stdout.strip()
+            self.assertEqual(diverted, '/etc/agpc-removal-fixture-mchat.env')

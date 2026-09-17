@@ -278,14 +278,24 @@ The existing v19 base remains available byte-for-byte alongside the new APT
 versions. Its fixed legacy installer profiles describe that historical release.
 They do not define the new four-package product.
 
-For the active v5 composition, the root `uninstall.sh` refuses automatic removal
-before inspecting or changing services, packages or data. This also protects
-partial installations containing only shared runtime package names.
-Full removal awaits a safe migration of protected configuration ownership.
-Removing the entry packages alone is not full runtime removal. The immutable
-legacy uninstaller, manifest and checksum file are archived under
-`legacy/medge-v5.10.0-1/`; that script is unsuitable for current Agent Computer
-cleanup. Personal Vaults and locked transport identities must be preserved.
+The current root `uninstall.sh` removes the reviewed 28-package
+`agent-computer-v0.2.0-12` native AGPC set. It verifies the signed catalog,
+installed versions, package removal hooks, and the exact APT transaction.
+Configuration, topology files, user data, Vaults, models, Obsidian, OS dependencies
+and APT registration are retained. It does not purge or automatically remove
+dependencies. Retained legacy transport topology ownership and unreviewed
+versions need owner migration before removal. The immutable historical
+uninstaller remains under `legacy/medge-v5.10.0-1/` and must not be used
+for current AGPC cleanup.
+
+```bash
+curl -fL https://motebus.github.io/download/uninstall.sh -o uninstall.sh
+sudo bash uninstall.sh
+```
+
+Use `sudo bash uninstall.sh --plan` to preview, or `--yes` for explicitly
+approved unattended package removal. Windows distribution removal and the
+Ubuntu-preserving PowerShell entry are documented in [Windows instructions](AGPC-WINDOWS.md).
 
 The following sections record historical transport releases and their original
 contracts.

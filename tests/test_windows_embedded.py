@@ -10,7 +10,7 @@ import unittest
 ROOT = Path(__file__).parents[1]
 
 def scripts():
-    for name in ('agpc-win.ps1', 'agpc.ps1'):
+    for name in ('agpc-win.ps1', 'agpc.ps1', 'agpc-unistall.ps1'):
         text = (ROOT / name).read_text()
         for label, shell in re.findall(r"\$script:(\w+Linux) = @'\n(.*?)\n'@", text, re.S):
             yield name, label, shell
@@ -26,7 +26,8 @@ class WindowsEmbeddedCodeTests(unittest.TestCase):
                     ast.parse(python)
         self.assertEqual(found, [('agpc-win.ps1', 'PrepareLinux'),
                                  ('agpc-win.ps1', 'InstallLinux'),
-                                 ('agpc.ps1', 'UpdateLinux')])
+                                 ('agpc.ps1', 'UpdateLinux'),
+                                 ('agpc-unistall.ps1', 'UninstallLinux')])
 
     def test_systemd_edit_preserves_existing_configuration_and_is_idempotent(self):
         shell = next(shell for _, label, shell in scripts() if label == 'PrepareLinux')

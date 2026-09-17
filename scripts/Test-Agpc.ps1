@@ -120,3 +120,47 @@ if (-not $SkipLinuxChecks) {
     $null=Invoke-Native 'wsl.exe' @('-d','Ubuntu','--exec','bash','-n',($linuxRoot.Trim()+'/update.sh'))
 }
 Write-Host 'PASS: Standalone updater parsing, read-only plan, distribution selection and invalid target rejection.'
+
+foreach ($name in @('agpc-win-uninstall.ps1','agpc-unistall.ps1')) {
+    $uninstallTokens=$null;$uninstallErrors=$null
+    [Management.Automation.Language.Parser]::ParseFile((Join-Path $root $name),[ref]$uninstallTokens,[ref]$uninstallErrors) | Out-Null
+    if ($uninstallErrors.Count) {throw ($uninstallErrors | Out-String)}
+}
+$null=Invoke-Native $ps @('-NoProfile','-File',(Join-Path $root 'agpc-win-uninstall.ps1'),'-Distro','Ubuntu','-Plan')
+. (Join-Path $root 'agpc-win-uninstall.ps1') -Distro Ubuntu
+$script:FixtureDistros=@('Ubuntu','Debian')
+$script:RemovedTasks=@()
+$script:StoppedTasks=@()
+$script:WslCalls=0
+$fixtureSid='S-1-5-21-1234'
+function Get-DistroNames { $script:FixtureDistros }
+function Get-ScheduledTask {
+    @(
+        [pscustomobject]@{TaskName="AGPC-Ubuntu-$fixtureSid-Ubuntu";TaskPath='\'},
+        [pscustomobject]@{TaskName="AGPC-Setup-$fixtureSid-Ubuntu";TaskPath='\'},
+        [pscustomobject]@{TaskName="AGPC-Ubuntu-$fixtureSid-Debian";TaskPath='\'},
+        [pscustomobject]@{TaskName='Unrelated';TaskPath='\'}
+    )
+}
+function Stop-ScheduledTask { param($TaskName,$TaskPath) $script:StoppedTasks+=,$TaskName }
+function Unregister-ScheduledTask { param($TaskName,$TaskPath,[switch]$Confirm) $script:RemovedTasks+=,$TaskName }
+function Invoke-Native {
+    param($File,[string[]]$Arguments)
+    if ($Arguments.Count -ne 2 -or $Arguments[0] -ne '--unregister' -or $Arguments[1] -ne 'Ubuntu') {throw 'Unexpected distribution removal.'}
+    $script:WslCalls++
+    $script:FixtureDistros=@('Debian')
+    return 0
+}
+$null=Remove-AgpcDistribution -SelectedDistro Ubuntu -Sid $fixtureSid -Wsl 'fixture-wsl' -WhatIf
+if ($script:WslCalls -or $script:RemovedTasks.Count -or $script:StoppedTasks.Count) {throw 'WhatIf changed the system.'}
+$null=Remove-AgpcDistribution -SelectedDistro Ubuntu -Sid $fixtureSid -Wsl 'fixture-wsl' -Confirm:$false
+if ($script:WslCalls -ne 1 -or $script:RemovedTasks.Count -ne 2 -or $script:FixtureDistros[0] -ne 'Debian') {throw 'Distribution/task removal escaped its selected scope.'}
+if ($script:RemovedTasks -contains 'Unrelated' -or ($script:RemovedTasks -match 'Debian').Count) {throw 'Unrelated startup tasks were removed.'}
+$script:FixtureDistros=@('Ubuntu','Debian')
+$script:RemovedTasks=@()
+function Invoke-Native { param($File,[string[]]$Arguments) throw 'fixture unregister failure' }
+$refused=$false
+try {$null=Remove-AgpcDistribution -SelectedDistro Ubuntu -Sid $fixtureSid -Wsl 'fixture-wsl' -Confirm:$false}
+catch {if ($_.Exception.Message -notmatch 'fixture unregister failure') {throw};$refused=$true}
+if (-not $refused -or $script:RemovedTasks.Count) {throw 'Failed unregistration incorrectly removed task definitions.'}
+Write-Host 'PASS: Windows uninstall scope, WhatIf and failure handling with mocked WSL/tasks.'

@@ -4,6 +4,8 @@
 | --- | --- |
 | `agpc-win.ps1` | New Windows PC: install WSL 2 / Ubuntu, create `jujue`, install AGPC, enable Ubuntu startup after Windows boot. |
 | `agpc.ps1` | Existing prepared Ubuntu: update AGPC packages. |
+| `agpc-win-uninstall.ps1` | Delete one selected Ubuntu and its AGPC tasks; retain WSL and other distributions. |
+| `agpc-unistall.ps1` | Remove AGPC packages; retain Ubuntu and owner data. The requested filename spelling is intentional. |
 | `agpc.sh` | Native Linux installation and updates. |
 
 Run PowerShell as the Windows account that owns Ubuntu. Download and run are separate steps.
@@ -58,9 +60,31 @@ Setup state and logs: `%LOCALAPPDATA%\AGPC-Win\<Distro>`. Linux package result: 
 
 Both scripts call the permanent `https://motebus.github.io/download/agpc.sh` and retain its package, checksum, migration and SSH checks. They perform no Docker operations. Package installation is not full runtime readiness: models, network identities, remote access and end-to-end AGPC operation require separate verification.
 
+## Uninstall
+
+**Deleting Ubuntu deletes all files inside that selected distribution.** Export or copy anything you want to keep first. This command requires an explicit distribution name and confirmation:
+
+```powershell
+curl.exe -fL https://motebus.github.io/download/agpc-win-uninstall.ps1 -o "$env:TEMP\agpc-win-uninstall.ps1"
+& "$env:TEMP\agpc-win-uninstall.ps1" -Distro Ubuntu-24.04
+```
+
+Use `-Plan` or `-WhatIf` to preview. It removes only that distribution and its owner-specific AGPC boot/resume tasks; WSL, other distributions and Windows setup logs remain.
+
+To remove AGPC packages while keeping Ubuntu:
+
+```powershell
+curl.exe -fL https://motebus.github.io/download/agpc-unistall.ps1 -o "$env:TEMP\agpc-unistall.ps1"
+& "$env:TEMP\agpc-unistall.ps1" -Distro Ubuntu
+```
+
+`-Plan` downloads the official Linux removal script and shows its package plan without removing packages or stopping services. Actual removal asks you to type `REMOVE`. Ubuntu and its Windows boot task remain.
+
+The native `uninstall.sh` supports the exact reviewed 28-package `agent-computer-v0.2.0-12` catalog, including partial installations of those versions. It retains Obsidian, OS dependencies, APT registration, models, Vaults, accounts, configuration and topology files. It never purges or automatically removes dependencies. Package-owned topology payloads are retained at their original paths using temporary DPKG metadata diversions with `--no-rename`; their contents are never rewritten. Legacy transport topology ownership, unreviewed versions/hooks, and unrelated reverse dependencies stop removal before the package transaction. Close AGPC desktop applications before removing their packages.
+
 ## Validation status
 
-This first Windows release is a preview. Automated checks cover PowerShell parsing, native error propagation, distribution selection, generated Linux syntax, systemd configuration preservation, and the boot task definition with mocked registration. A clean Windows VM install, restart/resume, and actual before-login boot acceptance remain unverified.
+This first Windows release is a preview. Automated checks cover PowerShell parsing, native error propagation, distribution selection, generated Linux syntax, systemd configuration preservation, and the boot task definition with mocked registration. Native removal is tested with a real APT/DPKG transaction in a disposable filesystem and package database, including retained topology payloads. The current installed AGPC was checked in plan-only mode. A clean Windows VM install, restart/resume, actual before-login boot, and full real-machine uninstall acceptance remain unverified.
 
 ```powershell
 .\scripts\Test-Agpc.ps1
