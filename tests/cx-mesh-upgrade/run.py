@@ -66,6 +66,9 @@ def main():
     classifier=source.split("python3 - <<'CX_PREFLIGHT'\n",1)[1].split('\nCX_PREFLIGHT\n',1)[0]
     Path('/tmp/classifier.py').write_text(classifier)
     initial=run('python3','/tmp/classifier.py').strip()
+    if sys.argv[2:]==['--historical-only']:
+        print(json.dumps({'scenario':scenario,'historical_preflight_passed':True}));return
+    assert len(sys.argv)==2
     run(*apt,*guard(source,initial),'install','/packages/new.deb')
     assert not run('dpkg','--audit').strip()
     assert run('dpkg-query','-W','-f=${Version}\n${Status}\n${Conffiles}','cx-node')==record

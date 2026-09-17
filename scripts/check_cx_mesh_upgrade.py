@@ -11,19 +11,19 @@ INPUTS={
  'old-mesh.deb':('agent-computer-v0.1.0-3','codex-mesh_1.0.0-1_amd64.deb','79ea8390ba64a462e2be9df5550969b6a917f4b13bc7ea3ab9c06eb532a55a38'),
  'consolidated.deb':('agent-computer-v0.2.0-7','cx-mesh_1.2.0-1_amd64.deb','caa078bdd810580dc8b35380d2fe8abbda6ff6c4338f2a8c8dbbba3051d02af0')}
 
-def main(package):
-    package=Path(package).resolve()
-    assert subprocess.check_output(['dpkg-deb','-f',str(package),'Package','Version'],text=True)=='Package: cx-mesh\nVersion: 2.0.0-1\n'
+def main(package=None):
+    package=Path(package).resolve() if package else None
+    if package:assert subprocess.check_output(['dpkg-deb','-f',str(package),'Package','Version'],text=True)=='Package: cx-mesh\nVersion: 2.0.0-1\n'
     with tempfile.TemporaryDirectory() as temp:
         stage=Path(temp)
         for name,(tag,asset,digest) in INPUTS.items():
             path=stage/name
             subprocess.run(['curl','-fsSL','--proto','=https','--proto-redir','=https','--retry','2','--max-time','120',f'https://github.com/motebus/download/releases/download/{tag}/{asset}','-o',str(path)],check=True)
             assert hashlib.sha256(path.read_bytes()).hexdigest()==digest,name
-        (stage/'new.deb').write_bytes(package.read_bytes())
+        if package:(stage/'new.deb').write_bytes(package.read_bytes())
         image='cx-mesh-consumer-acceptance'
         subprocess.run(['docker','build','-t',image,str(ROOT/'tests/cx-mesh-upgrade')],check=True)
         for scenario in ['old1','old6']:
-            subprocess.run(['docker','run','--rm','--network','none','--memory','768m','--memory-swap','768m','--cpus','1','-v',str(ROOT)+':/source:ro','-v',str(stage)+':/packages:ro',image,'python3','/source/tests/cx-mesh-upgrade/run.py',scenario],check=True)
+            subprocess.run(['docker','run','--rm','--network','none','--memory','768m','--memory-swap','768m','--cpus','1','-v',str(ROOT)+':/source:ro','-v',str(stage)+':/packages:ro',image,'python3','/source/tests/cx-mesh-upgrade/run.py',scenario,*(['--historical-only'] if not package else [])],check=True)
 
-if __name__=='__main__':main(sys.argv[1])
+if __name__=='__main__':main(None if sys.argv[1]=='--historical-only' else sys.argv[1])
