@@ -47,7 +47,14 @@ class AgentAppsInstallerTest(unittest.TestCase):
                 lines = [line for line in script.splitlines() if failure in line]
                 self.assertEqual(len(lines), 1)
                 hashes = re.findall(r'(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])', lines[0])
-                self.assertEqual(hashes, [packages[name]['sha256']])
+                if name == 'cx-mesh' and packages[name]['version'] != '1.2.0-1':
+                    self.assertEqual(packages[name]['version'], '2.0.0-1')
+                    # Standalone predecessors must consolidate through the exact
+                    # historical 1.2 artifact before the account/path migration.
+                    self.assertIn('public CX migration requires exact cx-mesh 1.2.0-1', script)
+                    self.assertEqual(hashes, ['caa078bdd810580dc8b35380d2fe8abbda6ff6c4338f2a8c8dbbba3051d02af0'])
+                else:
+                    self.assertEqual(hashes, [packages[name]['sha256']])
 
     def test_missing_or_symlinked_input_fails(self) -> None:
         for path in (self.installer, self.source):
