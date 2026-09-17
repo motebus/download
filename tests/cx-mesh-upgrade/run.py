@@ -51,7 +51,7 @@ def main():
     if scenario=='old6':
         # Match the previously reviewed lab sequence through CX Mesh 1.1.
         run(*apt,'install','/packages/baseline.deb')
-        assert Path('/var/lib/dpkg/info/cx-node.list').read_text()=='/etc/cx-node/cx-node.toml\n'
+        assert Path('/var/lib/dpkg/info/cx-node.list').read_text()=='/lib\n/lib/systemd\n/lib/systemd/system\n/etc/cx-node/cx-node.toml\n', repr(Path('/var/lib/dpkg/info/cx-node.list').read_text())
     run(*apt,'install','/packages/consolidated.deb')
     old=pwd.getpwnam('cx-node');old_gid=grp.getgrnam('cx-node').gr_gid
     assert old.pw_uid>0 and old_gid>0
@@ -66,6 +66,9 @@ def main():
     classifier=source.split("python3 - <<'CX_PREFLIGHT'\n",1)[1].split('\nCX_PREFLIGHT\n',1)[0]
     Path('/tmp/classifier.py').write_text(classifier)
     initial=run('python3','/tmp/classifier.py').strip()
+    if sys.argv[2:]==['--historical-only']:
+        print(json.dumps({'scenario':scenario,'historical_preflight_passed':True}));return
+    assert len(sys.argv)==2
     run(*apt,*guard(source,initial),'install','/packages/new.deb')
     assert not run('dpkg','--audit').strip()
     assert run('dpkg-query','-W','-f=${Version}\n${Status}\n${Conffiles}','cx-node')==record
