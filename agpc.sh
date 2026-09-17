@@ -789,7 +789,9 @@ CX6_OBSOLETE_INSTALLED = {
 CX6_OBSOLETE_RESIDUAL_LIST = 'e6c9f3a963553f457f2e0da73074a433dc673cf0a158020a74b6caf5b12bd154'
 # Native DPKG omits directories already owned by the installed base system.
 CX6_CONFFILE_ONLY_RESIDUAL_LIST = 'a23ac038fce0108c1af26c8542cc7b2445fbd76c1da22b5fb725dd0cbcca9600'
-CX6_RESIDUAL_LISTS = (CX6_OBSOLETE_RESIDUAL_LIST,CX6_CONFFILE_ONLY_RESIDUAL_LIST)
+# Native Ubuntu 24.04 keeps the historical systemd directories in its rc list.
+CX6_SYSTEMD_RESIDUAL_LIST = 'cb24b4cf3cca16cc983f9e5a03024b511ab37d6d1fe598bc47e7e81f670ada37'
+CX6_RESIDUAL_LISTS = (CX6_OBSOLETE_RESIDUAL_LIST,CX6_CONFFILE_ONLY_RESIDUAL_LIST,CX6_SYSTEMD_RESIDUAL_LIST)
 
 def sole_owner(path, expected):
     owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
@@ -1089,7 +1091,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-11 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 agent-apps=0.2.0-3 "$obsidian")
+packages=(agent-sphere=0.2.0-14 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 agent-apps=0.2.0-3 "$obsidian")
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -1153,7 +1155,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-11 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-2 [uchatd]=0.4.0-1)
+declare -A floor=([agent-sphere]=0.2.0-14 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agent-apps]=0.2.0-3 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-2 [uchatd]=0.4.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'

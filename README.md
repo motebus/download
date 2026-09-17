@@ -126,17 +126,20 @@ unrelated removals, downgrades and retirement of that protected record.
 `mcp_servers.mote-mcpd`; existing locked topology, configuration and state
 paths remain in place. CX Mesh depends on the new MCP package name.
 
-`cx-mesh` replaces both `cx-agent` and `codex-mesh`. The canonical command and
-service are `cx-mesh` and `cx-mesh.service`. Existing execution aliases, owner
-configuration, transport identities and mesh packet/tool IDs are preserved for
-compatibility. The installer reviews both predecessor packages before merging
-ownership and retains the operator's masked/disabled service intent.
+`cx-mesh` replaces both `cx-agent` and `codex-mesh`. Version 2.0.0-1
+uses `cx-mesh` for the daemon, service account, configuration and state paths.
+It retires `cx-node` and `cx-agent` command aliases. Upgrades from consolidated
+CX Mesh 1.1/1.2 preserve numeric UID/GID, owner configuration, transport
+identities, credentials and state, including masked/disabled service intent.
+Mesh packet/tool IDs and locked MChat topology values remain unchanged.
+Destination collisions and custom service overrides require resolution before
+migration; the package refuses to overwrite them.
 
-The installer also admits a verified direct migration from `cx-node 0.3.3-4`
-to CX Mesh for the exact reviewed predecessor state. Its package records,
-removal helper and migration receipt are checked before downloads and again
-under the APT lock. This supported state needs no separate baseline upgrade;
-existing configuration and identities are preserved. Unknown or modified
+Standalone predecessors must first complete their reviewed CX Mesh 1.2.0-1
+consolidation. The historical direct migration from `cx-node 0.3.3-4` is
+restricted to that exact archive and reviewed predecessor state. The current
+installer preserves these historical checks and admits the resulting retained
+package records after the separate 2.0.0-1 upgrade. Unknown or modified
 predecessors, including unreviewed obsolete conffile ownership, remain blocked.
 
 A genuine `cx-node 0.3.3-6` installation retaining the reviewed historical
@@ -221,24 +224,24 @@ AGPC or executes work. Legacy chat journals remain preserved without import.
 `mote-chatd` is retired as a chat service; `mote-transportd` retains transport.
 
 The legacy `cx-node` and `codex-mesh` Debian packages are retired into
-`cx-mesh`. The reviewed historical `cx-node 0.3.3-1` lineage can migrate
-directly with `codex-mesh 1.0.0-1`, preserving its obsolete owner configuration
-through native residual records. Configuration, identities and work data are
-retained; the installer does not purge the old records. Current migration
-hashes match the signed catalog, and genuine-archive tests exercise the
-combined retirement and repeated installation.
+`cx-mesh`. The reviewed historical `cx-node 0.3.3-1` lineage consolidates
+with `codex-mesh 1.0.0-1` through the exact CX Mesh 1.2.0-1 archive before
+upgrading to 2.0.0-1. Its obsolete owner configuration records remain intact.
+The installer does not purge or rewrite the DPKG database. Genuine-archive
+tests exercise both historical residual lineages through the 2.0.0-1 upgrade
+and repeated installation, preserving identity, credentials and numeric UID/GID.
 
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-12`. The v6 contract admits
+`motebus/download` release `agent-computer-v0.2.0-14`. The v6 contract admits
 exactly twenty-eight redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-11, Agent Ultra 0.1.0-1,
+The four entry versions are Agent Sphere 0.2.0-14, Agent Ultra 0.1.0-1,
 AGPC Manager 3.3.0-1 and Agent Apps 0.2.0-3. AGPC Manager requires the paired
 MEdge 3.3.0-1 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
@@ -279,7 +282,7 @@ versions. Its fixed legacy installer profiles describe that historical release.
 They do not define the new four-package product.
 
 The current root `uninstall.sh` removes the reviewed 28-package
-`agent-computer-v0.2.0-12` native AGPC set. It verifies the signed catalog,
+`agent-computer-v0.2.0-14` native AGPC set. It verifies the signed catalog,
 installed versions, package removal hooks, and the exact APT transaction.
 Configuration, topology files, user data, Vaults, models, Obsidian, OS dependencies
 and APT registration are retained. It does not purge or automatically remove

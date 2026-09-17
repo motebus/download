@@ -2,19 +2,19 @@
   "schema": "agent-computer-apt-overlay/v6",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.2.0-12",
-    "source_commit": "2670ba5c05e9bea9b2e29e0debf510d22f367ef4",
+    "tag": "agent-computer-v0.2.0-14",
+    "source_commit": "1f12f383a39918b0fcdf5b9de82073f813fc5da8",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.2.0-11",
+        "version": "0.2.0-14",
         "architecture": "all",
-        "asset": "agent-sphere_0.2.0-11_all.deb",
-        "sha256": "aed360ca2ea17e5073482c99e347e4ae10a54a74d289aba44d179c02f68c84fe",
+        "asset": "agent-sphere_0.2.0-14_all.deb",
+        "sha256": "4162fa0807edf23b4e9aa266777b39827aec079979e2d139c3f08c1b6454cfd7",
         "provenance": {
-          "source_commit": "c5d1ae65599273356869913f25db5bd06a31fa65",
+          "source_commit": "675e74fa0ee13e80a7d4297085efee564cded6a6",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35060241225,
+          "main_pipeline_id": 35240868191,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -217,14 +217,14 @@
       },
       {
         "name": "cx-mesh",
-        "version": "1.2.0-1",
+        "version": "2.0.0-1",
         "architecture": "amd64",
-        "asset": "cx-mesh_1.2.0-1_amd64.deb",
-        "sha256": "caa078bdd810580dc8b35380d2fe8abbda6ff6c4338f2a8c8dbbba3051d02af0",
+        "asset": "cx-mesh_2.0.0-1_amd64.deb",
+        "sha256": "7e7e9e36f79c3a406bfb987bc18b2055ec8306cd5c3508fd88614f1d0ae2e89e",
         "provenance": {
-          "source_commit": "1f5e8b3f87998cfdfe9e9b6ff2a57c6f01976e13",
+          "source_commit": "feb65236416457c887e5fa89e14bd511d6706002",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26685,
+          "main_pipeline_id": 26956,
           "build_status": "success",
           "public_payload_reviewed": true
         }
