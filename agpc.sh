@@ -753,7 +753,7 @@ def cx4_state(state, files):
         if files[receipt][-1]!=1:raise ValueError('unsafe old4 migration receipt link count')
     else:
         successor=query('cx-mesh')
-        if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed']):
+        if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed'],['2.0.0-1','amd64','install ok installed']):
             raise ValueError('old4 residual requires exact installed CX-Mesh successor')
         for suffix in ('preinst','postinst','prerm','md5sums'):
             if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):
@@ -828,6 +828,21 @@ def cx6_drain_state(files, owner_uid):
         if files[marker][-1]!=1:raise ValueError('unsafe obsolete CX drain marker link count')
     else:files[marker]=None
 
+def current_cx_paths():
+    successor=query('cx-mesh')
+    if successor is None or successor.splitlines()[:3]!=['2.0.0-1','amd64','install ok installed']:
+        return False
+    for path in ('/etc/cx-node','/var/lib/cx-node','/usr/bin/cx-node','/usr/bin/cx-agent'):
+        if os.path.lexists(path):raise ValueError('retired CX path remains: '+path)
+    try:
+        pwd.getpwnam('cx-node')
+    except KeyError:pass
+    else:raise ValueError('retired CX account remains')
+    try:account=pwd.getpwnam('cx-mesh')
+    except KeyError:raise ValueError('CX-Mesh account is missing')
+    if account.pw_uid==0 or account.pw_dir!='/var/lib/cx-mesh':raise ValueError('invalid CX-Mesh service account')
+    return True
+
 def cx6_obsolete_state(state, rows, files, version="0.3.3-6"):
     if version not in ("0.3.3-1", "0.3.3-6"):raise ValueError("unreviewed obsolete CX version")
     if rows!=[CX6_OBSOLETE_ROW]:raise ValueError('unreviewed CX predecessor conffile ownership')
@@ -835,12 +850,16 @@ def cx6_obsolete_state(state, rows, files, version="0.3.3-6"):
     # .conffiles file. Its obsolete TOML remains in both installed and rc lists.
     for suffix in ('conffiles','triggers'):
         if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):raise ValueError('unexpected obsolete CX ownership or triggers')
-    for path in ('/etc','/etc/cx-node'):
+    renamed=state=='deinstall ok config-files' and current_cx_paths()
+    config_root='/etc/cx-mesh' if renamed else '/etc/cx-node'
+    config_path=config_root+('/cx-mesh.toml' if renamed else '/cx-node.toml')
+    identity_path=config_root+('/cx-mesh-mchat.env' if renamed else '/cx-node-mchat.env')
+    for path in ('/etc',config_root):
         meta=os.lstat(path)
         if not stat.S_ISDIR(meta.st_mode) or meta.st_uid!=0 or meta.st_mode&0o022:
             raise ValueError('unsafe obsolete CX configuration directory: '+path)
         files[path]=[meta.st_dev,meta.st_ino,meta.st_mtime_ns,meta.st_ctime_ns,meta.st_mode,meta.st_uid,meta.st_gid,meta.st_nlink]
-    for path in (CX6_OBSOLETE_ROW[0],'/etc/cx-node/cx-node-mchat.env'):
+    for path in (config_path,identity_path):
         files[path]=checked(path)
         if files[path][-1]!=1:raise ValueError('unsafe obsolete CX owner file link count')
     sole_owner(CX6_OBSOLETE_ROW[0],'cx-node') # Residual predecessor retains the actual conffile ownership.
@@ -855,7 +874,7 @@ def cx6_obsolete_state(state, rows, files, version="0.3.3-6"):
         if files[receipt][-1]!=1:raise ValueError('unsafe obsolete CX migration receipt link count')
     else:
         successor=query('cx-mesh')
-        if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed']):
+        if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed'],['2.0.0-1','amd64','install ok installed']):
             raise ValueError('obsolete CX residual requires exact installed CX-Mesh successor')
         for suffix in ('preinst','postinst','prerm','md5sums'):
             if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):raise ValueError('unexpected obsolete CX residual payload or hook')
@@ -888,7 +907,7 @@ def classify():
             wanted=sorted([[path,digest] for path,digest in MESH_FILES.items()])
             if state=='deinstall ok config-files' and sorted(rows)==[row+['obsolete'] for row in wanted]:
                 successor=query('cx-mesh')
-                if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed']):
+                if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed'],['2.0.0-1','amd64','install ok installed']):
                     raise ValueError('residual Mesh conffiles require exact installed successor')
                 for path in MESH_FILES:
                     owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
@@ -905,7 +924,10 @@ def classify():
                 if (version=='0.3.3-4' or cx6_obsolete) and files[path][-1]!=1:raise ValueError('unsafe CX removal hook link count')
         if state=='install ok installed':installed[name]=version
     files.update(unit_policy())
-    config='/etc/cx-node/cx-node.toml';identity='/etc/cx-node/cx-node-mchat.env'
+    if current_cx_paths():
+        config='/etc/cx-mesh/cx-mesh.toml';identity='/etc/cx-mesh/cx-mesh-mchat.env'
+    else:
+        config='/etc/cx-node/cx-node.toml';identity='/etc/cx-node/cx-node-mchat.env'
     if os.path.lexists(config):
         files[config]=checked(config);files[identity]=checked(identity)
     elif os.path.lexists(identity):files[identity]=checked(identity)
