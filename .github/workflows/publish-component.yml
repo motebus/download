@@ -1,0 +1,30 @@
+name: Publish reviewed native package candidate
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Exact reviewed component-releases record (without .json)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: native-package-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Publish only source-reviewed immutable asset pins
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python3 scripts/publish_component.py "$RELEASE_TAG"
