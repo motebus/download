@@ -38,7 +38,7 @@ def main():
     Path('/run/systemd/system').mkdir(parents=True,exist_ok=True)
     Path('/usr/sbin/policy-rc.d').unlink(missing_ok=True)
     os.environ['DEBIAN_FRONTEND']='noninteractive'
-    for name in ['systemd','moted','mote-bridge-mcp','mote-mcpd','mote-chatd','mote-transportd','codex','chatgpt','motemcp']:
+    for name in ['moted','mote-bridge-mcp','mote-mcpd','mote-chatd','mote-transportd','codex','chatgpt','motemcp']:
         run('dpkg','-i',dummy(name))
     # Minimal containers omit ownership of shared directories present on the
     # reviewed hosts. Supply real DPKG ownership, without editing its database.
@@ -51,7 +51,7 @@ def main():
     if scenario=='old6':
         # Match the previously reviewed lab sequence through CX Mesh 1.1.
         run(*apt,'install','/packages/baseline.deb')
-        assert Path('/var/lib/dpkg/info/cx-node.list').read_text()=='/etc/cx-node/cx-node.toml\n', repr(Path('/var/lib/dpkg/info/cx-node.list').read_text())
+        assert Path('/var/lib/dpkg/info/cx-node.list').read_text()=='/lib\n/lib/systemd\n/lib/systemd/system\n/etc/cx-node/cx-node.toml\n', repr(Path('/var/lib/dpkg/info/cx-node.list').read_text())
     run(*apt,'install','/packages/consolidated.deb')
     old=pwd.getpwnam('cx-node');old_gid=grp.getgrnam('cx-node').gr_gid
     assert old.pw_uid>0 and old_gid>0
