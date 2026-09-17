@@ -38,12 +38,11 @@ def main():
     Path('/run/systemd/system').mkdir(parents=True,exist_ok=True)
     Path('/usr/sbin/policy-rc.d').unlink(missing_ok=True)
     os.environ['DEBIAN_FRONTEND']='noninteractive'
-    for name in ['moted','mote-bridge-mcp','mote-mcpd','mote-chatd','mote-transportd','codex','chatgpt','motemcp']:
+    for name in ['systemd','moted','mote-bridge-mcp','mote-mcpd','mote-chatd','mote-transportd','codex','chatgpt','motemcp']:
         run('dpkg','-i',dummy(name))
     # Minimal containers omit ownership of shared directories present on the
-    # reviewed hosts, including pre-usrmerge /lib systemd directories. Supply
-    # real DPKG ownership, without editing its database.
-    run('dpkg','-i',dummy('system-directory-owner',('usr/bin','usr/lib','usr/libexec','lib/systemd/system')))
+    # reviewed hosts. Supply real DPKG ownership, without editing its database.
+    run('dpkg','-i',dummy('system-directory-owner',('usr/bin','usr/lib','usr/libexec')))
     run('dpkg','-i','/packages/historical.deb')
     run('dpkg','-i','/packages/old1.deb')
     if scenario=='old6':run('dpkg','-i','/packages/old6.deb')
