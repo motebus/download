@@ -51,7 +51,7 @@ def main():
     if scenario=='old6':
         # Match the previously reviewed lab sequence through CX Mesh 1.1.
         run(*apt,'install','/packages/baseline.deb')
-        assert Path('/var/lib/dpkg/info/cx-node.list').read_text()=='/etc/cx-node/cx-node.toml\n'
+        assert Path('/var/lib/dpkg/info/cx-node.list').read_text()=='/etc/cx-node/cx-node.toml\n', repr(Path('/var/lib/dpkg/info/cx-node.list').read_text())
     run(*apt,'install','/packages/consolidated.deb')
     old=pwd.getpwnam('cx-node');old_gid=grp.getgrnam('cx-node').gr_gid
     assert old.pw_uid>0 and old_gid>0

@@ -1,0 +1,33 @@
+name: Validate native CX upgrade fixture
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/validate-cx-upgrade.yml'
+      - 'scripts/check_cx_mesh_upgrade.py'
+      - 'tests/cx-mesh-upgrade/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-upgrade:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify pinned candidate and run isolated historical upgrades
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,subprocess,tempfile
+          from pathlib import Path
+          record=json.loads(Path('scripts/component-releases/cx-mesh-v2.0.0-1.json').read_text())
+          asset=next(a for a in record['assets'] if a['name']=='cx-mesh_2.0.0-1_amd64.deb')
+          with tempfile.TemporaryDirectory() as temp:
+              subprocess.run(['gh','release','download',asset['source_tag'],'-R','motebus/download','-p',asset['name'],'-D',temp],check=True)
+              package=Path(temp)/asset['name']
+              assert hashlib.sha256(package.read_bytes()).hexdigest()==asset['sha256']
+              subprocess.run(['python3','scripts/check_cx_mesh_upgrade.py',str(package)],check=True)
+          PY
