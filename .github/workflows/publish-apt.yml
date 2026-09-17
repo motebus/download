@@ -24,7 +24,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  windows:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'medge-v')
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Validate Windows setup and updater without system changes
+        shell: powershell
+        run: .\scripts\Test-Agpc.ps1 -SkipLinuxChecks
+
   build:
+    needs: windows
     timeout-minutes: 25
     if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'medge-v')
     runs-on: ubuntu-24.04
@@ -112,6 +126,12 @@ jobs:
             apt-site/agent-sphere-apps.sh.asc apt-site/agent-sphere-apps.sh
           gpgv --keyring ./medge-archive-keyring.gpg \
             apt-site/agent-sphere-apps.source.json.asc apt-site/agent-sphere-apps.source.json
+          gpgv --keyring ./medge-archive-keyring.gpg \
+            apt-site/agpc-win.ps1.asc apt-site/agpc-win.ps1
+          gpgv --keyring ./medge-archive-keyring.gpg \
+            apt-site/agpc.ps1.asc apt-site/agpc.ps1
+          gpgv --keyring ./medge-archive-keyring.gpg \
+            apt-site/agpc.windows.source.json.asc apt-site/agpc.windows.source.json
           test "$(du -sb apt-site | cut -f1)" -lt 1000000000
 
       - name: Verify signed Core resolution and complete native AGPC installation

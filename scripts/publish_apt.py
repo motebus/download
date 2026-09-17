@@ -302,6 +302,11 @@ MOTE_TRANSPORT_PACKAGES = (
     ("mote-proxy", "1.3.0-35", "all"),
 )
 ALLOWED_ROOT_FILES = {
+    ".gitattributes",
+    "agpc-win.ps1",
+    "agpc.ps1",
+    "agpc.windows.source.json",
+    "AGPC-WINDOWS.md",
     "agent-computer-apt-overlay.json",
     "agpc.sh",
     "agpc.source.json",
@@ -368,7 +373,10 @@ AGENT_APPS_INSTALLER = "agpc.sh"
 AGENT_APPS_INSTALLER_SOURCE = "agpc.source.json"
 AGENT_APPS_INSTALLER_SCHEMA = "agpc-installer-source/v1"
 AGENT_INSTALLER_ALIASES = ("agent-sphere-apps.sh", "agent-sphere-apps.source.json")
-AGENT_INSTALLER_FILES = (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE, *AGENT_INSTALLER_ALIASES)
+WINDOWS_INSTALLERS = ("agpc-win.ps1", "agpc.ps1")
+WINDOWS_INSTALLER_SOURCE = "agpc.windows.source.json"
+AGENT_INSTALLER_FILES = (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE,
+                         *AGENT_INSTALLER_ALIASES, *WINDOWS_INSTALLERS, WINDOWS_INSTALLER_SOURCE)
 
 
 class PublishError(RuntimeError):
@@ -426,6 +434,35 @@ def package_field(asset: Path, field: str) -> str:
     return run("dpkg-deb", "-f", str(asset), field, capture=True)
 
 
+def validate_windows_installer(root: Path) -> dict:
+    """Bind both Windows entry points to the same reviewed public source snapshot."""
+    for name in (*WINDOWS_INSTALLERS, WINDOWS_INSTALLER_SOURCE):
+        path = root / name
+        require(path.is_file() and not path.is_symlink(),
+                f"missing regular Windows installer file: {name}")
+    record = json.loads((root / WINDOWS_INSTALLER_SOURCE).read_text(encoding="utf-8"))
+    require(isinstance(record, dict) and set(record) == {
+        "schema", "repository", "tag", "source_commit", "assets"},
+        "Windows installer source fields are invalid")
+    require(record["schema"] == "agpc-windows-installer-source/v1",
+            "Windows installer source schema is invalid")
+    require(record["repository"] == "motebus/download",
+            "Windows installer source repository is not allowed")
+    require(isinstance(record["tag"], str)
+            and re.fullmatch(r"agpc-windows-v[0-9]+\.[0-9]+\.[0-9]+", record["tag"]),
+            "Windows installer source must name an exact release")
+    require(isinstance(record["source_commit"], str)
+            and re.fullmatch(r"[0-9a-f]{40}", record["source_commit"]),
+            "Windows installer source commit is invalid")
+    require(isinstance(record["assets"], dict) and set(record["assets"]) == set(WINDOWS_INSTALLERS),
+            "Windows installer asset names are invalid")
+    for name, digest in record["assets"].items():
+        require(isinstance(digest, str) and HEX64_RE.fullmatch(digest),
+                "Windows installer source checksum is invalid")
+        require(sha256(root / name) == digest, f"Windows installer digest mismatch: {name}")
+    return record
+
+
 def validate_agent_apps_installer(root: Path) -> dict:
     """Admit only the reviewed script bytes bound to their public source release."""
     source = root / AGENT_APPS_INSTALLER_SOURCE
@@ -460,6 +497,7 @@ def validate_agent_apps_installer(root: Path) -> dict:
         require(path.read_bytes() == canonical.read_bytes(), f"installer alias differs from canonical bytes: {alias}")
         if alias.endswith(".sh"):
             require(path.stat().st_mode & 0o111 != 0, "installer alias must be executable")
+    validate_windows_installer(root)
     return record
 
 
@@ -1797,6 +1835,21 @@ uninstaller is not suitable for this Agent Computer.</p>
 (<a href="agent-sphere-apps.source.json.asc">source signature</a>)
 remain byte-identical aliases of the canonical AGPC installer and source record.</p>
 </html>""")
+    index = index.replace("</html>", """<h2>Windows (preview)</h2>
+<p>New Windows PC: <a href="agpc-win.ps1">agpc-win.ps1</a>
+(<a href="agpc-win.ps1.asc">signature</a>) installs WSL 2, Ubuntu and AGPC,
+creates jujue and configures Ubuntu startup after Windows boot.</p>
+<pre>curl.exe -fL https://motebus.github.io/download/agpc-win.ps1 -o "$env:TEMP\\agpc-win.ps1"
+&amp; "$env:TEMP\\agpc-win.ps1"</pre>
+<p>Update AGPC in an existing prepared Ubuntu:
+<a href="agpc.ps1">agpc.ps1</a> (<a href="agpc.ps1.asc">signature</a>).</p>
+<pre>curl.exe -fL https://motebus.github.io/download/agpc.ps1 -o "$env:TEMP\\agpc.ps1"
+&amp; "$env:TEMP\\agpc.ps1"</pre>
+<p><a href="agpc.windows.source.json">Windows source snapshot and SHA-256</a>
+(<a href="agpc.windows.source.json.asc">signature</a>).
+Read the <a href="https://github.com/motebus/download/blob/main/AGPC-WINDOWS.md">Windows instructions</a>.
+Clean-PC installation, restart/resume and actual before-login boot remain unverified.</p>
+</html>""")
     (site / "index.html").write_text(index, encoding="utf-8")
 
 
@@ -1821,6 +1874,10 @@ def sign_release(site: Path, repository_root: Path) -> None:
             and (site / AGENT_APPS_INSTALLER_SOURCE).read_bytes()
             == (repository_root / AGENT_APPS_INSTALLER_SOURCE).read_bytes(),
             "staged Agent Apps installer source differs from the reviewed record")
+    require(validate_windows_installer(site) == validate_windows_installer(repository_root)
+            and (site / WINDOWS_INSTALLER_SOURCE).read_bytes()
+            == (repository_root / WINDOWS_INSTALLER_SOURCE).read_bytes(),
+            "staged Windows installer source differs from the reviewed record")
     passphrase = os.environ.get("MEDGE_APT_SIGNING_PASSPHRASE")
     require(passphrase is not None and passphrase != "", "signing passphrase is unavailable")
     fingerprint = archive_fingerprint(repository_root)
