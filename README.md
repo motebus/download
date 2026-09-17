@@ -61,6 +61,24 @@ workers. The separate agpc-manager TUI may exit without stopping execution.
 Local Redixs and knowledge storage work without UltraOne; external Telegram and
 UltraOne connectivity are reported independently from local service health.
 
+## Windows (preview)
+
+Use `agpc-win.ps1` on a new Windows PC to install WSL 2, Ubuntu and AGPC, create `jujue` and configure Ubuntu startup after Windows boot:
+
+```powershell
+curl.exe -fL https://motebus.github.io/download/agpc-win.ps1 -o "$env:TEMP\agpc-win.ps1"
+& "$env:TEMP\agpc-win.ps1"
+```
+
+For AGPC updates when Ubuntu is already prepared:
+
+```powershell
+curl.exe -fL https://motebus.github.io/download/agpc.ps1 -o "$env:TEMP\agpc.ps1"
+& "$env:TEMP\agpc.ps1"
+```
+
+See [Windows setup and update instructions](AGPC-WINDOWS.md) for options, prerequisites and preview validation limits.
+
 ## Installation
 
 The permanent installer URL is
