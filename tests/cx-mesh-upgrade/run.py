@@ -41,8 +41,9 @@ def main():
     for name in ['moted','mote-bridge-mcp','mote-mcpd','mote-chatd','mote-transportd','codex','chatgpt','motemcp']:
         run('dpkg','-i',dummy(name))
     # Minimal containers omit ownership of shared directories present on the
-    # reviewed hosts. Supply real DPKG ownership, without editing its database.
-    run('dpkg','-i',dummy('system-directory-owner',('usr/bin','usr/lib','usr/libexec')))
+    # reviewed hosts, including pre-usrmerge /lib systemd directories. Supply
+    # real DPKG ownership, without editing its database.
+    run('dpkg','-i',dummy('system-directory-owner',('usr/bin','usr/lib','usr/libexec','lib/systemd/system')))
     run('dpkg','-i','/packages/historical.deb')
     run('dpkg','-i','/packages/old1.deb')
     if scenario=='old6':run('dpkg','-i','/packages/old6.deb')
