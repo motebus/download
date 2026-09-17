@@ -221,7 +221,7 @@ class InstallContractTest(unittest.TestCase):
     def test_supported_ubuntu_targets_are_exact(self) -> None:
         for filename in RELEASE_SCRIPTS:
             text = (ROOT / filename).read_text(encoding="utf-8")
-            self.assertIn("ubuntu:24.04|ubuntu:26.04)", text)
+            self.assertRegex(text, r"ubuntu:24\.04(?::amd64)?\|ubuntu:26\.04(?::amd64)?\)")
             self.assertNotIn("ubuntu:22.04", text)
         compatibility = COMPATIBILITY.read_text(encoding="utf-8")
         self.assertIn("run_target 24.04", compatibility)

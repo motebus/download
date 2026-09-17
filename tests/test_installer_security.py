@@ -136,14 +136,14 @@ gpgv() {
                               env=env, text=True, capture_output=True)
 
     def test_signed_private_snapshot_survives_original_file_replacement(self) -> None:
-        for filename in ENTRIES:
+        for filename in INSTALLERS:
             with self.subTest(filename=filename):
                 result = self.harness(filename, "mutate-original")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("verified-plan", result.stdout)
 
     def test_bad_signature_stops_before_manifest_planning(self) -> None:
-        for filename in ENTRIES:
+        for filename in INSTALLERS:
             with self.subTest(filename=filename):
                 result = self.harness(filename, "bad-signature")
                 self.assertNotEqual(result.returncode, 0)
@@ -151,7 +151,7 @@ gpgv() {
                 self.assertNotIn("verified-plan", result.stdout)
 
     def test_partial_overrides_fail_in_every_entry_point(self) -> None:
-        for filename in ENTRIES:
+        for filename in INSTALLERS:
             for variant in ("manifest-only", "signature-only"):
                 with self.subTest(filename=filename, variant=variant):
                     result = self.harness(filename, variant)
@@ -159,10 +159,66 @@ gpgv() {
                     self.assertIn("set both", result.stderr)
 
     def test_no_override_fetches_and_verifies_both_release_files(self) -> None:
-        for filename in ENTRIES:
+        for filename in INSTALLERS:
             with self.subTest(filename=filename):
                 result = self.harness(filename, "download")
                 self.assertEqual(result.returncode, 0, result.stderr)
+
+
+    def test_native_uninstaller_authenticates_its_private_catalog_before_planning(self):
+        # Native removal uses the current signed overlay, not a legacy manifest.
+        text = (ROOT / 'uninstall.sh').read_text()
+        catalog = self.root / 'native.json'
+        signature = self.root / 'native.json.asc'
+        original = (ROOT / 'agent-computer-apt-overlay.json').read_text()
+        for variant in ('valid', 'tampered', 'mutate-original'):
+            with self.subTest(variant=variant):
+                catalog.write_text(original)
+                subprocess.run(['gpg', '--batch', '--yes', '--armor', '--detach-sign',
+                                '--output', str(signature), str(catalog)],
+                               env=self.env, check=True, capture_output=True)
+                if variant == 'tampered':
+                    catalog.write_text(original + 'tampered')
+                prefix = r"""
+set -euo pipefail
+mode=--plan
+curl() {
+    local dest="" url=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -o) dest=$2; shift ;;
+            https:*) url=$1 ;;
+        esac
+        shift
+    done
+    case "$url" in
+        */medge-archive-keyring.gpg) cp "$TEST_KEY" "$dest" ;;
+        */agent-computer-apt-overlay.json.asc) cp "$TEST_SIGNATURE" "$dest" ;;
+        */agent-computer-apt-overlay.json) cp "$TEST_CATALOG" "$dest" ;;
+        *) return 95 ;;
+    esac
+}
+gpgv() {
+    [[ "$stage/agent-computer-apt-overlay.json" != "$TEST_CATALOG" ]] || return 96
+    [[ "$(stat -c '%a' "$stage")" == 700 ]] || return 98
+    command gpgv "$@" || return
+    if [[ "$TEST_VARIANT" == mutate-original ]]; then printf 'changed' >"$TEST_CATALOG"; fi
+}
+"""
+                start = text.index('stage=$(mktemp')
+                end = text.index('cat >"$stage/engine.py"')
+                snippet = text[start:end].replace('AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0', self.fingerprint)
+                result = subprocess.run(['bash'], input=prefix + snippet + '\nprintf "verified-native-catalog\\n"\n',
+                    env=dict(self.env, TEST_KEY=str(self.key), TEST_SIGNATURE=str(signature),
+                             TEST_CATALOG=str(catalog), TEST_VARIANT=variant),
+                    text=True, capture_output=True)
+                if variant == 'tampered':
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn('verified-native-catalog', result.stdout)
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn('verified-native-catalog', result.stdout)
+
 
     def test_package_planner_requires_sha256_for_selected_and_unselected_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
