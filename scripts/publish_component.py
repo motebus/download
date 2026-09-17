@@ -57,6 +57,8 @@ def main(tag):
             assert hashlib.sha256(path.read_bytes()).hexdigest() == item['sha256'], item['name']
         from publish_apt import validate_no_gitlab_urls
         validate_no_gitlab_urls(stage)
+        if tag == 'cx-mesh-v2.0.0-1':
+            subprocess.run([sys.executable,str(ROOT/'scripts/check_cx_mesh_upgrade.py'),str(stage/'cx-mesh_2.0.0-1_amd64.deb')],check=True)
         notes = stage / 'release-notes.txt'
         notes.write_text(record['notes'])
         run('gh', 'release', 'create', tag, '--repo', REPO, '--target', record['public_source_commit'],
