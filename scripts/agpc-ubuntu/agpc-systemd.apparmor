@@ -37,6 +37,7 @@ profile agpc-systemd flags=(attach_disconnected,mediate_deleted) {
   # Propagation changes in the container's private mount namespace.
   mount options=(rw,rslave) -> /,
   mount options=(rw,rprivate) -> /,
+  mount options=(rw,rshared) -> /,
   # Generator sandbox: self-bind root, read-only remounts and private /tmp.
   mount options=(rw,bind) / -> /,
   mount options=(rw,rbind) / -> /,
@@ -49,8 +50,7 @@ profile agpc-systemd flags=(attach_disconnected,mediate_deleted) {
   mount fstype=tmpfs -> /tmp/,
   # Unit sandbox setup is confined to systemd's private staging tree.
   mount -> /run/systemd/{mount-rootfs,unit-root}/{,**},
-  mount fstype=tmpfs -> /run/systemd/namespace-*{,/**},
-  mount fstype=proc options=(rw,nosuid,nodev,noexec) -> /run/systemd/namespace-*{,/**},
+  mount -> /run/systemd/namespace-*{,/**},
   mount options=(rw,move) -> /run/credentials/*/,
   mount options=(rw,move) /run/systemd/{mount-rootfs,unit-root}/ -> /,
 }

@@ -46,3 +46,24 @@ socket mount is part of this contract.
 Acceptance must verify the protocol initialize exchange, Mac OS/user/workspace
 identity, approval round-trip, disconnect handling and process cleanup. A local
 `cx-exec --check` only checks executable availability and is insufficient.
+
+## Container confinement candidate
+
+`runtime-options.json` requires Engine 28+, private cgroup v2, writable container
+cgroups, no-new-privileges and CAP_SYS_ADMIN for systemd namespace setup. It uses
+no privileged mode, host mounts, host cgroup namespace or published ports. The
+capability requirement is broader than an ordinary application container and
+must be included in runtime admission review.
+
+Linux CI loads `agpc-systemd.apparmor` on its disposable runner. The profile
+retains Docker-derived proc/sys restrictions and denies unspecified mount
+operations. Its additions cover systemd's private staging mounts, generator
+read-only remounts and private runtime credentials. The template's license is
+preserved in `LICENSE.apparmor`. CI also requires a mount outside these paths to
+fail, and executes a hardened non-root transient service.
+
+This CI profile is not installed into a user's Docker Desktop VM. Mac admission
+must inspect the actual Engine/cgroup/security configuration and verify service
+startup there; it must not silently turn off AppArmor or enable privileged mode.
+The separate `--diagnose-without-apparmor` check is only a CI failure-isolation
+experiment and cannot qualify an image for release.

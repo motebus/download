@@ -74,6 +74,8 @@ def main():
             "assert os.statvfs('/usr').f_flag & os.ST_RDONLY; "
             "pathlib.Path('/tmp/agpc-unit-check').write_text('private tmp'); "
             "assert 'NoNewPrivs:\t1' in pathlib.Path('/proc/self/status').read_text()")
+        run('exec', container, 'systemctl', 'start', 'ssh.service', timeout=30)
+        assert run('exec', container, 'systemctl', 'is-active', 'ssh.service').strip() == 'active'
         failed = subprocess.run(['docker', 'exec', container, 'systemctl', '--failed', '--no-pager'],
                                 capture_output=True, text=True, timeout=10).stdout
         run('stop', '--time', '20', container, timeout=30)

@@ -13,7 +13,9 @@ RUN bash /usr/local/libexec/agpc-install-packages \
     && chmod 0755 /usr/local/libexec/agpc/codex-stream.py \
     && python3 /usr/local/libexec/agpc/configure-cx.py /etc/cx-mesh/cx-mesh.toml \
     && install -m 0644 /usr/local/libexec/agpc/ssh.service /etc/systemd/system/ssh.service \
-    && ln -sf /dev/null /etc/systemd/system/ssh.socket
+    && ln -sf /dev/null /etc/systemd/system/ssh.socket \
+    && ln -sf /dev/null /etc/systemd/system/dev-hugepages.mount \
+    && ln -sf /dev/null /etc/systemd/system/sys-fs-fuse-connections.mount
 STOPSIGNAL SIGRTMIN+3
 # Preserve packaged service contracts. Do not substitute fake systemctl commands.
 # No privileged/cgroup-host configuration is shipped; Mac runtime admission is pending.
