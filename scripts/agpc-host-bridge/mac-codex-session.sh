@@ -16,27 +16,30 @@ stop_child() {
 }
 
 run_session() {
-    local temporary codex_pid='' docker_pid='' result=0
+    # Bash 3.2 can unwind function locals before running EXIT traps.
+    # Keep cleanup ownership in process-scoped variables, never trap-local state.
+    AGPC_BRIDGE_TEMP='' AGPC_BRIDGE_CODEX_PID='' AGPC_BRIDGE_DOCKER_PID=''
+    local result=0
     umask 077
-    temporary=$(mktemp -d "${TMPDIR:-/tmp}/agpc-codex.XXXXXXXX")
+    AGPC_BRIDGE_TEMP=$(mktemp -d "${TMPDIR:-/tmp}/agpc-codex.XXXXXXXX")
     cleanup() {
-        [[ -z "$docker_pid" ]] || stop_child "$docker_pid"
-        [[ -z "$codex_pid" ]] || stop_child "$codex_pid"
-        rm -f "$temporary/in" "$temporary/out"
-        rmdir "$temporary"
+        [[ -z "$AGPC_BRIDGE_DOCKER_PID" ]] || stop_child "$AGPC_BRIDGE_DOCKER_PID"
+        [[ -z "$AGPC_BRIDGE_CODEX_PID" ]] || stop_child "$AGPC_BRIDGE_CODEX_PID"
+        rm -f "$AGPC_BRIDGE_TEMP/in" "$AGPC_BRIDGE_TEMP/out"
+        rmdir "$AGPC_BRIDGE_TEMP"
     }
     trap cleanup EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
-    mkfifo "$temporary/in" "$temporary/out"
+    mkfifo "$AGPC_BRIDGE_TEMP/in" "$AGPC_BRIDGE_TEMP/out"
     # Redirection order is deliberate: open the same FIFO first at both ends.
-    "$CODEX" app-server --listen stdio:// < "$temporary/in" > "$temporary/out" &
-    codex_pid=$!
+    "$CODEX" app-server --listen stdio:// < "$AGPC_BRIDGE_TEMP/in" > "$AGPC_BRIDGE_TEMP/out" &
+    AGPC_BRIDGE_CODEX_PID=$!
     "$DOCKER" --context desktop-linux exec -i --user cx-mesh "$CONTAINER" \
         /usr/bin/python3 /usr/local/libexec/agpc/codex-stream.py serve \
-        > "$temporary/in" < "$temporary/out" &
-    docker_pid=$!
-    wait "$docker_pid" || result=$?
+        > "$AGPC_BRIDGE_TEMP/in" < "$AGPC_BRIDGE_TEMP/out" &
+    AGPC_BRIDGE_DOCKER_PID=$!
+    wait "$AGPC_BRIDGE_DOCKER_PID" || result=$?
     cleanup
     trap - EXIT INT TERM
     return "$result"

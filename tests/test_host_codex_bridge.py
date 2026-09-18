@@ -178,7 +178,7 @@ class HostScriptTests(unittest.TestCase):
                     time.sleep(.01)
                 pids = [int((directory / (name + '.pid')).read_text()) for name in ('codex', 'docker')]
                 supervisor.terminate()
-                self.assertEqual(supervisor.wait(timeout=12), 143)
+                self.assertEqual(supervisor.wait(timeout=12), 143, supervisor.stderr.read())
                 for pid in pids:
                     with self.assertRaises(ProcessLookupError):
                         os.kill(pid, 0)
