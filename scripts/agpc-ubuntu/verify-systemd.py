@@ -64,7 +64,14 @@ def main():
         run('exec', container, 'systemctl', 'start', 'dbus.service', timeout=30)
         # A real transient unit proves service creation, identity drop and reaping.
         run('exec', container, 'systemd-run', '--wait', '--pipe', '--collect',
-            '--uid=cx-mesh', '/usr/bin/id', '-un')
+            '--uid=cx-mesh', '--property=PrivateTmp=true',
+            '--property=ProtectSystem=strict', '--property=ProtectHome=true',
+            '--property=ProtectControlGroups=true', '--property=NoNewPrivileges=true',
+            '/usr/bin/python3', '-c',
+            "import os, pathlib; assert os.getuid() != 0; "
+            "assert os.statvfs('/usr').f_flag & os.ST_RDONLY; "
+            "pathlib.Path('/tmp/agpc-unit-check').write_text('private tmp'); "
+            "assert 'NoNewPrivs:\t1' in pathlib.Path('/proc/self/status').read_text()")
         failed = subprocess.run(['docker', 'exec', container, 'systemctl', '--failed', '--no-pager'],
                                 capture_output=True, text=True, timeout=10).stdout
         run('stop', '--time', '20', container, timeout=30)
