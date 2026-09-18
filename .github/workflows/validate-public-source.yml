@@ -30,6 +30,16 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_mac_bootstrap.py' -v
           python3 -m unittest discover -s tests -p 'test_host_codex_bridge.py' -v
 
+  macos-native-codex:
+    runs-on: macos-15
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify pinned native Mac App-Server without credentials
+        run: python3 scripts/agpc-host-bridge/verify-native-mac.py
+
   windows:
     runs-on: windows-latest
     timeout-minutes: 10
