@@ -158,6 +158,37 @@ class HostScriptTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, b'')
 
+    def test_supervisor_term_cleans_children_and_fifos(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            paths = []
+            for name in ('codex', 'docker'):
+                executable = directory / name
+                executable.write_text('#!/bin/bash\nprintf "%s" "$$" > "$PID_DIR/' + name + '.pid"\nexec sleep 60\n')
+                executable.chmod(0o700)
+                paths.append(str(executable))
+            supervisor = subprocess.Popen(['/bin/bash', '-c',
+                'source "$1"; CODEX=$2; DOCKER=$3; CONTAINER=fixture; TMPDIR=$4; run_session',
+                'fixture', str(HOST), *paths, temporary], env=dict(os.environ, PID_DIR=temporary),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            try:
+                deadline = time.monotonic() + 3
+                while not all((directory / (name + '.pid')).exists() for name in ('codex', 'docker')):
+                    self.assertLess(time.monotonic(), deadline)
+                    time.sleep(.01)
+                pids = [int((directory / (name + '.pid')).read_text()) for name in ('codex', 'docker')]
+                supervisor.terminate()
+                self.assertEqual(supervisor.wait(timeout=12), 143)
+                for pid in pids:
+                    with self.assertRaises(ProcessLookupError):
+                        os.kill(pid, 0)
+                self.assertFalse(list(directory.glob('agpc-codex.*')))
+            finally:
+                if supervisor.poll() is None:
+                    supervisor.kill()
+                supervisor.wait(timeout=3)
+                supervisor.stdout.close(); supervisor.stderr.close()
+
     def test_fifo_lifecycle_with_fake_endpoints(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)

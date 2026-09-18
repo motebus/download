@@ -15,7 +15,7 @@ stop_child() {
     wait "$pid" 2>/dev/null || true
 }
 
-run_session() (
+run_session() {
     local temporary codex_pid='' docker_pid='' result=0
     umask 077
     temporary=$(mktemp -d "${TMPDIR:-/tmp}/agpc-codex.XXXXXXXX")
@@ -37,8 +37,10 @@ run_session() (
         > "$temporary/in" < "$temporary/out" &
     docker_pid=$!
     wait "$docker_pid" || result=$?
+    cleanup
+    trap - EXIT INT TERM
     return "$result"
-)
+}
 
 main() {
     PATH=/usr/bin:/bin:/usr/sbin:/sbin

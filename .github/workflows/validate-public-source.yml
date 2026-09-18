@@ -87,3 +87,5 @@ jobs:
           assert config["codex"]["command"] == "/usr/local/libexec/agpc/codex-stream.py"
           assert config["codex"]["args"] == ["app-server"]
           print(json.dumps(record, indent=2))'
+      - name: Verify installed CX-Mesh bridge over Docker exec (simulated host)
+        run: python3 scripts/agpc-host-bridge/verify-container-bridge.py
