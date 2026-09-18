@@ -26,9 +26,11 @@ jobs:
           /bin/bash --version
           /bin/bash -n agpc-mac.sh
           /bin/bash -n scripts/agpc-host-bridge/mac-codex-session.sh
+          /bin/bash -n scripts/agpc-host-bridge/mac-ssh-session.sh
           /bin/bash agpc-mac.sh --plan
           python3 -m unittest discover -s tests -p 'test_mac_bootstrap.py' -v
           python3 -m unittest discover -s tests -p 'test_host_codex_bridge.py' -v
+          python3 -m unittest discover -s tests -p 'test_host_ssh_bridge.py' -v
 
   macos-native-codex:
     runs-on: macos-15
@@ -99,6 +101,8 @@ jobs:
           print(json.dumps(record, indent=2))'
       - name: Verify installed CX-Mesh bridge over Docker exec (simulated host)
         run: python3 scripts/agpc-host-bridge/verify-container-bridge.py
+      - name: Verify container loopback SSH over Docker exec (simulated host)
+        run: python3 scripts/agpc-host-bridge/verify-container-ssh.py
       - name: Diagnose default Docker systemd support (not runtime admission)
         run: python3 scripts/agpc-ubuntu/probe-systemd.py
       - name: Verify isolated writable-cgroup systemd manager and graceful stop
