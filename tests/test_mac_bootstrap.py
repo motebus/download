@@ -19,7 +19,7 @@ class BootstrapTests(unittest.TestCase):
         result = subprocess.run(["/bin/bash", "-s", "--", "--plan"],
                                 input=SCRIPT.read_text(), text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("native release pending", result.stdout)
+        self.assertIn("Ubuntu 26.04 OCI release pending", result.stdout)
 
     def test_help_and_plan(self):
         for arg in ("--help", "--plan"):
@@ -63,6 +63,29 @@ class BootstrapTests(unittest.TestCase):
         result = run_function("release_gate")
         self.assertEqual(result.returncode, 78)
         self.assertIn("NOT complete", result.stderr)
+
+    def test_docker_version_gate(self):
+        for actual, required, expected in (("14.0", "14", 0), ("14.7", "14.8", 1),
+                                            ("26.0", "15.0", 0), ("bad", "14", 1)):
+            result = run_function(f'version_at_least "{actual}" "{required}"')
+            self.assertEqual(result.returncode, expected)
+
+    def test_bad_docker_digest_rejected(self):
+        result = run_function('shasum() { echo "bad  fixture"; }; verify_docker_digest fixture')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("checksum mismatch", result.stderr)
+
+    def test_ready_docker_is_preserved(self):
+        result = run_function('DOCKER_BIN=/bin/bash; docker_info() { return 0; }; '
+                              'install_docker_desktop() { exit 90; }; '
+                              'launchctl() { exit 91; }; ensure_docker_desktop')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("preserved", result.stdout)
+
+    def test_docker_timeout_is_failure(self):
+        result = run_function('docker_info() { return 1; }; sleep() { :; }; wait_for_docker')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not ready", result.stderr)
 
     def test_source_is_inert(self):
         result = run_function(":")

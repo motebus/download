@@ -19,7 +19,7 @@ class MacPublicationTests(unittest.TestCase):
             shutil.copy2(ROOT / name, self.root)
 
     def test_record_matches_assets(self):
-        self.assertEqual(p.validate_mac_installer(self.root)["status"], "preflight-only")
+        self.assertEqual(p.validate_mac_installer(self.root)["status"], "docker-bootstrap-only")
 
     def test_tampered_and_missing_script_rejected(self):
         script = self.root / "agpc-mac.sh"
