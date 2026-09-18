@@ -57,9 +57,11 @@ def main():
         if args.apparmor_profile:
             assert state['AppArmorProfile'] == args.apparmor_profile
             run('exec', container, 'mkdir', '-p', '/mnt/forbidden')
-            denied = subprocess.run(['docker', 'exec', container, 'mount', '-t', 'tmpfs',
-                                     'tmpfs', '/mnt/forbidden'], capture_output=True, text=True)
-            assert denied.returncode != 0 and 'permission denied' in denied.stderr.lower(), denied
+            # Call mount directly: util-linux retries read-only and changes its error text.
+            run('exec', container, 'python3', '-c',
+                "import ctypes, errno; c=ctypes.CDLL(None,use_errno=True); "
+                "r=c.mount(b'tmpfs',b'/mnt/forbidden',b'tmpfs',0,None); "
+                "assert r == -1 and ctypes.get_errno() in (errno.EPERM,errno.EACCES)")
         # The manager's private socket precedes the system bus during boot.
         run('exec', container, 'systemctl', 'start', 'dbus.service', timeout=30)
         # A real transient unit proves service creation, identity drop and reaping.

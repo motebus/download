@@ -40,13 +40,17 @@ profile agpc-systemd flags=(attach_disconnected,mediate_deleted) {
   # Generator sandbox: self-bind root, read-only remounts and private /tmp.
   mount options=(rw,bind) / -> /,
   mount options=(rw,rbind) / -> /,
-  mount options=(ro,remount,bind) -> /**,
-  mount options=(ro,nosuid,nodev,noexec,remount,bind) -> /**,
-  mount options=(ro,relatime,remount,bind) -> /**,
-  mount options=(ro,nosuid,nodev,noexec,relatime,remount,bind) -> /**,
+  mount options=(ro,nosuid,remount,bind) -> /{,**},
+  mount options=(ro,nosuid,noexec,remount,bind) -> /{,**},
+  mount options=(ro,remount,bind) -> /{,**},
+  mount options=(ro,nosuid,nodev,noexec,remount,bind) -> /{,**},
+  mount options=(ro,relatime,remount,bind) -> /{,**},
+  mount options=(ro,nosuid,nodev,noexec,relatime,remount,bind) -> /{,**},
   mount fstype=tmpfs -> /tmp/,
   # Unit sandbox setup is confined to systemd's private staging tree.
   mount -> /run/systemd/{mount-rootfs,unit-root}/{,**},
-  mount fstype=tmpfs -> /run/systemd/namespace-*/,
+  mount fstype=tmpfs -> /run/systemd/namespace-*{,/**},
+  mount fstype=proc options=(rw,nosuid,nodev,noexec) -> /run/systemd/namespace-*{,/**},
+  mount options=(rw,move) -> /run/credentials/*/,
   mount options=(rw,move) /run/systemd/{mount-rootfs,unit-root}/ -> /,
 }
