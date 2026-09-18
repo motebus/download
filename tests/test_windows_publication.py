@@ -22,7 +22,7 @@ class WindowsPublicationTests(unittest.TestCase):
 
     def test_all_scripts_match_source_record(self):
         record = p.validate_windows_installer(self.root)
-        self.assertEqual(record["tag"], "agpc-windows-v0.1.0")
+        self.assertEqual(record["tag"], "agpc-windows-v0.1.1")
         self.assertEqual(set(record["assets"]), {"agpc-win.ps1", "agpc.ps1", "agpc-win-uninstall.ps1", "agpc-unistall.ps1"})
 
     def test_missing_symlinked_or_tampered_assets_fail(self):
@@ -62,7 +62,7 @@ class WindowsPublicationTests(unittest.TestCase):
             shutil.copy2(self.root / name, site)
         path = site / p.WINDOWS_INSTALLER_SOURCE
         record = json.loads(path.read_text())
-        record["tag"] = "agpc-windows-v0.1.1"
+        record["tag"] = "agpc-windows-v0.1.2"
         path.write_text(json.dumps(record))
         with mock.patch.dict("os.environ", {}, clear=True):
             with self.assertRaisesRegex(p.PublishError, "staged Windows installer source differs"):
