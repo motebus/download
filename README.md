@@ -2,8 +2,8 @@
 
 Platform entry points: Ubuntu [`agpc.sh`](agpc.sh), Windows
 [`agpc-win.ps1`](agpc-win.ps1), macOS [`agpc-mac.sh`](agpc-mac.sh).
-The macOS v0.1.0-preview.1 is **preflight only**, not a working installer:
-`--plan` displays the target; `--check` inspects macOS 15+ / arm64 prerequisites
+The macOS v0.1.0-preview.2 is **preflight only**, not a working installer:
+`--plan` displays the target; `--check` inspects macOS 14+ / arm64 prerequisites
 and exits 78 at the unavailable native release gate. It installs no services.
 See [macOS status and acceptance contract](AGPC-MAC.md).
 

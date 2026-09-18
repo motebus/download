@@ -46,7 +46,10 @@ class BootstrapTests(unittest.TestCase):
         for os_name, arch, version, expected in (
             ("Linux", "arm64", "15.0", 1),
             ("Darwin", "x86_64", "15.0", 1),
-            ("Darwin", "arm64", "14.7", 1),
+            ("Darwin", "arm64", "13.7", 1),
+            ("Darwin", "arm64", "14.0", 0),
+            ("Darwin", "arm64", "14.7", 0),
+            ("Darwin", "x86_64", "14.7", 1),
             ("Darwin", "arm64", "bad", 1),
             ("Darwin", "arm64", "15.0", 0),
             ("Darwin", "arm64", "26.0", 0),

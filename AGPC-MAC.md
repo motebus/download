@@ -5,7 +5,7 @@ component CLI flags or registration protocols are fabricated here.
 
 ## Platform and filesystem
 
-- macOS 15+, native arm64. Intel and Rosetta shells are rejected in v0.1.
+- macOS 14+, native arm64. Intel and Rosetta shells are rejected in v0.1.
 - System runtime: `/opt/agpc/{bin,etc,var,logs,agents,apps,runtime}`.
 - Per-user state: `~/.agpc`, owned by the selected ordinary login user.
 - launchd definitions: `/Library/LaunchDaemons`; these are OS integration files.
@@ -113,7 +113,7 @@ Do not implement stub commands returning success while their services are absent
 
 | Gate | Required evidence | Current state |
 | --- | --- | --- |
-| Clean Mac bootstrap | One command on clean Apple Silicon macOS 15+, no manual network/SSH configuration | Not tested |
+| Clean Mac bootstrap | One command on clean Apple Silicon macOS 14+, no manual network/SSH configuration | Not tested |
 | Release trust | Authenticated immutable native artifacts, actual executable architecture and dependency checks | Missing |
 | Loopback SSH | Effective configuration and socket binding; no external-interface port 22 listener introduced | Not tested |
 | Local endpoint | Fresh authorized `ssh local.mote` login as ordinary user | Not tested |

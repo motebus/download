@@ -6,7 +6,7 @@ set -euo pipefail
 usage() {
     cat <<'EOF'
 Usage: agpc-mac.sh [--plan | --check | --help]
-Target: macOS 15+ on Apple Silicon (arm64).
+Target: macOS 14+ on Apple Silicon (arm64).
 
   --plan   Display the installation phases without inspecting or changing a host.
   --check  Inspect prerequisites; requires sudo on a supported Mac.
@@ -23,7 +23,7 @@ phase() { printf '[%s/9] %s\n' "$1" "$2"; }
 plan() {
     cat <<'EOF'
 AGPC macOS bootstrap plan — native release pending
-[1/9] Detecting macOS (15+, arm64)
+[1/9] Detecting macOS (14+, arm64)
 [2/9] Checking prerequisites and authenticated native release
 [3/9] Preparing AGPC directories (/opt/agpc; user state ~/.agpc)
 [4/9] Configuring local SSH (loopback port 22; owner-managed launchd job)
@@ -54,7 +54,7 @@ platform_check() {
     version=$(sw_vers -productVersion) || fail 'Cannot determine macOS version.'
     major=${version%%.*}
     case "$major" in ''|*[!0-9]*) fail 'Invalid macOS version.' ;; esac
-    [[ "$major" -ge 15 ]] || fail 'macOS 15 or newer is required.'
+    [[ "$major" -ge 14 ]] || fail 'macOS 14 or newer is required.'
     [[ $(uname -m) == arm64 ]] || fail 'v0.1 requires native arm64; Intel and Rosetta shells are unsupported.'
     printf 'Platform: macOS %s / arm64\n' "$version"
 }
