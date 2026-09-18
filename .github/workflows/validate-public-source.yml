@@ -89,3 +89,5 @@ jobs:
           print(json.dumps(record, indent=2))'
       - name: Verify installed CX-Mesh bridge over Docker exec (simulated host)
         run: python3 scripts/agpc-host-bridge/verify-container-bridge.py
+      - name: Diagnose default Docker systemd support (not runtime admission)
+        run: python3 scripts/agpc-ubuntu/probe-systemd.py
