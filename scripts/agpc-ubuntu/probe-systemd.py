@@ -5,7 +5,8 @@ import subprocess
 import time
 
 container = subprocess.check_output([
-    'docker', 'run', '-d', '--network', 'none', '--cgroupns', 'private',
+    'docker', 'run', '-d', '-t', '--env', 'SYSTEMD_LOG_TARGET=console',
+    '--env', 'SYSTEMD_LOG_LEVEL=debug', '--network', 'none', '--cgroupns', 'private',
     '--tmpfs', '/run', '--tmpfs', '/run/lock', '--tmpfs', '/tmp',
     'agpc-ubuntu26:candidate'], text=True).strip()
 try:

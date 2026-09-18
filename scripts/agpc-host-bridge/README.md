@@ -38,6 +38,11 @@ after the client ends its session.
 - Validate the Ubuntu systemd runtime on Docker Desktop and the separate Mac
   SSH endpoint. The image inventory deliberately remains `runtime_ready: false`.
 
+CI builds the real Ubuntu image and verifies its installed `cx-exec` over actual
+Docker exec streams, including approvals and disconnect. A separate diagnostic
+probes systemd under default container privileges and records failures without
+treating them as runtime admission.
+
 Tests use fake protocol endpoints. Their macOS identity strings are fixtures,
 not proof of real Mac execution. CI additionally builds the candidate OCI image
 from signed DEBs; it does not publish or admit it as a running AGPC image.
