@@ -48,9 +48,9 @@ from pathlib import Path
 import subprocess
 import sys
 
-POLICY = {'agent-sphere': {'version': '0.2.0-14',
+POLICY = {'agent-sphere': {'version': '0.2.0-15',
                   'architecture': 'all',
-                  'sha256': '4162fa0807edf23b4e9aa266777b39827aec079979e2d139c3f08c1b6454cfd7',
+                  'sha256': '8ba7a31b8ce4e3e2277bd83238f8cf3bd82d49b6bb5e70e6d3bdc1655d524ebe',
                   'hooks': {'prerm': '1bd6bdbedefa3da7e7d776d186f2a6905f65d622e6d79d2d4822cb25aedca79d',
                             'postrm': '1bb6bcd08933a82ea83ece4395fa4e144418bd78395d6e84073918d7d28ea370'},
                   'units': ['agentsphere.target'],
@@ -68,9 +68,9 @@ POLICY = {'agent-sphere': {'version': '0.2.0-14',
                   'hooks': {'prerm': None, 'postrm': None},
                   'units': [],
                   'retained_payloads': []},
- 'agent-apps': {'version': '0.2.0-3',
+ 'agent-apps': {'version': '0.2.0-4',
                 'architecture': 'all',
-                'sha256': '79c245e88939c39e8936b096c81d9c59a76533d7d25583d8aa4a3145f242b777',
+                'sha256': 'e8b2cb48e831f8a0149323900b966bdb8baf62706f950c2da3df6fb6895d0703',
                 'hooks': {'prerm': None, 'postrm': None},
                 'units': [],
                 'retained_payloads': []},
@@ -229,20 +229,20 @@ POLICY = {'agent-sphere': {'version': '0.2.0-14',
                      'postrm': 'bfe629b242deb41d30e833a8e8800edb231ff83f0064d7baf0952e3f3cee1e86'},
            'units': ['mdesk-device.service', 'mdesk.service'],
            'retained_payloads': ['/usr/share/mdesk/mdesk-mchat.env']},
- 'uchat': {'version': '3.2.0-2',
+ 'uchat': {'version': '3.2.0-3',
            'architecture': 'amd64',
-           'sha256': '4a15e1949f8e32488883ac49a040802089f17cae4f0480e157d58b4c6f05a9a9',
+           'sha256': '2cd45dd0c6b486aa1d2c3b5375980543afdf8e71f5b158049e0478078d51a632',
            'hooks': {'prerm': None, 'postrm': None},
            'units': [],
            'retained_payloads': []},
- 'uchatd': {'version': '0.4.0-1',
+ 'uchatd': {'version': '0.4.0-2',
             'architecture': 'amd64',
-            'sha256': 'eda5d17a0733e2a71cf7163f031ad827346d88abb78d60d2ff41fabe745f23a1',
+            'sha256': 'ff9872b5dcefe118c5e3843e3508c4ae9950241f9c7db7d85002a900d8ddd9fb',
             'hooks': {'prerm': 'b0525c9fd53c1282941231f0ab9991ddbb339bf8271a0a58d29e8f28e620032e',
                       'postrm': '70cffb5d79933daff701a544c4e992bcea528a684fe879e5004e16620d247343'},
             'units': ['uchatd-redis.service', 'uchatd.service'],
             'retained_payloads': []}}
-RELEASE_TAG = 'agent-computer-v0.2.0-14'
+RELEASE_TAG = 'agent-computer-v0.2.0-15'
 
 def fail(message):
     raise RuntimeError(message)
