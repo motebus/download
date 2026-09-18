@@ -20,7 +20,7 @@ def main():
     assert int(info['ServerVersion'].split('.')[0]) >= options['minimum_engine_major']
     # No network or published ports: this test must not join the live Mote mesh.
     container = run('run', '-d', '-t', '--network', 'none',
-                    '--env', 'SYSTEMD_LOG_TARGET=console', '--env', 'SYSTEMD_LOG_LEVEL=info',
+                    '--env', 'SYSTEMD_LOG_TARGET=console', '--env', 'SYSTEMD_LOG_LEVEL=debug',
                     *options['docker_run_args'], 'agpc-ubuntu26:candidate').strip()
     try:
         manager = ''

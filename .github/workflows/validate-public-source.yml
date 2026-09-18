@@ -103,3 +103,6 @@ jobs:
         run: python3 scripts/agpc-ubuntu/probe-systemd.py
       - name: Verify isolated writable-cgroup systemd manager and graceful stop
         run: python3 scripts/agpc-ubuntu/verify-systemd.py
+      - name: Collect container kernel denials on failure
+        if: failure()
+        run: sudo dmesg --ctime | tail -80
