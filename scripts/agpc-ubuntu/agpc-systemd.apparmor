@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: Copyright The Moby Authors
+# SPDX-License-Identifier: Apache-2.0
+# Derived from github.com/moby/profiles/apparmor/template.go.
+# AGPC additions permit systemd's private mount setup, not arbitrary mount targets.
+abi <abi/3.0>,
+include <tunables/global>
+profile agpc-systemd flags=(attach_disconnected,mediate_deleted) {
+  include <abstractions/base>
+  network,
+  deny network alg,
+  deny network vsock,
+  capability,
+  file,
+  umount,
+  signal (receive) peer=unconfined,
+  signal (receive) peer=runc,
+  signal (receive) peer=crun,
+  signal (receive) peer=dockerd,
+  signal (send,receive) peer=agpc-systemd,
+  ptrace (trace,tracedby,read,readby) peer=agpc-systemd,
+
+  deny @{PROC}/* w,
+  deny @{PROC}/{[^1-9/],[^1-9/][^0-9/],[^1-9s/][^0-9y/][^0-9s/],[^1-9/][^0-9/][^0-9/][^0-9/]*}/** w,
+  deny @{PROC}/sys/[^k]** w,
+  deny @{PROC}/sys/kernel/{?,??,[^s][^h][^m]**} w,
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/kcore rwklx,
+  deny /sys/[^f]*/** wklx,
+  deny /sys/f[^s]*/** wklx,
+  deny /sys/fs/[^c]*/** wklx,
+  deny /sys/fs/c[^g]*/** wklx,
+  deny /sys/fs/cg[^r]*/** wklx,
+  deny /sys/firmware/** rwklx,
+  deny /sys/devices/virtual/powercap/** rwklx,
+  deny /sys/kernel/security/** rwklx,
+
+  # Propagation changes in the container's private mount namespace.
+  mount options=(rw,rslave) -> /,
+  mount options=(rw,rprivate) -> /,
+  # Generator sandbox: self-bind root, read-only remounts and private /tmp.
+  mount options=(rw,bind) / -> /,
+  mount options=(rw,rbind) / -> /,
+  mount options in (ro,remount,bind,nosuid,nodev,noexec,relatime,strictatime,nodiratime,nosymfollow) -> /**,
+  mount fstype=tmpfs -> /tmp/,
+  # Unit sandbox setup is confined to systemd's private staging tree.
+  mount -> /run/systemd/{mount-rootfs,unit-root}/{,**},
+  mount fstype=tmpfs -> /run/systemd/namespace-*/,
+  mount options=(rw,move) /run/systemd/{mount-rootfs,unit-root}/ -> /,
+}

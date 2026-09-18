@@ -16,10 +16,15 @@ def run(*args, **kwargs):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--apparmor-profile', choices=['agpc-systemd'])
     parser.add_argument('--diagnose-without-apparmor', action='store_true',
                         help='CI isolation experiment only; never runtime admission')
     args = parser.parse_args()
     options = json.loads(Path(__file__).with_name('runtime-options.json').read_text())
+    if args.apparmor_profile and args.diagnose_without_apparmor:
+        parser.error('profile verification cannot disable AppArmor')
+    if args.apparmor_profile:
+        options['docker_run_args'] += ['--security-opt', 'apparmor=' + args.apparmor_profile]
     if args.diagnose_without_apparmor:
         options['docker_run_args'] += ['--security-opt', 'apparmor=unconfined']
     info = json.loads(run('info', '--format', '{{json .}}'))
@@ -49,6 +54,12 @@ def main():
         assert config['CgroupnsMode'] == 'private'
         assert run('exec', container, 'cat', '/proc/1/cgroup').strip() == '0::/init.scope'
         assert 'writable-cgroups=true' in config['SecurityOpt']
+        if args.apparmor_profile:
+            assert state['AppArmorProfile'] == args.apparmor_profile
+            run('exec', container, 'mkdir', '-p', '/mnt/forbidden')
+            denied = subprocess.run(['docker', 'exec', container, 'mount', '-t', 'tmpfs',
+                                     'tmpfs', '/mnt/forbidden'], capture_output=True, text=True)
+            assert denied.returncode != 0 and 'permission denied' in denied.stderr.lower(), denied
         # The manager's private socket precedes the system bus during boot.
         run('exec', container, 'systemctl', 'start', 'dbus.service', timeout=30)
         # A real transient unit proves service creation, identity drop and reaping.
@@ -60,7 +71,7 @@ def main():
         stopped = json.loads(run('inspect', container))[0]['State']
         assert not stopped['Running'] and stopped['ExitCode'] == 0, stopped
         print(json.dumps({'systemd_manager': manager, 'graceful_stop': 'passed',
-                          'private_cgroup_v2': True, 'privileged': False,
+                          'private_cgroup_v2': True, 'apparmor_profile': args.apparmor_profile, 'privileged': False,
                           'runtime_ready': False, 'apparmor_diagnostic': args.diagnose_without_apparmor,
                           'full_stack_health': 'not-verified',
                           'failed_units': failed}, indent=2))

@@ -105,9 +105,11 @@ jobs:
         run: python3 scripts/agpc-host-bridge/verify-container-ssh.py
       - name: Diagnose default Docker systemd support (not runtime admission)
         run: python3 scripts/agpc-ubuntu/probe-systemd.py
+      - name: Load bounded systemd AppArmor candidate in CI host
+        run: sudo apparmor_parser -r -W scripts/agpc-ubuntu/agpc-systemd.apparmor
       - name: Verify isolated writable-cgroup systemd manager and graceful stop
         id: systemd
-        run: python3 scripts/agpc-ubuntu/verify-systemd.py
+        run: python3 scripts/agpc-ubuntu/verify-systemd.py --apparmor-profile agpc-systemd
       - name: Collect container kernel denials on failure
         if: failure()
         run: sudo dmesg --ctime | tail -80
