@@ -16,6 +16,13 @@ def scripts():
             yield name, label, shell
 
 class WindowsEmbeddedCodeTests(unittest.TestCase):
+    def test_new_install_defaults_to_ubuntu_26(self):
+        source = (ROOT / 'agpc-win.ps1').read_text()
+        self.assertIn("[string]$Distro = 'Ubuntu-26.04'", source)
+        self.assertIn("[ValidateSet('Ubuntu-24.04','Ubuntu-26.04','Ubuntu')]", source)
+        self.assertIn("$Distro -notin @(Get-DistroNames)", source)
+        self.assertIn("$saved.Distro -ne $Distro", source)
+
     def test_embedded_bash_and_python_parse(self):
         found = []
         for name, label, shell in scripts():

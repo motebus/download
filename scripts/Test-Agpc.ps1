@@ -3,6 +3,7 @@ param([switch]$SkipLinuxChecks)
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 . (Join-Path $root 'agpc-win.ps1')
+if ($Distro -ne 'Ubuntu-26.04') { throw 'New installations must default to Ubuntu 26.04.' }
 $token=$null;$errors=$null
 [Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'agpc-win.ps1'),[ref]$token,[ref]$errors) | Out-Null
 if ($errors.Count) { throw ($errors | Out-String) }
