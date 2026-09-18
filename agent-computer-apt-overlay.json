@@ -2,19 +2,19 @@
   "schema": "agent-computer-apt-overlay/v6",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.2.0-14",
-    "source_commit": "1f12f383a39918b0fcdf5b9de82073f813fc5da8",
+    "tag": "agent-computer-v0.2.0-15",
+    "source_commit": "4656c80032e7b4252a35153e89f7b9594c4a808d",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.2.0-14",
+        "version": "0.2.0-15",
         "architecture": "all",
-        "asset": "agent-sphere_0.2.0-14_all.deb",
-        "sha256": "4162fa0807edf23b4e9aa266777b39827aec079979e2d139c3f08c1b6454cfd7",
+        "asset": "agent-sphere_0.2.0-15_all.deb",
+        "sha256": "8ba7a31b8ce4e3e2277bd83238f8cf3bd82d49b6bb5e70e6d3bdc1655d524ebe",
         "provenance": {
-          "source_commit": "675e74fa0ee13e80a7d4297085efee564cded6a6",
+          "source_commit": "73ba3211bdf76427f25240f84b1415d6ab5e7b51",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35240868191,
+          "main_pipeline_id": 35299171433,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -49,14 +49,14 @@
       },
       {
         "name": "agent-apps",
-        "version": "0.2.0-3",
+        "version": "0.2.0-4",
         "architecture": "all",
-        "asset": "agent-apps_0.2.0-3_all.deb",
-        "sha256": "79c245e88939c39e8936b096c81d9c59a76533d7d25583d8aa4a3145f242b777",
+        "asset": "agent-apps_0.2.0-4_all.deb",
+        "sha256": "e8b2cb48e831f8a0149323900b966bdb8baf62706f950c2da3df6fb6895d0703",
         "provenance": {
-          "source_commit": "135d61d83232aed3047126d35f9600e515974879",
+          "source_commit": "165f530c2f7130d39016a0308162038788599d3d",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 34585578126,
+          "main_pipeline_id": 35299143421,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -371,28 +371,28 @@
       },
       {
         "name": "uchat",
-        "version": "3.2.0-2",
+        "version": "3.2.0-3",
         "architecture": "amd64",
-        "asset": "uchat_3.2.0-2_amd64.deb",
-        "sha256": "4a15e1949f8e32488883ac49a040802089f17cae4f0480e157d58b4c6f05a9a9",
+        "asset": "uchat_3.2.0-3_amd64.deb",
+        "sha256": "2cd45dd0c6b486aa1d2c3b5375980543afdf8e71f5b158049e0478078d51a632",
         "provenance": {
-          "source_commit": "48c0b763ef608601e582942dd6df0d58df44a6cb",
+          "source_commit": "97634d04665ed8afa8766bd2c9dfe196bfcdde07",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26896,
+          "main_pipeline_id": 26960,
           "build_status": "success",
           "public_payload_reviewed": true
         }
       },
       {
         "name": "uchatd",
-        "version": "0.4.0-1",
+        "version": "0.4.0-2",
         "architecture": "amd64",
-        "asset": "uchatd_0.4.0-1_amd64.deb",
-        "sha256": "eda5d17a0733e2a71cf7163f031ad827346d88abb78d60d2ff41fabe745f23a1",
+        "asset": "uchatd_0.4.0-2_amd64.deb",
+        "sha256": "ff9872b5dcefe118c5e3843e3508c4ae9950241f9c7db7d85002a900d8ddd9fb",
         "provenance": {
-          "source_commit": "48c0b763ef608601e582942dd6df0d58df44a6cb",
+          "source_commit": "97634d04665ed8afa8766bd2c9dfe196bfcdde07",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26896,
+          "main_pipeline_id": 26960,
           "build_status": "success",
           "public_payload_reviewed": true
         }
