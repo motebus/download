@@ -9,28 +9,28 @@ SCRIPT = ROOT / "agpc-mac.sh"
 
 def run_function(body):
     return subprocess.run(
-        ["bash", "-c", 'source "$1"; ' + body, "test", str(SCRIPT)],
+        ["/bin/bash", "-c", 'source "$1"; ' + body, "test", str(SCRIPT)],
         text=True, capture_output=True,
     )
 
 
 class BootstrapTests(unittest.TestCase):
     def test_pipe_invocation(self):
-        result = subprocess.run(["bash", "-s", "--", "--plan"],
+        result = subprocess.run(["/bin/bash", "-s", "--", "--plan"],
                                 input=SCRIPT.read_text(), text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("native release pending", result.stdout)
 
     def test_help_and_plan(self):
         for arg in ("--help", "--plan"):
-            result = subprocess.run(["bash", str(SCRIPT), arg], capture_output=True, text=True)
+            result = subprocess.run(["/bin/bash", str(SCRIPT), arg], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Phases 3–9 are planned, not implemented", result.stdout)
 
     def test_unknown_arguments(self):
         for args in (("--yes",), ("--check", "--plan")):
             self.assertEqual(subprocess.run(
-                ["bash", str(SCRIPT), *args], capture_output=True
+                ["/bin/bash", str(SCRIPT), *args], capture_output=True
             ).returncode, 2)
 
     def test_endpoint_normalization(self):
