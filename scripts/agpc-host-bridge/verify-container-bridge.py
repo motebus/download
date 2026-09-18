@@ -46,8 +46,8 @@ def main():
         frame(client, host, {'id': 2, 'result': {'decision': 'decline'}})
         frame(host, client, {'method': 'turn/completed', 'params': {'fixture': True}})
         client.stdin.close()
-        # Real App-Server receives input EOF through Docker; fixture closes its
-        # output after that EOF to complete the same shutdown sequence.
+        # Docker exec must exit to deliver input EOF to the host App-Server.
+        # Closing only the helper stdout cannot complete this lifecycle.
         with selectors.DefaultSelector() as events:
             events.register(host.stdout, selectors.EVENT_READ)
             assert events.select(10), 'host did not observe client EOF'

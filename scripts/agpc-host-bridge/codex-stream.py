@@ -15,8 +15,8 @@ LIMIT = 256 * 1024
 DEFAULT_SOCKET = '/run/cx-mesh/host-codex/stdio.sock'
 
 
-def pump(peer, host_side=False):
-    """Bounded duplex forwarding, preserving half-close and stdout backpressure."""
+def pump(peer):
+    """Bounded duplex forwarding; peer EOF closes the Docker exec session."""
     peer.setblocking(False)
     os.set_blocking(0, False)
     os.set_blocking(1, False)
@@ -24,19 +24,16 @@ def pump(peer, host_side=False):
     input_open = peer_open = True
     sent_eof = False
     close_deadline = None
-    stdout_closed = False
     while True:
         if not input_open and not to_peer and not sent_eof:
             peer.shutdown(socket.SHUT_WR)
             sent_eof = True
             close_deadline = time.monotonic() + 5
         if not peer_open and not to_stdout:
-            if not host_side or (not input_open and not to_peer):
-                return
-            if not stdout_closed:
-                os.close(1)  # Tell host App-Server that its input reached EOF.
-                stdout_closed = True
-                close_deadline = time.monotonic() + 5
+            # Docker CLI multiplexes stdout/stderr until exec exits. Closing only
+            # fd 1 would not notify the host: exit this helper so host App-Server
+            # receives EOF instead of waiting cyclically on its own output.
+            return
         with selectors.DefaultSelector() as events:
             if input_open and len(to_peer) < LIMIT:
                 events.register(0, selectors.EVENT_READ, 'stdin')
@@ -109,7 +106,7 @@ def serve(path, timeout):
                     _, uid, _ = struct.unpack('3i', peer.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
                     if uid != os.getuid():
                         raise RuntimeError('unexpected bridge client UID')
-                    pump(peer, host_side=True)
+                    pump(peer)
         finally:
             path.unlink(missing_ok=True)
 

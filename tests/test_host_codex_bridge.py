@@ -59,7 +59,7 @@ class StreamTests(unittest.TestCase):
         client = self.start('app-server')
         return server, client
 
-    def test_requests_approvals_notifications_and_half_close(self):
+    def test_requests_approvals_notifications_and_disconnect(self):
         server, client = self.pair()
         for sender, receiver, value in (
             (client, server, {'id': 1, 'method': 'initialize', 'params': {'clientInfo': {'name': 'fixture'}}}),
@@ -72,11 +72,9 @@ class StreamTests(unittest.TestCase):
             sender.stdin.write(payload)
             sender.stdin.flush()
             self.assertEqual(read_exact(receiver.stdout, len(payload)), payload)
-        # CX closes its input; host sees EOF but may still emit a final response.
+        # CX input EOF ends the session; Docker must exit to deliver host EOF.
         client.stdin.close()
         self.assertEqual(server.stdout.read(), b'')
-        server.stdin.write(b'final-response\n'); server.stdin.flush()
-        self.assertEqual(read_exact(client.stdout, 15), b'final-response\n')
         server.stdin.close()
         self.assertEqual(server.wait(timeout=5), 0, server.stderr.read())
         self.assertEqual(client.wait(timeout=5), 0, client.stderr.read())

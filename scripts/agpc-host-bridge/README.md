@@ -23,7 +23,10 @@ working directory. It rejects root and non-macOS hosts. Docker and Codex stderr
 remain diagnostic output; stdout carries only protocol bytes. Each connection
 owns a new App-Server process. Closing the session or stopping the supervisor
 cleans up both local processes and FIFOs. Container helpers use bounded buffers,
-a connection timeout, peer-UID checks and an EOF grace period.
+a connection timeout, peer-UID checks and an EOF grace period. Peer EOF ends
+the entire exec session: Docker CLI does not expose a standalone stdout half-close
+while its exec process remains alive. No further protocol messages are accepted
+after the client ends its session.
 
 ## Admission still required
 
