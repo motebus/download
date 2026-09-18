@@ -302,6 +302,7 @@ MOTE_TRANSPORT_PACKAGES = (
     ("mote-proxy", "1.3.0-35", "all"),
 )
 ALLOWED_ROOT_FILES = {
+    "agpc-mac.sh", "agpc.mac.source.json", "AGPC-MAC.md",
     ".gitattributes",
     "agpc-win-uninstall.ps1",
     "agpc-unistall.ps1",
@@ -377,7 +378,8 @@ AGENT_APPS_INSTALLER_SCHEMA = "agpc-installer-source/v1"
 AGENT_INSTALLER_ALIASES = ("agent-sphere-apps.sh", "agent-sphere-apps.source.json")
 WINDOWS_INSTALLERS = ("agpc-win.ps1", "agpc.ps1", "agpc-win-uninstall.ps1", "agpc-unistall.ps1")
 WINDOWS_INSTALLER_SOURCE = "agpc.windows.source.json"
-AGENT_INSTALLER_FILES = (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE,
+MAC_INSTALLER_FILES = ("agpc-mac.sh", "agpc.mac.source.json", "AGPC-MAC.md")
+AGENT_INSTALLER_FILES = (*MAC_INSTALLER_FILES, AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE,
                          *AGENT_INSTALLER_ALIASES, *WINDOWS_INSTALLERS, WINDOWS_INSTALLER_SOURCE)
 
 
@@ -434,6 +436,33 @@ def sha256(path: Path) -> str:
 
 def package_field(asset: Path, field: str) -> str:
     return run("dpkg-deb", "-f", str(asset), field, capture=True)
+
+
+def validate_mac_installer(root: Path) -> dict:
+    for name in MAC_INSTALLER_FILES:
+        path = root / name
+        require(path.is_file() and not path.is_symlink(),
+                f"missing regular macOS installer file: {name}")
+    record = json.loads((root / "agpc.mac.source.json").read_text())
+    require(isinstance(record, dict) and set(record) == {
+        "schema", "repository", "tag", "source_commit", "status", "assets"},
+        "macOS source fields are invalid")
+    require(record["schema"] == "agpc-mac-installer-source/v1"
+            and record["repository"] == "motebus/download"
+            and record["status"] == "preflight-only",
+            "macOS preview source identity is invalid")
+    require(isinstance(record["tag"], str) and re.fullmatch(
+        r"agpc-mac-v[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+", record["tag"]),
+        "macOS source must name an exact preview release")
+    require(isinstance(record["source_commit"], str) and re.fullmatch(
+        r"[0-9a-f]{40}", record["source_commit"]), "macOS source commit is invalid")
+    require(isinstance(record["assets"], dict) and set(record["assets"]) == {
+        "agpc-mac.sh", "AGPC-MAC.md"}, "macOS asset names are invalid")
+    for name, digest in record["assets"].items():
+        require(isinstance(digest, str) and HEX64_RE.fullmatch(digest),
+                "macOS checksum is invalid")
+        require(sha256(root / name) == digest, f"macOS digest mismatch: {name}")
+    return record
 
 
 def validate_windows_installer(root: Path) -> dict:
@@ -1466,6 +1495,7 @@ def validate_bundle(bundle: Path) -> dict:
 
 
 def validate_tree(root: Path) -> None:
+    validate_mac_installer(root)
     unexpected = [
         path.name
         for path in root.iterdir()
@@ -1516,7 +1546,7 @@ def validate_tree(root: Path) -> None:
         and path.name != "github-setup.sh"
     }
     require(
-        actual_shell_entries == set(RELEASE_SCRIPTS_V19) | {AGENT_APPS_INSTALLER, AGENT_INSTALLER_ALIASES[0]},
+        actual_shell_entries == set(RELEASE_SCRIPTS_V19) | {AGENT_APPS_INSTALLER, AGENT_INSTALLER_ALIASES[0], "agpc-mac.sh"},
         "public repository must contain exactly the approved release scripts",
     )
     publish_workflow = (root / ".github/workflows/publish-apt.yml").read_text(
@@ -1819,6 +1849,11 @@ uninstaller is not suitable for this Agent Computer. Current removal keeps Ubunt
 remain byte-identical aliases of the canonical AGPC installer and source record.</p>
 </html>""")
     index = index.replace("</html>", """<h2>Windows (preview)</h2>
+<p>macOS Apple Silicon: <a href="agpc-mac.sh">agpc-mac.sh</a>
+(<a href="agpc-mac.sh.asc">signature</a>) is a <strong>preflight-only preview</strong>.
+It does not install AGPC; native runtime release is pending.
+<a href="AGPC-MAC.md">Status and acceptance contract</a>;
+<a href="agpc.mac.source.json">source and SHA-256</a>.</p>
 <p>New Windows PC: <a href="agpc-win.ps1">agpc-win.ps1</a>
 (<a href="agpc-win.ps1.asc">signature</a>) installs WSL 2, Ubuntu and AGPC,
 creates jujue and configures Ubuntu startup after Windows boot.</p>
@@ -1858,6 +1893,10 @@ def stage_full_overlay_uninstaller(site: Path, repository_root: Path, current: d
 
 
 def sign_release(site: Path, repository_root: Path) -> None:
+    require(validate_mac_installer(site) == validate_mac_installer(repository_root)
+            and (site / "agpc.mac.source.json").read_bytes()
+            == (repository_root / "agpc.mac.source.json").read_bytes(),
+            "staged macOS source differs from reviewed record")
     source = validate_agent_apps_installer(repository_root)
     require(validate_agent_apps_installer(site) == source
             and (site / AGENT_APPS_INSTALLER_SOURCE).read_bytes()

@@ -1,5 +1,12 @@
 # AGPC (Agent Computer) Debian Distribution
 
+Platform entry points: Ubuntu [`agpc.sh`](agpc.sh), Windows
+[`agpc-win.ps1`](agpc-win.ps1), macOS [`agpc-mac.sh`](agpc-mac.sh).
+The macOS v0.1.0-preview.1 is **preflight only**, not a working installer:
+`--plan` displays the target; `--check` inspects macOS 15+ / arm64 prerequisites
+and exits 78 at the unavailable native release gate. It installs no services.
+See [macOS status and acceptance contract](AGPC-MAC.md).
+
 ```text
 AGPC = Agent Computer, powered by AgentSphere
 AgentSphere = agent-sphere + agent-ultra + agpc-manager + agent-apps

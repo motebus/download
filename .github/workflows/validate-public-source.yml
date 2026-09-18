@@ -14,6 +14,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  macos-preflight:
+    runs-on: macos-15
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Validate preview with macOS system Bash (no installation)
+        run: |
+          /bin/bash --version
+          /bin/bash -n agpc-mac.sh
+          /bin/bash agpc-mac.sh --plan
+          python3 -m unittest discover -s tests -p 'test_mac_bootstrap.py' -v
+
   windows:
     runs-on: windows-latest
     timeout-minutes: 10
