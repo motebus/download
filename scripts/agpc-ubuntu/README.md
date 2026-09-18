@@ -34,9 +34,11 @@ App-Server inside this image must not satisfy the Mac Codex readiness check.
 
 The inspected CX-Mesh managed backend accepts a configurable absolute command
 and transports JSONL over stdin/stdout. Its external mode is unimplemented.
-Integration therefore requires a managed stdio adapter to an authenticated host
-connection. This adapter is not implemented yet: do not switch the default to a
-nonexistent adapter, or mark the image runtime-ready. Host execution must preserve
+The candidate image configures the managed stdio adapter in
+`scripts/agpc-host-bridge/`. The host user initiates a Docker exec stream, and
+only the container CX-Mesh UID can connect to its private Unix socket. The
+public installer does not enable this candidate yet; runtime readiness remains
+false pending real Mac acceptance. Host execution must preserve
 approval requests as well as responses and notifications, and disconnects must
 fail visibly. No public App-Server listener, host credential mount or Docker
 socket mount is part of this contract.
