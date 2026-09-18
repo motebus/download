@@ -1,50 +1,36 @@
-# Mac host Codex bridge candidate
+# Mac host adapters (candidate)
 
-This candidate keeps CX-Mesh in Ubuntu and starts Codex App-Server on the Mac as
-an ordinary host user. It is not enabled by the public installer yet. SSH bridging,
-container lifecycle and clean-Mac acceptance remain separate unfinished work.
+The Ubuntu image retains the signed AGPC DEB installation. CX-Mesh runs as
+`cx-mesh` inside that image; its configured App-Server command exchanges opaque
+stdio bytes with a native Mac Codex process. The Mac process runs as the ordinary
+Mac user. Neither host credentials nor host workspaces are mounted in Docker.
 
-## Transport
+The SSH adapter preserves the packaged Mote B relay's destination, container
+`127.0.0.1:22`. A container-only `ssh.service` forwards bytes to a private Unix
+socket owned by `moted`. Four host worker slots carry streams through `docker
+exec`; each accepted stream connects to Mac `127.0.0.1:22`. The client authenticates
+with the Mac sshd. The Ubuntu ssh.socket is masked; container OpenSSH is not the
+login destination. No container ports are published.
 
-The host opens `docker --context desktop-linux exec -i --user cx-mesh` into an
-exact, role-labeled container ID. A container helper listens once on a private
-Unix socket. CX-Mesh's managed `cx-exec` backend launches the same helper in
-client mode. The helper passes bytes through stdio to the Mac App-Server. It
-never parses shell commands or JSON, including approval decisions.
+Host scripts require an exact container ID, the AGPC role label, Docker Desktop's
+explicit context and an ordinary Mac user. Socket directories are mode 0700;
+listeners and clients verify peer UIDs. A worker slot remains locked for the
+connection lifetime. Four simultaneous sessions are supported; excess connections
+are closed. A supervisor must restart workers after a session or the bounded idle
+timeout. The public installer does not yet install such a supervisor.
 
-Only the container's `cx-mesh` UID may connect; directory and socket permissions
-are 0700/0600, and both endpoints check Linux peer credentials. Container root
-remains trusted. No network port, Docker socket mount, host home mount or Codex
-credential copy is required. The host's Docker credentials stay on the host.
+## Verification boundaries
 
-The supervisor uses native Bash 3.2 and FIFOs; no extra host Python installation
-is needed. It accepts an absolute host Codex binary, exact container ID and Mac
-working directory. It rejects root and non-macOS hosts. Docker and Codex stderr
-remain diagnostic output; stdout carries only protocol bytes. Each connection
-owns a new App-Server process. Closing the session or stopping the supervisor
-cleans up both local processes and FIFOs. Container helpers use bounded buffers,
-a connection timeout, peer-UID checks and an EOF grace period. Peer EOF ends
-the entire exec session: Docker CLI does not expose a standalone stdout half-close
-while its exec process remains alive. No further protocol messages are accepted
-after the client ends its session.
+- `test_host_codex_bridge.py`: protocol preservation, backpressure and cleanup.
+- `test_host_ssh_bridge.py`: loopback bytes, slot exclusion/reuse, missing worker,
+  host connection only after a valid ready marker, and inert script sourcing.
+- `verify-container-bridge.py`: installed cx-exec through actual Docker exec,
+  using a simulated host protocol.
+- `verify-container-ssh.py`: actual image loopback port 22 and Docker exec,
+  simulated host SSH banner and bidirectional binary bytes. No SSH authentication.
+- `verify-native-mac.py`: pinned native Codex initialization without model calls.
 
-## Admission still required
-
-- Install trusted helpers and discover the actual host Codex binary.
-- Create a per-user LaunchAgent with restart/throttling and logs; start the
-  container before exposing the host bridge, and stop the bridge on logout.
-- Verify the real App-Server initialize response reports macOS, then verify host
-  user/workspace execution, approval round-trip and restart/disconnect behavior.
-- Validate the Ubuntu systemd runtime on Docker Desktop and the separate Mac
-  SSH endpoint. The image inventory deliberately remains `runtime_ready: false`.
-
-CI builds the real Ubuntu image and verifies its installed `cx-exec` over actual
-Docker exec streams, including approvals and disconnect. A separate diagnostic
-probes systemd under default container privileges and records failures without
-treating them as runtime admission.
-
-Tests use fake protocol endpoints. Their macOS identity strings are fixtures,
-not proof of real Mac execution. CI additionally builds the candidate OCI image
-from signed DEBs; it does not publish or admit it as a running AGPC image.
-
-Official protocol: https://learn.chatgpt.com/docs/app-server
+Full Mac Docker startup, launchd worker installation, host sshd provisioning,
+`.mote` client configuration, authenticated Mac SSH and second-machine access
+remain acceptance gates. These adapters are source candidates, not a claim that
+the published bootstrap installs a complete AGPC runtime.

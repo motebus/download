@@ -60,6 +60,32 @@ class ForwarderTests(unittest.TestCase):
                 worker.wait(timeout=3)
                 worker.stdin.close(); worker.stdout.close(); worker.stderr.close()
 
+    def test_four_slots_are_exclusive_and_reusable(self):
+        spec = importlib.util.spec_from_file_location('ssh_slots', DIRECTORY / 'ssh-forwarder.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            listeners, acquired = [], []
+            try:
+                for index in range(module.SLOTS):
+                    listener = socket.socket(socket.AF_UNIX)
+                    listener.bind(str(directory / f'{index}.sock'))
+                    listener.listen(4)
+                    listeners.append(listener)
+                for _ in range(module.SLOTS):
+                    acquired.append(module.host_slot(directory, timeout=.2))
+                with self.assertRaises(TimeoutError):
+                    module.host_slot(directory, timeout=.1)
+                peer, lock = acquired.pop()
+                peer.close(); lock.close()
+                acquired.append(module.host_slot(directory, timeout=.2))
+            finally:
+                for peer, lock in acquired:
+                    peer.close(); lock.close()
+                for listener in listeners:
+                    listener.close()
+
     def test_no_host_worker_fails_closed(self):
         spec = importlib.util.spec_from_file_location('ssh_forwarder_missing', DIRECTORY / 'ssh-forwarder.py')
         module = importlib.util.module_from_spec(spec)
