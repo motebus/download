@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise installed uChat binaries in a disposable AGPC verification container."""
 import grp
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -112,6 +113,12 @@ def main():
         machine = '@' + socket.gethostname().split('.')[0].lower()
         # Exercise the real owner-protected directory, which a /tmp-only
         # fixture cannot cover. This file exists only in the disposable container.
+        # AGPC runs explicit setup after APT finishes; Mesh may have been
+        # configured after uchatd. Exercise that installed setup step as well.
+        spec = importlib.util.spec_from_file_location('uchat_setup', '/usr/libexec/uchat/setup-default.py')
+        setup = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(setup)
+        setup.ensure_mesh_access({'mesh_config': '/etc/cx-mesh/network.json'})
         mesh_group = grp.getgrnam('cx-mesh')
         mesh_root = Path('/etc/cx-mesh')
         assert mesh_root.stat().st_mode & 0o777 == 0o750

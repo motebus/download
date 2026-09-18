@@ -185,7 +185,7 @@ Mote Transport owns D/MSG delivery.
 AGPC 0.2.0-15 fixes daemon access to the protected CX-Mesh membership directory.
 Package installation and explicit setup join the existing `cx-mesh` group before
 starting uchatd. Configuration, Inbox data, account IDs and owner permissions are
-preserved. Other package pins, including Agent Sphere 0.2.0-14, are unchanged.
+preserved. Agent Sphere 0.2.0-15 selects Apps 0.2.0-4 so existing installations upgrade both chat packages. Other component pins are unchanged.
 
 Existing Redis-backed installations must complete the
 [uChat migration and component upgrade](https://github.com/motebus/download/releases/download/uchat-v3.2.0-2/UPGRADE.md)
@@ -246,8 +246,8 @@ records the actual successful committed-main build and reviewed payload digest.
 The public aggregate contains no private implementation source or private
 source-server address. Released artifacts and historical manifests are immutable.
 
-The four entry versions are Agent Sphere 0.2.0-14, Agent Ultra 0.1.0-1,
-AGPC Manager 3.3.0-1 and Agent Apps 0.2.0-3. AGPC Manager requires the paired
+The four entry versions are Agent Sphere 0.2.0-15, Agent Ultra 0.1.0-1,
+AGPC Manager 3.3.0-1 and Agent Apps 0.2.0-4. AGPC Manager requires the paired
 MEdge 3.3.0-1 backend. The signed overlay is the exact
 source of artifact versions and digests. New leaf packages require successful
 native main builds, public payload audits and reviewed migration fixtures.
