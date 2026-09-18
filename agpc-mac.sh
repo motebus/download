@@ -1,5 +1,5 @@
 #!/bin/bash
-# macOS AGPC Docker bootstrap preview; the AGPC runtime is not yet available.
+# macOS AGPC Docker bootstrap preview.4; the AGPC runtime is not yet available.
 # Compatible with system Bash 3.2. Docker setup is the only implemented installation.
 set -euo pipefail
 
@@ -217,9 +217,10 @@ release_gate() {
 AGPC bootstrap BLOCKED (ubuntu-oci-release-unavailable).
 Required before installation:
   - Authenticated, immutable Ubuntu 26.04 AGPC OCI image and provenance.
-  - Container service lifecycle, configuration, enrollment and health checks.
+  - Container lifecycle: default Docker systemd cannot write /init.scope cgroup.
+  - Runtime configuration, enrollment and health checks.
   - Authorized container-to-Mac SSH transport and ProxyCommand integration.
-  - Authenticated CX-Mesh adapter to Mac-host Codex App-Server under the Mac user.
+  - Integration of the tested CX-Mesh host adapter with Mac launchd and runtime.
 No AGPC services or SSH changes were applied. Docker Desktop may have been installed or started.
 AGPC installation is NOT complete. Exit status: 78.
 EOF
