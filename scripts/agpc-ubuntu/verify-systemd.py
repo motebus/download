@@ -7,7 +7,10 @@ import time
 
 
 def run(*args, **kwargs):
-    return subprocess.run(['docker', *args], check=True, capture_output=True, text=True, **kwargs).stdout
+    result = subprocess.run(['docker', *args], capture_output=True, text=True, **kwargs)
+    if result.returncode:
+        raise RuntimeError(f'docker {args}: {result.stdout} {result.stderr}')
+    return result.stdout
 
 
 def main():
@@ -34,7 +37,8 @@ def main():
         assert manager, 'systemd manager did not become ready'
         config = state['HostConfig']
         assert config['Privileged'] is False
-        assert not config['CapAdd'] and not config['Binds'] and not config['PortBindings']
+        assert config['CapAdd'] == ['SYS_ADMIN'] or config['CapAdd'] == ['CAP_SYS_ADMIN']
+        assert not config['Binds'] and not config['PortBindings']
         assert config['CgroupnsMode'] == 'private'
         assert run('exec', container, 'cat', '/proc/1/cgroup').strip() == '0::/init.scope'
         assert 'writable-cgroups=true' in config['SecurityOpt']

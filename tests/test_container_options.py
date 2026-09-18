@@ -13,9 +13,11 @@ class ContainerOptionsTests(unittest.TestCase):
         self.assertIn('writable-cgroups=true', args)
         self.assertIn('no-new-privileges=true', args)
         self.assertFalse(options['privileged'])
-        for key in ('host_mounts', 'cap_add', 'published_ports'):
+        self.assertEqual(options['cap_add'], ['SYS_ADMIN'])
+        self.assertEqual(args[args.index('--cap-add') + 1], 'SYS_ADMIN')
+        for key in ('host_mounts', 'published_ports'):
             self.assertEqual(options[key], [])
-        for forbidden in ('--privileged', '--cap-add', '-v', '--volume', '--mount', '--pid', '--network', '-p'):
+        for forbidden in ('--privileged', '-v', '--volume', '--mount', '--pid', '--network', '-p'):
             self.assertNotIn(forbidden, args)
         self.assertEqual(options['required_cgroup_version'], '2')
 

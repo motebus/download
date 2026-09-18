@@ -3,15 +3,25 @@
   "minimum_engine_major": 28,
   "required_cgroup_version": "2",
   "docker_run_args": [
-    "--cgroupns", "private",
-    "--security-opt", "writable-cgroups=true",
-    "--security-opt", "no-new-privileges=true",
-    "--tmpfs", "/run:rw,nosuid,nodev,mode=755",
-    "--tmpfs", "/run/lock:rw,nosuid,nodev,mode=755",
-    "--tmpfs", "/tmp:rw,nosuid,nodev,mode=1777"
+    "--cgroupns",
+    "private",
+    "--security-opt",
+    "writable-cgroups=true",
+    "--security-opt",
+    "no-new-privileges=true",
+    "--tmpfs",
+    "/run:rw,nosuid,nodev,mode=755",
+    "--tmpfs",
+    "/run/lock:rw,nosuid,nodev,mode=755",
+    "--tmpfs",
+    "/tmp:rw,nosuid,nodev,mode=1777",
+    "--cap-add",
+    "SYS_ADMIN"
   ],
   "privileged": false,
   "host_mounts": [],
-  "cap_add": [],
+  "cap_add": [
+    "SYS_ADMIN"
+  ],
   "published_ports": []
 }
