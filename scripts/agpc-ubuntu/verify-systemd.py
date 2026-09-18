@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 """Remote CI: isolated cgroup-v2 manager startup and graceful stop, not stack health."""
+import argparse
 import json
 from pathlib import Path
 import subprocess
@@ -14,7 +15,13 @@ def run(*args, **kwargs):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--diagnose-without-apparmor', action='store_true',
+                        help='CI isolation experiment only; never runtime admission')
+    args = parser.parse_args()
     options = json.loads(Path(__file__).with_name('runtime-options.json').read_text())
+    if args.diagnose_without_apparmor:
+        options['docker_run_args'] += ['--security-opt', 'apparmor=unconfined']
     info = json.loads(run('info', '--format', '{{json .}}'))
     assert info['CgroupVersion'] == options['required_cgroup_version'], 'cgroup v2 is required'
     assert int(info['ServerVersion'].split('.')[0]) >= options['minimum_engine_major']
@@ -52,7 +59,8 @@ def main():
         assert not stopped['Running'] and stopped['ExitCode'] == 0, stopped
         print(json.dumps({'systemd_manager': manager, 'graceful_stop': 'passed',
                           'private_cgroup_v2': True, 'privileged': False,
-                          'runtime_ready': False, 'full_stack_health': 'not-verified',
+                          'runtime_ready': False, 'apparmor_diagnostic': args.diagnose_without_apparmor,
+                          'full_stack_health': 'not-verified',
                           'failed_units': failed}, indent=2))
     finally:
         print(run('logs', container)[-16000:])

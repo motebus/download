@@ -106,7 +106,11 @@ jobs:
       - name: Diagnose default Docker systemd support (not runtime admission)
         run: python3 scripts/agpc-ubuntu/probe-systemd.py
       - name: Verify isolated writable-cgroup systemd manager and graceful stop
+        id: systemd
         run: python3 scripts/agpc-ubuntu/verify-systemd.py
       - name: Collect container kernel denials on failure
         if: failure()
         run: sudo dmesg --ctime | tail -80
+      - name: Isolate AppArmor startup failure (diagnostic only)
+        if: failure() && steps.systemd.outcome == 'failure'
+        run: python3 scripts/agpc-ubuntu/verify-systemd.py --diagnose-without-apparmor
