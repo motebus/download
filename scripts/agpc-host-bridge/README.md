@@ -19,6 +19,21 @@ connection lifetime. Four simultaneous sessions are supported; excess connection
 are closed. A supervisor must restart workers after a session or the bounded idle
 timeout. The public installer does not yet install such a supervisor.
 
+## Codex lifecycle and admission
+
+The native Bash 3.2 supervisor uses FIFOs and accepts an absolute Codex binary,
+container ID and host working directory. Every connection owns a new App-Server
+process. Protocol bytes, including approval decisions, are never interpreted by
+the adapter. Container root remains trusted. Buffers and connection waits are
+bounded. Peer EOF ends the exec session because Docker CLI does not expose an
+independent stdout half-close while its exec process remains alive. Cleanup stops
+both local processes and removes FIFOs.
+
+Installer integration still needs trusted helper installation, host Codex discovery
+and per-user LaunchAgents with restart throttling and logs. Acceptance must verify
+host user/workspace execution, approval round trips and restart/disconnect on a
+real Mac. Official protocol: https://learn.chatgpt.com/docs/app-server
+
 ## Verification boundaries
 
 - `test_host_codex_bridge.py`: protocol preservation, backpressure and cleanup.

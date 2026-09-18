@@ -49,6 +49,8 @@ def main():
         assert config['CgroupnsMode'] == 'private'
         assert run('exec', container, 'cat', '/proc/1/cgroup').strip() == '0::/init.scope'
         assert 'writable-cgroups=true' in config['SecurityOpt']
+        # The manager's private socket precedes the system bus during boot.
+        run('exec', container, 'systemctl', 'start', 'dbus.service', timeout=30)
         # A real transient unit proves service creation, identity drop and reaping.
         run('exec', container, 'systemd-run', '--wait', '--pipe', '--collect',
             '--uid=cx-mesh', '/usr/bin/id', '-un')
