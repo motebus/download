@@ -17,14 +17,14 @@ curl.exe -fL https://motebus.github.io/download/agpc-win.ps1 -o "$env:TEMP\agpc-
 & "$env:TEMP\agpc-win.ps1"
 ```
 
-Setup requests administrator elevation for the same Windows account. It installs WSL 2 and Ubuntu 24.04 by default, creates `jujue`, asks for its Linux password locally, runs the official Linux installer, and registers a task to start Ubuntu after Windows boot. If Windows needs a restart, restart when convenient and sign in to the same account; setup resumes. It never forces a restart.
+Setup requests administrator elevation for the same Windows account. It installs WSL 2 and Ubuntu 26.04 by default, creates `jujue`, asks for its Linux password locally, runs the official Linux installer, and registers a task to start Ubuntu after Windows boot. If Windows needs a restart, restart when convenient and sign in to the same account; setup resumes. It never forces a restart.
 
 The host must be x64 Windows build 19041 or newer, with virtualization available, a local administrator account, and 64-bit PowerShell 5.1 or newer. Windows 11 is recommended. Existing execution policies are respected. Managed PCs may need their administrator to approve/sign these scripts.
 
 | Setup option | Meaning |
 | --- | --- |
 | `-Plan` | Show the plan without changes. |
-| `-Distro Ubuntu-24.04` | Default; also accepts `Ubuntu-26.04` and `Ubuntu`. |
+| `-Distro Ubuntu-26.04` | Default; also accepts `Ubuntu-24.04` and `Ubuntu`. |
 | `-UserName jujue` | Default Linux account and AGPC user. |
 | `-NoAutoStart` | Skip creating a boot task; keep any existing task. |
 | `-SkipPassword` | Set the Linux password later; does not enable passwordless sudo. |
@@ -51,10 +51,10 @@ Ubuntu must already be WSL 2, Ubuntu 24.04 or 26.04 amd64, with systemd running,
 ## Open and inspect
 
 ```powershell
-wsl -d Ubuntu-24.04
+wsl -d Ubuntu-26.04
 ```
 
-Inside Ubuntu, run `sudo agpc-manager`. If password setup was skipped, set it locally with `wsl -d Ubuntu-24.04 -u root -- passwd jujue`.
+Inside Ubuntu, run `sudo agpc-manager`. If password setup was skipped, set it locally with `wsl -d Ubuntu-26.04 -u root -- passwd jujue`.
 
 Setup state and logs: `%LOCALAPPDATA%\AGPC-Win\<Distro>`. Linux package result: `/var/lib/agpc-win/result.json`. Detailed upstream logs: `/var/lib/agpc-install.*/`. On failure, read the error and rerun the same command. Passwords are never saved by these wrappers.
 
@@ -66,7 +66,7 @@ Both scripts call the permanent `https://motebus.github.io/download/agpc.sh` and
 
 ```powershell
 curl.exe -fL https://motebus.github.io/download/agpc-win-uninstall.ps1 -o "$env:TEMP\agpc-win-uninstall.ps1"
-& "$env:TEMP\agpc-win-uninstall.ps1" -Distro Ubuntu-24.04
+& "$env:TEMP\agpc-win-uninstall.ps1" -Distro Ubuntu-26.04
 ```
 
 Use `-Plan` or `-WhatIf` to preview. It removes only that distribution and its owner-specific AGPC boot/resume tasks; WSL, other distributions and Windows setup logs remain.

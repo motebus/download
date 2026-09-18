@@ -1,11 +1,11 @@
 {
   "schema": "agpc-mac-installer-source/v1",
   "repository": "motebus/download",
-  "tag": "agpc-mac-v0.1.0-preview.2",
-  "source_commit": "84ac80ed0b3a7043387dbd0119b91110b4226728",
-  "status": "preflight-only",
+  "tag": "agpc-mac-v0.1.0-preview.3",
+  "source_commit": "66c252d9774ecdb3a2254f3db6e0aa6dadb3122c",
+  "status": "docker-bootstrap-only",
   "assets": {
-    "agpc-mac.sh": "9db83aa9b7d1e54a5c9854fbde08d879085b669bb584e409a553cfa422aa5f72",
-    "AGPC-MAC.md": "1eb03253aa1b68489be322b329be4ebfc484625acea17620d46f3e7beefeef50"
+    "agpc-mac.sh": "d322801a3b3025b1c822617ddb720c924200c4061a607a255e9807ea3b4160a1",
+    "AGPC-MAC.md": "df4f179464ea6d4ff75101054d6d3db0ed067e955a284aff4289ee0f6ca8bedb"
   }
 }

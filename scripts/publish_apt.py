@@ -449,7 +449,7 @@ def validate_mac_installer(root: Path) -> dict:
         "macOS source fields are invalid")
     require(record["schema"] == "agpc-mac-installer-source/v1"
             and record["repository"] == "motebus/download"
-            and record["status"] == "preflight-only",
+            and record["status"] == "docker-bootstrap-only",
             "macOS preview source identity is invalid")
     require(isinstance(record["tag"], str) and re.fullmatch(
         r"agpc-mac-v[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+", record["tag"]),
@@ -1848,14 +1848,15 @@ uninstaller is not suitable for this Agent Computer. Current removal keeps Ubunt
 (<a href="agent-sphere-apps.source.json.asc">source signature</a>)
 remain byte-identical aliases of the canonical AGPC installer and source record.</p>
 </html>""")
-    index = index.replace("</html>", """<h2>Windows (preview)</h2>
+    index = index.replace("</html>", """<h2>Mac and Windows bootstrap</h2>
 <p>macOS Apple Silicon: <a href="agpc-mac.sh">agpc-mac.sh</a>
-(<a href="agpc-mac.sh.asc">signature</a>) is a <strong>preflight-only preview</strong>.
-It does not install AGPC; native runtime release is pending.
+(<a href="agpc-mac.sh.asc">signature</a>) is a <strong>Docker bootstrap preview</strong> for macOS 14+ arm64.
+It installs/starts Docker Desktop, then exits 78: the Ubuntu 26.04 AGPC runtime
+and Mac-host SSH/Codex bridge are pending. It does not complete AGPC installation.
 <a href="AGPC-MAC.md">Status and acceptance contract</a>;
 <a href="agpc.mac.source.json">source and SHA-256</a>.</p>
 <p>New Windows PC: <a href="agpc-win.ps1">agpc-win.ps1</a>
-(<a href="agpc-win.ps1.asc">signature</a>) installs WSL 2, Ubuntu and AGPC,
+(<a href="agpc-win.ps1.asc">signature</a>) installs WSL 2, Ubuntu 26.04 by default and AGPC,
 creates jujue and configures Ubuntu startup after Windows boot.</p>
 <pre>curl.exe -fL https://motebus.github.io/download/agpc-win.ps1 -o "$env:TEMP\\agpc-win.ps1"
 &amp; "$env:TEMP\\agpc-win.ps1"</pre>

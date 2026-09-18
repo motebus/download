@@ -15,7 +15,7 @@ Passwords are entered locally and never saved by this script.
 [CmdletBinding()]
 param(
     [ValidateSet('Ubuntu-24.04','Ubuntu-26.04','Ubuntu')]
-    [string]$Distro = 'Ubuntu-24.04',
+    [string]$Distro = 'Ubuntu-26.04',
     [ValidatePattern('^[a-z_][a-z0-9_-]{0,31}$')]
     [string]$UserName = 'jujue',
     [switch]$NoAutoStart,
