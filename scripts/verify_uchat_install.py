@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise installed uChat binaries in a disposable AGPC verification container."""
+import grp
 import json
 import os
 from pathlib import Path
@@ -109,7 +110,13 @@ def main():
         os.chown(root, account.pw_uid, account.pw_gid)
         config = root / 'fixture.json'
         machine = '@' + socket.gethostname().split('.')[0].lower()
-        network = root / 'network.json'
+        # Exercise the real owner-protected directory, which a /tmp-only
+        # fixture cannot cover. This file exists only in the disposable container.
+        mesh_group = grp.getgrnam('cx-mesh')
+        mesh_root = Path('/etc/cx-mesh')
+        assert mesh_root.stat().st_mode & 0o777 == 0o750
+        assert mesh_group.gr_gid in os.getgrouplist('uchatd', account.pw_gid)
+        network = mesh_root / 'uchat-access-fixture.json'
         network.write_text(json.dumps(dict(
             schema='cx-mesh.network/v1', mesh_id='fixture', node_id='fixture', registry_node='fixture',
             members={'fixture': dict(machine_name=machine, endpoint='fixture.mote', trust_key_file=None)},
@@ -129,6 +136,8 @@ def main():
             values['database'] = str(root / 'inbox.sqlite3')
             config.write_text(json.dumps(values))
         prefix = ['setpriv', '--reuid', str(account.pw_uid), '--regid', str(account.pw_gid), '--init-groups']
+        subprocess.run(prefix + ['uchatd', 'check-config', '--config', str(config)], check=True)
+        print('Installed uchatd can read owner-protected CX-Mesh membership as its service account')
         with (root / 'process.log').open('wb') as log:
             def start(*command):
                 process = subprocess.Popen(prefix + list(command), stdout=log, stderr=log)

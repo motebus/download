@@ -173,7 +173,7 @@ Existing wire/configuration identifiers remain where compatibility requires.
 
 ## uChat on CX-Mesh
 
-AGPC installs `uchat 3.2.0-2` and `uchatd 0.4.0-1`. Machine chat is open by
+AGPC installs `uchat 3.2.0-3` and `uchatd 0.4.0-2`. Machine chat is open by
 default: open `uchat`, type `@medge-home`, and chat. No chat login, mesh join,
 pair keys or permission setup is required. Each computer keeps its own
 `@machine-name` and inbox. `uchatd` owns
@@ -181,6 +181,11 @@ logical names, independent Inboxes, subscriptions, recovery and replies.
 SQLite owns durable messages, queued work, approvals and recovery records.
 Redis remains a private RAM-only cache with no AOF, snapshots or swap.
 Mote Transport owns D/MSG delivery.
+
+AGPC 0.2.0-15 fixes daemon access to the protected CX-Mesh membership directory.
+Package installation and explicit setup join the existing `cx-mesh` group before
+starting uchatd. Configuration, Inbox data, account IDs and owner permissions are
+preserved. Other package pins, including Agent Sphere 0.2.0-14, are unchanged.
 
 Existing Redis-backed installations must complete the
 [uChat migration and component upgrade](https://github.com/motebus/download/releases/download/uchat-v3.2.0-2/UPGRADE.md)
@@ -234,7 +239,7 @@ and repeated installation, preserving identity, credentials and numeric UID/GID.
 ## Release and acceptance contract
 
 `agent-computer-apt-overlay.json` pins the aggregate
-`motebus/download` release `agent-computer-v0.2.0-14`. The v6 contract admits
+`motebus/download` release `agent-computer-v0.2.0-15`. The v6 contract admits
 exactly twenty-eight redistributable canonical DEBs, the optional protected retention
 record, and one external official Obsidian prerequisite. Every runtime pin
 records the actual successful committed-main build and reviewed payload digest.
@@ -282,7 +287,7 @@ versions. Its fixed legacy installer profiles describe that historical release.
 They do not define the new four-package product.
 
 The current root `uninstall.sh` removes the reviewed 28-package
-`agent-computer-v0.2.0-14` native AGPC set. It verifies the signed catalog,
+`agent-computer-v0.2.0-15` native AGPC set. It verifies the signed catalog,
 installed versions, package removal hooks, and the exact APT transaction.
 Configuration, topology files, user data, Vaults, models, Obsidian, OS dependencies
 and APT registration are retained. It does not purge or automatically remove
