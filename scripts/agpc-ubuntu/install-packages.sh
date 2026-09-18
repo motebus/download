@@ -42,3 +42,7 @@ assert required <= set(installed), 'required core package missing'
 PY
 rm -f /usr/sbin/policy-rc.d /etc/apt/sources.list.d/medge.sources.pending
 apt-get clean
+# Image clones must not inherit build-time OS/SSH identities. Runtime bootstrap
+# still has to generate identities and wire Mac SSH before admission.
+truncate -s 0 /etc/machine-id
+rm -f /var/lib/dbus/machine-id /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub
