@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AGPC Native downloads</title>
+<style>
+body{font:18px/1.6 system-ui,sans-serif;max-width:850px;margin:4rem auto;padding:0 1.5rem;color:#18232d;background:#f5f7fa}
+a{color:#075cb0}table{border-collapse:collapse;width:100%;background:white}th,td{text-align:left;padding:1rem;border-bottom:1px solid #d7dfe7}pre{padding:1rem;background:#18232d;color:#f6f8fa;overflow:auto;border-radius:.4rem}code{font-size:.9em}
+</style>
+<h1>AGPC Native</h1>
+<p>Linux and Windows CLI preview <strong>0.1.0-preview.1</strong>.</p>
+<table>
+<tr><th>Platform</th><th>CPU</th><th>Download</th></tr>
+<tr><td>Linux</td><td>ARM64 and x86-64</td><td><a href="agpc.sh">agpc.sh</a></td></tr>
+<tr><td>Windows</td><td>x86-64</td><td><a href="agpc.exe">agpc.exe</a></td></tr>
+<tr><td>Windows</td><td>ARM64</td><td><a href="agpc-arm64.exe">agpc-arm64.exe</a></td></tr>
+</table>
+<h2>Linux</h2>
+<p>Requires native Linux, Bash and Python 3.10+. The standalone script contains its Python backend; no separate source folder is needed.</p>
+<pre>curl -fL https://motebus.github.io/download/agpc.sh -o agpc.sh
+bash ./agpc.sh info --json</pre>
+<h2>Windows</h2>
+<p>Requires native PowerShell 7.4+ matching the host CPU. Download the executable for your CPU. The preview EXEs are unsigned.</p>
+<pre>curl.exe -fL https://motebus.github.io/download/agpc.exe -o agpc.exe
+.\agpc.exe info -Json</pre>
+<p>On ARM64, download <code>agpc-arm64.exe</code> instead and run <code>.\agpc-arm64.exe info -Json</code>.</p>
+<h2>Preview scope</h2>
+<p>Run without elevation. Commands provide diagnostics, Codex App-Server health checks and read-only MCP discovery. These files do not install the full AGPC stack, configure SSH/RDP or start services. Windows host acceptance and operational RDP-over-Mote integration remain pending. macOS remains specification-only.</p>
+<p><a href="agpc-native-SHA256SUMS">SHA-256 checksums</a> · <a href="agpc-native-SHA256SUMS.asc">Checksum signature</a> · <a href="agpc.source.json">Native release provenance</a> · <a href="https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.1">Versioned release</a></p>
+</html>

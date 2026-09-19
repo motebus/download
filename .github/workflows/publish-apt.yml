@@ -147,9 +147,17 @@ jobs:
       - name: Verify signed Core resolution and complete native AGPC installation
         run: python3 scripts/validate_agent_sphere_apt.py . apt-site --external-prerequisites release-input/agent-computer-prerequisites
 
+      - name: Preserve native AGPC entrypoints on every Pages publication
+        env:
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: |
+          python3 scripts/publish_native.py overlay . apt-site \
+            --evidence "$RUNNER_TEMP/native-pages-verification.json"
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: apt-site
+          retention-days: 30
 
   deploy:
     needs: build

@@ -214,7 +214,7 @@ class InstallContractTest(unittest.TestCase):
         verifier = ROOT / "scripts/verify-dual-channel-bundle.js"
         self.assertTrue(verifier.is_file())
         subprocess.run(["node", "--check", str(verifier)], check=True)
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        readme = (ROOT / "AGPC-DEBIAN.md").read_text(encoding="utf-8")
         self.assertIn("in-process", readme)
         self.assertIn("does not claim live MoteBus", readme)
 

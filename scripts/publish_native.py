@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+"""Publish pinned native entrypoints while preserving the existing APT site."""
+import argparse
+import base64
+import hashlib
+import io
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import shutil
+import stat
+import struct
+import subprocess
+import tarfile
+import tempfile
+import urllib.request
+import zipfile
+
+REPOSITORY = "motebus/download"
+LIMIT = 64 * 1024 * 1024
+SITE_LIMIT = 1000000000
+NATIVE_FILES = {"agpc.sh", "agpc.exe", "agpc-arm64.exe", "agpc.source.json", "agpc-native-SHA256SUMS"}
+CHANGED_PATHS = NATIVE_FILES | {name + ".asc" for name in NATIVE_FILES} | {"index.html"}
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def file_digest(path):
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def gh_json(path):
+    return json.loads(subprocess.run(["gh", "api", path], capture_output=True, check=True).stdout)
+
+
+def snapshot(site):
+    result = {}
+    for path in site.rglob("*"):
+        require(not path.is_symlink(), "site symlinks are forbidden")
+        if path.is_file():
+            result[path.relative_to(site).as_posix()] = file_digest(path)
+    return result
+
+
+def verify_preservation(before, after):
+    require({k: v for k, v in before.items() if k not in CHANGED_PATHS}
+            == {k: v for k, v in after.items() if k not in CHANGED_PATHS},
+            "publication changed an unrelated site file")
+
+
+def current_pages():
+    deployments = gh_json(f"repos/{REPOSITORY}/deployments?environment=github-pages&per_page=10")
+    for deployment in deployments:
+        statuses = gh_json(deployment["statuses_url"])
+        if not statuses or statuses[0]["state"] != "success":
+            continue
+        match = re.fullmatch(r"https://github.com/motebus/download/actions/runs/(\d+)/job/\d+", statuses[0]["target_url"])
+        require(match is not None, "current Pages deployment has no approved Actions run")
+        run_id = int(match[1])
+        run = gh_json(f"repos/{REPOSITORY}/actions/runs/{run_id}")
+        require(run["conclusion"] == "success" and run["head_branch"] == "main", "Pages base must come from successful main CI")
+        artifacts = gh_json(f"repos/{REPOSITORY}/actions/runs/{run_id}/artifacts")["artifacts"]
+        matches = [a for a in artifacts if a["name"] == "github-pages" and not a["expired"]]
+        require(len(matches) == 1, "current Pages artifact missing or expired; republish the approved site first")
+        artifact = matches[0]
+        require(re.fullmatch(r"sha256:[a-f0-9]{64}", artifact.get("digest", "")) is not None, "Pages artifact digest unavailable")
+        require(0 < artifact["size_in_bytes"] < SITE_LIMIT, "Pages artifact size invalid")
+        return {"deployment_id": deployment["id"], "run_id": run_id,
+                "artifact_id": artifact["id"], "artifact_sha256": artifact["digest"][7:]}
+    raise ValueError("no current successful Pages deployment")
+
+
+def extract_site(archive_path, destination):
+    require(not destination.exists(), "Pages restore destination must not exist")
+    with zipfile.ZipFile(archive_path) as archive:
+        entries = archive.infolist()
+        require(len(entries) == 1 and entries[0].filename == "artifact.tar"
+                and entries[0].file_size < SITE_LIMIT, "unexpected Pages artifact archive")
+        with archive.open(entries[0]) as stream, tarfile.open(fileobj=stream, mode="r|*") as tar:
+            destination.mkdir(parents=True)
+            seen = set()
+            size = 0
+            for member in tar:
+                path = PurePosixPath(member.name)
+                require(not path.is_absolute() and ".." not in path.parts, "unsafe Pages path")
+                require(member.isdir() or member.isfile(), "Pages links and special files are forbidden")
+                if member.isdir():
+                    continue
+                name = path.as_posix()
+                require(name not in seen, "duplicate Pages file")
+                seen.add(name)
+                size += member.size
+                require(size < SITE_LIMIT, "expanded Pages artifact exceeds limit")
+                target = destination / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with tar.extractfile(member) as source, target.open("xb") as output:
+                    shutil.copyfileobj(source, output)
+                target.chmod(0o755 if member.mode & 0o111 else 0o644)
+
+
+def restore_current(site):
+    record = current_pages()
+    with tempfile.TemporaryDirectory(prefix="agpc-pages-base-") as folder:
+        archive = Path(folder) / "site.zip"
+        with archive.open("wb") as output:
+            subprocess.run(["gh", "api", f"repos/{REPOSITORY}/actions/artifacts/{record['artifact_id']}/zip"], stdout=output, check=True)
+        require(file_digest(archive) == record["artifact_sha256"], "Pages base archive digest mismatch")
+        extract_site(archive, site)
+    require(current_pages() == record, "Pages deployment changed during restore")
+    return record
+
+
+def fetch_release(tag, name, expected_hash):
+    require(re.fullmatch(r"agpc-native-v\d+\.\d+\.\d+-preview\.\d+", tag) is not None, "exact preview tag required")
+    require(re.fullmatch(r"[A-Za-z0-9_.-]+", name) is not None, "invalid release asset")
+    url = f"https://github.com/{REPOSITORY}/releases/download/{tag}/{name}"
+    with urllib.request.urlopen(url, timeout=120) as response:
+        require(response.url.startswith("https://"), "release download must use HTTPS")
+        data = response.read(LIMIT + 1)
+    require(len(data) <= LIMIT and digest(data) == expected_hash, "native release asset digest mismatch")
+    return data
+
+
+def linux_sources(data, hashes):
+    expected = {"agpc-linux/README.txt", "agpc-linux/agpc.sh"} | {"agpc-linux/" + name for name in hashes if name.startswith("src/")}
+    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
+        entries = archive.getmembers()
+        require(len(entries) == len(expected) and {m.name for m in entries} == expected, "Linux asset inventory mismatch")
+        require(all(m.isfile() for m in entries) and sum(m.size for m in entries) < LIMIT, "unsafe Linux asset")
+        files = {m.name.removeprefix("agpc-linux/"): archive.extractfile(m).read() for m in entries}
+    for name, expected_hash in hashes.items():
+        require(digest(files[name]) == expected_hash, "Linux runtime payload changed")
+    return {Path(name).name: data for name, data in files.items() if name.startswith("src/")}
+
+
+def standalone_linux(files):
+    require(set(files) == {"agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py"}, "unexpected Linux backend modules")
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+        for name, data in sorted(files.items()):
+            item = zipfile.ZipInfo(name, date_time=(2020, 1, 1, 0, 0, 0))
+            item.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(item, data)
+    payload = output.getvalue()
+    # A heredoc works both as a downloaded script and with bash reading a pipe.
+    # The original four backend modules are extracted verbatim into a private
+    # temporary directory; normal return, errors and SystemExit all clean it up.
+    return f'''#!/usr/bin/env bash
+set -euo pipefail
+# AGPC Native CLI preview. Requires native Linux and Python 3.10+.
+# This command does not install the full AGPC stack or configure services.
+exec python3 - "$@" <<'PY_AGPC_NATIVE'
+import base64, hashlib, io, pathlib, runpy, sys, tempfile, zipfile
+if sys.version_info < (3, 10):
+    raise SystemExit("AGPC Native requires Python 3.10 or newer")
+payload = base64.b64decode({base64.b64encode(payload).decode()!r}, validate=True)
+if hashlib.sha256(payload).hexdigest() != {digest(payload)!r}:
+    raise SystemExit("AGPC Native embedded payload checksum mismatch")
+with tempfile.TemporaryDirectory(prefix="agpc-native-") as directory:
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        if len(archive.namelist()) != 4 or set(archive.namelist()) != set({sorted(files)!r}):
+            raise SystemExit("AGPC Native embedded file inventory mismatch")
+        for name in archive.namelist():
+            pathlib.Path(directory, name).write_bytes(archive.read(name))
+    sys.dont_write_bytecode = True
+    sys.path.insert(0, directory)
+    sys.argv[0] = "agpc.sh"
+    runpy.run_path(str(pathlib.Path(directory, "agpc_linux.py")), run_name="__main__")
+PY_AGPC_NATIVE
+'''.encode()
+
+
+def windows_executable(data, expected_hash, machine):
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        entries = archive.infolist()
+        require(len(entries) == 2 and {m.filename for m in entries} == {"agpc.exe", "README.txt"}, "Windows asset inventory mismatch")
+        require(all(not stat.S_ISLNK(m.external_attr >> 16) for m in entries)
+                and sum(m.file_size for m in entries) < LIMIT, "unsafe Windows archive")
+        executable = archive.read("agpc.exe")
+    require(digest(executable) == expected_hash and executable[:2] == b"MZ" and len(executable) > 96, "Windows executable digest/header mismatch")
+    offset = struct.unpack_from("<I", executable, 60)[0]
+    require(offset < len(executable) - 96 and executable[offset:offset + 4] == b"PE\0\0"
+            and struct.unpack_from("<H", executable, offset + 4)[0] == machine,
+            "Windows executable CPU mismatch")
+    return executable
+
+
+def assemble(root):
+    pins = json.loads((root / "scripts/native-pages.json").read_text())
+    require(pins["schema"] == "agpc.native-pages-inputs/v1" and pins["repository"] == REPOSITORY, "unapproved native Pages source")
+    manifest_bytes = fetch_release(pins["tag"], "MANIFEST.json", pins["manifest_sha256"])
+    manifest = json.loads(manifest_bytes)
+    require(manifest["tag"] == pins["tag"] and manifest["prerelease"] is True
+            and manifest["assets"] == pins["assets"] and manifest["payload_sha256"] == pins["payload_sha256"], "native release provenance mismatch")
+    version = manifest["version"]
+    archives = {name: fetch_release(pins["tag"], name, item["sha256"]) for name, item in pins["assets"].items()}
+    files = {"agpc.sh": standalone_linux(linux_sources(archives[f"agpc-linux-{version}.tar.gz"], pins["payload_sha256"]["linux"]))}
+    for cpu, machine, name in [("x86_64", 0x8664, "agpc.exe"), ("arm64", 0xAA64, "agpc-arm64.exe")]:
+        files[name] = windows_executable(archives[f"agpc-win-{cpu}-{version}.zip"], pins["payload_sha256"]["windows"][cpu], machine)
+    record = {"schema": "agpc.native-pages/v1", "version": version,
+              "release": f"https://github.com/{REPOSITORY}/releases/tag/{pins['tag']}",
+              "manifest_sha256": pins["manifest_sha256"], "windows_authenticode_signed": False,
+              "linux_backend_sha256": pins["payload_sha256"]["linux"],
+              "files": {name: {"sha256": digest(data), "bytes": len(data), "cpu": "arm64,x86_64" if name == "agpc.sh" else "arm64" if name == "agpc-arm64.exe" else "x86_64"} for name, data in files.items()}}
+    files["agpc.source.json"] = (json.dumps(record, indent=2) + "\n").encode()
+    files["agpc-native-SHA256SUMS"] = "".join(f"{digest(data)}  {name}\n" for name, data in sorted(files.items())).encode()
+    return pins, record, files
+
+
+def sign_files(root, site):
+    passphrase = os.environ.get("MEDGE_APT_SIGNING_PASSPHRASE")
+    require(bool(passphrase), "archive signing passphrase unavailable")
+    fingerprint = (root / "medge-archive-keyring.fingerprint").read_text().strip()
+    # The tracked fingerprint includes the same whitespace accepted by GPG.
+    fingerprint = "".join(fingerprint.split())
+    require(re.fullmatch(r"[A-F0-9]{40}", fingerprint) is not None, "invalid archive key fingerprint")
+    for name in sorted(NATIVE_FILES):
+        subprocess.run(["gpg", "--batch", "--yes", "--pinentry-mode", "loopback", "--passphrase-fd", "0",
+                        "--local-user", fingerprint, "--digest-algo", "SHA256", "--armor", "--detach-sign",
+                        "--output", str(site / (name + ".asc")), str(site / name)], input=passphrase + "\n", text=True, check=True)
+        subprocess.run(["gpgv", "--keyring", str((root / "medge-archive-keyring.gpg").resolve()),
+                        str(site / (name + ".asc")), str(site / name)], check=True)
+
+
+def overlay(root, site, evidence_path, base=None):
+    before = snapshot(site)
+    pins, record, files = assemble(root)
+    require(before.get("agent-sphere-apps.sh") == pins["debian_installer_sha256"], "existing Debian installer differs from reviewed baseline")
+    for name, data in files.items():
+        (site / name).write_bytes(data)
+        (site / name).chmod(0o755 if name.endswith((".sh", ".exe")) else 0o644)
+    (site / "index.html").write_bytes((root / "scripts/native-index.html").read_bytes())
+    sign_files(root, site)
+    after = snapshot(site)
+    verify_preservation(before, after)
+    result = {"schema": "agpc.native-pages-evidence/v1", "base": base,
+              "native": record, "changed_paths": sorted(k for k in after if before.get(k) != after[k]),
+              "preserved_files": len(set(before) - CHANGED_PATHS),
+              "preserved_inventory_sha256": digest(json.dumps({k: v for k, v in before.items() if k not in CHANGED_PATHS}, sort_keys=True).encode()),
+              "published_sha256": {name: after[name] for name in sorted(CHANGED_PATHS)}}
+    evidence_path.write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps({"native": record["version"], "preserved_files": result["preserved_files"], "changed_paths": result["changed_paths"]}, indent=2))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", choices=["restore-and-overlay", "overlay"])
+    parser.add_argument("root", type=Path)
+    parser.add_argument("site", type=Path)
+    parser.add_argument("--evidence", type=Path, required=True)
+    args = parser.parse_args()
+    base = restore_current(args.site) if args.command == "restore-and-overlay" else None
+    overlay(args.root, args.site, args.evidence, base)
+    if base:
+        require(current_pages() == base, "Pages deployment changed before promotion")
+
+
+if __name__ == "__main__":
+    main()
