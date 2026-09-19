@@ -302,6 +302,7 @@ MOTE_TRANSPORT_PACKAGES = (
     ("mote-proxy", "1.3.0-35", "all"),
 )
 ALLOWED_ROOT_FILES = {
+    "AGPC-DEBIAN.md",
     "agpc-mac.sh", "agpc.mac.source.json", "AGPC-MAC.md",
     ".gitattributes",
     "agpc-win-uninstall.ps1",

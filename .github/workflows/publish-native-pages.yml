@@ -1,0 +1,61 @@
+name: Publish native AGPC Pages entrypoints
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: medge-apt-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Validate native packaging and preservation
+        run: python3 -m unittest discover -s tests -p 'test_native_pages.py' -v
+      - name: Import protected archive key
+        env:
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$MEDGE_APT_SIGNING_KEY"
+          printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
+      - name: Preserve deployed site and publish verified native files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: |
+          python3 scripts/publish_native.py restore-and-overlay . apt-site \
+            --evidence "$RUNNER_TEMP/native-pages-verification.json"
+          bash apt-site/agpc.sh info --json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-pages-verification
+          path: ${{ runner.temp }}/native-pages-verification.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apt-site
+          retention-days: 30
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish native download URLs
+        id: deployment
+        uses: actions/deploy-pages@v4
