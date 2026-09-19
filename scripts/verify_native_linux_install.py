@@ -58,7 +58,10 @@ def management_snapshot():
             for line in conffiles.splitlines():
                 if line.strip():
                     path = Path(line.split()[0])
-                    if path.is_file():
+                    status = subprocess.run(["sudo", "test", "-f", str(path)], check=False)
+                    if status.returncode not in (0, 1):
+                        raise RuntimeError("Cannot inspect protected conffile: " + str(path))
+                    if status.returncode == 0:
                         files[str(path)] = command(["sudo", "sha256sum", str(path)]).split()[0]
             result[package] = {"version":status.stdout.split("\t")[1], "configuration_sha256":files}
     return result
@@ -138,6 +141,11 @@ def main():
         raise RuntimeError("Installation incorrectly claimed AGPC readiness")
     if any(unit["state"] == "missing" for unit in status["services"]):
         raise RuntimeError("Native systemd registration missing")
+    # Report only package permissions/loader diagnostics, never configuration contents.
+    for target in ("/usr/bin/mote-mcp-ultra", "/usr/lib/mote-mcp/providers/ultra/libmote_mcp_ultra.so",
+                   "/usr/share/mote-mcp/providers/ultra/manifest.json", "/etc/mote-mcp-ultra/policy.json"):
+        print(command(["namei", "-l", target]), flush=True)
+    print(command(["/usr/bin/mote-mcp-ultra", "doctor"]), flush=True)
     mcp = json.loads(command(["/usr/local/bin/agpc", "mcp", "list", "--json"]))
     verify_standalone_mcp(mcp)
     for package in ("remmina", "remmina-plugin-rdp"):
