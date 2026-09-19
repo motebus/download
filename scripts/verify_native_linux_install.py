@@ -30,8 +30,7 @@ def containers():
                   and RUNTIME_PACKAGE.fullmatch(line.split()[0].split(":")[0]))
 
 
-def codex_state():
-    path = Path("/usr/local/bin/codex")
+def codex_state(path=Path("/usr/local/bin/codex")):
     if not path.exists() and not path.is_symlink():
         return {"kind": "absent"}
     metadata = path.lstat()

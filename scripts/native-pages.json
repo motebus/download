@@ -1,20 +1,24 @@
 {
   "schema": "agpc.native-pages-inputs/v1",
   "repository": "motebus/download",
-  "tag": "agpc-native-v0.1.0-preview.5",
-  "manifest_sha256": "d2e7e4e36d513e97d3c48df763eece46f511245f194616a86a6bc0b1fc0f7104",
+  "tag": "agpc-native-v0.1.0-preview.7",
+  "manifest_sha256": "645df8eef4211bf79760ba3d63c6f2fafb5d5d826784f096bea521bfbe0311f8",
   "assets": {
-    "agpc-linux-0.1.0-preview.5.tar.gz": {
-      "sha256": "033df5f7bfbf8934c2ceb87877fa4e40d4881fc55c9a51bd06fd04edc6ff61c2",
-      "bytes": 17394
+    "agpc-linux-0.1.0-preview.7.tar.gz": {
+      "sha256": "a85fb3389a23c740764899da7d10cf59253e82e1b53b9737ed1b1c07efd08890",
+      "bytes": 17831
     },
-    "agpc-win-arm64-0.1.0-preview.5.zip": {
-      "sha256": "da84241dc94cb58b67b788b97a2efa704971cac033cc4ac3a2c8637ab8abda12",
-      "bytes": 956875
+    "agpc-mac-arm64-0.1.0-preview.7.tar.gz": {
+      "sha256": "64b2c9eec6eac54697209042047baca3cc6f681911b28494b91afb711adbae6e",
+      "bytes": 2809791
     },
-    "agpc-win-x86_64-0.1.0-preview.5.zip": {
-      "sha256": "f887039c5973468f56b450cadee8b60d0adc8deed10621b9a80681bdc4c8c6e9",
-      "bytes": 1064085
+    "agpc-win-arm64-0.1.0-preview.7.zip": {
+      "sha256": "79a24c0997fb5111546108179f1b8fb96820a77bcbe9de9e6340618c6f808cd5",
+      "bytes": 957341
+    },
+    "agpc-win-x86_64-0.1.0-preview.7.zip": {
+      "sha256": "222a6bfe9a80ecef0896381746be234ae926abdac511fe6ae8e763b4dca9b0a2",
+      "bytes": 1064551
     }
   },
   "payload_sha256": {
@@ -31,6 +35,9 @@
     "windows": {
       "x86_64": "abf0c9ba0500b02629d2c922ac4dbbb3d41d66a6d271bd35d64c1dfb5415bbe7",
       "arm64": "ec56480f5003f1073b1e6c8742de7fa9563822a8b02106f19d11d8fe05048b74"
+    },
+    "macos": {
+      "arm64": "04eb0910bc0280311f7eaa4ed7f20bced895f761900d5be4ba4d1c39675dbccb"
     }
   },
   "debian_installer_sha256": "01e04cde9ffa4915781a2c878a67fa786a1632f1a67ff205271f54e15e6f9bdf"

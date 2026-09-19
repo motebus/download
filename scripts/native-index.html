@@ -8,13 +8,14 @@ body{font:18px/1.6 system-ui,sans-serif;max-width:850px;margin:4rem auto;padding
 a{color:#075cb0}table{border-collapse:collapse;width:100%;background:white}th,td{text-align:left;padding:1rem;border-bottom:1px solid #d7dfe7}pre{padding:1rem;background:#18232d;color:#f6f8fa;overflow:auto;border-radius:.4rem}code{font-size:.9em}
 </style>
 <h1>AGPC Native</h1>
-<p>Linux x86-64 installer and Windows diagnostic preview <strong>0.1.0-preview.5</strong>.</p>
+<p>Linux installer, Windows diagnostics and Mac controller preview <strong>0.1.0-preview.7</strong>.</p>
 <table>
 <tr><th>Platform</th><th>CPU</th><th>Download</th></tr>
 <tr><td>Linux</td><td>x86-64 installer; ARM64 diagnostics</td><td><a href="agpc.sh">agpc.sh</a></td></tr>
 <tr><td>Linux applications</td><td>x86-64</td><td><a href="agpc-apps.sh">agpc-apps.sh</a></td></tr>
 <tr><td>Windows</td><td>x86-64</td><td><a href="agpc.exe">agpc.exe</a></td></tr>
 <tr><td>Windows</td><td>ARM64</td><td><a href="agpc-arm64.exe">agpc-arm64.exe</a></td></tr>
+<tr><td>macOS</td><td>Apple Silicon ARM64</td><td><a href="agpc" download>agpc</a></td></tr>
 </table>
 <h2>Linux</h2>
 <p>Installation requires native Ubuntu 24.04/26.04 x86-64, systemd, Bash and Python 3.10+. The standalone script embeds its backend. ARM64 installation is deferred; explicit diagnostics remain available.</p>
@@ -30,8 +31,16 @@ agpc status</pre>
 <pre>curl.exe -fL https://motebus.github.io/download/agpc.exe -o agpc.exe
 .\agpc.exe info -Json</pre>
 <p>On ARM64, download <code>agpc-arm64.exe</code> instead and run <code>.\agpc-arm64.exe info -Json</code>.</p>
+<h2>Mac (M-series)</h2>
+<p>Native ARM64 controller preview. Docker Desktop must use Apple Virtualization framework with Rosetta enabled. Only MoteBus + DC run inside its Linux VM.</p>
+<pre>curl -fL https://motebus.github.io/download/agpc -o agpc
+chmod +x agpc
+./agpc version
+./agpc init
+./agpc sphere start</pre>
+<p>Run as your normal user. Full startup requires the remaining native owner binaries configured in <code>~/Library/Application Support/AGPC/agpc.json</code>. This download contains the controller only. Apple Developer ID signing and notarization are pending.</p>
 <h2>Preview scope</h2>
 <p>Linux installation verifies pinned runtime packages, preserves existing conffiles and records the result. <strong>Windows remains a diagnostic preview:</strong> its install command returns unavailable until the native Windows runtime bundle is supplied.</p>
-<p>Run diagnostics without elevation. Package installation does not establish AGPC Ready: S-channel enrollment, application health, peer connectivity and RDP-over-Mote acceptance remain required. Linux installs Remmina with the RDP plugin and enables xrdp with TLS on loopback. Existing xrdp ports are preserved; a new server uses port 3391 alongside an active system GNOME Remote Desktop service, otherwise 3389. Use <code>--rdp-port PORT</code> to choose another port. Existing GNOME access is preserved. A compatible Xorg desktop session is required. RDP credentials remain with the native client/server; desktop login and Mote transport acceptance remain pending. macOS remains specification-only.</p>
-<p><a href="agpc-native-SHA256SUMS">SHA-256 checksums</a> · <a href="agpc-native-SHA256SUMS.asc">Checksum signature</a> · <a href="agpc.source.json">Native release provenance</a> · <a href="https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.5">Versioned release</a></p>
+<p>Run diagnostics without elevation. Package installation does not establish AGPC Ready: S-channel enrollment, application health, peer connectivity and RDP-over-Mote acceptance remain required. Linux installs Remmina with the RDP plugin and enables xrdp with TLS on loopback. Existing xrdp ports are preserved; a new server uses port 3391 alongside an active system GNOME Remote Desktop service, otherwise 3389. Use <code>--rdp-port PORT</code> to choose another port. Existing GNOME access is preserved. A compatible Xorg desktop session is required. RDP credentials remain with the native client/server; desktop login and Mote transport acceptance remain pending. The existing Mac ARM64 controller is retained unchanged; full runtime acceptance remains pending.</p>
+<p><a href="agpc-native-SHA256SUMS">SHA-256 checksums</a> · <a href="agpc-native-SHA256SUMS.asc">Checksum signature</a> · <a href="agpc.source.json">Native release provenance</a> · <a href="https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.7">Versioned release</a></p>
 </html>

@@ -87,9 +87,33 @@ class NativePagesTests(unittest.TestCase):
                     archive.writestr("artifact.tar", tar_bytes.getvalue())
                 with self.assertRaises(ValueError): native.extract_site(zip_path, Path(directory, "site"))
 
+    def test_macos_archive_cpu_digest_links_and_inventory(self):
+        executable = bytearray(64)
+        struct.pack_into('<IIIIII', executable, 0, 0xfeedfacf, 0x100000c, 0, 2, 1, 32)
+        def fixture(data=executable, extra=None, symlink=False, mode=0o755):
+            output = io.BytesIO()
+            with tarfile.open(fileobj=output, mode='w:gz') as archive:
+                for name, content in [('agpc', data), ('README.txt', b'usage')] + ([] if extra is None else [(extra, b'x')]):
+                    item = tarfile.TarInfo(name)
+                    item.size = len(content)
+                    item.mode = mode if name == 'agpc' else 0o644
+                    if name == 'agpc' and symlink:
+                        item.type = tarfile.SYMTYPE
+                        item.linkname = '/outside'
+                    archive.addfile(item, io.BytesIO(content))
+            return output.getvalue()
+        expected = native.digest(executable)
+        self.assertEqual(native.macos_executable(fixture(), expected), executable)
+        intel = bytearray(executable)
+        struct.pack_into('<I', intel, 4, 0x1000007)
+        for data, sha in [(fixture(), '0' * 64), (fixture(data=intel), native.digest(intel)),
+                          (fixture(extra='../private.env'), expected), (fixture(extra='agpc'), expected),
+                          (fixture(symlink=True), expected), (fixture(mode=0o644), expected)]:
+            with self.assertRaises(ValueError): native.macos_executable(data, sha)
+
     def test_unrelated_site_changes_are_rejected(self):
         before = {"pool/main/package.deb": "original", "dists/stable/InRelease": "signed", "agpc.sh": "old"}
-        native.verify_preservation(before, {**before, "agpc.sh": "native", "agpc.exe": "exe"})
+        native.verify_preservation(before, {**before, "agpc.sh": "native", "agpc.exe": "exe", "agpc": "mac"})
         for after in [{**before, "pool/main/package.deb": "changed"}, {"agpc.sh": "new"}, {**before, "unrelated": "added"}]:
             with self.assertRaises(ValueError): native.verify_preservation(before, after)
 
