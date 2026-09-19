@@ -50,6 +50,36 @@ jobs:
       - name: Validate Windows setup and updater without system changes
         shell: powershell
         run: .\scripts\Test-Agpc.ps1 -SkipLinuxChecks
+      - name: Verify published native Windows preview command scope
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $false
+          $pins = Get-Content scripts/native-pages.json -Raw | ConvertFrom-Json
+          $exe = Join-Path $env:RUNNER_TEMP 'agpc-native-preview.exe'
+          Invoke-WebRequest https://motebus.github.io/download/agpc.exe -OutFile $exe
+          if ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() -ne $pins.payload_sha256.windows.x86_64) {
+            throw 'Published Windows executable does not match the reviewed native payload'
+          }
+          $infoRaw = & $exe info -Json
+          $infoExit = $LASTEXITCODE
+          Write-Output "info exit=$infoExit"
+          Write-Output $infoRaw
+          $info = $infoRaw | ConvertFrom-Json
+          if ($infoExit -ne 0 -or $info.platform -ne 'windows' -or $info.architecture -ne 'x86_64' -or $info.ready -ne $false) {
+            throw 'Native Windows preview failed its info command'
+          }
+          $installRaw = & $exe install -Json
+          $installExit = $LASTEXITCODE
+          Write-Output "install exit=$installExit"
+          Write-Output $installRaw
+          $install = $installRaw | ConvertFrom-Json
+          if ($installExit -ne 2 -or $install.state -ne 'unavailable' -or $install.ready -ne $false) {
+            throw 'Unexpected install behavior in this diagnostic-only preview'
+          }
+          'Verified the hash-pinned published EXE launches natively on Windows x86-64. The install command returns unavailable (exit 2); this preview is not a native installer. ARM64 execution and full runtime acceptance remain unverified.' | Add-Content $env:GITHUB_STEP_SUMMARY
+          # The expected nonzero child exit must not become the CI step exit.
+          exit 0
 
   validate:
     runs-on: ubuntu-24.04
