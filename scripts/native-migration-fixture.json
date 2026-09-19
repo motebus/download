@@ -1,0 +1,23 @@
+{
+  "release": "https://github.com/motebus/download/releases/download/agent-computer-v0.2.0-15/",
+  "packages": {
+    "sphered_4.1.0-2_amd64.deb": "38667a250b2108a9d93f0743a81892875043ec32b09a61206e33deabe9deeb9a",
+    "moted_3.6.0-2_amd64.deb": "dd5aae37ecda299b1e0dcd85c96af4f5ba7f7a83e08bf8ee75f2dc7d54602c55",
+    "mote-proxy_2.0.0-5_amd64.deb": "469f8a794a975b704f3886bf0d149cf81289b4c56145c9f45a781bbf4d8a3548",
+    "mote-transportd_2.0.0-6_amd64.deb": "9c56cade3f014f75876cce126d2ef8c9d5c27a60709ff592ac0e9af9788dd23f",
+    "mote-secd_1.0.0-2_amd64.deb": "043fd2fe86dfe83d17f9ab6e7e82ca96d1423e0697c3b4a0549cbd7f6e4998c2",
+    "agos_2.1.0-1_amd64.deb": "d844937d8d11579b9c3a7cfa18dbdcd08b19c40c93ec22947fafb58d43c6db8e",
+    "model-router_0.1.0-1_amd64.deb": "fd07180fc952a6333e085c4b666683caa7185cd0f1b37da7c07ce694b3ad3b39",
+    "model-llm_0.1.0-3_amd64.deb": "8f044d0b23325a213b372087c9ef35daf9e9058df4bb7a783a0edc6945bc32ef",
+    "mote-mcpd_3.1.0-1_amd64.deb": "fae185fc735571c73adee70fb3095851541fce3a7b13b468c41cae32bec44a60",
+    "cx-mesh_2.0.0-1_amd64.deb": "7e7e9e36f79c3a406bfb987bc18b2055ec8306cd5c3508fd88614f1d0ae2e89e",
+    "uchat_3.2.0-3_amd64.deb": "2cd45dd0c6b486aa1d2c3b5375980543afdf8e71f5b158049e0478078d51a632",
+    "uchatd_0.4.0-2_amd64.deb": "ff9872b5dcefe118c5e3843e3508c4ae9950241f9c7db7d85002a900d8ddd9fb",
+    "agent-sphere_0.2.0-15_all.deb": "8ba7a31b8ce4e3e2277bd83238f8cf3bd82d49b6bb5e70e6d3bdc1655d524ebe",
+    "agpc-manager_3.3.0-1_amd64.deb": "044e4f7431a6b0bf7e905658ddc82e9232ad3127dea1c295c030b788eb4077b0",
+    "cx-loop_0.1.0-4_amd64.deb": "2a2a96c074dcd7b398ecb4cc9ababcf859a91b26375276fe17ee4368aa1de474",
+    "medge_3.3.0-1_amd64.deb": "dc62f1028c6b88f3420083eafe92821c77ee0d798cee26b02bc5113e514b2407",
+    "mote-mcp-ultra_0.1.0-1_amd64.deb": "ac9dcda941181da26d16a32bc26053f851011213322e5c7af24bc5e13c392c9e",
+    "mlink_2.1.0-1_amd64.deb": "3b0e996d4971b21813fb78806d54e6fd127094987e04d73e842804ea3712cb5d"
+  }
+}
