@@ -82,7 +82,7 @@ def private_directory(path):
         raise RuntimeError('bridge directory must be owned by this UID with mode 0700')
 
 
-def serve(path, timeout):
+def serve(path, timeout, announce_ssh=False):
     private_directory(path.parent)
     # Prevent two host sessions from replacing each other's socket, including
     # stale sockets left after a Docker exec is interrupted.
@@ -106,6 +106,8 @@ def serve(path, timeout):
                     _, uid, _ = struct.unpack('3i', peer.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
                     if uid != os.getuid():
                         raise RuntimeError('unexpected bridge client UID')
+                    if announce_ssh:
+                        os.write(1, b"AGPC-SSH-READY\n")
                     pump(peer)
         finally:
             path.unlink(missing_ok=True)
@@ -135,14 +137,17 @@ def main():
     parser.add_argument('mode', choices=('serve', 'app-server'))
     parser.add_argument('--socket', type=Path, default=Path(DEFAULT_SOCKET))
     parser.add_argument('--timeout', type=float, default=30)
+    parser.add_argument('--announce-ssh', action='store_true')
     args = parser.parse_args()
+    if args.announce_ssh and args.mode != 'serve':
+        parser.error('--announce-ssh is only valid in server mode')
     if not args.socket.is_absolute() or not 0 < args.timeout <= 120:
         parser.error('absolute socket path and timeout in (0, 120] are required')
     os.umask(0o077)
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
     try:
         if args.mode == 'serve':
-            serve(args.socket, args.timeout)
+            serve(args.socket, args.timeout, args.announce_ssh)
         else:
             connect(args.socket, args.timeout)
     except (OSError, RuntimeError) as error:

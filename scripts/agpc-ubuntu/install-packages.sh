@@ -7,7 +7,7 @@ export DEBIAN_FRONTEND=noninteractive LC_ALL=C
 printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d
 chmod 0755 /usr/sbin/policy-rc.d
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates gnupg python3 systemd systemd-sysv
+apt-get install -y --no-install-recommends ca-certificates gnupg python3 systemd systemd-sysv dbus
 printf '%s\n' '756fc2632c307509b8e5ece665ced7f4d1a58636ac935aefc1e017f7dcfcbfbd  /usr/share/keyrings/medge-archive-keyring.gpg' | sha256sum -c -
 sed 's@/etc/apt/keyrings/medge-archive-keyring.gpg@/usr/share/keyrings/medge-archive-keyring.gpg@' \
     /etc/apt/sources.list.d/medge.sources.pending > /etc/apt/sources.list.d/medge.sources
