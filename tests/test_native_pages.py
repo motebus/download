@@ -17,7 +17,7 @@ import publish_native as native
 
 class NativePagesTests(unittest.TestCase):
     def test_standalone_preserves_arguments_exit_and_cleans_private_files(self):
-        files = {name: b"" for name in ["agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py"]}
+        files = {name: b"" for name in ["agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py", "native_install.py", "native_apps.py"]}
         files["agpc_linux.py"] = b'import sys,json; print(json.dumps(sys.argv)); raise SystemExit(23)\n'
         wrapper = native.standalone_linux(files)
         self.assertEqual(wrapper, native.standalone_linux(dict(reversed(list(files.items())))))
@@ -32,8 +32,18 @@ class NativePagesTests(unittest.TestCase):
                 self.assertEqual(json.loads(result.stdout)[1:], args)
                 self.assertEqual(list(Path(directory).glob("agpc-native-*")), [])
 
+    def test_apps_entrypoint_dispatches_to_apps_module(self):
+        files = {name: b"raise SystemExit(99)\n" for name in ["agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py", "native_install.py", "native_apps.py"]}
+        files["native_apps.py"] = b'import sys; print(sys.argv[0]); raise SystemExit(0)\n'
+        wrapper = native.standalone_linux(files, "agpc-apps.sh")
+        result = subprocess.run(["bash"], input=wrapper, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(b"native_apps.py", result.stdout)
+        with self.assertRaises(ValueError):
+            native.standalone_linux(files, "unexpected.sh")
+
     def test_standalone_detects_embedded_corruption(self):
-        files = {name: b"pass\n" for name in ["agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py"]}
+        files = {name: b"pass\n" for name in ["agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py", "native_install.py", "native_apps.py"]}
         wrapper = native.standalone_linux(files)
         start = wrapper.index(b"payload = base64.b64decode('") + len(b"payload = base64.b64decode('")
         wrapper = wrapper[:start] + b"A" + wrapper[start + 1:]

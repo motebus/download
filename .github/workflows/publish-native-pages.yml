@@ -41,6 +41,7 @@ jobs:
           python3 scripts/publish_native.py restore-and-overlay . apt-site \
             --evidence "$RUNNER_TEMP/native-pages-verification.json"
           bash apt-site/agpc.sh info --json
+          bash apt-site/agpc-apps.sh install --dry-run --json
       - uses: actions/upload-artifact@v4
         with:
           name: native-pages-verification
