@@ -1,6 +1,6 @@
 # AGPC Native downloads
 
-Native Linux x86-64 installer and Windows diagnostic preview **0.1.0-preview.3**.
+Native Linux x86-64 installer and Windows diagnostic preview **0.1.0-preview.4**.
 
 | Platform | CPU | Permanent download |
 | --- | --- | --- |
@@ -15,6 +15,7 @@ Installation requires native Ubuntu 24.04/26.04 x86-64, systemd, Bash and Python
 3.10+. The standalone script embeds its backend. It verifies and installs pinned
 native runtime packages plus Codex, preserving existing conffiles. ARM64
 installation is deferred; explicit diagnostic commands remain available.
+Downloads show bytes, rate and elapsed time, followed by hash verification.
 
 ```bash
 curl -fL https://motebus.github.io/download/agpc.sh -o agpc.sh
@@ -72,7 +73,7 @@ normal user. macOS is specification-only.
 [Checksums](https://motebus.github.io/download/agpc-native-SHA256SUMS) ·
 [Checksum signature](https://motebus.github.io/download/agpc-native-SHA256SUMS.asc) ·
 [Native provenance](https://motebus.github.io/download/agpc.source.json) ·
-[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.3)
+[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.4)
 
 ## Publication maintenance
 
