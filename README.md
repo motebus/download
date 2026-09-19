@@ -1,6 +1,6 @@
 # AGPC Native downloads
 
-Native Linux and Windows CLI preview **0.1.0-preview.1**.
+Native Linux and Windows CLI preview **0.1.0-preview.2**.
 
 | Platform | CPU | Permanent download |
 | --- | --- | --- |
@@ -11,7 +11,8 @@ Native Linux and Windows CLI preview **0.1.0-preview.1**.
 ## Linux
 
 Requires native Linux, Bash and Python 3.10+. The standalone script contains
-its Python backend; a separate source folder is not needed. Run without sudo.
+its Python backend; a separate source folder is not needed. Run without sudo: root may not see Codex installed in your user directory.
+The script checks existing components; it does not install or configure them.
 
 ```bash
 curl -fL https://motebus.github.io/download/agpc.sh -o agpc.sh
@@ -39,6 +40,9 @@ EXEs are unsigned; no Windows execution-policy change is needed or requested.
 
 ## Scope and verification
 
+Native installation is not implemented: `install` returns `unavailable`
+(exit 2), verified with the downloaded Linux script and Windows x86-64 EXE.
+
 The CLI provides diagnostics, bounded Codex App-Server health checks and
 read-only MCP tool discovery. It does not install the complete AGPC stack or
 configure services. Native Windows execution acceptance and operational
@@ -47,7 +51,7 @@ RDP-over-Mote integration remain pending. macOS is specification-only.
 [Checksums](https://motebus.github.io/download/agpc-native-SHA256SUMS) ·
 [Checksum signature](https://motebus.github.io/download/agpc-native-SHA256SUMS.asc) ·
 [Native provenance](https://motebus.github.io/download/agpc.source.json) ·
-[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.1)
+[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.2)
 
 ## Publication maintenance
 
