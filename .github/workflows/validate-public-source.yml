@@ -31,6 +31,12 @@ jobs:
           if-no-files-found: error
 
   native-linux-install:
+    strategy:
+      fail-fast: false
+      matrix:
+        legacy_migration: ["0", "1"]
+    env:
+      AGPC_TEST_LEGACY_MIGRATION: ${{ matrix.legacy_migration }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -42,7 +48,7 @@ jobs:
       - name: Save native installer evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: native-linux-install-acceptance
+          name: native-linux-install-acceptance-${{ matrix.legacy_migration }}
           path: .cache/native-linux-acceptance/
           if-no-files-found: error
 

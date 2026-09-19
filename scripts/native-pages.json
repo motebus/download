@@ -1,35 +1,35 @@
 {
   "schema": "agpc.native-pages-inputs/v1",
   "repository": "motebus/download",
-  "tag": "agpc-native-v0.1.0-preview.6",
-  "manifest_sha256": "ff0bb9fbd930cace03f9780202816d849f6ae25b4bfe212f028a56a639fd884b",
+  "tag": "agpc-native-v0.1.0-preview.7",
+  "manifest_sha256": "645df8eef4211bf79760ba3d63c6f2fafb5d5d826784f096bea521bfbe0311f8",
   "assets": {
-    "agpc-linux-0.1.0-preview.6.tar.gz": {
-      "sha256": "4eb102903fa6a90ee824e3f9df4c76336e417889aba97e2e118e025d803593df",
-      "bytes": 13982
+    "agpc-linux-0.1.0-preview.7.tar.gz": {
+      "sha256": "a85fb3389a23c740764899da7d10cf59253e82e1b53b9737ed1b1c07efd08890",
+      "bytes": 17831
     },
-    "agpc-mac-arm64-0.1.0-preview.6.tar.gz": {
-      "sha256": "f5f1fcf4c70617c8f3ff3c95fbdbc35c7399a82b807ea1e3766befd8f373c7e1",
-      "bytes": 2809407
+    "agpc-mac-arm64-0.1.0-preview.7.tar.gz": {
+      "sha256": "64b2c9eec6eac54697209042047baca3cc6f681911b28494b91afb711adbae6e",
+      "bytes": 2809791
     },
-    "agpc-win-arm64-0.1.0-preview.6.zip": {
-      "sha256": "4fa7ca6ce6b492659b235b4b882b9152263961b289512e0713a5934fba2b6345",
-      "bytes": 957002
+    "agpc-win-arm64-0.1.0-preview.7.zip": {
+      "sha256": "79a24c0997fb5111546108179f1b8fb96820a77bcbe9de9e6340618c6f808cd5",
+      "bytes": 957341
     },
-    "agpc-win-x86_64-0.1.0-preview.6.zip": {
-      "sha256": "6ce1393a0d1830d14e3c48348fa492fbc93f19cfb33a56848ca3521667700a99",
-      "bytes": 1064212
+    "agpc-win-x86_64-0.1.0-preview.7.zip": {
+      "sha256": "222a6bfe9a80ecef0896381746be234ae926abdac511fe6ae8e763b4dca9b0a2",
+      "bytes": 1064551
     }
   },
   "payload_sha256": {
     "linux": {
       "agpc-apps.sh": "5150343f4a810069a3643a353ca012685f2f2fc961a9738d5b5194503fe7b1a0",
       "agpc.sh": "1115e1e0785fdfec57761763a1f97304501f936c7bcf67672567188a8211951b",
-      "src/agpc_linux.py": "48e519abccbc5d9096b0275d677719b354cd38712f27fd7827ba25fbcc7007a1",
+      "src/agpc_linux.py": "951847f698e313357401bd76ecc156960e0a0d4d138f5f164cf4a8f6dabd6ab0",
       "src/codex_health.py": "263d0dbd5cdc2d5f98b9e86105940c75a1591c6497dac0497c57e0c801ffbe34",
-      "src/mcp_catalog.py": "9633b71d8d3b275116d5bbc2285341136b3d6455cbc8f2f9c4796d6ee235ba5b",
+      "src/mcp_catalog.py": "b6482667506a86a578e45e5b6753764d8500834d88b1f42376c52ae1da95ae15",
       "src/native_apps.py": "d33ab38fccfa3cc806e05c13af28fe72202bfff74ba243577ac1879e352eb060",
-      "src/native_install.py": "f39d82807237b19bbe7ecc35d45f672648351bebe19175a5718d939607fce251",
+      "src/native_install.py": "7c1fc07219df5239ee09f6d18f8f965c2c9c32fa32b9c024d859822b5dc3f4aa",
       "src/native_rpc.py": "3623aafaad4cebd55fd7843b029152de5a111ec1b03cbcc5c3a8d3e1ca5993f3"
     },
     "windows": {

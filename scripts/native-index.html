@@ -8,7 +8,7 @@ body{font:18px/1.6 system-ui,sans-serif;max-width:850px;margin:4rem auto;padding
 a{color:#075cb0}table{border-collapse:collapse;width:100%;background:white}th,td{text-align:left;padding:1rem;border-bottom:1px solid #d7dfe7}pre{padding:1rem;background:#18232d;color:#f6f8fa;overflow:auto;border-radius:.4rem}code{font-size:.9em}
 </style>
 <h1>AGPC Native</h1>
-<p>Linux installer, Windows diagnostics and Mac controller preview <strong>0.1.0-preview.6</strong>.</p>
+<p>Linux installer, Windows diagnostics and Mac controller preview <strong>0.1.0-preview.7</strong>.</p>
 <table>
 <tr><th>Platform</th><th>CPU</th><th>Download</th></tr>
 <tr><td>Linux</td><td>x86-64 installer; ARM64 diagnostics</td><td><a href="agpc.sh">agpc.sh</a></td></tr>
@@ -25,6 +25,7 @@ sudo bash ./agpc.sh install
 agpc status</pre>
 <p>The core includes uChat. Install optional MDESK, MLINK and SS-WebOS after the core:</p>
 <pre>curl -fsSL https://motebus.github.io/download/agpc-apps.sh | sudo bash</pre>
+<p>Codex CLI is managed separately. These installers do not download, install or update it.</p>
 <h2>Windows</h2>
 <p>Requires native PowerShell 7.4+ matching the host CPU. Download the executable for your CPU. The preview EXEs are unsigned.</p>
 <pre>curl.exe -fL https://motebus.github.io/download/agpc.exe -o agpc.exe
@@ -40,6 +41,6 @@ chmod +x agpc
 <p>Run as your normal user. Full startup requires the remaining native owner binaries configured in <code>~/Library/Application Support/AGPC/agpc.json</code>. This download contains the controller only. Apple Developer ID signing and notarization are pending.</p>
 <h2>Preview scope</h2>
 <p>Linux installation verifies pinned runtime packages, preserves existing conffiles and records the result. <strong>Windows remains a diagnostic preview:</strong> its install command returns unavailable until the native Windows runtime bundle is supplied.</p>
-<p>Run diagnostics without elevation. Package installation does not establish AGPC Ready: S-channel enrollment, application health, peer connectivity and RDP-over-Mote acceptance remain required. RDP host settings and credentials are managed by the native server. The Mac controller has native CLI checks; full Docker Desktop, launchd and stack acceptance remain pending.</p>
-<p><a href="agpc-native-SHA256SUMS">SHA-256 checksums</a> · <a href="agpc-native-SHA256SUMS.asc">Checksum signature</a> · <a href="agpc.source.json">Native release provenance</a> · <a href="https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.6">Versioned release</a></p>
+<p>Run diagnostics without elevation. Package installation does not establish AGPC Ready: S-channel enrollment, application health, peer connectivity and RDP-over-Mote acceptance remain required. Linux installs Remmina with the RDP plugin and enables xrdp with TLS on loopback. Existing xrdp ports are preserved; a new server uses port 3391 alongside an active system GNOME Remote Desktop service, otherwise 3389. Use <code>--rdp-port PORT</code> to choose another port. Existing GNOME access is preserved. A compatible Xorg desktop session is required. RDP credentials remain with the native client/server; desktop login and Mote transport acceptance remain pending. The existing Mac ARM64 controller is retained unchanged; full runtime acceptance remains pending.</p>
+<p><a href="agpc-native-SHA256SUMS">SHA-256 checksums</a> · <a href="agpc-native-SHA256SUMS.asc">Checksum signature</a> · <a href="agpc.source.json">Native release provenance</a> · <a href="https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.7">Versioned release</a></p>
 </html>

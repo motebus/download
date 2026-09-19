@@ -5,7 +5,10 @@ import json
 import os
 from pathlib import Path
 import platform
+import socket
 import subprocess
+import tempfile
+import urllib.request
 
 import publish_native
 
@@ -45,6 +48,58 @@ def verify_codex_untouched(before, receipt):
         raise RuntimeError("AGPC runtime generation contains a bundled Codex installation")
 
 
+def management_snapshot():
+    result = {}
+    for package in ("medge", "agpc-manager"):
+        status = subprocess.run(["dpkg-query", "-W", "-f=${Status}\t${Version}", package], capture_output=True, text=True)
+        if status.returncode == 0 and status.stdout.startswith("install ok installed\t"):
+            conffiles = command(["dpkg-query", "-W", "-f=${Conffiles}", package])
+            files = {}
+            for line in conffiles.splitlines():
+                if line.strip():
+                    path = Path(line.split()[0])
+                    file_status = subprocess.run(["sudo", "test", "-f", str(path)], check=False)
+                    if file_status.returncode not in (0, 1):
+                        raise RuntimeError("Cannot inspect protected conffile: " + str(path))
+                    if file_status.returncode == 0:
+                        files[str(path)] = command(["sudo", "sha256sum", str(path)]).split()[0]
+            result[package] = {"version":status.stdout.split("\t")[1], "configuration_sha256":files}
+    return result
+
+
+def install_legacy_fixture(root):
+    fixture = json.loads((root / "scripts/native-migration-fixture.json").read_text())
+    with tempfile.TemporaryDirectory(prefix="agpc-legacy-fixture-") as folder:
+        packages = []
+        for name, digest in fixture["packages"].items():
+            with urllib.request.urlopen(fixture["release"] + name, timeout=60) as response:
+                data = response.read(256 * 1024 * 1024 + 1)
+            if hashlib.sha256(data).hexdigest() != digest:
+                raise RuntimeError("Legacy fixture checksum mismatch: " + name)
+            path = Path(folder) / name
+            path.write_bytes(data)
+            packages.append(str(path))
+        command(["sudo", "apt-get", "update"])
+        command(["sudo", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "-y", "--no-remove", "--no-install-recommends", "install", *packages])
+    marker = Path("/etc/mote/medge/medge-deb.env")
+    command(["sudo", "sed", "-i", "$a# AGPC management preservation marker", str(marker)])
+    before = management_snapshot()
+    if set(before) != {"medge", "agpc-manager"}:
+        raise RuntimeError("Legacy fixture lacks protected management packages")
+    return before
+
+
+def verify_standalone_mcp(catalog):
+    forbidden = {"codex_mesh_inbox", "codex_mesh_send", "codex_mesh_status", "medge_mdrive", "medge_status", "tg_send"}
+    if catalog["binary"] != "/usr/bin/mote-mcp-ultra" or {x["name"] for x in catalog["tools"]} & forbidden:
+        raise RuntimeError("Unexpected MCP provider or legacy tool exposure")
+    status = subprocess.run(["dpkg-query", "-W", "-f=${Status}", "mote-mcpd"], capture_output=True, text=True)
+    if Path("/etc/codex/skills/codex-mesh/SKILL.md").exists():
+        raise RuntimeError("Retired CX MCP skill remains active")
+    if status.stdout.strip() == "install ok installed":
+        raise RuntimeError("Legacy MCP gateway remains installed")
+
+
 def main():
     if (os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("RUNNER_OS") != "Linux"
             or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
@@ -67,8 +122,16 @@ def main():
     initial_bin_permissions = command(["stat", "-c", "%u:%g %a", "/usr/local/bin"]).strip()
     command(["sudo", "chown", "root:root", "/usr/local/bin"])
     command(["sudo", "chmod", "0755", "/usr/local/bin"])
+    # Hosted runner tool setup also makes /usr/share world-writable. Record it
+    # before installation and model ordinary Ubuntu ownership, retaining the
+    # provider's rejection of untrusted package/configuration ancestors.
+    initial_share_permissions = command(["stat", "-c", "%u:%g %a", "/usr/share"]).strip()
+    command(["sudo", "chown", "root:root", "/usr/share"])
+    command(["sudo", "chmod", "0755", "/usr/share"])
     before = containers()
     codex_before = codex_state()
+    migration = os.environ.get("AGPC_TEST_LEGACY_MIGRATION") == "1"
+    protected_before = install_legacy_fixture(root) if migration else management_snapshot()
     plan = json.loads(command(["bash", str(script), "install", "--dry-run", "--json"]))
     if plan["architecture"] != "x86_64" or len(plan["packages"]) != 12 or plan["ready"] or "codex" in plan:
         raise RuntimeError("Unexpected installer plan")
@@ -84,13 +147,54 @@ def main():
         raise RuntimeError("Installation incorrectly claimed AGPC readiness")
     if any(unit["state"] == "missing" for unit in status["services"]):
         raise RuntimeError("Native systemd registration missing")
+    # Report only package permissions/loader diagnostics, never configuration contents.
+    for target in ("/usr/bin/mote-mcp-ultra", "/usr/lib/mote-mcp/providers/ultra/libmote_mcp_ultra.so",
+                   "/usr/share/mote-mcp/providers/ultra/manifest.json", "/etc/mote-mcp-ultra/policy.json"):
+        print(command(["namei", "-l", target]), flush=True)
+    print(command(["/usr/bin/mote-mcp-ultra", "doctor"]), flush=True)
     mcp = json.loads(command(["/usr/local/bin/agpc", "mcp", "list", "--json"]))
+    verify_standalone_mcp(mcp)
+    for package in ("remmina", "remmina-plugin-rdp"):
+        state = command(["dpkg-query", "-W", "-f=${Status}", package]).strip()
+        if state != "install ok installed":
+            raise RuntimeError(f"RDP client package missing: {package}")
+    command(["test", "-x", "/usr/bin/remmina"])
+    plugin_paths = [p for p in command(["dpkg-query", "-L", "remmina-plugin-rdp"]).splitlines()
+                    if p.endswith("remmina-plugin-rdp.so")]
+    if len(plugin_paths) != 1:
+        raise RuntimeError("RDP client plugin missing or ambiguous")
+    for binary in ("/usr/bin/remmina", plugin_paths[0]):
+        header = Path(binary).read_bytes()[:20]
+        if header[:6] != b"\x7fELF\x02\x01" or int.from_bytes(header[18:20], "little") != 62:
+            raise RuntimeError("RDP client/plugin is not native x86-64 ELF")
+    host = first["rdp_host"]
+    if host["host"] != "127.0.0.1" or host["security"] != "tls" or not host["enabled"]:
+        raise RuntimeError("Invalid RDP host installation receipt")
+    for unit in ("xrdp.service", "xrdp-sesman.service"):
+        command(["systemctl", "is-active", "--quiet", unit])
+    command(["systemctl", "is-enabled", "--quiet", "xrdp.service"])
+    sockets = command(["ss", "-H", "-ltn", "sport", "=", f":{host['port']}"])
+    if [line.split()[3] for line in sockets.splitlines()] != [f"127.0.0.1:{host['port']}"]:
+        raise RuntimeError("RDP host is not restricted to loopback")
+    if management_snapshot() != protected_before:
+        raise RuntimeError("Management packages or configuration changed")
     command(["sudo", "/usr/sbin/sshd", "-t"])
     config = Path("/etc/mote/sphered/sphered-deb.env")
     command(["sudo", "sed", "-i", "$a# Native installer CI preservation marker", str(config)])
     expected_config = hashlib.sha256(config.read_bytes()).hexdigest()
+    with socket.socket() as port_probe:
+        port_probe.bind(("127.0.0.1", 0))
+        custom_rdp_port = port_probe.getsockname()[1]
+    rdp_configuration = Path("/etc/xrdp/xrdp.ini")
+    command(["sudo", "sed", "-i", f"s#^port=tcp://127[.]0[.]0[.]1:{host['port']}$#port=tcp://127.0.0.1:{custom_rdp_port}#", str(rdp_configuration)])
+    command(["sudo", "sed", "-i", "$a# AGPC RDP conffile preservation marker", str(rdp_configuration)])
+    expected_rdp_configuration = hashlib.sha256(rdp_configuration.read_bytes()).hexdigest()
     command(["sudo", "bash", str(script), "install"])
     second = json.loads(receipt_path.read_text())
+    if second["rdp_host"]["port"] != custom_rdp_port:
+        raise RuntimeError("Installer ignored the configured RDP port")
+    if hashlib.sha256(rdp_configuration.read_bytes()).hexdigest() != expected_rdp_configuration:
+        raise RuntimeError("RDP reinstallation changed unrelated server configuration")
     if second["state"] != "installed" or second["ready"]:
         raise RuntimeError("Reinstallation failed")
     if hashlib.sha256(config.read_bytes()).hexdigest() != expected_config:
@@ -129,6 +233,8 @@ def main():
     if receipt_path.read_bytes() != core_receipt:
         raise RuntimeError("Application installer changed the core receipt")
     verify_codex_untouched(codex_before, second)
+    if management_snapshot() != protected_before:
+        raise RuntimeError("Management packages changed during reinstallation or app installation")
     if containers() != before:
         raise RuntimeError("Installation changed container runtime packages")
     result = {"schema": "agpc.native-linux-install-acceptance/v1", "release": pins["tag"],
@@ -143,7 +249,10 @@ def main():
               "existing_codex_unchanged": True, "codex_before": codex_before,
               "runner_initial_bin_permissions": initial_bin_permissions,
               "runner_bin_permissions": "0:0 755",
-              "mcp_discovery": mcp, "status": status,
+              "runner_initial_share_permissions": initial_share_permissions,
+              "runner_share_permissions": "0:0 755",
+              "mcp_discovery": mcp, "status": status, "legacy_migration": migration,
+              "management_preserved": True, "management_before": protected_before,
               "ready": False, "arm64": "deferred", "windows_installation": "blocked: native runtime bundle unavailable"}
     (output / "evidence.json").write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps({k: result[k] for k in ("release", "installation", "reinstallation", "codex_installed_by_agpc", "ready")}, indent=2))
