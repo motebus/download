@@ -20,7 +20,7 @@ import zipfile
 REPOSITORY = "motebus/download"
 LIMIT = 64 * 1024 * 1024
 SITE_LIMIT = 1000000000
-NATIVE_FILES = {"agpc.sh", "agpc-apps.sh", "agpc.exe", "agpc-arm64.exe", "agpc.source.json", "agpc-native-SHA256SUMS"}
+NATIVE_FILES = {"agpc", "agpc.sh", "agpc-apps.sh", "agpc.exe", "agpc-arm64.exe", "agpc.source.json", "agpc-native-SHA256SUMS"}
 CHANGED_PATHS = NATIVE_FILES | {name + ".asc" for name in NATIVE_FILES} | {"index.html"}
 
 
@@ -196,6 +196,21 @@ def windows_executable(data, expected_hash, machine):
     return executable
 
 
+def macos_executable(data, expected_hash):
+    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
+        entries = archive.getmembers()
+        require(len(entries) == 2 and {m.name for m in entries} == {"agpc", "README.txt"}, "macOS asset inventory mismatch")
+        require(all(m.isfile() for m in entries) and sum(m.size for m in entries) < LIMIT, "unsafe macOS archive")
+        require(archive.getmember("agpc").mode == 0o755, "macOS executable mode mismatch")
+        executable = archive.extractfile("agpc").read()
+    require(digest(executable) == expected_hash, "macOS executable digest mismatch")
+    require(len(executable) >= 32 and executable[:4] == b"\xcf\xfa\xed\xfe", "Mach-O 64-bit executable required")
+    cpu, subtype, kind, commands, command_bytes = struct.unpack_from("<IIIII", executable, 4)
+    require(cpu == 0x0100000C and kind == 2, "native ARM64 Mach-O executable required")
+    require(commands > 0 and commands * 8 <= command_bytes <= len(executable) - 32, "invalid Mach-O load commands")
+    return executable
+
+
 def assemble(root):
     pins = json.loads((root / "scripts/native-pages.json").read_text())
     require(pins["schema"] == "agpc.native-pages-inputs/v1" and pins["repository"] == REPOSITORY, "unapproved native Pages source")
@@ -209,11 +224,13 @@ def assemble(root):
     files = {name: standalone_linux(linux, name) for name in ("agpc.sh", "agpc-apps.sh")}
     for cpu, machine, name in [("x86_64", 0x8664, "agpc.exe"), ("arm64", 0xAA64, "agpc-arm64.exe")]:
         files[name] = windows_executable(archives[f"agpc-win-{cpu}-{version}.zip"], pins["payload_sha256"]["windows"][cpu], machine)
+    files["agpc"] = macos_executable(archives[f"agpc-mac-arm64-{version}.tar.gz"], pins["payload_sha256"]["macos"]["arm64"])
     record = {"schema": "agpc.native-pages/v1", "version": version,
               "release": f"https://github.com/{REPOSITORY}/releases/tag/{pins['tag']}",
               "manifest_sha256": pins["manifest_sha256"], "windows_authenticode_signed": False,
+              "macos_developer_id_signed": False, "macos_notarized": False, "macos_runtime_ready": False,
               "linux_backend_sha256": pins["payload_sha256"]["linux"],
-              "files": {name: {"sha256": digest(data), "bytes": len(data), "cpu": "arm64,x86_64" if name == "agpc.sh" else "arm64" if name == "agpc-arm64.exe" else "x86_64"} for name, data in files.items()}}
+              "files": {name: {"sha256": digest(data), "bytes": len(data), "cpu": "arm64,x86_64" if name == "agpc.sh" else "arm64" if name in ("agpc", "agpc-arm64.exe") else "x86_64"} for name, data in files.items()}}
     files["agpc.source.json"] = (json.dumps(record, indent=2) + "\n").encode()
     files["agpc-native-SHA256SUMS"] = "".join(f"{digest(data)}  {name}\n" for name, data in sorted(files.items())).encode()
     return pins, record, files
@@ -240,7 +257,7 @@ def overlay(root, site, evidence_path, base=None):
     require(before.get("agent-sphere-apps.sh") == pins["debian_installer_sha256"], "existing Debian installer differs from reviewed baseline")
     for name, data in files.items():
         (site / name).write_bytes(data)
-        (site / name).chmod(0o755 if name.endswith((".sh", ".exe")) else 0o644)
+        (site / name).chmod(0o755 if name == "agpc" or name.endswith((".sh", ".exe")) else 0o644)
     (site / "index.html").write_bytes((root / "scripts/native-index.html").read_bytes())
     sign_files(root, site)
     after = snapshot(site)

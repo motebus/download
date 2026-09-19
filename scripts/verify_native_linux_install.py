@@ -27,6 +27,24 @@ def containers():
                   and RUNTIME_PACKAGE.fullmatch(line.split()[0].split(":")[0]))
 
 
+def codex_state(path=Path("/usr/local/bin/codex")):
+    if not path.exists() and not path.is_symlink():
+        return {"kind": "absent"}
+    metadata = path.lstat()
+    return {"kind": "symlink" if path.is_symlink() else "file",
+            "target": str(path.readlink()) if path.is_symlink() else None,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None,
+            "uid": metadata.st_uid, "gid": metadata.st_gid,
+            "mode": metadata.st_mode, "mtime_ns": metadata.st_mtime_ns}
+
+
+def verify_codex_untouched(before, receipt):
+    if "codex" in receipt or codex_state() != before:
+        raise RuntimeError("AGPC installation must not install or change Codex")
+    if (Path(receipt["runtime"]) / "codex").exists():
+        raise RuntimeError("AGPC runtime generation contains a bundled Codex installation")
+
+
 def main():
     if (os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("RUNNER_OS") != "Linux"
             or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
@@ -50,24 +68,22 @@ def main():
     command(["sudo", "chown", "root:root", "/usr/local/bin"])
     command(["sudo", "chmod", "0755", "/usr/local/bin"])
     before = containers()
+    codex_before = codex_state()
     plan = json.loads(command(["bash", str(script), "install", "--dry-run", "--json"]))
-    if plan["architecture"] != "x86_64" or len(plan["packages"]) != 12 or plan["ready"]:
+    if plan["architecture"] != "x86_64" or len(plan["packages"]) != 12 or plan["ready"] or "codex" in plan:
         raise RuntimeError("Unexpected installer plan")
     command(["sudo", "bash", str(script), "install"])
     receipt_path = Path("/usr/local/lib/agpc-native/install.json")
     first = json.loads(receipt_path.read_text())
     if first["state"] != "installed" or first["ready"] or first["packages"] != plan["packages"]:
         raise RuntimeError("Installation did not produce the expected receipt")
-    codex = command(["/usr/local/bin/codex", "--version"]).strip()
-    if codex != "codex-cli " + plan["codex"]["version"]:
-        raise RuntimeError("Installed Codex version mismatch")
+    verify_codex_untouched(codex_before, first)
     info = json.loads(command(["/usr/local/bin/agpc", "info", "--json"]))
     status = json.loads(command(["/usr/local/bin/agpc", "status", "--json"], expected=1))
     if info["ready"] or status["ready"] or status["state"] != "not-ready":
         raise RuntimeError("Installation incorrectly claimed AGPC readiness")
     if any(unit["state"] == "missing" for unit in status["services"]):
         raise RuntimeError("Native systemd registration missing")
-    health = json.loads(command(["/usr/local/bin/agpc", "codex", "status", "--json"]))
     mcp = json.loads(command(["/usr/local/bin/agpc", "mcp", "list", "--json"]))
     command(["sudo", "/usr/sbin/sshd", "-t"])
     config = Path("/etc/mote/sphered/sphered-deb.env")
@@ -112,6 +128,7 @@ def main():
         raise RuntimeError("Application reinstallation changed an existing conffile")
     if receipt_path.read_bytes() != core_receipt:
         raise RuntimeError("Application installer changed the core receipt")
+    verify_codex_untouched(codex_before, second)
     if containers() != before:
         raise RuntimeError("Installation changed container runtime packages")
     result = {"schema": "agpc.native-linux-install-acceptance/v1", "release": pins["tag"],
@@ -122,13 +139,14 @@ def main():
               "apps_native_elf_checks": "passed", "ss_webos_node_version": apps_node,
               "os": platform.freedesktop_os_release(), "architecture": platform.machine(),
               "installation": "passed", "reinstallation": "passed", "conffile_preserved": True,
-              "container_packages_unchanged": True, "codex_version": codex,
+              "container_packages_unchanged": True, "codex_installed_by_agpc": False,
+              "existing_codex_unchanged": True, "codex_before": codex_before,
               "runner_initial_bin_permissions": initial_bin_permissions,
               "runner_bin_permissions": "0:0 755",
-              "codex_startup": health, "mcp_discovery": mcp, "status": status,
+              "mcp_discovery": mcp, "status": status,
               "ready": False, "arm64": "deferred", "windows_installation": "blocked: native runtime bundle unavailable"}
     (output / "evidence.json").write_text(json.dumps(result, indent=2) + "\n")
-    print(json.dumps({k: result[k] for k in ("release", "installation", "reinstallation", "codex_version", "ready")}, indent=2))
+    print(json.dumps({k: result[k] for k in ("release", "installation", "reinstallation", "codex_installed_by_agpc", "ready")}, indent=2))
 
 
 if __name__ == "__main__":

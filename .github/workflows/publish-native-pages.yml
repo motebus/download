@@ -15,7 +15,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  macos-native-controller:
+    permissions:
+      contents: read
+    runs-on: macos-15
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Execute the pinned controller on native macOS ARM64
+        run: python3 scripts/verify_native_mac.py
+      - name: Save native controller evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-mac-controller-acceptance
+          path: .cache/native-mac-acceptance/
+          if-no-files-found: error
+
   build:
+    needs: macos-native-controller
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
