@@ -1,9 +1,10 @@
 # AGPC Native downloads
 
-Native Linux x86-64 installer and Windows diagnostic preview **0.1.0-preview.4**.
+Native Linux installer, Windows diagnostics and Mac controller preview **0.1.0-preview.6**.
 
 | Platform | CPU | Permanent download |
 | --- | --- | --- |
+| macOS | Apple Silicon ARM64 | https://motebus.github.io/download/agpc |
 | Linux | x86-64 installer; ARM64 diagnostics | https://motebus.github.io/download/agpc.sh |
 | Linux applications | x86-64 | https://motebus.github.io/download/agpc-apps.sh |
 | Windows | x86-64 | https://motebus.github.io/download/agpc.exe |
@@ -13,9 +14,9 @@ Native Linux x86-64 installer and Windows diagnostic preview **0.1.0-preview.4**
 
 Installation requires native Ubuntu 24.04/26.04 x86-64, systemd, Bash and Python
 3.10+. The standalone script embeds its backend. It verifies and installs pinned
-native runtime packages plus Codex, preserving existing conffiles. ARM64
+native runtime packages, preserving existing conffiles. ARM64
 installation is deferred; explicit diagnostic commands remain available.
-Downloads show bytes, rate and elapsed time, followed by hash verification.
+Downloads show the artifact name and SHA-256 completion. Codex CLI is managed separately and is not installed or updated.
 
 ```bash
 curl -fL https://motebus.github.io/download/agpc.sh -o agpc.sh
@@ -54,6 +55,34 @@ curl.exe -fL https://motebus.github.io/download/agpc-arm64.exe -o agpc-arm64.exe
 Use the executable for the native CPU. Run without elevation. These preview
 EXEs are unsigned; no Windows execution-policy change is needed or requested.
 
+## Mac (M-series only)
+
+```sh
+curl -fL https://motebus.github.io/download/agpc -o agpc
+chmod +x agpc
+./agpc version
+./agpc init
+./agpc sphere start
+./agpc sphere status
+```
+
+Use Docker Desktop with Apple Virtualization framework and Rosetta enabled.
+Only the pinned MoteBus + DC containers run in its Linux VM; host services use
+native ARM64 executables. Run as your normal user, without sudo.
+
+This release contains the controller. Configure owner-issued native components
+in `~/Library/Application Support/AGPC/agpc.json` before `./agpc start`.
+Missing owners fail startup; `doctor` stays nonzero until required readiness
+checks pass. Apple Developer ID signing and notarization remain pending; the
+Pages GPG signatures authenticate distribution, not Apple code signing.
+Mac mesh, security, audit, MCP, exec and update commands remain unavailable
+until their owner integrations are implemented.
+
+The `macos-native-controller` CI job executes the hash-pinned released binary on
+Darwin ARM64 and checks version, private init, and failure on missing owners.
+Docker Desktop VM, launchd lifecycle and full stack acceptance require a real
+M-series host and are not inferred from this CLI check.
+
 ## Scope and verification
 
 Linux installation verifies artifact hashes, rejects package removals/downgrades
@@ -64,23 +93,23 @@ to read-only status. The downloaded script defaults to installation.
 Windows installation remains unavailable (exit 2): its native runtime bundles
 are still required. The Windows EXE bytes are unchanged.
 
-The CLI provides diagnostics, bounded Codex App-Server health checks and
+Linux/Windows diagnostics include bounded Codex App-Server health checks and
 read-only MCP tool discovery. Installation does not establish AGPC Ready.
 S-channel enrollment/policy, application health, peer connectivity and operational
 RDP-over-Mote integration remain pending. Codex authentication belongs to the
-normal user. macOS is specification-only.
+normal user. macOS is a controller preview; full native runtime acceptance remains pending.
 
 [Checksums](https://motebus.github.io/download/agpc-native-SHA256SUMS) ·
 [Checksum signature](https://motebus.github.io/download/agpc-native-SHA256SUMS.asc) ·
 [Native provenance](https://motebus.github.io/download/agpc.source.json) ·
-[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.4)
+[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.6)
 
 ## Publication maintenance
 
 `scripts/native-pages.json` pins the published native release and all asset and
 runtime hashes. `scripts/publish_native.py` makes a standalone Linux launcher
 with unchanged Python backend bytes and extracts the two unchanged Windows
-EXEs. GitHub Pages serves these generated files at the permanent URLs.
+EXEs and the original Mac ARM64 Mach-O controller. GitHub Pages serves these generated files at the permanent URLs.
 
 The native Pages workflow restores the current successful Pages CI artifact,
 checks its SHA-256, replaces only the native entrypoints, their signed provenance
