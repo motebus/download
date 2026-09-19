@@ -58,10 +58,10 @@ def management_snapshot():
             for line in conffiles.splitlines():
                 if line.strip():
                     path = Path(line.split()[0])
-                    status = subprocess.run(["sudo", "test", "-f", str(path)], check=False)
-                    if status.returncode not in (0, 1):
+                    file_status = subprocess.run(["sudo", "test", "-f", str(path)], check=False)
+                    if file_status.returncode not in (0, 1):
                         raise RuntimeError("Cannot inspect protected conffile: " + str(path))
-                    if status.returncode == 0:
+                    if file_status.returncode == 0:
                         files[str(path)] = command(["sudo", "sha256sum", str(path)]).split()[0]
             result[package] = {"version":status.stdout.split("\t")[1], "configuration_sha256":files}
     return result
@@ -122,6 +122,12 @@ def main():
     initial_bin_permissions = command(["stat", "-c", "%u:%g %a", "/usr/local/bin"]).strip()
     command(["sudo", "chown", "root:root", "/usr/local/bin"])
     command(["sudo", "chmod", "0755", "/usr/local/bin"])
+    # Hosted runner tool setup also makes /usr/share world-writable. Record it
+    # before installation and model ordinary Ubuntu ownership, retaining the
+    # provider's rejection of untrusted package/configuration ancestors.
+    initial_share_permissions = command(["stat", "-c", "%u:%g %a", "/usr/share"]).strip()
+    command(["sudo", "chown", "root:root", "/usr/share"])
+    command(["sudo", "chmod", "0755", "/usr/share"])
     before = containers()
     codex_before = codex_state()
     migration = os.environ.get("AGPC_TEST_LEGACY_MIGRATION") == "1"
@@ -243,6 +249,8 @@ def main():
               "existing_codex_unchanged": True, "codex_before": codex_before,
               "runner_initial_bin_permissions": initial_bin_permissions,
               "runner_bin_permissions": "0:0 755",
+              "runner_initial_share_permissions": initial_share_permissions,
+              "runner_share_permissions": "0:0 755",
               "mcp_discovery": mcp, "status": status, "legacy_migration": migration,
               "management_preserved": True, "management_before": protected_before,
               "ready": False, "arm64": "deferred", "windows_installation": "blocked: native runtime bundle unavailable"}
