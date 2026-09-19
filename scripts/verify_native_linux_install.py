@@ -43,6 +43,12 @@ def main():
     apps_plan = json.loads(command(["bash", str(apps_script), "install", "--dry-run", "--json"]))
     if {p["name"] for p in apps_plan["packages"]} != {"mdesk", "mlink", "ss-webos"}:
         raise RuntimeError("Unexpected application package plan")
+    # Hosted development images make /usr/local/bin writable for tool setup.
+    # Model a normal Ubuntu installation directory in this disposable runner;
+    # retain the installer guard against user-writable privileged entrypoints.
+    initial_bin_permissions = command(["stat", "-c", "%u:%g %a", "/usr/local/bin"]).strip()
+    command(["sudo", "chown", "root:root", "/usr/local/bin"])
+    command(["sudo", "chmod", "0755", "/usr/local/bin"])
     before = containers()
     plan = json.loads(command(["bash", str(script), "install", "--dry-run", "--json"]))
     if plan["architecture"] != "x86_64" or len(plan["packages"]) != 12 or plan["ready"]:
@@ -117,6 +123,8 @@ def main():
               "os": platform.freedesktop_os_release(), "architecture": platform.machine(),
               "installation": "passed", "reinstallation": "passed", "conffile_preserved": True,
               "container_packages_unchanged": True, "codex_version": codex,
+              "runner_initial_bin_permissions": initial_bin_permissions,
+              "runner_bin_permissions": "0:0 755",
               "codex_startup": health, "mcp_discovery": mcp, "status": status,
               "ready": False, "arm64": "deferred", "windows_installation": "blocked: native runtime bundle unavailable"}
     (output / "evidence.json").write_text(json.dumps(result, indent=2) + "\n")
