@@ -1,23 +1,38 @@
 # AGPC Native downloads
 
-Native Linux and Windows CLI preview **0.1.0-preview.2**.
+Native Linux x86-64 installer and Windows diagnostic preview **0.1.0-preview.3**.
 
 | Platform | CPU | Permanent download |
 | --- | --- | --- |
-| Linux | ARM64 and x86-64 | https://motebus.github.io/download/agpc.sh |
+| Linux | x86-64 installer; ARM64 diagnostics | https://motebus.github.io/download/agpc.sh |
+| Linux applications | x86-64 | https://motebus.github.io/download/agpc-apps.sh |
 | Windows | x86-64 | https://motebus.github.io/download/agpc.exe |
 | Windows | ARM64 | https://motebus.github.io/download/agpc-arm64.exe |
 
 ## Linux
 
-Requires native Linux, Bash and Python 3.10+. The standalone script contains
-its Python backend; a separate source folder is not needed. Run without sudo: root may not see Codex installed in your user directory.
-The script checks existing components; it does not install or configure them.
+Installation requires native Ubuntu 24.04/26.04 x86-64, systemd, Bash and Python
+3.10+. The standalone script embeds its backend. It verifies and installs pinned
+native runtime packages plus Codex, preserving existing conffiles. ARM64
+installation is deferred; explicit diagnostic commands remain available.
 
 ```bash
 curl -fL https://motebus.github.io/download/agpc.sh -o agpc.sh
-bash ./agpc.sh info --json
+bash ./agpc.sh install --dry-run
+sudo bash ./agpc.sh install
+agpc status
 ```
+
+The core includes uChat (`uchat` and `uchatd`). After it completes, install
+optional MDESK, MLINK and SS-WebOS applications:
+
+```bash
+curl -fsSL https://motebus.github.io/download/agpc-apps.sh | sudo bash
+```
+
+Desktop session setup and device admission remain governed by the native
+applications. The application result is recorded separately in
+`/usr/local/lib/agpc-native/apps-install.json`.
 
 ## Windows
 
@@ -40,18 +55,24 @@ EXEs are unsigned; no Windows execution-policy change is needed or requested.
 
 ## Scope and verification
 
-Native installation is not implemented: `install` returns `unavailable`
-(exit 2), verified with the downloaded Linux script and Windows x86-64 EXE.
+Linux installation verifies artifact hashes, rejects package removals/downgrades
+and unmanaged executable replacement, and records the result under
+`/usr/local/lib/agpc-native/install.json`. The installed `agpc` command defaults
+to read-only status. The downloaded script defaults to installation.
+
+Windows installation remains unavailable (exit 2): its native runtime bundles
+are still required. The Windows EXE bytes are unchanged.
 
 The CLI provides diagnostics, bounded Codex App-Server health checks and
-read-only MCP tool discovery. It does not install the complete AGPC stack or
-configure services. Native Windows execution acceptance and operational
-RDP-over-Mote integration remain pending. macOS is specification-only.
+read-only MCP tool discovery. Installation does not establish AGPC Ready.
+S-channel enrollment/policy, application health, peer connectivity and operational
+RDP-over-Mote integration remain pending. Codex authentication belongs to the
+normal user. macOS is specification-only.
 
 [Checksums](https://motebus.github.io/download/agpc-native-SHA256SUMS) ·
 [Checksum signature](https://motebus.github.io/download/agpc-native-SHA256SUMS.asc) ·
 [Native provenance](https://motebus.github.io/download/agpc.source.json) ·
-[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.2)
+[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.3)
 
 ## Publication maintenance
 

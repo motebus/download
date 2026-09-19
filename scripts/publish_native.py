@@ -20,7 +20,7 @@ import zipfile
 REPOSITORY = "motebus/download"
 LIMIT = 64 * 1024 * 1024
 SITE_LIMIT = 1000000000
-NATIVE_FILES = {"agpc.sh", "agpc.exe", "agpc-arm64.exe", "agpc.source.json", "agpc-native-SHA256SUMS"}
+NATIVE_FILES = {"agpc.sh", "agpc-apps.sh", "agpc.exe", "agpc-arm64.exe", "agpc.source.json", "agpc-native-SHA256SUMS"}
 CHANGED_PATHS = NATIVE_FILES | {name + ".asc" for name in NATIVE_FILES} | {"index.html"}
 
 
@@ -131,7 +131,7 @@ def fetch_release(tag, name, expected_hash):
 
 
 def linux_sources(data, hashes):
-    expected = {"agpc-linux/README.txt", "agpc-linux/agpc.sh"} | {"agpc-linux/" + name for name in hashes if name.startswith("src/")}
+    expected = {"agpc-linux/README.txt"} | {"agpc-linux/" + name for name in hashes}
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
         entries = archive.getmembers()
         require(len(entries) == len(expected) and {m.name for m in entries} == expected, "Linux asset inventory mismatch")
@@ -142,8 +142,10 @@ def linux_sources(data, hashes):
     return {Path(name).name: data for name, data in files.items() if name.startswith("src/")}
 
 
-def standalone_linux(files):
-    require(set(files) == {"agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py"}, "unexpected Linux backend modules")
+def standalone_linux(files, entrypoint="agpc.sh"):
+    require(entrypoint in ("agpc.sh", "agpc-apps.sh"), "unapproved Linux entrypoint")
+    module = "agpc_linux.py" if entrypoint == "agpc.sh" else "native_apps.py"
+    require(set(files) == {"agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py", "native_install.py", "native_apps.py"}, "unexpected Linux backend modules")
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name, data in sorted(files.items()):
@@ -152,12 +154,12 @@ def standalone_linux(files):
             archive.writestr(item, data)
     payload = output.getvalue()
     # A heredoc works both as a downloaded script and with bash reading a pipe.
-    # The original four backend modules are extracted verbatim into a private
+    # The original six backend modules are extracted verbatim into a private
     # temporary directory; normal return, errors and SystemExit all clean it up.
     return f'''#!/usr/bin/env bash
 set -euo pipefail
-# AGPC Native CLI preview. Requires native Linux and Python 3.10+.
-# This command does not install the full AGPC stack or configure services.
+# AGPC Native. No arguments select Ubuntu x86-64 installation.
+# Requires native Linux, Bash and Python 3.10+; use explicit status for diagnostics.
 exec python3 - "$@" <<'PY_AGPC_NATIVE'
 import base64, hashlib, io, pathlib, runpy, sys, tempfile, zipfile
 if sys.version_info < (3, 10):
@@ -167,14 +169,14 @@ if hashlib.sha256(payload).hexdigest() != {digest(payload)!r}:
     raise SystemExit("AGPC Native embedded payload checksum mismatch")
 with tempfile.TemporaryDirectory(prefix="agpc-native-") as directory:
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-        if len(archive.namelist()) != 4 or set(archive.namelist()) != set({sorted(files)!r}):
+        if len(archive.namelist()) != 6 or set(archive.namelist()) != set({sorted(files)!r}):
             raise SystemExit("AGPC Native embedded file inventory mismatch")
         for name in archive.namelist():
             pathlib.Path(directory, name).write_bytes(archive.read(name))
     sys.dont_write_bytecode = True
     sys.path.insert(0, directory)
-    sys.argv[0] = "agpc.sh"
-    runpy.run_path(str(pathlib.Path(directory, "agpc_linux.py")), run_name="__main__")
+    sys.argv[0] = {entrypoint!r}
+    runpy.run_path(str(pathlib.Path(directory, {module!r})), run_name="__main__")
 PY_AGPC_NATIVE
 '''.encode()
 
@@ -203,7 +205,8 @@ def assemble(root):
             and manifest["assets"] == pins["assets"] and manifest["payload_sha256"] == pins["payload_sha256"], "native release provenance mismatch")
     version = manifest["version"]
     archives = {name: fetch_release(pins["tag"], name, item["sha256"]) for name, item in pins["assets"].items()}
-    files = {"agpc.sh": standalone_linux(linux_sources(archives[f"agpc-linux-{version}.tar.gz"], pins["payload_sha256"]["linux"]))}
+    linux = linux_sources(archives[f"agpc-linux-{version}.tar.gz"], pins["payload_sha256"]["linux"])
+    files = {name: standalone_linux(linux, name) for name in ("agpc.sh", "agpc-apps.sh")}
     for cpu, machine, name in [("x86_64", 0x8664, "agpc.exe"), ("arm64", 0xAA64, "agpc-arm64.exe")]:
         files[name] = windows_executable(archives[f"agpc-win-{cpu}-{version}.zip"], pins["payload_sha256"]["windows"][cpu], machine)
     record = {"schema": "agpc.native-pages/v1", "version": version,

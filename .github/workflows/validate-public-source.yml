@@ -14,6 +14,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  native-linux-install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install and reinstall the pinned native Linux candidate
+        run: python3 scripts/verify_native_linux_install.py
+      - name: Save native installer evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-linux-install-acceptance
+          path: .cache/native-linux-acceptance/
+          if-no-files-found: error
+
   macos-preflight:
     runs-on: macos-15
     timeout-minutes: 5
