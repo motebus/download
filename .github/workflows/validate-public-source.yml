@@ -94,8 +94,16 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $false
           $pins = Get-Content scripts/native-pages.json -Raw | ConvertFrom-Json
-          $exe = Join-Path $env:RUNNER_TEMP 'agpc-native-preview.exe'
-          Invoke-WebRequest https://motebus.github.io/download/agpc.exe -OutFile $exe
+          $version = $pins.tag -replace '^agpc-native-v', ''
+          $asset = "agpc-win-x86_64-$version.zip"
+          $archive = Join-Path $env:RUNNER_TEMP $asset
+          Invoke-WebRequest "https://github.com/motebus/download/releases/download/$($pins.tag)/$asset" -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $pins.assets.$asset.sha256) {
+            throw 'Versioned Windows archive does not match the reviewed pin'
+          }
+          $folder = Join-Path $env:RUNNER_TEMP 'agpc-native-preview'
+          Expand-Archive -LiteralPath $archive -DestinationPath $folder
+          $exe = Join-Path $folder 'agpc.exe'
           if ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() -ne $pins.payload_sha256.windows.x86_64) {
             throw 'Published Windows executable does not match the reviewed native payload'
           }

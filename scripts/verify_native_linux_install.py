@@ -5,6 +5,11 @@ import json
 import os
 from pathlib import Path
 import platform
+import pwd
+import datetime
+import http.server
+import threading
+import uuid
 import socket
 import subprocess
 import tempfile
@@ -100,6 +105,42 @@ def verify_standalone_mcp(catalog):
         raise RuntimeError("Legacy MCP gateway remains installed")
 
 
+def verify_browser(receipt, output):
+    browser = receipt["browser"]
+    user = pwd.getpwuid(os.getuid()).pw_name
+    if browser.get("installed") is not True or browser["setup_user"] != user or browser["remote_ready"]:
+        raise RuntimeError("P Channel was not set up for the normal installing user")
+    doctor = json.loads(command(["/usr/local/bin/agpc", "browser", "doctor"]))
+    if doctor.get("installed") is not True or doctor["engine_version"] != "1.63.0":
+        raise RuntimeError("Installed P engine failed its diagnostic")
+    class Fixture(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = b'<input id="name"><button id="commit" onclick="document.querySelector(\'#done\').textContent=document.querySelector(\'#name\').value">Save</button><p id="done">waiting</p>'
+            self.send_response(200); self.send_header("Content-Type", "text/html"); self.end_headers(); self.wfile.write(body)
+        def log_message(self, *_):
+            pass
+    server = http.server.HTTPServer(("127.0.0.1", 0), Fixture)
+    worker = threading.Thread(target=server.serve_forever, daemon=True); worker.start()
+    try:
+        origin = f"http://127.0.0.1:{server.server_port}"
+        with tempfile.TemporaryDirectory(prefix="agpc-p-acceptance-") as directory:
+            policy, request = Path(directory) / "policy.json", Path(directory) / "request.json"
+            policy.write_text(json.dumps({"schema": "agpc.browser.policy/v1", "id": "native-install-ci", "subject": user,
+                "expires_at": (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=3)).isoformat(),
+                "chrome_path": browser["chrome_path"], "allowed_origins": [origin],
+                "allowed_actions": ["navigate", "fill", "click", "verify"], "timeout_ms": 60000, "headless": True}))
+            policy.chmod(0o600)
+            request.write_text(json.dumps({"schema": "agpc.browser.request/v1", "id": "native-ci-" + uuid.uuid4().hex,
+                "steps": [{"action": "navigate", "url": origin + "/"}, {"action": "fill", "selector": "#name", "value": "p-channel-ci"},
+                    {"action": "click", "selector": "#commit"}, {"action": "verify", "selector": "#done", "text": "p-channel-ci"}]}))
+            result = json.loads(command(["/usr/local/bin/agpc", "browser", "run", str(policy), str(request)]))
+            if result["status"] != "completed" or not result["verified"] or result["remote_ready"]:
+                raise RuntimeError("Installed native P browser operation was not verified")
+            (output / "browser-execution.json").write_text(json.dumps(result, indent=2) + "\n")
+    finally:
+        server.shutdown(); server.server_close(); worker.join()
+
+
 def main():
     if (os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("RUNNER_OS") != "Linux"
             or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
@@ -141,6 +182,7 @@ def main():
     if first["state"] != "installed" or first["ready"] or first["packages"] != plan["packages"]:
         raise RuntimeError("Installation did not produce the expected receipt")
     verify_codex_untouched(codex_before, first)
+    verify_browser(first, output)
     info = json.loads(command(["/usr/local/bin/agpc", "info", "--json"]))
     status = json.loads(command(["/usr/local/bin/agpc", "status", "--json"], expected=1))
     if info["ready"] or status["ready"] or status["state"] != "not-ready":
