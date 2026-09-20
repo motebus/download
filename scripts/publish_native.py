@@ -22,7 +22,7 @@ LIMIT = 64 * 1024 * 1024
 SITE_LIMIT = 1000000000
 NATIVE_FILES = {"agpc", "agpc.sh", "agpc-apps.sh", "agpc.exe", "agpc-arm64.exe", "agpc.source.json", "agpc-native-SHA256SUMS"}
 CHANGED_PATHS = NATIVE_FILES | {name + ".asc" for name in NATIVE_FILES} | {"index.html"}
-LINUX_BACKEND = {"agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py", "native_install.py", "native_apps.py", "desktop_preferences.py", "browser_cli.py", "browser_install.py", "browser/browser.cjs", "browser/package.json", "browser/package-lock.json"}
+LINUX_BACKEND = {"agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py", "native_install.py", "native_apps.py", "desktop_preferences.py", "rdp_client.py", "browser_cli.py", "browser_install.py", "browser/browser.cjs", "browser/package.json", "browser/package-lock.json"}
 
 
 def require(condition, message):

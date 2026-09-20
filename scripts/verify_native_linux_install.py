@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Install the reviewed candidate on an ephemeral native GitHub Ubuntu runner."""
 import hashlib
+import configparser
 import json
 import os
 from pathlib import Path
@@ -106,6 +107,69 @@ def verify_standalone_mcp(catalog):
         raise RuntimeError("Legacy MCP gateway remains installed")
 
 
+def verify_rdp_menus(applications, vendor):
+    def entry(path):
+        parser = configparser.ConfigParser(interpolation=None, strict=False)
+        parser.optionxform = str
+        parser.read(path)
+        return parser
+    labels = {"mote-freerdp.desktop": ("FreeRDP(xrdp)", "xrdp"),
+              "mote-rdp-physical.desktop": ("FreeRDP(physical)", "physical")}
+    for name, (label, mode) in labels.items():
+        parser = entry(applications / name)
+        section = parser["Desktop Entry"]
+        if (section.get("Name") != label or section.get("NoDisplay", "false") != "false"
+                or section.get("Hidden", "false") != "false"
+                or section.get("Exec") != f"/usr/local/bin/rdp --desktop {mode} --client freerdp"
+                or section.get("Actions") or any(s.startswith("Desktop Action ") for s in parser.sections())):
+            raise RuntimeError("Unexpected FreeRDP menu entry or extra launcher action")
+    original, visible = entry(vendor), entry(applications / vendor.name)
+    if (visible["Desktop Entry"].get("NoDisplay", "false") != "false"
+            or visible["Desktop Entry"].get("Hidden", "false") != "false"):
+        raise RuntimeError("Optional Remmina menu entry must be visible")
+    for parser in (original, visible):
+        parser.remove_option("Desktop Entry", "NoDisplay")
+    if {s: dict(original[s]) for s in original.sections()} != {s: dict(visible[s]) for s in visible.sections()}:
+        raise RuntimeError("Remmina vendor handlers were changed")
+    return [label for label, _ in labels.values()]
+
+
+def verify_rdp_clients(receipt):
+    packages = ("freerdp3-x11", "remmina", "remmina-plugin-rdp", "remmina-plugin-secret")
+    for package in packages:
+        if command(["dpkg-query", "-W", "-f=${Status}", package]).strip() != "install ok installed":
+            raise RuntimeError("Native RDP client package missing: " + package)
+    binaries = ["/usr/bin/remmina", "/usr/bin/xfreerdp3"]
+    for package in packages[2:]:
+        plugins = [p for p in command(["dpkg-query", "-L", package]).splitlines()
+                   if p.endswith(package + ".so")]
+        if len(plugins) != 1:
+            raise RuntimeError("Native client plugin missing or ambiguous: " + package)
+        binaries.extend(plugins)
+    for binary in binaries:
+        with open(binary, "rb") as source:
+            header = source.read(20)
+        if header[:6] != b"\x7fELF\x02\x01" or int.from_bytes(header[18:20], "little") != 62:
+            raise RuntimeError("RDP client/plugin is not native x86-64 ELF")
+    command(["test", "-x", "/usr/local/bin/rdp"])
+    command(["/usr/local/bin/rdp", "--help"])
+    menus = verify_rdp_menus(Path("/usr/local/share/applications"),
+                             Path("/usr/share/applications/org.remmina.Remmina.desktop"))
+    if (receipt["rdp_client"]["menus"] != menus or not receipt["remmina"]["menu_visible"]
+            or not receipt["remmina"]["included"] or receipt["remmina"]["default_rdp_client"]):
+        raise RuntimeError("Client/menu receipt differs from the installed setup")
+    default = json.loads(command(["/usr/local/bin/agpc", "desktop", "--json"]))
+    if (receipt["rdp_client"]["default"] != "xfreerdp3" or default["desktop"] != "xrdp"
+            or default["client"] != "freerdp" or default["connection_opened"]):
+        raise RuntimeError("Unexpected desktop preference defaults")
+    for mode in ("xrdp", "physical"):
+        preference = json.loads(command(["/usr/local/bin/agpc", "desktop", "--desktop", mode, "--json"]))
+        if preference["client"] != "freerdp" or preference["connection_opened"]:
+            raise RuntimeError("Both desktop presets must default to FreeRDP without connecting")
+    return {"packages": list(packages), "menus": menus, "remmina_menu_visible": True,
+            "launcher_actions": [], "default_client": "freerdp", "desktop_login_tested": False}
+
+
 def verify_browser(receipt, output):
     browser = receipt["browser"]
     user = pwd.getpwuid(os.getuid()).pw_name
@@ -194,6 +258,7 @@ def main():
     plan = json.loads(command(["bash", str(script), "install", "--dry-run", "--json"]))
     if plan["architecture"] != "x86_64" or len(plan["packages"]) != 12 or plan["ready"] or "codex" in plan:
         raise RuntimeError("Unexpected installer plan")
+    existing_xrdp_config = Path("/etc/xrdp/xrdp.ini").exists()
     command(["sudo", "bash", str(script), "install"])
     receipt_path = Path("/usr/local/lib/agpc-native/install.json")
     first = json.loads(receipt_path.read_text())
@@ -214,26 +279,12 @@ def main():
     print(command(["/usr/bin/mote-mcp-ultra", "doctor"]), flush=True)
     mcp = json.loads(command(["/usr/local/bin/agpc", "mcp", "list", "--json"]))
     verify_standalone_mcp(mcp)
-    for package in ("freerdp3-x11", "remmina", "remmina-plugin-rdp"):
-        state = command(["dpkg-query", "-W", "-f=${Status}", package]).strip()
-        if state != "install ok installed":
-            raise RuntimeError(f"RDP client package missing: {package}")
-    command(["test", "-x", "/usr/bin/xfreerdp3"])
-    if plan["rdp_client"]["default"] != "xfreerdp3":
-        raise RuntimeError("FreeRDP is not the default installed client")
-    desktop = json.loads(command(["/usr/local/bin/agpc", "desktop", "--json"]))
-    if desktop["desktop"] != "xrdp" or desktop["client"] != "freerdp" or desktop["connection_opened"]:
-        raise RuntimeError("Unexpected desktop preference defaults")
-    command(["test", "-x", "/usr/bin/remmina"])
-    plugin_paths = [p for p in command(["dpkg-query", "-L", "remmina-plugin-rdp"]).splitlines()
-                    if p.endswith("remmina-plugin-rdp.so")]
-    if len(plugin_paths) != 1:
-        raise RuntimeError("RDP client plugin missing or ambiguous")
-    for binary in ("/usr/bin/xfreerdp3", "/usr/bin/remmina", plugin_paths[0]):
-        header = Path(binary).read_bytes()[:20]
-        if header[:6] != b"\x7fELF\x02\x01" or int.from_bytes(header[18:20], "little") != 62:
-            raise RuntimeError("RDP client/plugin is not native x86-64 ELF")
+    rdp_clients = verify_rdp_clients(first)
     host = first["rdp_host"]
+    if not existing_xrdp_config and host["port"] != 3390:
+        raise RuntimeError("Fresh XRDP must use port 3390, reserving 3389 for Physical")
+    if first["rdp_transport"]["endpoints"] != {"physical": "127.0.0.1:3389", "xrdp": "127.0.0.1:3390"}:
+        raise RuntimeError("The installed mode-to-endpoint contract is incorrect")
     if host["host"] != "127.0.0.1" or host["security"] != "tls" or not host["enabled"]:
         raise RuntimeError("Invalid RDP host installation receipt")
     for unit in ("xrdp.service", "xrdp-sesman.service"):
@@ -263,6 +314,8 @@ def main():
         raise RuntimeError("RDP reinstallation changed unrelated server configuration")
     if second["state"] != "installed" or second["ready"]:
         raise RuntimeError("Reinstallation failed")
+    if verify_rdp_clients(second) != rdp_clients:
+        raise RuntimeError("Reinstallation changed RDP client registration")
     if hashlib.sha256(config.read_bytes()).hexdigest() != expected_config:
         raise RuntimeError("Reinstallation changed an existing conffile")
     # Core-only installation owns uChat and does not install optional applications.
@@ -309,6 +362,7 @@ def main():
               "apps_installation": "passed", "apps_reinstallation": "passed",
               "apps_conffile_preserved": True, "apps_receipt": apps_receipt,
               "apps_native_elf_checks": "passed", "ss_webos_node_version": apps_node,
+              "rdp_clients": rdp_clients,
               "os": platform.freedesktop_os_release(), "architecture": platform.machine(),
               "installation": "passed", "reinstallation": "passed", "conffile_preserved": True,
               "container_packages_unchanged": True, "codex_installed_by_agpc": False,
