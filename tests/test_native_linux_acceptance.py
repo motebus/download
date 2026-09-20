@@ -13,6 +13,27 @@ SPEC.loader.exec_module(acceptance)
 
 
 class NativeLinuxAcceptanceTests(unittest.TestCase):
+    def test_menu_acceptance_rejects_extra_actions_and_changed_remmina_handlers(self):
+        with tempfile.TemporaryDirectory() as folder:
+            apps = Path(folder, "applications")
+            apps.mkdir()
+            for name, mode in (("mote-freerdp.desktop", "xrdp"), ("mote-rdp-physical.desktop", "physical")):
+                Path(apps, name).write_text(f"[Desktop Entry]\nName=FreeRDP({mode})\nExec=/usr/local/bin/rdp --desktop {mode} --client freerdp\n")
+            vendor = Path(folder, "org.remmina.Remmina.desktop")
+            vendor.write_text("[Desktop Entry]\nName=Remmina\nExec=remmina-file-wrapper %U\nMimeType=application/x-remmina;\n")
+            visible = apps / vendor.name
+            visible.write_text(vendor.read_text() + "NoDisplay=false\n")
+            self.assertEqual(acceptance.verify_rdp_menus(apps, vendor), ["FreeRDP(xrdp)", "FreeRDP(physical)"])
+            free = apps / "mote-freerdp.desktop"
+            original = free.read_text()
+            free.write_text(original + "Actions=Remmina;\n[Desktop Action Remmina]\nExec=remmina\n")
+            with self.assertRaisesRegex(RuntimeError, "extra launcher action"):
+                acceptance.verify_rdp_menus(apps, vendor)
+            free.write_text(original)
+            visible.write_text(visible.read_text().replace("remmina-file-wrapper %U", "remmina"))
+            with self.assertRaisesRegex(RuntimeError, "vendor handlers"):
+                acceptance.verify_rdp_menus(apps, vendor)
+
     def test_snapshot_detects_modified_target_and_preserves_dangling_link(self):
         with tempfile.TemporaryDirectory() as folder:
             target, link = Path(folder, "target"), Path(folder, "codex")
