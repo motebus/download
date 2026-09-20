@@ -11,6 +11,7 @@ import http.server
 import threading
 import uuid
 import socket
+import shutil
 import subprocess
 import tempfile
 import urllib.request
@@ -113,6 +114,13 @@ def verify_browser(receipt, output):
     doctor = json.loads(command(["/usr/local/bin/agpc", "browser", "doctor"]))
     if doctor.get("installed") is not True or doctor["engine_version"] != "1.63.0":
         raise RuntimeError("Installed P engine failed its diagnostic")
+    if browser.get("mode") != "headless" or browser.get("mode_selection") != "agent":
+        raise RuntimeError("Installer omitted Agent mode defaults")
+    if doctor.get("defaults", {}).get("mode") != "headless" or doctor.get("modes") != ["headless", "headed"]:
+        raise RuntimeError("Browser mode defaults missing from installed engine")
+    # Virtual display belongs only to this disposable CI runner, not AGPC install.
+    if not shutil.which("xvfb-run"):
+        raise RuntimeError("Headed acceptance requires the CI virtual display")
     class Fixture(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             body = b'<input id="name"><button id="commit" onclick="document.querySelector(\'#done\').textContent=document.querySelector(\'#name\').value">Save</button><p id="done">waiting</p>'
@@ -125,18 +133,28 @@ def verify_browser(receipt, output):
         origin = f"http://127.0.0.1:{server.server_port}"
         with tempfile.TemporaryDirectory(prefix="agpc-p-acceptance-") as directory:
             policy, request = Path(directory) / "policy.json", Path(directory) / "request.json"
-            policy.write_text(json.dumps({"schema": "agpc.browser.policy/v1", "id": "native-install-ci", "subject": user,
+            policy.write_text(json.dumps({"schema": "agpc.browser.policy/v2", "id": "native-install-ci", "subject": user,
                 "expires_at": (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=3)).isoformat(),
                 "chrome_path": browser["chrome_path"], "allowed_origins": [origin],
-                "allowed_actions": ["navigate", "fill", "click", "verify"], "timeout_ms": 60000, "headless": True}))
+                "allowed_actions": ["navigate", "fill", "click", "verify"], "timeout_ms": 60000}))
             policy.chmod(0o600)
-            request.write_text(json.dumps({"schema": "agpc.browser.request/v1", "id": "native-ci-" + uuid.uuid4().hex,
-                "steps": [{"action": "navigate", "url": origin + "/"}, {"action": "fill", "selector": "#name", "value": "p-channel-ci"},
-                    {"action": "click", "selector": "#commit"}, {"action": "verify", "selector": "#done", "text": "p-channel-ci"}]}))
-            result = json.loads(command(["/usr/local/bin/agpc", "browser", "run", str(policy), str(request)]))
-            if result["status"] != "completed" or not result["verified"] or result["remote_ready"]:
-                raise RuntimeError("Installed native P browser operation was not verified")
-            (output / "browser-execution.json").write_text(json.dumps(result, indent=2) + "\n")
+            for mode in ("headless", "headed"):
+                request.write_text(json.dumps({"schema": "agpc.browser.request/v2", "id": "native-ci-" + uuid.uuid4().hex,
+                    "agent_id": "ci-agent", "task_id": "native-install", "intent": {"observe": mode == "headed"},
+                    "steps": [{"action": "navigate", "url": origin + "/"}, {"action": "fill", "selector": "#name", "value": "p-channel-ci"},
+                        {"action": "click", "selector": "#commit"}, {"action": "verify", "selector": "#done", "text": "p-channel-ci"}]}))
+                plan = json.loads(command(["/usr/local/bin/agpc", "browser", "plan", str(policy), str(request)]))
+                if plan["mode"] != mode or plan["selected_by"] != "agent" or plan["execution"] != "plan-only":
+                    raise RuntimeError("Agent did not select the expected mode")
+                args = ["/usr/local/bin/agpc", "browser", "run", str(policy), str(request)]
+                if mode == "headed":
+                    args = ["xvfb-run", "--auto-servernum", *args]
+                result = json.loads(command(args))
+                if result["status"] != "completed" or not result["verified"] or result["remote_ready"]:
+                    raise RuntimeError("Installed native P browser operation was not verified")
+                if result["session"]["mode"] != mode or result["session"]["profile"] != "isolated-agent" or result["mode_decision"] != plan:
+                    raise RuntimeError("Mode/session evidence did not match the Agent plan")
+                (output / f"browser-{mode}-execution.json").write_text(json.dumps(result, indent=2) + "\n")
     finally:
         server.shutdown(); server.server_close(); worker.join()
 
@@ -196,16 +214,22 @@ def main():
     print(command(["/usr/bin/mote-mcp-ultra", "doctor"]), flush=True)
     mcp = json.loads(command(["/usr/local/bin/agpc", "mcp", "list", "--json"]))
     verify_standalone_mcp(mcp)
-    for package in ("remmina", "remmina-plugin-rdp"):
+    for package in ("freerdp3-x11", "remmina", "remmina-plugin-rdp"):
         state = command(["dpkg-query", "-W", "-f=${Status}", package]).strip()
         if state != "install ok installed":
             raise RuntimeError(f"RDP client package missing: {package}")
+    command(["test", "-x", "/usr/bin/xfreerdp3"])
+    if plan["rdp_client"]["default"] != "xfreerdp3":
+        raise RuntimeError("FreeRDP is not the default installed client")
+    desktop = json.loads(command(["/usr/local/bin/agpc", "desktop", "--json"]))
+    if desktop["desktop"] != "xrdp" or desktop["client"] != "freerdp" or desktop["connection_opened"]:
+        raise RuntimeError("Unexpected desktop preference defaults")
     command(["test", "-x", "/usr/bin/remmina"])
     plugin_paths = [p for p in command(["dpkg-query", "-L", "remmina-plugin-rdp"]).splitlines()
                     if p.endswith("remmina-plugin-rdp.so")]
     if len(plugin_paths) != 1:
         raise RuntimeError("RDP client plugin missing or ambiguous")
-    for binary in ("/usr/bin/remmina", plugin_paths[0]):
+    for binary in ("/usr/bin/xfreerdp3", "/usr/bin/remmina", plugin_paths[0]):
         header = Path(binary).read_bytes()[:20]
         if header[:6] != b"\x7fELF\x02\x01" or int.from_bytes(header[18:20], "little") != 62:
             raise RuntimeError("RDP client/plugin is not native x86-64 ELF")
