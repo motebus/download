@@ -22,6 +22,7 @@ LIMIT = 64 * 1024 * 1024
 SITE_LIMIT = 1000000000
 NATIVE_FILES = {"agpc", "agpc.sh", "agpc-apps.sh", "agpc.exe", "agpc-arm64.exe", "agpc.source.json", "agpc-native-SHA256SUMS"}
 CHANGED_PATHS = NATIVE_FILES | {name + ".asc" for name in NATIVE_FILES} | {"index.html"}
+LINUX_BACKEND = {"agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py", "native_install.py", "native_apps.py", "browser_cli.py", "browser_install.py", "browser/browser.cjs", "browser/package.json", "browser/package-lock.json"}
 
 
 def require(condition, message):
@@ -139,13 +140,13 @@ def linux_sources(data, hashes):
         files = {m.name.removeprefix("agpc-linux/"): archive.extractfile(m).read() for m in entries}
     for name, expected_hash in hashes.items():
         require(digest(files[name]) == expected_hash, "Linux runtime payload changed")
-    return {Path(name).name: data for name, data in files.items() if name.startswith("src/")}
+    return {name.removeprefix("src/"): data for name, data in files.items() if name.startswith("src/")}
 
 
 def standalone_linux(files, entrypoint="agpc.sh"):
     require(entrypoint in ("agpc.sh", "agpc-apps.sh"), "unapproved Linux entrypoint")
     module = "agpc_linux.py" if entrypoint == "agpc.sh" else "native_apps.py"
-    require(set(files) == {"agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py", "native_install.py", "native_apps.py"}, "unexpected Linux backend modules")
+    require(set(files) == LINUX_BACKEND, "unexpected Linux backend modules")
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name, data in sorted(files.items()):
@@ -154,7 +155,7 @@ def standalone_linux(files, entrypoint="agpc.sh"):
             archive.writestr(item, data)
     payload = output.getvalue()
     # A heredoc works both as a downloaded script and with bash reading a pipe.
-    # The original six backend modules are extracted verbatim into a private
+    # The allowlisted runtime files are extracted verbatim into a private
     # temporary directory; normal return, errors and SystemExit all clean it up.
     return f'''#!/usr/bin/env bash
 set -euo pipefail
@@ -169,9 +170,10 @@ if hashlib.sha256(payload).hexdigest() != {digest(payload)!r}:
     raise SystemExit("AGPC Native embedded payload checksum mismatch")
 with tempfile.TemporaryDirectory(prefix="agpc-native-") as directory:
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-        if len(archive.namelist()) != 6 or set(archive.namelist()) != set({sorted(files)!r}):
+        if len(archive.namelist()) != {len(files)} or set(archive.namelist()) != set({sorted(files)!r}):
             raise SystemExit("AGPC Native embedded file inventory mismatch")
         for name in archive.namelist():
+            pathlib.Path(directory, name).parent.mkdir(parents=True, exist_ok=True)
             pathlib.Path(directory, name).write_bytes(archive.read(name))
     sys.dont_write_bytecode = True
     sys.path.insert(0, directory)
