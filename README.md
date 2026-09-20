@@ -1,6 +1,6 @@
 # AGPC Native downloads
 
-Native Linux installer, Windows diagnostics and Mac controller preview **0.1.0-preview.7**.
+Native Linux installer, Windows diagnostics and Mac controller preview **0.1.0-preview.8**.
 
 | Platform | CPU | Permanent download |
 | --- | --- | --- |
@@ -102,7 +102,7 @@ normal user. macOS is a controller preview; full native runtime acceptance remai
 [Checksums](https://motebus.github.io/download/agpc-native-SHA256SUMS) ·
 [Checksum signature](https://motebus.github.io/download/agpc-native-SHA256SUMS.asc) ·
 [Native provenance](https://motebus.github.io/download/agpc.source.json) ·
-[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.7)
+[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.8)
 
 ## Publication maintenance
 
