@@ -1,6 +1,6 @@
 # AGPC Native downloads
 
-Native Linux installer, Windows overall installer and Mac controller preview **0.1.0-preview.18**.
+Native Linux installer, Windows overall installer and Mac controller preview **0.1.0-preview.19**.
 
 | Platform | CPU | Permanent download |
 | --- | --- | --- |
@@ -38,7 +38,8 @@ applications. The application result is recorded separately in
 
 ## Windows
 
-Requires native PowerShell 7.4+ matching the host CPU. On x86-64:
+Uses PowerShell 7.4+ when available and falls back to the matching Windows
+PowerShell 5.1 host shipped with Windows 10/11. On x86-64:
 
 ```powershell
 curl.exe -fL https://motebus.github.io/download/agpc.exe -o agpc.exe
@@ -114,7 +115,7 @@ normal user. macOS is a controller preview; full native runtime acceptance remai
 [Checksums](https://motebus.github.io/download/agpc-native-SHA256SUMS) ·
 [Checksum signature](https://motebus.github.io/download/agpc-native-SHA256SUMS.asc) ·
 [Native provenance](https://motebus.github.io/download/agpc.source.json) ·
-[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.18)
+[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.19)
 
 ## Publication maintenance
 
