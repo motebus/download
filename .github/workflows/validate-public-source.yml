@@ -117,15 +117,14 @@ jobs:
           if ($infoExit -ne 0 -or $info.platform -ne 'windows' -or $info.architecture -ne 'x86_64' -or $info.ready -ne $false) {
             throw 'Native Windows preview failed its info command'
           }
-          $installRaw = & $exe install -Json
+          $installRaw = & $exe install -Json 2>&1 | Out-String
           $installExit = $LASTEXITCODE
           Write-Output "install exit=$installExit"
           Write-Output $installRaw
-          $install = $installRaw | ConvertFrom-Json
-          if ($installExit -ne 2 -or $install.state -ne 'unavailable' -or $install.ready -ne $false) {
-            throw 'Unexpected install behavior in this diagnostic-only preview'
+          if ($installExit -ne 2 -or $installRaw -notmatch 'native_runtime_manifest_required') {
+            throw 'Unexpected fail-closed install behavior without a runtime manifest'
           }
-          'Verified the hash-pinned published EXE launches natively on Windows x86-64. The install command returns unavailable (exit 2); this preview is not a native installer. ARM64 execution and full runtime acceptance remain unverified.' | Add-Content $env:GITHUB_STEP_SUMMARY
+          'Verified the hash-pinned published EXE launches natively on Windows x86-64. The overall installer fails closed without an approved runtime manifest (exit 2); ARM64 execution and full runtime acceptance remain unverified.' | Add-Content $env:GITHUB_STEP_SUMMARY
           # The expected nonzero child exit must not become the CI step exit.
           exit 0
 
