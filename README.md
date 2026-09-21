@@ -1,6 +1,6 @@
 # AGPC Native downloads
 
-Native Linux installer, Windows overall installer and Mac controller preview **0.1.0-preview.17**.
+Native Linux installer, Windows overall installer and Mac controller preview **0.1.0-preview.18**.
 
 | Platform | CPU | Permanent download |
 | --- | --- | --- |
@@ -42,17 +42,19 @@ Requires native PowerShell 7.4+ matching the host CPU. On x86-64:
 
 ```powershell
 curl.exe -fL https://motebus.github.io/download/agpc.exe -o agpc.exe
-.\agpc.exe info -Json
+.\agpc.exe
 ```
 
 On ARM64:
 
 ```powershell
 curl.exe -fL https://motebus.github.io/download/agpc-arm64.exe -o agpc-arm64.exe
-.\agpc-arm64.exe info -Json
+.\agpc-arm64.exe
 ```
 
-Use the executable for the native CPU from elevated native PowerShell 7.4+:
+Running the executable with no command invokes the overall installer. Use the
+explicit form below when the manifest path is known; `info`, `status` and
+`doctor` remain read-only diagnostics:
 
 ```powershell
 .\agpc.exe install -RuntimeManifest C:\ProgramData\AGPC\runtime-manifest.json
@@ -112,7 +114,7 @@ normal user. macOS is a controller preview; full native runtime acceptance remai
 [Checksums](https://motebus.github.io/download/agpc-native-SHA256SUMS) ·
 [Checksum signature](https://motebus.github.io/download/agpc-native-SHA256SUMS.asc) ·
 [Native provenance](https://motebus.github.io/download/agpc.source.json) ·
-[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.17)
+[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.18)
 
 ## Publication maintenance
 

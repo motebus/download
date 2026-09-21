@@ -8,7 +8,7 @@ body{font:18px/1.6 system-ui,sans-serif;max-width:850px;margin:4rem auto;padding
 a{color:#075cb0}table{border-collapse:collapse;width:100%;background:white}th,td{text-align:left;padding:1rem;border-bottom:1px solid #d7dfe7}pre{padding:1rem;background:#18232d;color:#f6f8fa;overflow:auto;border-radius:.4rem}code{font-size:.9em}
 </style>
 <h1>AGPC Native</h1>
-<p>Linux installer, Windows overall installer and Mac controller preview <strong>0.1.0-preview.17</strong>.</p>
+<p>Linux installer, Windows overall installer and Mac controller preview <strong>0.1.0-preview.18</strong>.</p>
 <table>
 <tr><th>Platform</th><th>CPU</th><th>Download</th></tr>
 <tr><td>Linux</td><td>x86-64 installer; ARM64 diagnostics</td><td><a href="agpc.sh">agpc.sh</a></td></tr>
@@ -29,10 +29,12 @@ agpc status</pre>
 <h2>Windows</h2>
 <p>Requires native PowerShell 7.4+ matching the host CPU. Download the executable for your CPU. The preview EXEs are unsigned.</p>
 <pre>curl.exe -fL https://motebus.github.io/download/agpc.exe -o agpc.exe
+.\agpc.exe
 .\agpc.exe install -RuntimeManifest C:\ProgramData\AGPC\runtime-manifest.json
 .\agpc.exe status -Json</pre>
-<p>On ARM64, download <code>agpc-arm64.exe</code> instead and run the same
-<code>install</code> command. The overall installer verifies the approved native
+<p>Running the executable with no command invokes the overall installer. On
+ARM64, download <code>agpc-arm64.exe</code> instead and run the same command.
+The overall installer verifies the approved native
 runtime manifest, installs the Mote services through Windows SCM and enables
 OpenSSH. It does not use WSL or Debian packages. The manifest is required and
 is intentionally fail-closed when runtime bundles are not published.</p>
@@ -62,5 +64,5 @@ rdp workstation.mote --show-plan</pre>
 <h2>Preview scope</h2>
 <p>Linux installation verifies pinned runtime packages, preserves existing conffiles and records the result. Windows uses the same native PowerShell overall-installer backend in both CPU artifacts; it requires an approved native runtime manifest and does not claim Ready from service installation alone.</p>
 <p>Run diagnostics without elevation. Package installation does not establish AGPC Ready: S-channel enrollment, application health, peer connectivity and RDP-over-Mote acceptance remain required. Linux enables xrdp with TLS on loopback. Existing xrdp ports are preserved; a new XRDP server uses port 3390, with Physical RDP reserving 3389. Use <code>--rdp-port PORT</code> to choose another port. Existing GNOME access is preserved. A compatible Xorg desktop session is required. RDP uses an independent Mote channel, without SSH forwarding, with v2 mode selection for remote loopback Physical 3389 and XRDP 3390. Each mode uses its own local listener. RDP credentials remain with the native client/server; Agent screen/input APIs, S-channel integration and full AGPC RDP acceptance remain pending. The Mac download contains only the ARM64 controller; native owner artifacts and full runtime acceptance remain pending.</p>
-<p><a href="agpc-native-SHA256SUMS">SHA-256 checksums</a> · <a href="agpc-native-SHA256SUMS.asc">Checksum signature</a> · <a href="agpc.source.json">Native release provenance</a> · <a href="https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.17">Versioned release</a></p>
+<p><a href="agpc-native-SHA256SUMS">SHA-256 checksums</a> · <a href="agpc-native-SHA256SUMS.asc">Checksum signature</a> · <a href="agpc.source.json">Native release provenance</a> · <a href="https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.18">Versioned release</a></p>
 </html>
