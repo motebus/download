@@ -1,24 +1,24 @@
 {
   "schema": "agpc.native-pages-inputs/v1",
   "repository": "motebus/download",
-  "tag": "agpc-native-v0.1.0-preview.17",
-  "manifest_sha256": "2cfa40cfccbd1709177b4fd7aa9dfb6d0d5d290fae83697119fbdb3a28241fcc",
+  "tag": "agpc-native-v0.1.0-preview.18",
+  "manifest_sha256": "b7fdef0cc80735b4886f826c915efd8e0cabc0782773ddd55f4f680ed62356a5",
   "assets": {
-    "agpc-linux-0.1.0-preview.17.tar.gz": {
-      "sha256": "d86c30f866ec376641377721c1c734939eb30706c9c3839225f27bb7840375da",
-      "bytes": 43029
+    "agpc-linux-0.1.0-preview.18.tar.gz": {
+      "sha256": "dde0d725c1551d31783d8e21abc93f7bc13dd651da9232e50e92fb0a5186f7d3",
+      "bytes": 43049
     },
-    "agpc-mac-arm64-0.1.0-preview.17.tar.gz": {
-      "sha256": "694d686326887ed65700d3dbea716730c7197fa806f76f3c73f1605ed1c804bf",
-      "bytes": 2853338
+    "agpc-mac-arm64-0.1.0-preview.18.tar.gz": {
+      "sha256": "4f780a3fd35f8d3ee2d1b171b0d49f07d231354a0bafbf2e3b2ea330c5551d5d",
+      "bytes": 2853363
     },
-    "agpc-win-arm64-0.1.0-preview.17.zip": {
-      "sha256": "41c20e3a5b5027c9238afe65e39b665ad045c6d0b61039eadb683afc42817b28",
-      "bytes": 975601
+    "agpc-win-arm64-0.1.0-preview.18.zip": {
+      "sha256": "856d36c44fa0ed26450654201b7f128275fd7fc4640c746012bed8e75c38af4a",
+      "bytes": 975672
     },
-    "agpc-win-x86_64-0.1.0-preview.17.zip": {
-      "sha256": "01d1a65930e85840ca69d622a66d5d546bbc45dcbe86b2f8f59e7da26461464d",
-      "bytes": 1083266
+    "agpc-win-x86_64-0.1.0-preview.18.zip": {
+      "sha256": "3a3a805a892097414d9d30bd60cbe2f2a03199d7ffabc4ca78f0271344ababc7",
+      "bytes": 1083370
     }
   },
   "payload_sha256": {
@@ -40,8 +40,8 @@
       "src/rdp_client.py": "5a18e17efb5903fa45a5c5a4329a89b63e9d3abc5e03bfa77ab7a7aa9d48da5b"
     },
     "windows": {
-      "x86_64": "8adc4f84986acf806d51143abcd6cf0f29f0118c8b75b9972a7cb8983c093ec2",
-      "arm64": "b2f56c47c0cdc93ff509fa388b1aa76cc4c70b2ec0703c36ea9efdce8dfa1944"
+      "x86_64": "d0e76a0049df3bb5181373532818efd1ec79c7f7dc75d88cb63cf398bba6b186",
+      "arm64": "df433b497dda903244ff75c45983cc8e876b9733ba23d8ea882a0fcc466d8237"
     },
     "macos": {
       "arm64": "6ab5b3bcbd5f6e5df695d6885c4b971624e12171c8274ed14d794d6f63c01320"
