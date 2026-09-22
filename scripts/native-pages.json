@@ -1,24 +1,24 @@
 {
   "schema": "agpc.native-pages-inputs/v1",
   "repository": "motebus/download",
-  "tag": "agpc-native-v0.1.0-preview.19",
-  "manifest_sha256": "bfbf4a9b09df8ead3a650e991b7e2a751d31150a784d8a3ba950debc01a985fc",
+  "tag": "agpc-native-v0.1.0-preview.20",
+  "manifest_sha256": "1b3e1a1bc4b3fcafa016d29a17c852cc3e4eb8014061d9a968bb46e54d1667ea",
   "assets": {
-    "agpc-linux-0.1.0-preview.19.tar.gz": {
-      "sha256": "e1bfcf2166b8e8fc436997eed71079487eaf5ec9d4b2fd8bdd9f571783367eb9",
-      "bytes": 43086
+    "agpc-linux-0.1.0-preview.20.tar.gz": {
+      "sha256": "6cffcc8114fbba34a5a9157d9468e4cbd07e79aa6c58c37c52959e65fa259b15",
+      "bytes": 43147
     },
-    "agpc-mac-arm64-0.1.0-preview.19.tar.gz": {
-      "sha256": "b3d45add383c416767421c8bca71cef651355d5f6e667eca9d43e787e5151a84",
-      "bytes": 2853405
+    "agpc-mac-arm64-0.1.0-preview.20.tar.gz": {
+      "sha256": "c9dfa15e6a23279596bd55b04cd2ec3b86f951e04926bc108dc84e0493460cdc",
+      "bytes": 2853467
     },
-    "agpc-win-arm64-0.1.0-preview.19.zip": {
-      "sha256": "eec692d650d7ac6d950b15cce45eccb7c785185138cd4e4ce53a83f1cc7c78cd",
-      "bytes": 975909
+    "agpc-win-arm64-0.1.0-preview.20.zip": {
+      "sha256": "e8b018a48736b5b3ab3ed79e43f17fc048df16e31e682b4d4464fcb6dbf41d8b",
+      "bytes": 975969
     },
-    "agpc-win-x86_64-0.1.0-preview.19.zip": {
-      "sha256": "c981919241efdd95d46d283dff1f0d6fca90ecc6d0ed841ab9c79a4fe5b603d4",
-      "bytes": 1083723
+    "agpc-win-x86_64-0.1.0-preview.20.zip": {
+      "sha256": "03916a376bbd4dec57d7b37c2242d180cedf0900669c23e21481aaad59c1f825",
+      "bytes": 1083783
     }
   },
   "payload_sha256": {
@@ -34,8 +34,8 @@
       "src/codex_health.py": "263d0dbd5cdc2d5f98b9e86105940c75a1591c6497dac0497c57e0c801ffbe34",
       "src/desktop_preferences.py": "ad58a8a36d61ea40aaaa16cdff18ca59012c8be5eb4c7f855e21c2f32864ef54",
       "src/mcp_catalog.py": "b6482667506a86a578e45e5b6753764d8500834d88b1f42376c52ae1da95ae15",
-      "src/native_apps.py": "d33ab38fccfa3cc806e05c13af28fe72202bfff74ba243577ac1879e352eb060",
-      "src/native_install.py": "70de2a7e54b06f1567169eaf1f0d1a3693623a445fee4a1b406f6186a0995e6d",
+      "src/native_apps.py": "48434ec65966f7fe27d5816d9007b95be3980ddb3736be4a4adb11e52d4b0a09",
+      "src/native_install.py": "c228498be54527fb075f31f6651bfd8e7d057deadd6ad3f075b574a387971289",
       "src/native_rpc.py": "3623aafaad4cebd55fd7843b029152de5a111ec1b03cbcc5c3a8d3e1ca5993f3",
       "src/rdp_client.py": "5a18e17efb5903fa45a5c5a4329a89b63e9d3abc5e03bfa77ab7a7aa9d48da5b"
     },
