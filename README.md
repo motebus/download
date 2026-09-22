@@ -1,6 +1,6 @@
 # AGPC Native downloads
 
-Native Linux installer, Windows overall installer and Mac controller preview **0.1.0-preview.19**.
+Native Linux installer, Windows overall installer and Mac controller preview **0.1.0-preview.20**.
 
 | Platform | CPU | Permanent download |
 | --- | --- | --- |
@@ -95,6 +95,10 @@ Darwin ARM64 and checks version, private init, and failure on missing owners.
 Docker Desktop VM, launchd lifecycle and full stack acceptance require a real
 M-series host and are not inferred from this CLI check.
 
+The Linux applications installer selects **ss-webos 2.0.0-15**. Its primary
+screen uses `<machine>.ss`; additional displays use `<machine>-02.ss`,
+`<machine>-03.ss`, and so on. `<machine>.mote` identifies the host.
+
 ## Scope and verification
 
 Linux installation verifies artifact hashes, rejects package removals/downgrades
@@ -115,7 +119,7 @@ normal user. macOS is a controller preview; full native runtime acceptance remai
 [Checksums](https://motebus.github.io/download/agpc-native-SHA256SUMS) ·
 [Checksum signature](https://motebus.github.io/download/agpc-native-SHA256SUMS.asc) ·
 [Native provenance](https://motebus.github.io/download/agpc.source.json) ·
-[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.19)
+[Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.20)
 
 ## Publication maintenance
 
