@@ -367,8 +367,8 @@ AGENT_PROFILE_REDISTRIBUTABLE = tuple(
     name for old in AGENT_LOOP_REDISTRIBUTABLE
     for name in (("agpc-apps",) if old == "agent-apps" else
                  (old, "contextd") if old == "cx-loop" else (old,)))
-AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-4", "contextd": "0.1.0-1",
-                        "uchatd": "0.5.0-1", "uchat": "3.2.0-4", "agpc-apps": "0.3.0-1"}
+AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-5", "contextd": "0.1.0-1",
+                        "uchatd": "0.5.0-1", "uchat": "3.2.0-5", "agpc-apps": "0.3.0-1"}
 
 
 def is_full_overlay(config):
@@ -789,7 +789,7 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
 
 def validate_uchat_dependencies(bundle: Path, approved: dict, *, apps_owner="agent-apps", native_profile=False) -> None:
     """Keep Redis private and make the daemon/transport migration inseparable."""
-    for owner, dependency, floor in ((apps_owner, "uchat", "3.2.0-4" if native_profile else "3.1.0-1"),
+    for owner, dependency, floor in ((apps_owner, "uchat", "3.2.0-5" if native_profile else "3.1.0-1"),
                                      ("uchat", "uchatd", "0.5.0-1" if native_profile else "0.2.0-1"),
                                      ("uchatd", "redis-server", "5:6.2"),
                                      ("uchatd", "mote-transportd", "2.0.0-6")):
@@ -2005,13 +2005,11 @@ Standard profile: <a href="agpc.sh.asc">installer signature</a> ·
 remain byte-identical aliases of the full installer and source record for v2,
 or the canonical installer for historical v1.</p>
 </html>""")
-    index = index.replace("</html>", """<h2>Mac and Windows bootstrap</h2>
-<p>macOS Apple Silicon: <a href="agpc-mac.sh">agpc-mac.sh</a>
-(<a href="agpc-mac.sh.asc">signature</a>) is a <strong>Docker bootstrap preview</strong> for macOS 14+ arm64.
-It installs/starts Docker Desktop, then exits 78: the Ubuntu 26.04 AGPC runtime
-and Mac-host SSH/Codex bridge are pending. It does not complete AGPC installation.
-<a href="AGPC-MAC.md">Status and acceptance contract</a>;
-<a href="agpc.mac.source.json">source and SHA-256</a>.</p>
+    index = index.replace("</html>", """<h2>Native platform boundary</h2>
+<p>AGPC is 100% native. Linux uses signed Debian packages; Windows native
+integration is planned. The former macOS Docker bootstrap is retired and is
+kept only as historical documentation; it is not an AGPC installation path.
+OCI images are reserved for cloud or server deployments outside AGPC.</p>
 <p>New Windows PC: <a href="agpc-win.ps1">agpc-win.ps1</a>
 (<a href="agpc-win.ps1.asc">signature</a>) installs WSL 2, Ubuntu 26.04 by default and AGPC,
 creates jujue and configures Ubuntu startup after Windows boot.</p>

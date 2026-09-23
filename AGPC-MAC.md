@@ -1,7 +1,7 @@
-# AGPC Mac Docker bootstrap preview.4
+# AGPC Mac bootstrap (retired)
 
 Requires macOS 14+ and native Apple Silicon arm64. This preview installs or
-starts Docker Desktop as the invoking Mac user, then exits **78** because the
+is retained as historical documentation only and exits **78** because the
 AGPC Ubuntu runtime and host bridge are not ready. It is not a full AGPC install.
 Docker's first-launch license and authorization dialogs may require interaction.
 An existing Docker installation is preserved. The pinned download is Docker

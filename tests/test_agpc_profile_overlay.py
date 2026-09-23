@@ -155,7 +155,7 @@ class NativeProfileOverlayTests(unittest.TestCase):
             original = (bundle / apps["asset"]).read_bytes()
             depends = p.package_field(bundle / apps["asset"], "Depends")
             shutil.copy2(f.make_deb(root / "bad-apps", apps,
-                                  depends.replace("uchat (>= 3.2.0-4)", "uchat (>= 3.1.0-1)")), bundle)
+                                  depends.replace("uchat (>= 3.2.0-5)", "uchat (>= 3.1.0-1)")), bundle)
             with self.assertRaises(subprocess.CalledProcessError):
                 p.validate_uchat_dependencies(bundle, approved, apps_owner="agpc-apps", native_profile=True)
             (bundle / apps["asset"]).write_bytes(original)

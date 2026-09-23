@@ -28,7 +28,7 @@ Full upgrades an installed legacy `agent-apps` through its documentation-only
 transition to `agpc-apps`. Existing SQLite-based uChat installations require the
 separate offline migration before this installer can proceed.
 
-`contextd` owns local task context isolation; cloud CoD Server (`codd`) is not
+`@machine-name` is the default user-to-user Inbox route; it requires no setting or check. `contextd` owns local task context isolation; cloud CoD Server (`codd`) is not
 installed. New S Channel and Agent identity integration remain deferred. Package
 installation does not establish full runtime or cross-machine handoff readiness.
 The historical `agent-sphere-apps.sh` compatibility entry follows Full.
@@ -78,37 +78,14 @@ Mote components, registers Windows SCM services and enables OpenSSH. It fails
 closed without approved runtime bundles; no WSL or Debian fallback is used.
 These preview EXEs are unsigned; no execution-policy change is needed.
 
-## Mac (M-series only)
+## Native-only boundary
 
-```sh
-curl -fL https://motebus.github.io/download/agpc -o agpc
-chmod +x agpc
-./agpc version
-./agpc init
-./agpc sphere start
-./agpc sphere status
-```
-
-Use Docker Desktop with Apple Virtualization framework and Rosetta enabled.
-Only the pinned MoteBus + DC containers run in its Linux VM; host services use
-native ARM64 executables. Run as your normal user, without sudo.
-
-This release contains the controller. Configure owner-issued native components
-in `~/Library/Application Support/AGPC/agpc.json` before `./agpc start`.
-Missing owners fail startup; `doctor` stays nonzero until required readiness
-checks pass. Apple Developer ID signing and notarization remain pending; the
-Pages GPG signatures authenticate distribution, not Apple code signing.
-Mac mesh, security, audit, MCP, exec and update commands remain unavailable
-until their owner integrations are implemented.
-
-The `macos-native-controller` CI job executes the hash-pinned released binary on
-Darwin ARM64 and checks version, private init, and failure on missing owners.
-Docker Desktop VM, launchd lifecycle and full stack acceptance require a real
-M-series host and are not inferred from this CLI check.
-
-The Linux applications installer selects **ss-webos 2.0.0-15**. Its primary
-screen uses `<machine>.ss`; additional displays use `<machine>-02.ss`,
-`<machine>-03.ss`, and so on. `<machine>.mote` identifies the host.
+AGPC is 100% native. The supported Linux path installs signed Debian packages
+with `agpc.sh` or `agpc-all.sh`; Windows native integration is a future target.
+There is no Docker, Podman, `ag-net`, WSL fallback or container runtime in the
+AGPC product. OCI images are reserved for cloud or server deployments outside
+AGPC. The former macOS Docker bootstrap is retired and is not an installation
+path.
 
 ## Scope and verification
 

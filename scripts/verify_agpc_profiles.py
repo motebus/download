@@ -143,6 +143,10 @@ def main():
             # repairs the dependency graph during the actual upgrade.
             run('sudo', 'dpkg', '--force-depends', '--install', str(legacy))
             assert installed('agent-apps') == '0.2.0-4'
+            # A forced legacy seed leaves dpkg intentionally incomplete. Let
+            # the signed local catalog repair that state before the installer
+            # performs its normal transaction simulation.
+            run('sudo', 'apt-get', '--fix-broken', '--yes', 'install')
         entry = 'agpc.sh' if args.profile == 'standard' else 'agpc-all.sh'
         try:
             run('sudo', 'bash', str(site / entry), '--yes', '--user', user)

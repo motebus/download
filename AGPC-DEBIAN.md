@@ -2,12 +2,9 @@
 
 # AGPC (Agent Computer) Debian Distribution
 
-Platform entry points: Ubuntu [`agpc.sh`](agpc.sh), Windows
-[`agpc-win.ps1`](agpc-win.ps1), macOS [`agpc-mac.sh`](agpc-mac.sh).
-The macOS v0.1.0-preview.2 is **preflight only**, not a working installer:
-`--plan` displays the target; `--check` inspects macOS 14+ / arm64 prerequisites
-and exits 78 at the unavailable native release gate. It installs no services.
-See [macOS status and acceptance contract](AGPC-MAC.md).
+The current AGPC entry points are native Linux [`agpc.sh`](agpc.sh) and
+[`agpc-all.sh`](agpc-all.sh). Windows native integration is planned. The former
+macOS Docker bootstrap is retired and is not an AGPC installation path.
 
 ```text
 AGPC = Agent Computer, powered by AgentSphere
@@ -24,8 +21,10 @@ agent-apps (USE)
   jujue · iagent · ss-webos · mdesk · uchat → uchatd
 ```
 
-Standard AGPC installation needs no Docker, Podman or other container runtime.
-Existing unrelated container software and data on an owner's host are preserved.
+AGPC is a 100% native system. Standard installation needs no Docker, Podman,
+`ag-net`, WSL or other container runtime. OCI images are reserved for cloud or
+server deployments outside AGPC. Existing unrelated container software and data
+on an owner's host are preserved.
 APT/DPKG owns the four entry packages and systemd owns their native service
 lifecycle. `sphered` provides the MoteBus and D Channel kernel. AGOS owns agent
 orchestration and model resource access through Model Router. Model LLM provides
@@ -174,6 +173,11 @@ default: open `uchat`, type `@medge-home`, and chat. No chat login, mesh join,
 pair keys or permission setup is required. Each computer keeps its own
 `@machine-name` and inbox. `uchatd` owns
 logical names, independent Inboxes, subscriptions, recovery and replies.
+`@machine-name` is the default user-to-user address. A message sent to that
+address is delivered to the machine user Inbox automatically; no setting selects
+this route and no preflight check is required. Additional names such as
+`@chief` remain explicit, independent Inboxes and are used only when addressed
+by name. Box carries the message; Inbox carries the U2U work state.
 SQLite owns durable messages, queued work, approvals and recovery records.
 Redis remains a private RAM-only cache with no AOF, snapshots or swap.
 Mote Transport owns D/MSG delivery.
