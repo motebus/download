@@ -34,6 +34,18 @@ def containers():
     return sorted(line for line in result.splitlines() if line.split('\t')[0].startswith(prefixes))
 
 
+def installer_diagnostics():
+    """Keep the failed detached job's service evidence in the Actions log."""
+    for command in (
+        ('sudo', 'systemctl', 'status', 'uchatd.service', '--no-pager'),
+        ('sudo', 'journalctl', '-u', 'uchatd.service', '-n', '80', '--no-pager'),
+        ('sudo', 'find', '/var/lib', '-maxdepth', '1', '-type', 'd', '-name', 'agpc-install.*',
+         '-exec', 'sh', '-c', 'for d do test -f "$d/install.log" && { echo "--- $d/install.log"; tail -n 120 "$d/install.log"; }; done', 'sh', '{}', '+'),
+    ):
+        print('+', *command, flush=True)
+        subprocess.run(command, check=False, text=True, timeout=120)
+
+
 
 def context_lifecycle(caller):
     binary = '/usr/sbin/contextd'
@@ -108,10 +120,18 @@ def main():
                 data = response.read(2*1024*1024)
             assert hashlib.sha256(data).hexdigest() == 'e8b2cb48e831f8a0149323900b966bdb8baf62706f950c2da3df6fb6895d0703'
             legacy = temp / filename; legacy.write_bytes(data)
-            run('sudo', 'apt-get', '--yes', '--no-remove', '--no-install-recommends', 'install', str(legacy))
+            # The old transition package intentionally has dependencies that are
+            # supplied by the target profile (including the external Obsidian
+            # prerequisite). Seed only its dpkg state; the reviewed installer
+            # repairs the dependency graph during the actual upgrade.
+            run('sudo', 'dpkg', '--force-depends', '--install', str(legacy))
             assert installed('agent-apps') == '0.2.0-4'
         entry = 'agpc.sh' if args.profile == 'standard' else 'agpc-all.sh'
-        run('sudo', 'bash', str(site / entry), '--yes', '--user', user)
+        try:
+            run('sudo', 'bash', str(site / entry), '--yes', '--user', user)
+        except subprocess.CalledProcessError:
+            installer_diagnostics()
+            raise
         expected = {'agent-sphere', 'agent-ultra', 'agpc-manager', 'contextd', 'uchatd'}
         if args.profile != 'standard': expected.add('agpc-apps')
         if args.profile == 'upgrade': expected.add('agent-apps')
