@@ -1,70 +1,32 @@
 <!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AGPC Native downloads</title>
-<style>
-body{font:18px/1.6 system-ui,sans-serif;max-width:850px;margin:4rem auto;padding:0 1.5rem;color:#18232d;background:#f5f7fa}
-a{color:#075cb0}table{border-collapse:collapse;width:100%;background:white}th,td{text-align:left;padding:1rem;border-bottom:1px solid #d7dfe7}pre{padding:1rem;background:#18232d;color:#f6f8fa;overflow:auto;border-radius:.4rem}code{font-size:.9em}
-</style>
-<h1>AGPC Native</h1>
-<p>Linux installer, Windows overall installer and Mac controller preview <strong>0.1.0-preview.20</strong>.</p>
+<title>AGPC native downloads</title>
+<style>body{max-width:880px;margin:4rem auto;padding:0 1.5rem;font:17px/1.6 system-ui;color:#182235;background:#f8fafc}a{color:#1759bb}h1{font-size:2.6rem;line-height:1.15}table{border-collapse:collapse;width:100%;background:white}th,td{text-align:left;border-bottom:1px solid #dce3ed;padding:1rem}pre{padding:1rem;background:#eaf0f7;overflow:auto;border-radius:8px}small{color:#536174}</style>
+</head>
+<body>
+<h1>AGPC native downloads</h1>
+<p>Choose the standard system or the full system with applications.</p>
 <table>
-<tr><th>Platform</th><th>CPU</th><th>Download</th></tr>
-<tr><td>Linux</td><td>x86-64 installer; ARM64 diagnostics</td><td><a href="agpc.sh">agpc.sh</a></td></tr>
-<tr><td>Linux applications</td><td>x86-64</td><td><a href="agpc-apps.sh">agpc-apps.sh</a></td></tr>
-<tr><td>Windows</td><td>x86-64</td><td><a href="agpc.exe">agpc.exe</a></td></tr>
-<tr><td>Windows</td><td>ARM64</td><td><a href="agpc-arm64.exe">agpc-arm64.exe</a></td></tr>
-<tr><td>macOS</td><td>Apple Silicon ARM64</td><td><a href="agpc" download>agpc</a></td></tr>
+<tr><th>Profile</th><th>Download</th><th>Includes</th></tr>
+<tr><td>Standard</td><td><a href="agpc.sh">agpc.sh</a></td><td>Agent Sphere, local Agent Ultra, AGPC Manager, contextd and uchatd</td></tr>
+<tr><td>Full</td><td><a href="agpc-all.sh">agpc-all.sh</a></td><td>Standard plus agpc-apps</td></tr>
 </table>
-<h2>Linux</h2>
-<p>Installation requires native Ubuntu 24.04/26.04 x86-64, systemd, Bash and Python 3.10+. The standalone script embeds its backend. ARM64 installation is deferred; explicit diagnostics remain available.</p>
+<h2>Standard installation</h2>
 <pre>curl -fL https://motebus.github.io/download/agpc.sh -o agpc.sh
-bash ./agpc.sh install --dry-run
-sudo bash ./agpc.sh install
-agpc status</pre>
-<p>The core includes uChat. Install MDESK, MLINK and SS-WebOS independently; no core installation is required:</p>
-<pre>curl -fsSL https://motebus.github.io/download/agpc-apps.sh | sudo bash</pre>
-<p>Codex CLI is managed separately. These installers do not download, install or update it.</p>
-<h2>Windows</h2>
-<p>PowerShell 7.4+ is used when available; otherwise the launcher uses the
-matching Windows PowerShell 5.1 host shipped with Windows 10/11. Download the
-executable for your CPU. The preview EXEs are unsigned.</p>
-<pre>curl.exe -fL https://motebus.github.io/download/agpc.exe -o agpc.exe
-.\agpc.exe
-.\agpc.exe install -RuntimeManifest C:\ProgramData\AGPC\runtime-manifest.json
-.\agpc.exe status -Json</pre>
-<p>Running the executable with no command invokes the overall installer. On
-ARM64, download <code>agpc-arm64.exe</code> instead and run the same command.
-The overall installer verifies the approved native
-runtime manifest, installs the Mote services through Windows SCM and enables
-OpenSSH. It does not use WSL or Debian packages. The manifest is required and
-is intentionally fail-closed when runtime bundles are not published.</p>
-<h2>Mac (M-series)</h2>
-<p>Native ARM64 controller preview. Docker Desktop must use Apple Virtualization framework with Rosetta enabled. Only MoteBus + DC run inside its Linux VM.</p>
-<pre>curl -fL https://motebus.github.io/download/agpc -o agpc
-chmod +x agpc
-./agpc version
-./agpc init
-./agpc sphere start</pre>
-<p>Run as your normal user. Full startup requires the remaining native owner binaries configured in <code>~/Library/Application Support/AGPC/agpc.json</code>. This download contains the controller only. Apple Developer ID signing and notarization are pending.</p>
-<h2>P Channel — Browser execution</h2>
-<p>AGPC now includes local browser operations through Playwright + Chrome DevTools Protocol. Core agent execution is B / SSH + M / MCP + P / CDP + R / RDP. C remains Content.</p>
-<pre>agpc browser setup
-agpc browser doctor
-agpc browser plan /absolute/policy.json /absolute/request.json
-agpc browser run /absolute/policy.json /absolute/request.json</pre>
-<p>Linux <code>agpc install</code> includes pinned private Node, Chrome and Playwright setup for the invoking sudo user; root automation uses <code>--browser-user USER</code>. Run browser commands as the normal user. Windows/macOS require native Node.js 22+, npm and architecture-matched Chrome/Chromium; <code>browser setup</code> installs the pinned Playwright engine. An expiring policy grants explicit origins, actions and file roots; mutations require verification. Each request uses a fresh browser profile, with metadata audit and replay rejection. See the versioned release archive README for policy/request examples. Remote P admission and native Windows/Mac browser acceptance remain pending.</p>
-<p>Codex or the Agent chooses <strong>headless by default</strong> and <strong>headed</strong> when the task needs visibility or human interaction. Both use a dedicated Agent Chrome profile. The selected mode and reason appear in the session audit. Schema-v2 policies can restrict the allowed modes. Existing browser attachment requires stronger S authorization and remains unavailable in this preview.</p>
-<p>Full-desktop intent produces a separate XRDP or physical RDP plan; it does not open a desktop session. A denied browser action never triggers automatic fallback.</p>
-<h2>RDP desktop clients</h2>
-<p>Linux installs two FreeRDP menu entries: <strong>FreeRDP(xrdp)</strong> and <strong>FreeRDP(physical)</strong>. Both use FreeRDP at 1920×1080. Physical uses target port 3389 and XRDP uses 3390; both can run concurrently. XRDP is the default mode; physical mode requires a separately enabled and authorized desktop backend.</p>
-<pre>rdp workstation.mote
-rdp workstation.mote --desktop physical
-rdp workstation.mote --show-plan</pre>
-<p>Register the target and its native certificate in your private client configuration first. Unconfigured targets and inactive modes fail visibly. Native Remmina stays installed with RDP, SSH/SFTP and keyring support; open Remmina from its app-menu entry to manage saved profiles. The FreeRDP launchers have no Remmina submenu actions. Existing profiles and credentials are preserved. For upgrades, follow the profile and listener migration steps in the versioned release.</p>
-<h2>Preview scope</h2>
-<p>Linux installation verifies pinned runtime packages, preserves existing conffiles and records the result. Windows uses the same native PowerShell overall-installer backend in both CPU artifacts; it requires an approved native runtime manifest and does not claim Ready from service installation alone.</p>
-<p>Run diagnostics without elevation. Package installation does not establish AGPC Ready: S-channel enrollment, application health, peer connectivity and RDP-over-Mote acceptance remain required. Linux enables xrdp with TLS on loopback. Existing xrdp ports are preserved; a new XRDP server uses port 3390, with Physical RDP reserving 3389. Use <code>--rdp-port PORT</code> to choose another port. Existing GNOME access is preserved. A compatible Xorg desktop session is required. RDP uses an independent Mote channel, without SSH forwarding, with v2 mode selection for remote loopback Physical 3389 and XRDP 3390. Each mode uses its own local listener. RDP credentials remain with the native client/server; Agent screen/input APIs, S-channel integration and full AGPC RDP acceptance remain pending. The Mac download contains only the ARM64 controller; native owner artifacts and full runtime acceptance remain pending.</p>
-<p><a href="agpc-native-SHA256SUMS">SHA-256 checksums</a> · <a href="agpc-native-SHA256SUMS.asc">Checksum signature</a> · <a href="agpc.source.json">Native release provenance</a> · <a href="https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.20">Versioned release</a></p>
+sudo bash ./agpc.sh</pre>
+<h2>Full installation</h2>
+<pre>curl -fL https://motebus.github.io/download/agpc-all.sh -o agpc-all.sh
+sudo bash ./agpc-all.sh</pre>
+<p>Requires native Ubuntu 24.04 or 26.04 amd64 with systemd, Bash and Python 3.10+. Run either script with <code>--help</code> for options. Installation shows a plan for confirmation.</p>
+<p>Standard preserves existing applications. Full includes the renamed <code>agpc-apps</code> package and handles an installed legacy <code>agent-apps</code> through its transition package. Existing SQLite-based uChat installations need the separate offline migration before upgrading.</p>
+<p><code>contextd</code> runs inside AGPC. CoD Server (<code>codd</code>) remains in the cloud. Windows native support and new S Channel / Agent identity integration are separate future work.</p>
+<h2>Verify downloads</h2>
+<p><a href="agpc-native-SHA256SUMS">SHA-256 checksums</a> · <a href="agpc-native-SHA256SUMS.asc">Checksum signature</a> · <a href="medge-archive-keyring.gpg">Archive public key</a></p>
+<p>Standard: <a href="agpc.sh.asc">signature</a> · <a href="agpc.source.json">source record</a><br>Full: <a href="agpc-all.sh.asc">signature</a> · <a href="agpc-all.source.json">source record</a></p>
+<p><a href="https://github.com/motebus/download/releases">Versioned releases and historical platform previews</a></p>
+<small>Package installation does not establish application health, device admission or cross-machine handoff readiness.</small>
+</body>
 </html>

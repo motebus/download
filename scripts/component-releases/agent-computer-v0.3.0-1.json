@@ -1,0 +1,164 @@
+{
+  "schema": "reviewed-native-publication/v1",
+  "tag": "agent-computer-v0.3.0-1",
+  "public_source_commit": "77ee88dbb2003d28bb8d122cf9064a766870f663",
+  "title": "AGPC 0.3.0-1 \u2014 native standard and all profiles",
+  "notes": "Exact native DEB aggregate: agent-sphere, agent-ultra, agpc-manager, agpc-apps, contextd, uChat and reviewed native leaf packages. Standard agpc.sh selects the core; agpc-all.sh selects the application composition. Existing agent-apps is retained only as the exact 0.3.0-1 documentation transition. No Docker/OCI or SQLite runtime is included.",
+  "assets": [
+    {
+      "name": "agent-sphere_0.3.0-1_all.deb",
+      "sha256": "9c4efaa537a0373684133a421a0857bbfd3d71fca53c09c3fd53fc6e79ba2037",
+      "source_tag": "v0.3.0-1"
+    },
+    {
+      "name": "agent-ultra_0.1.0-1_all.deb",
+      "sha256": "a84502dc1730f066269a9f75acbaa7ba5fd20e25d8e9f4d0c85535f98ee9e60d",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "agpc-manager_3.3.0-1_amd64.deb",
+      "sha256": "044e4f7431a6b0bf7e905658ddc82e9232ad3127dea1c295c030b788eb4077b0",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "agpc-apps_0.3.0-1_all.deb",
+      "sha256": "8032aee6aeb08416a7a9ddbcc0954db8b4e4206f7e048b37e81d246eb63a5eb1",
+      "source_tag": "v0.3.0-1"
+    },
+    {
+      "name": "sphered_4.1.0-2_amd64.deb",
+      "sha256": "38667a250b2108a9d93f0743a81892875043ec32b09a61206e33deabe9deeb9a",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "moted_3.6.0-2_amd64.deb",
+      "sha256": "dd5aae37ecda299b1e0dcd85c96af4f5ba7f7a83e08bf8ee75f2dc7d54602c55",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "mote-proxy_2.0.0-5_amd64.deb",
+      "sha256": "469f8a794a975b704f3886bf0d149cf81289b4c56145c9f45a781bbf4d8a3548",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "mote-transportd_2.0.0-6_amd64.deb",
+      "sha256": "9c56cade3f014f75876cce126d2ef8c9d5c27a60709ff592ac0e9af9788dd23f",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "mlink_2.1.0-1_amd64.deb",
+      "sha256": "3b0e996d4971b21813fb78806d54e6fd127094987e04d73e842804ea3712cb5d",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "mote-secd_1.0.0-2_amd64.deb",
+      "sha256": "043fd2fe86dfe83d17f9ab6e7e82ca96d1423e0697c3b4a0549cbd7f6e4998c2",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "agos_2.1.0-1_amd64.deb",
+      "sha256": "d844937d8d11579b9c3a7cfa18dbdcd08b19c40c93ec22947fafb58d43c6db8e",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "model-router_0.1.0-1_amd64.deb",
+      "sha256": "fd07180fc952a6333e085c4b666683caa7185cd0f1b37da7c07ce694b3ad3b39",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "model-llm_0.1.0-3_amd64.deb",
+      "sha256": "8f044d0b23325a213b372087c9ef35daf9e9058df4bb7a783a0edc6945bc32ef",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "mote-mcpd_3.1.0-1_amd64.deb",
+      "sha256": "fae185fc735571c73adee70fb3095851541fce3a7b13b468c41cae32bec44a60",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "mote-mcp-ultra_0.1.0-1_amd64.deb",
+      "sha256": "ac9dcda941181da26d16a32bc26053f851011213322e5c7af24bc5e13c392c9e",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "cx-mesh_2.0.0-1_amd64.deb",
+      "sha256": "7e7e9e36f79c3a406bfb987bc18b2055ec8306cd5c3508fd88614f1d0ae2e89e",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "cx-loop_0.1.0-4_amd64.deb",
+      "sha256": "2a2a96c074dcd7b398ecb4cc9ababcf859a91b26375276fe17ee4368aa1de474",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "contextd_0.1.0-1_amd64.deb",
+      "sha256": "72091526b54178f78d281d485028db934bbf651575d03cac9dee0befca9ad203",
+      "source_tag": "contextd-v0.1.0-1"
+    },
+    {
+      "name": "redixs_4.1.0-1_amd64.deb",
+      "sha256": "61d1b98c77ff65ad18829a09215bf75357d1acd4b9a9efa79c6ad1b6dd9c28c7",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "comm_1.0.0-1_amd64.deb",
+      "sha256": "ac590c9f4a860768cba2e43f6c4972566beec160991234c4a9d9fdbb6394054e",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "mote-vault-sync_1.1.0-3_amd64.deb",
+      "sha256": "df5bc6409921ce288f64b9dee53c7188c5901ff82179d5ffaf21fc98974f19cf",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "mote-vault-syncd_1.1.0-3_amd64.deb",
+      "sha256": "7377e28aff888f166fff165641a51843476561b1caa305bc50c9ae1ce1d71753",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "medge_3.3.0-1_amd64.deb",
+      "sha256": "dc62f1028c6b88f3420083eafe92821c77ee0d798cee26b02bc5113e514b2407",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "jujue_0.2.0-1_all.deb",
+      "sha256": "0f348a78527a2929a512375bfc31ad5a92b75cdd7d702e338598df0552eebea7",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "iagent_1.0.0-1_amd64.deb",
+      "sha256": "b2d4ada088860d0b08c1efec8739721f3f6704f9e2cdb5d17b2d1ecd933b28db",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "ss-webos_2.0.0-12_amd64.deb",
+      "sha256": "42f11638be9f8c8070edf52495f2c666f2967a12da955d72c9c4197fad623aa7",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "mdesk_3.0.0-6_amd64.deb",
+      "sha256": "a72309fc0d593d5426ca7f3184c45611b397fc51037aa5df48c209c98a683724",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "uchat_3.2.0-4_amd64.deb",
+      "sha256": "2b40838b01a55ca5ca9e633e8d6dcc4d659fdb9720f53a490110a9620b4ebfa4",
+      "source_tag": "uchat-v3.2.0-4"
+    },
+    {
+      "name": "uchatd_0.5.0-1_amd64.deb",
+      "sha256": "1a0edaee2893ecd0c5c08e70ce46eb972aaed9bbc334e43df1c41efdc142619a",
+      "source_tag": "uchat-v3.2.0-4"
+    },
+    {
+      "name": "mote-chatd_2.0.0-6_all.deb",
+      "sha256": "b6c278fc03eb6c53fbf7569bf58ce636afcef0084ee388e2db08096bf5bef188",
+      "source_tag": "agent-computer-v0.2.0-15"
+    },
+    {
+      "name": "agent-apps_0.3.0-1_all.deb",
+      "sha256": "af209b2d1574186bdd5f4249d893a983215f042a8870943e0493ef81a0545cd1",
+      "source_tag": "v0.3.0-1"
+    }
+  ]
+}

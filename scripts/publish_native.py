@@ -52,9 +52,9 @@ def snapshot(site):
     return result
 
 
-def verify_preservation(before, after):
-    require({k: v for k, v in before.items() if k not in CHANGED_PATHS}
-            == {k: v for k, v in after.items() if k not in CHANGED_PATHS},
+def verify_preservation(before, after, allowed=CHANGED_PATHS):
+    require({k: v for k, v in before.items() if k not in allowed}
+            == {k: v for k, v in after.items() if k not in allowed},
             "publication changed an unrelated site file")
 
 
@@ -238,14 +238,14 @@ def assemble(root):
     return pins, record, files
 
 
-def sign_files(root, site):
+def sign_files(root, site, names=NATIVE_FILES):
     passphrase = os.environ.get("MEDGE_APT_SIGNING_PASSPHRASE")
     require(bool(passphrase), "archive signing passphrase unavailable")
     fingerprint = (root / "medge-archive-keyring.fingerprint").read_text().strip()
     # The tracked fingerprint includes the same whitespace accepted by GPG.
     fingerprint = "".join(fingerprint.split())
     require(re.fullmatch(r"[A-F0-9]{40}", fingerprint) is not None, "invalid archive key fingerprint")
-    for name in sorted(NATIVE_FILES):
+    for name in sorted(names):
         subprocess.run(["gpg", "--batch", "--yes", "--pinentry-mode", "loopback", "--passphrase-fd", "0",
                         "--local-user", fingerprint, "--digest-algo", "SHA256", "--armor", "--detach-sign",
                         "--output", str(site / (name + ".asc")), str(site / name)], input=passphrase + "\n", text=True, check=True)
@@ -256,19 +256,39 @@ def sign_files(root, site):
 def overlay(root, site, evidence_path, base=None):
     before = snapshot(site)
     pins, record, files = assemble(root)
-    require(before.get("agent-sphere-apps.sh") == pins["debian_installer_sha256"], "existing Debian installer differs from reviewed baseline")
+    import agpc_profiles
+    names = NATIVE_FILES
+    changed = CHANGED_PATHS
+    if agpc_profiles.enabled(root):
+        profiles, profile_files = agpc_profiles.activated_files(root, site)
+        files.update(profile_files)
+        record = {**record, "schema": "agpc.native-pages/v2", "linux_profiles": profiles}
+        record["legacy_preview_backend_sha256"] = record.pop("linux_backend_sha256")
+        record["files"] = {name: {"sha256": digest(data), "bytes": len(data)}
+                           for name, data in files.items() if name != "agpc-native-SHA256SUMS"}
+        files["agpc-native.source.json"] = (json.dumps(record, indent=2) + "\n").encode()
+        files["agpc-native-SHA256SUMS"] = "".join(
+            f"{digest(data)}  {name}\n" for name, data in sorted(files.items())
+            if name != "agpc-native-SHA256SUMS").encode()
+        names = set(files)
+        changed = names | {name + ".asc" for name in names} | {"index.html"}
+    else:
+        require(before.get("agent-sphere-apps.sh") == pins["debian_installer_sha256"], "existing Debian installer differs from reviewed baseline")
     for name, data in files.items():
         (site / name).write_bytes(data)
         (site / name).chmod(0o755 if name == "agpc" or name.endswith((".sh", ".exe")) else 0o644)
     (site / "index.html").write_bytes((root / "scripts/native-index.html").read_bytes())
-    sign_files(root, site)
+    if names == NATIVE_FILES:
+        sign_files(root, site)
+    else:
+        sign_files(root, site, names)
     after = snapshot(site)
-    verify_preservation(before, after)
+    verify_preservation(before, after, changed)
     result = {"schema": "agpc.native-pages-evidence/v1", "base": base,
               "native": record, "changed_paths": sorted(k for k in after if before.get(k) != after[k]),
-              "preserved_files": len(set(before) - CHANGED_PATHS),
-              "preserved_inventory_sha256": digest(json.dumps({k: v for k, v in before.items() if k not in CHANGED_PATHS}, sort_keys=True).encode()),
-              "published_sha256": {name: after[name] for name in sorted(CHANGED_PATHS)}}
+              "preserved_files": len(set(before) - changed),
+              "preserved_inventory_sha256": digest(json.dumps({k: v for k, v in before.items() if k not in changed}, sort_keys=True).encode()),
+              "published_sha256": {name: after[name] for name in sorted(changed)}}
     evidence_path.write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps({"native": record["version"], "preserved_files": result["preserved_files"], "changed_paths": result["changed_paths"]}, indent=2))
 
