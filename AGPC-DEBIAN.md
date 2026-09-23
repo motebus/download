@@ -8,7 +8,7 @@ macOS Docker bootstrap is retired and is not an AGPC installation path.
 
 ```text
 AGPC = Agent Computer, powered by AgentSphere
-AgentSphere = agent-sphere + agent-ultra + agpc-manager + agent-apps
+AgentSphere = agent-sphere + agent-ultra + agpc-manager + agpc-apps
 
 agent-sphere (RUN)
   sphered · moted · mote-proxy · mote-transportd · mlink · mote-secd
@@ -17,7 +17,7 @@ agent-ultra (LOCAL SERVICES)
   redixs · comm · obsidian · mote-vault-sync · mote-vault-syncd
 agpc-manager (MANAGE)
   medge · native setup TUI and sphere CLI
-agent-apps (USE)
+agpc-apps (USE)
   jujue · iagent · ss-webos · mdesk · uchat → uchatd
 ```
 
@@ -69,23 +69,16 @@ workers. The separate agpc-manager TUI may exit without stopping execution.
 Local Redixs and knowledge storage work without UltraOne; external Telegram and
 UltraOne connectivity are reported independently from local service health.
 
-## Windows (preview)
+## Windows (future native target)
 
-Use `agpc-win.ps1` on a new Windows PC to install WSL 2, Ubuntu and AGPC, create `jujue` and configure Ubuntu startup after Windows boot:
+Windows native AGPC support is planned and will use a native Windows service and
+package adapter. WSL, Docker and an Ubuntu compatibility layer are not AGPC
+runtime requirements. The current supported runtime is native Linux; Windows
+entrypoints are retained only as historical preview material until the native
+implementation and acceptance gates are published.
 
-```powershell
-curl.exe -fL https://motebus.github.io/download/agpc-win.ps1 -o "$env:TEMP\agpc-win.ps1"
-& "$env:TEMP\agpc-win.ps1"
-```
-
-For AGPC updates when Ubuntu is already prepared:
-
-```powershell
-curl.exe -fL https://motebus.github.io/download/agpc.ps1 -o "$env:TEMP\agpc.ps1"
-& "$env:TEMP\agpc.ps1"
-```
-
-See [Windows setup and update instructions](AGPC-WINDOWS.md) for options, prerequisites and preview validation limits.
+See [Windows setup and update instructions](AGPC-WINDOWS.md) for the historical
+preview record and its validation limits.
 
 ## Debian installation
 
@@ -168,7 +161,55 @@ Existing wire/configuration identifiers remain where compatibility requires.
 
 ## uChat on CX-Mesh
 
-AGPC installs `uchat 3.2.0-3` and `uchatd 0.4.0-2`. Machine chat is open by
+### Current work and context contract
+
+uChat carries communication work, while CoD carries the working context. A Box
+is the addressed message endpoint and an Inbox is the durable work state:
+
+```text
+User Box   -> User Inbox   = U2U work
+Agent Box  -> Agent Inbox  = U2A / A2U work
+Mesh Box   -> Mesh Inbox   = A2A work
+```
+
+`@machine-name` is the default user-to-user destination. A message sent there is
+delivered to the local machine user's Inbox automatically; no setting or
+preflight check selects this route. Box carries the message and Inbox records
+claim, pending, retry, completion and acknowledgement state.
+
+`uchatd` owns communication semantics, Box/Inbox/thread routing and message
+policy. Redis is shared internal infrastructure for durable delivery, pending
+work, ACK and recovery; agents never access Redis directly. CoD opens the
+task-scoped context sandbox, discovers and attaches the sources needed now, and
+persists useful results for later publication. `contextd` runs inside native
+AGPC; the CoD server remains in the cloud. Messages carry a `task` and
+`context_ref`, not an entire context.
+
+The D Channel carries message and control traffic. The O Channel is reserved for
+logs and billing. The S Channel remains reserved for identity, capability,
+authorization and policy integration; S-channel and Agent identity work is
+deferred. SQLite is retired and is not a runtime dependency or recovery store.
+
+The responsibility boundary is:
+
+| Component | Owns |
+| --- | --- |
+| uChat | Communication semantics |
+| uchatd | Box, Inbox, thread, routing and message policy |
+| Redis | Durable delivery, pending, ACK and recovery |
+| CoD | Context lifecycle and assembly |
+| codd | Cloud discovery, resolution, policy and handoff |
+| contextd | Native sandbox, isolation and runtime context |
+| Nbook | Persistent organizational knowledge |
+| AGPC | Native execution environment |
+
+The canonical flow is `Intent -> uChat task/thread -> Redis durable delivery ->
+CoD context sandbox -> native AGPC execution -> context result -> uChat result ->
+Redis ACK -> context close`. A handoff sends the task and context reference
+through a Mesh Box; the receiving agent claims the Inbox work and asks CoD for
+the authorized context.
+
+AGPC installs `uchat 3.2.0-5` and `uchatd 0.5.0-1`. Machine chat is open by
 default: open `uchat`, type `@medge-home`, and chat. No chat login, mesh join,
 pair keys or permission setup is required. Each computer keeps its own
 `@machine-name` and inbox. `uchatd` owns
@@ -178,8 +219,8 @@ address is delivered to the machine user Inbox automatically; no setting selects
 this route and no preflight check is required. Additional names such as
 `@chief` remain explicit, independent Inboxes and are used only when addressed
 by name. Box carries the message; Inbox carries the U2U work state.
-SQLite owns durable messages, queued work, approvals and recovery records.
-Redis remains a private RAM-only cache with no AOF, snapshots or swap.
+Redis owns durable messages, queued work, approvals and recovery records. SQLite
+is retired and is not used for messages, queues, approvals or recovery.
 Mote Transport owns D/MSG delivery.
 
 AGPC 0.2.0-15 fixes daemon access to the protected CX-Mesh membership directory.
@@ -187,13 +228,12 @@ Package installation and explicit setup join the existing `cx-mesh` group before
 starting uchatd. Configuration, Inbox data, account IDs and owner permissions are
 preserved. Agent Sphere 0.2.0-15 selects Apps 0.2.0-4 so existing installations upgrade both chat packages. Other component pins are unchanged.
 
-Existing Redis-backed installations must complete the
-[uChat migration and component upgrade](https://github.com/motebus/download/releases/download/uchat-v3.2.0-2/UPGRADE.md)
-before running the new AGPC installer. It refuses legacy/incomplete uchatd or
+Existing installations must complete the approved uChat component upgrade before
+running the new AGPC installer. It refuses legacy/incomplete uchatd or
 orphaned Inbox state before downloads/package changes and rechecks under APT's
 lock. No message data is migrated or deleted by `agpc.sh`. Fresh installations
 and already-upgraded daemons are supported. The installed-package acceptance
-gate checks SQLite recovery after losing the Redis cache on both Ubuntu targets.
+gate checks Redis-backed delivery and recovery on both Ubuntu targets.
 
 The installer configures the existing account selected by `--user USER` or
 `SUDO_USER`. Its permanent `@machine-name` is always retained. A root-only

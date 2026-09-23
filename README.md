@@ -25,13 +25,42 @@ sudo bash ./agpc-all.sh
 Use `--help` to inspect options. Both entries verify native package selection
 and preserve existing application data. Standard leaves installed apps in place;
 Full upgrades an installed legacy `agent-apps` through its documentation-only
-transition to `agpc-apps`. Existing SQLite-based uChat installations require the
-separate offline migration before this installer can proceed.
+transition to `agpc-apps`. SQLite is retired from the runtime; an existing
+SQLite-based uChat installation must complete the separate offline migration
+before this installer can proceed.
 
 `@machine-name` is the default user-to-user Inbox route; it requires no setting or check. `contextd` owns local task context isolation; cloud CoD Server (`codd`) is not
 installed. New S Channel and Agent identity integration remain deferred. Package
 installation does not establish full runtime or cross-machine handoff readiness.
 The historical `agent-sphere-apps.sh` compatibility entry follows Full.
+
+## Work and context contract
+
+uChat carries work and CoD carries the working context. Box addresses a message;
+Inbox records the durable work state:
+
+```text
+User Box   -> User Inbox   = U2U work
+Agent Box  -> Agent Inbox  = U2A / A2U work
+Mesh Box   -> Mesh Inbox   = A2A work
+```
+
+Redis is the shared internal durable layer for delivery, pending work, ACK and
+recovery. Agents do not access Redis directly. CoD opens the task-scoped
+context sandbox, attaches authorized sources on demand and persists useful
+results; `contextd` is inside native AGPC and CoD Server (`codd`) is cloud-side.
+Messages carry `task + context_ref`, not an entire context. The D Channel carries
+message and control traffic, the O Channel is reserved for logs and billing, and
+the S Channel is reserved for identity, capability, authorization and policy.
+S-channel and Agent identity integration is deferred. SQLite is retired and is
+not a message, queue, approval or recovery store.
+
+The component boundary is `uChat -> uchatd` for communication semantics and
+Box/Inbox routing, Redis for durable delivery, CoD/codd for context lifecycle and
+assembly, `contextd` for native isolation, Nbook for durable organizational
+knowledge, and AGPC for native execution. A handoff moves the task and context
+reference through a Mesh Box; the receiving agent claims Inbox work and asks CoD
+for the authorized context.
 
 Installer signatures (`.asc`), source records (`agpc.source.json` and
 `agpc-all.source.json`), and `agpc-native-SHA256SUMS` are published beside them.
