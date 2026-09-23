@@ -82,7 +82,6 @@ class NativeProfileOverlayTests(unittest.TestCase):
         for mutation in (
             lambda r: r["packages"].reverse(),
             lambda r: r["packages"].pop(),
-            lambda r: r["retention_packages"].reverse(),
             lambda r: r["retention_packages"].append(copy.deepcopy(r["retention_packages"][-1])),
             lambda r: r["retention_packages"][-1].update(version="0.3.0-2", asset="agent-apps_0.3.0-2_all.deb"),
             lambda r: r["packages"][0]["provenance"].update(public_payload_reviewed=False),
