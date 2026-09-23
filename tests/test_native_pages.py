@@ -52,6 +52,38 @@ class NativePagesTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(b"checksum mismatch", result.stderr)
 
+    def test_windows_host_preview_validates_manifest_size_digest_and_cpu(self):
+        executable = bytearray(256)
+        executable[:2] = b"MZ"
+        struct.pack_into("<I", executable, 60, 64)
+        executable[64:68] = b"PE\0\0"
+        struct.pack_into("<H", executable, 68, 0x8664)
+        pin = {"tag": "agpc-windows-v0.1.0-host-access-preview.1",
+               "manifest_sha256": "a" * 64, "sha256": native.digest(executable), "bytes": len(executable)}
+        manifest = {"schema": "agpc.windows-public-preview/v1", "version": "0.1.0-host-access-preview.1",
+                    "platform": "windows", "architecture": "x86_64",
+                    "artifact": {"name": "agpc.exe", "bytes": len(executable), "sha256": pin["sha256"]}}
+        with patch.object(native, "fetch_release", side_effect=[json.dumps(manifest).encode(), bytes(executable)]) as fetch:
+            result, actual = native.windows_host_preview(pin)
+            self.assertEqual(result, executable)
+            self.assertEqual(actual, manifest)
+            self.assertEqual(fetch.call_args_list[0].args, (pin["tag"], "MANIFEST.json", pin["manifest_sha256"]))
+        cases = []
+        wrong = dict(manifest, architecture="arm64"); cases.append((wrong, bytes(executable)))
+        wrong = dict(manifest, version="0.1.0-host-access-preview.2"); cases.append((wrong, bytes(executable)))
+        cases.append((manifest, bytes(executable[:-1])))
+        damaged = bytearray(executable); damaged[-1] = 1; cases.append((manifest, bytes(damaged)))
+        for description, payload in cases:
+            with patch.object(native, "fetch_release", side_effect=[json.dumps(description).encode(), payload]):
+                with self.assertRaises(ValueError): native.windows_host_preview(pin)
+        struct.pack_into("<H", executable, 68, 0xAA64)
+        arm_pin = dict(pin, sha256=native.digest(executable))
+        arm_manifest = dict(manifest, artifact=dict(manifest["artifact"], sha256=arm_pin["sha256"]))
+        with patch.object(native, "fetch_release", side_effect=[json.dumps(arm_manifest).encode(), bytes(executable)]):
+            with self.assertRaisesRegex(ValueError, "CPU mismatch"): native.windows_host_preview(arm_pin)
+        with self.assertRaisesRegex(ValueError, "invalid Windows host tag"):
+            native.windows_host_preview(dict(pin, tag="latest"))
+
     def test_windows_cpu_hash_and_extra_file_checks(self):
         executable = bytearray(256)
         executable[:2] = b"MZ"

@@ -121,7 +121,7 @@ def restore_current(site):
 
 
 def fetch_release(tag, name, expected_hash):
-    require(re.fullmatch(r"agpc-native-v\d+\.\d+\.\d+-preview\.\d+", tag) is not None, "exact preview tag required")
+    require(re.fullmatch(r"(?:agpc-native-v\d+\.\d+\.\d+-preview\.\d+|agpc-windows-v\d+\.\d+\.\d+-host-access-preview\.\d+)", tag) is not None, "exact preview tag required")
     require(re.fullmatch(r"[A-Za-z0-9_.-]+", name) is not None, "invalid release asset")
     url = f"https://github.com/{REPOSITORY}/releases/download/{tag}/{name}"
     with urllib.request.urlopen(url, timeout=120) as response:
@@ -190,6 +190,10 @@ def windows_executable(data, expected_hash, machine):
         require(all(not stat.S_ISLNK(m.external_attr >> 16) for m in entries)
                 and sum(m.file_size for m in entries) < LIMIT, "unsafe Windows archive")
         executable = archive.read("agpc.exe")
+    return validate_windows_executable(executable, expected_hash, machine)
+
+
+def validate_windows_executable(executable, expected_hash, machine):
     require(digest(executable) == expected_hash and executable[:2] == b"MZ" and len(executable) > 96, "Windows executable digest/header mismatch")
     offset = struct.unpack_from("<I", executable, 60)[0]
     require(offset < len(executable) - 96 and executable[offset:offset + 4] == b"PE\0\0"
@@ -213,6 +217,20 @@ def macos_executable(data, expected_hash):
     return executable
 
 
+def windows_host_preview(pin):
+    require(set(pin) == {"tag", "manifest_sha256", "sha256", "bytes"}, "invalid Windows preview pin")
+    require(re.fullmatch(r"agpc-windows-v\d+\.\d+\.\d+-host-access-preview\.\d+", pin["tag"]) is not None, "invalid Windows host tag")
+    manifest = json.loads(fetch_release(pin["tag"], "MANIFEST.json", pin["manifest_sha256"]))
+    require(manifest["schema"] == "agpc.windows-public-preview/v1"
+            and manifest["platform"] == "windows" and manifest["architecture"] == "x86_64"
+            and pin["tag"] == "agpc-windows-v" + manifest["version"]
+            and manifest["artifact"] == {"name": "agpc.exe", "bytes": pin["bytes"], "sha256": pin["sha256"]},
+            "Windows host manifest mismatch")
+    executable = fetch_release(pin["tag"], "agpc.exe", pin["sha256"])
+    require(len(executable) == pin["bytes"], "Windows host size mismatch")
+    return validate_windows_executable(executable, pin["sha256"], 0x8664), manifest
+
+
 def assemble(root):
     pins = json.loads((root / "scripts/native-pages.json").read_text())
     require(pins["schema"] == "agpc.native-pages-inputs/v1" and pins["repository"] == REPOSITORY, "unapproved native Pages source")
@@ -227,12 +245,18 @@ def assemble(root):
     for cpu, machine, name in [("x86_64", 0x8664, "agpc.exe"), ("arm64", 0xAA64, "agpc-arm64.exe")]:
         files[name] = windows_executable(archives[f"agpc-win-{cpu}-{version}.zip"], pins["payload_sha256"]["windows"][cpu], machine)
     files["agpc"] = macos_executable(archives[f"agpc-mac-arm64-{version}.tar.gz"], pins["payload_sha256"]["macos"]["arm64"])
+    windows_host = None
+    if "windows_x86_64" in pins:
+        files["agpc.exe"], windows_host = windows_host_preview(pins["windows_x86_64"])
     record = {"schema": "agpc.native-pages/v1", "version": version,
               "release": f"https://github.com/{REPOSITORY}/releases/tag/{pins['tag']}",
               "manifest_sha256": pins["manifest_sha256"], "windows_authenticode_signed": False,
               "macos_developer_id_signed": False, "macos_notarized": False, "macos_runtime_ready": False,
               "linux_backend_sha256": pins["payload_sha256"]["linux"],
               "files": {name: {"sha256": digest(data), "bytes": len(data), "cpu": "arm64,x86_64" if name == "agpc.sh" else "arm64" if name in ("agpc", "agpc-arm64.exe") else "x86_64"} for name, data in files.items()}}
+    if windows_host is not None:
+        record["windows_x86_64"] = {"release": f"https://github.com/{REPOSITORY}/releases/tag/{pins['windows_x86_64']['tag']}",
+                                    "manifest_sha256": pins["windows_x86_64"]["manifest_sha256"], "manifest": windows_host}
     files["agpc.source.json"] = (json.dumps(record, indent=2) + "\n").encode()
     files["agpc-native-SHA256SUMS"] = "".join(f"{digest(data)}  {name}\n" for name, data in sorted(files.items())).encode()
     return pins, record, files
