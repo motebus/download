@@ -1,40 +1,51 @@
-# AGPC Native downloads
+# AGPC native downloads
 
-Native Linux installer, Windows overall installer and Mac controller preview **0.1.0-preview.20**.
+AGPC is a native system. Linux installation uses signed DEB packages on
+Ubuntu 24.04 or 26.04 amd64, with systemd, Bash and Python 3.10+.
 
-| Platform | CPU | Permanent download |
+| Profile | Download | Includes |
 | --- | --- | --- |
-| macOS | Apple Silicon ARM64 | https://motebus.github.io/download/agpc |
-| Linux | x86-64 installer; ARM64 diagnostics | https://motebus.github.io/download/agpc.sh |
-| Linux applications | x86-64 | https://motebus.github.io/download/agpc-apps.sh |
-| Windows | x86-64 | https://motebus.github.io/download/agpc.exe |
-| Windows | ARM64 | https://motebus.github.io/download/agpc-arm64.exe |
+| Standard | [agpc.sh](https://motebus.github.io/download/agpc.sh) | Agent Sphere, local Agent Ultra, AGPC Manager, contextd and Redis-backed uchatd |
+| Full | [agpc-all.sh](https://motebus.github.io/download/agpc-all.sh) | Standard plus agpc-apps |
 
-## Linux
-
-Installation requires native Ubuntu 24.04/26.04 x86-64, systemd, Bash and Python
-3.10+. The standalone script embeds its backend. It verifies and installs pinned
-native runtime packages, preserving existing conffiles. ARM64
-installation is deferred; explicit diagnostic commands remain available.
-Downloads show the artifact name and SHA-256 completion. Codex CLI is managed separately and is not installed or updated.
+Standard:
 
 ```bash
 curl -fL https://motebus.github.io/download/agpc.sh -o agpc.sh
-bash ./agpc.sh install --dry-run
-sudo bash ./agpc.sh install
-agpc status
+sudo bash ./agpc.sh
 ```
 
-The core includes uChat (`uchat` and `uchatd`). After it completes, install
-optional MDESK, MLINK and SS-WebOS applications:
+Full:
 
 ```bash
-curl -fsSL https://motebus.github.io/download/agpc-apps.sh | sudo bash
+curl -fL https://motebus.github.io/download/agpc-all.sh -o agpc-all.sh
+sudo bash ./agpc-all.sh
 ```
 
-Desktop session setup and device admission remain governed by the native
-applications. The application result is recorded separately in
-`/usr/local/lib/agpc-native/apps-install.json`.
+Use `--help` to inspect options. Both entries verify native package selection
+and preserve existing application data. Standard leaves installed apps in place;
+Full upgrades an installed legacy `agent-apps` through its documentation-only
+transition to `agpc-apps`. Existing SQLite-based uChat installations require the
+separate offline migration before this installer can proceed.
+
+`contextd` owns local task context isolation; cloud CoD Server (`codd`) is not
+installed. New S Channel and Agent identity integration remain deferred. Package
+installation does not establish full runtime or cross-machine handoff readiness.
+The historical `agent-sphere-apps.sh` compatibility entry follows Full.
+
+Installer signatures (`.asc`), source records (`agpc.source.json` and
+`agpc-all.source.json`), and `agpc-native-SHA256SUMS` are published beside them.
+The dedicated `publish-agpc-profiles.yml` workflow verifies fresh Standard,
+fresh Full and the legacy Apps transition on disposable native Ubuntu CI hosts
+before activating Pages. It preserves existing pool files and unrelated site
+content. No Docker or OCI is used for AGPC validation or publication.
+
+## Earlier platform previews
+
+The following notes describe separately published previews. They do not change
+the current native Linux standard/full profiles. Windows native integration is
+a separate future target; historical macOS Docker experiments are not supported
+AGPC installation paths.
 
 ## Windows
 

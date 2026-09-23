@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Fixed in the signed script; profile selection also works when piped to bash.
+agpc_profile=standard
+agpc_entrypoint=agpc.sh
+
 usage() {
     printf '%s\n' \
-        'Usage: agpc.sh [--yes] [--user USER] [--help]' \
-        'Install agent-sphere, agent-ultra, agpc-manager and agent-apps using the signed MoteBus APT repository.' \
+        "Usage: $agpc_entrypoint [--yes] [--user USER] [--help]" \
+        'Install native AGPC: agent-sphere, agent-ultra, agpc-manager, contextd and uchatd.' \
+        'agpc-all.sh additionally installs agpc-apps; existing applications are preserved.' \
         'Supports Ubuntu 24.04 and 26.04 amd64; creates only missing reviewed APT key/source files.' \
         'Downloads the pinned official Obsidian DEB for the same APT transaction.' \
         'Run as root. Confirm the displayed plan unless --yes is supplied; installation continues in a detached systemd job.'
@@ -354,6 +359,8 @@ AGPC_STAGE
         printf 'stage=%q\n' "$stage"
         printf 'guard=%q\n' "$worker_guard"
         printf 'agpc_chat_user=%q\n' "${agpc_chat_user:-}"
+        printf 'agpc_profile=%q\n' "$agpc_profile"
+        printf 'uchat_state=%q\n' "$uchat_state"
         printf 'packages=('
         for argument in "${packages[@]}"; do
             [[ $argument != "$obsidian" ]] || argument=$worker_obsidian
@@ -393,19 +400,37 @@ phase=package-verification
 apt-get check
 dpkg --audit > "$stage/dpkg-audit.txt"
 test ! -s "$stage/dpkg-audit.txt"
-python3 - "${packages[@]}" > "$stage/packages.json" <<'AGPC_PACKAGES'
+python3 - "$agpc_profile" "${packages[@]}" > "$stage/packages.json" <<'AGPC_PACKAGES'
 import json,subprocess,sys
 records=[]
-for argument in sys.argv[1:]:
-    if not argument.startswith(('agent-sphere=','agent-ultra=','agpc-manager=','agent-apps=')):continue
+profile=sys.argv[1]
+required={'agent-sphere','agent-ultra','agpc-manager','contextd','uchatd'}
+if profile=='full':required.add('agpc-apps')
+elif profile!='standard':sys.exit('Unknown AGPC install profile')
+selected=set()
+for argument in sys.argv[2:]:
+    if not argument.startswith(tuple(name+'=' for name in required|{'agent-apps'})):continue
     name, version=argument.split('=',1)
     fields=subprocess.check_output(['dpkg-query','-W','-f=${Version}\n${Status}',name],text=True).splitlines()
     if fields!=[version,'install ok installed']:sys.exit('Expected AGPC entry package is not fully configured: '+name)
     records.append({'name':name,'version':version,'configured':True})
-assert len(records)==4
-print(json.dumps({'schema':'agpc.installed-entries/v1','packages':records,'full_runtime_ready':False},sort_keys=True))
+    assert name not in selected
+    selected.add(name)
+assert required.issubset(selected)
+print(json.dumps({'schema':'agpc.installed-entries/v1','profile':profile,'packages':records,'full_runtime_ready':False},sort_keys=True))
 AGPC_PACKAGES
 phase=uchat
+# Only a proven fresh installation is eligible for explicit store provisioning.
+# init-store itself refuses a prior identity or any nonempty Redis namespace.
+if [[ $uchat_state == absent ]]; then
+    systemctl stop uchatd.service
+    systemctl start uchatd-redis.service
+    install -d -m 0700 -o uchatd -g uchat /var/lib/uchatd
+    install -d -m 0755 -o uchatd -g uchat /run/uchatd
+    runuser -u uchatd -- /usr/sbin/uchatd init-store --config /etc/uchatd/uchatd.json
+    runuser -u uchatd -- /usr/sbin/uchatd check-store --config /etc/uchatd/uchatd.json
+    systemctl start uchatd.service
+fi
 if [[ -n $agpc_chat_user ]]; then
     /usr/libexec/uchat/setup-default.py --user "$agpc_chat_user" > "$stage/uchat.json"
 fi
@@ -1042,7 +1067,7 @@ if __name__ == '__main__':
 MANAGER_PREFLIGHT
 }
 
-# A Redis-backed Inbox must complete the separately reviewed component upgrade
+# A legacy SQLite-backed Inbox must complete the separately reviewed component upgrade
 # before this aggregate transaction. Never migrate or inspect message content here.
 classify_legacy_uchat() {
     local record result
@@ -1050,8 +1075,8 @@ classify_legacy_uchat() {
     if record=$(dpkg-query -W -f='${Status}\n${Version}\n' uchatd 2>/dev/null); then
         mapfile -t fields <<< "$record"
         if [[ ${#fields[@]} == 2 && ${fields[0]} == 'install ok installed' ]] &&
-            dpkg --compare-versions "${fields[1]}" ge 0.4.0-1; then
-            printf 'sqlite:%s\n' "${fields[1]}"
+            dpkg --compare-versions "${fields[1]}" ge 0.5.0-1; then
+            printf 'redis:%s\n' "${fields[1]}"
             return 0
         fi
     else
@@ -1063,8 +1088,8 @@ classify_legacy_uchat() {
             return 0
         fi
     fi
-    printf '%s\n' 'Complete the uchatd SQLite migration and component upgrade before installing this AGPC release. Existing Inbox data was not changed.' \
-        'Guide: https://github.com/motebus/download/releases/download/uchat-v3.2.0-2/UPGRADE.md' >&2
+    printf '%s\n' 'Complete the uchatd SQLite-to-Redis migration and component upgrade before installing this AGPC release. Existing Inbox data was not changed.' \
+        'Use the uchatd 0.5.0 package README offline-import procedure; existing stores are never reinitialized here.' >&2
     return 1
 }
 
@@ -1091,7 +1116,18 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.2.0-15 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 agent-apps=0.2.0-4 "$obsidian")
+packages=(agent-sphere=0.3.0-1 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-1 uchatd=0.5.0-1 "$obsidian")
+if [[ $agpc_profile == full ]]; then
+    packages+=(agpc-apps=0.3.0-1)
+    # The old documentation-only metapackage becomes an exact dependency bridge.
+    # Never remove the old name or its application dependency chain.
+    if old_apps=$(dpkg-query -W -f='${Status}' agent-apps 2>/dev/null); then
+        [[ $old_apps == 'install ok installed' ]] || fail 'Existing agent-apps is not fully configured; repair its package state first.'
+        packages+=(agent-apps=0.3.0-1)
+    else
+        [[ $? == 1 ]] || fail 'Cannot inspect the legacy application metapackage.'
+    fi
+fi
 # Preserve DPKG ownership of the locked legacy identity with the reviewed
 # documentation-only record. Never remove a protected mote-chatd record.
 if [[ $legacy_state == retention:* ]]; then
@@ -1107,6 +1143,7 @@ fi
 printf '%s\n' '#!/bin/bash' 'set -euo pipefail'
 declare -f agentsphere_container_runtime_package classify_legacy_chatd classify_legacy_mcp classify_legacy_cx classify_legacy_manager classify_legacy_uchat
 printf 'expected_uchat_state=%q\n' "$uchat_state"
+printf 'agpc_profile=%q\n' "$agpc_profile"
 printf 'expected_legacy_state=%q\n' "$legacy_state"
 printf 'expected_mcp_state=%q\n' "$mcp_state"
 printf 'expected_cx_state=%q\n' "$cx_state"
@@ -1155,7 +1192,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.2.0-15 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agent-apps]=0.2.0-4 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-3 [uchatd]=0.4.0-2)
+declare -A floor=([agent-sphere]=0.3.0-1 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-1 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-4 [uchatd]=0.5.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1169,6 +1206,9 @@ while IFS= read -r line; do
         removed[$name]=true
     elif [[ $action == '**CONFIGURE**' || $action == /*.deb ]]; then
         ! agentsphere_container_runtime_package "$name" || fail "container runtime package $name is outside native AGPC installation"
+        if [[ ${agpc_profile:-standard} == standard && ( $name == agpc-apps || $name == agent-apps ) ]]; then
+            fail 'application composition is outside the standard AGPC profile'
+        fi
         [[ $name != mote-chatd || $legacy_state == retention:* ]] || fail 'retention is not admitted for this ownership state'
         case "$name" in sphere-manager|mote-sync|mote-syncd|cx-node|cx-agent|codex-mesh|model-node|model-grid|mcp-run|ultra-mcp-ssh|mote-bridge-mcp) fail "retired package $name" ;; esac
         [[ $new != - ]] || fail 'missing target version'
@@ -1176,7 +1216,7 @@ while IFS= read -r line; do
         if [[ -n ${floor[$name]:-} ]]; then
             dpkg --compare-versions "$new" ge "${floor[$name]}" || fail "obsolete package $name"
         fi
-        if [[ $name == agent-sphere || $name == agent-apps || $name == agent-ultra || $name == agpc-manager ]]; then
+        if [[ $name == agent-sphere || $name == agpc-apps || $name == agent-apps || $name == agent-ultra || $name == agpc-manager || $name == contextd ]]; then
             [[ $new == "${floor[$name]}" ]] || fail "unexpected composition version $name"
         fi
         if [[ $name == mote-transportd && $legacy_state == ordinary:* ]]; then
@@ -1267,6 +1307,9 @@ while read -r action package rest; do
             esac ;;
         Purg|E:) fail 'APT error or purge refused. Package installation was not started.' ;;
         Inst)
+            if [[ $agpc_profile == standard && ( $name == agpc-apps || $name == agent-apps ) ]]; then
+                fail 'Application composition is outside the standard AGPC profile. No package installation was started.'
+            fi
             ! agentsphere_container_runtime_package "$name" || fail "Refusing container runtime package $name. Package installation was not started."
             planned[$name]=true ;;
     esac
@@ -1296,6 +1339,6 @@ else
     exit "$code"
 fi
 printf '%s\n' 'SSH configuration and loopback port 22 are ready; remote Mote reachability is a separate check.'
-printf '%s\n' 'Agent Sphere, Agent Ultra, AGPC Manager and Agent Apps packages installed. Runtime configuration and health are separate checks.'
+printf 'Native AGPC %s packages installed. Runtime configuration and health are separate checks.\n' "$agpc_profile"
 printf '%s\n' 'Use agpc-manager to open Chat, or run uchat and enter @machine-name.'
 if [[ -z $agpc_chat_user ]]; then printf '%s\n' 'Machine chat is open by default. Extra agent names can be managed separately in agpc-manager.'; fi

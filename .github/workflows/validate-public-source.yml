@@ -170,27 +170,4 @@ jobs:
       - name: Validate the reviewed public tree
         run: python3 scripts/publish_apt.py validate-tree .
 
-  ubuntu-image-candidate:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - name: Build Ubuntu 26.04 candidate from signed pinned DEBs
-        run: docker build --platform linux/amd64 -f scripts/agpc-ubuntu/Dockerfile -t agpc-ubuntu26:candidate .
-      - name: Verify image inventory and host adapter configuration
-        run: |
-          docker run --rm --entrypoint /usr/bin/python3 agpc-ubuntu26:candidate -c '
-          import json, pathlib, tomllib
-          record = json.loads(pathlib.Path("/usr/share/agpc-build/installed.json").read_text())
-          assert record["runtime_ready"] is False
-          assert record["version"] == "26.04"
-          config = tomllib.loads(pathlib.Path("/etc/cx-mesh/cx-mesh.toml").read_text())
-          assert config["codex"]["command"] == "/usr/local/libexec/agpc/codex-stream.py"
-          assert config["codex"]["args"] == ["app-server"]
-          print(json.dumps(record, indent=2))'
-      - name: Verify installed CX-Mesh bridge over Docker exec (simulated host)
-        run: python3 scripts/agpc-host-bridge/verify-container-bridge.py
-      - name: Diagnose default Docker systemd support (not runtime admission)
-        run: python3 scripts/agpc-ubuntu/probe-systemd.py
+  # AGPC uses native validation. Historical OCI preview checks are retired.

@@ -1,30 +1,30 @@
 {
-  "schema": "agent-computer-apt-overlay/v6",
+  "schema": "agent-computer-apt-overlay/v7",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.2.0-15",
-    "source_commit": "4656c80032e7b4252a35153e89f7b9594c4a808d",
+    "tag": "agent-computer-v0.3.0-1",
+    "source_commit": "77ee88dbb2003d28bb8d122cf9064a766870f663",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.2.0-15",
+        "version": "0.3.0-1",
         "architecture": "all",
-        "asset": "agent-sphere_0.2.0-15_all.deb",
-        "sha256": "8ba7a31b8ce4e3e2277bd83238f8cf3bd82d49b6bb5e70e6d3bdc1655d524ebe",
+        "asset": "agent-sphere_0.3.0-1_all.deb",
+        "sha256": "9c4efaa537a0373684133a421a0857bbfd3d71fca53c09c3fd53fc6e79ba2037",
         "provenance": {
-          "source_commit": "73ba3211bdf76427f25240f84b1415d6ab5e7b51",
+          "source_commit": "e1ba9e6d65a87ff0ab3be7ee8407311594084d74",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35299171433,
+          "main_pipeline_id": 35845224223,
           "build_status": "success",
           "public_payload_reviewed": true
         }
       },
       {
+        "name": "agent-ultra",
         "version": "0.1.0-1",
         "architecture": "all",
         "asset": "agent-ultra_0.1.0-1_all.deb",
         "sha256": "a84502dc1730f066269a9f75acbaa7ba5fd20e25d8e9f4d0c85535f98ee9e60d",
-        "name": "agent-ultra",
         "provenance": {
           "source_commit": "efcb0278f4b288e08597225f7f405370adac7fe4",
           "source_ref": "refs/heads/main",
@@ -48,15 +48,15 @@
         }
       },
       {
-        "name": "agent-apps",
-        "version": "0.2.0-4",
+        "name": "agpc-apps",
+        "version": "0.3.0-1",
         "architecture": "all",
-        "asset": "agent-apps_0.2.0-4_all.deb",
-        "sha256": "e8b2cb48e831f8a0149323900b966bdb8baf62706f950c2da3df6fb6895d0703",
+        "asset": "agpc-apps_0.3.0-1_all.deb",
+        "sha256": "8032aee6aeb08416a7a9ddbcc0954db8b4e4206f7e048b37e81d246eb63a5eb1",
         "provenance": {
-          "source_commit": "165f530c2f7130d39016a0308162038788599d3d",
+          "source_commit": "a62d23165ceb13f2abb66106a4487c1bde8e5541",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35299143421,
+          "main_pipeline_id": 35826601911,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -146,11 +146,11 @@
         }
       },
       {
+        "name": "agos",
         "version": "2.1.0-1",
         "architecture": "amd64",
         "asset": "agos_2.1.0-1_amd64.deb",
         "sha256": "d844937d8d11579b9c3a7cfa18dbdcd08b19c40c93ec22947fafb58d43c6db8e",
-        "name": "agos",
         "provenance": {
           "source_commit": "46c8b44706d82b786112b8a28bb88db9060b3ee9",
           "source_ref": "refs/heads/main",
@@ -244,11 +244,25 @@
         }
       },
       {
+        "name": "contextd",
+        "version": "0.1.0-1",
+        "architecture": "amd64",
+        "asset": "contextd_0.1.0-1_amd64.deb",
+        "sha256": "72091526b54178f78d281d485028db934bbf651575d03cac9dee0befca9ad203",
+        "provenance": {
+          "source_commit": "6d04ed87d059ac537a7a25711897c40c3783544d",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27223,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "redixs",
         "version": "4.1.0-1",
         "architecture": "amd64",
         "asset": "redixs_4.1.0-1_amd64.deb",
         "sha256": "61d1b98c77ff65ad18829a09215bf75357d1acd4b9a9efa79c6ad1b6dd9c28c7",
-        "name": "redixs",
         "provenance": {
           "source_commit": "4f9b8ec36a760de622868de10731b29687b2103d",
           "source_ref": "refs/heads/main",
@@ -258,11 +272,11 @@
         }
       },
       {
+        "name": "comm",
         "version": "1.0.0-1",
         "architecture": "amd64",
         "asset": "comm_1.0.0-1_amd64.deb",
         "sha256": "ac590c9f4a860768cba2e43f6c4972566beec160991234c4a9d9fdbb6394054e",
-        "name": "comm",
         "provenance": {
           "source_commit": "16ca9586b989d6160724fdaa5c8230844ea0ab55",
           "source_ref": "refs/heads/main",
@@ -314,11 +328,11 @@
         }
       },
       {
+        "name": "jujue",
         "version": "0.2.0-1",
         "architecture": "all",
         "asset": "jujue_0.2.0-1_all.deb",
         "sha256": "0f348a78527a2929a512375bfc31ad5a92b75cdd7d702e338598df0552eebea7",
-        "name": "jujue",
         "provenance": {
           "source_commit": "f3d5e2ba3caadc216eb5e18fb2db95710c59fafc",
           "source_ref": "refs/heads/main",
@@ -328,11 +342,11 @@
         }
       },
       {
+        "name": "iagent",
         "version": "1.0.0-1",
         "architecture": "amd64",
         "asset": "iagent_1.0.0-1_amd64.deb",
         "sha256": "b2d4ada088860d0b08c1efec8739721f3f6704f9e2cdb5d17b2d1ecd933b28db",
-        "name": "iagent",
         "provenance": {
           "source_commit": "b8ba6899bd23b548f21571b52913fd9c8e5c4036",
           "source_ref": "refs/heads/main",
@@ -342,11 +356,11 @@
         }
       },
       {
+        "name": "ss-webos",
         "version": "2.0.0-12",
         "architecture": "amd64",
         "asset": "ss-webos_2.0.0-12_amd64.deb",
         "sha256": "42f11638be9f8c8070edf52495f2c666f2967a12da955d72c9c4197fad623aa7",
-        "name": "ss-webos",
         "provenance": {
           "source_commit": "4df736b629d99778fae77876ca6688618f197274",
           "source_ref": "refs/heads/main",
@@ -371,28 +385,28 @@
       },
       {
         "name": "uchat",
-        "version": "3.2.0-3",
+        "version": "3.2.0-4",
         "architecture": "amd64",
-        "asset": "uchat_3.2.0-3_amd64.deb",
-        "sha256": "2cd45dd0c6b486aa1d2c3b5375980543afdf8e71f5b158049e0478078d51a632",
+        "asset": "uchat_3.2.0-4_amd64.deb",
+        "sha256": "2b40838b01a55ca5ca9e633e8d6dcc4d659fdb9720f53a490110a9620b4ebfa4",
         "provenance": {
-          "source_commit": "97634d04665ed8afa8766bd2c9dfe196bfcdde07",
+          "source_commit": "bd0d55d876c9f98b87543fd71c607c4a5e29520b",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26960,
+          "main_pipeline_id": 27215,
           "build_status": "success",
           "public_payload_reviewed": true
         }
       },
       {
         "name": "uchatd",
-        "version": "0.4.0-2",
+        "version": "0.5.0-1",
         "architecture": "amd64",
-        "asset": "uchatd_0.4.0-2_amd64.deb",
-        "sha256": "ff9872b5dcefe118c5e3843e3508c4ae9950241f9c7db7d85002a900d8ddd9fb",
+        "asset": "uchatd_0.5.0-1_amd64.deb",
+        "sha256": "1a0edaee2893ecd0c5c08e70ce46eb972aaed9bbc334e43df1c41efdc142619a",
         "provenance": {
-          "source_commit": "97634d04665ed8afa8766bd2c9dfe196bfcdde07",
+          "source_commit": "bd0d55d876c9f98b87543fd71c607c4a5e29520b",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26960,
+          "main_pipeline_id": 27215,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -417,9 +431,23 @@
         "asset": "mote-chatd_2.0.0-6_all.deb",
         "sha256": "b6c278fc03eb6c53fbf7569bf58ce636afcef0084ee388e2db08096bf5bef188",
         "provenance": {
-          "source_commit": "574994da1cf320a3f3d06c3d222a35a64b10ca64",
+          "source_commit": "4656c80032e7b4252a35153e89f7b9594c4a808d",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26487,
+          "main_pipeline_id": 35299171433,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "agent-apps",
+        "version": "0.3.0-1",
+        "architecture": "all",
+        "asset": "agent-apps_0.3.0-1_all.deb",
+        "sha256": "af209b2d1574186bdd5f4249d893a983215f042a8870943e0493ef81a0545cd1",
+        "provenance": {
+          "source_commit": "a62d23165ceb13f2abb66106a4487c1bde8e5541",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 35826601911,
           "build_status": "success",
           "public_payload_reviewed": true
         }
