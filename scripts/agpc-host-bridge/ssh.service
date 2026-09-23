@@ -1,0 +1,30 @@
+# Container-only replacement: Linux port 22 terminates at the Mac host sshd.
+[Unit]
+Description=AGPC loopback SSH transport to Mac host
+After=systemd-tmpfiles-setup.service
+
+[Service]
+Type=notify
+User=moted
+Group=mote
+RuntimeDirectory=mote/host-ssh
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=restart
+ExecStart=/usr/bin/python3 /usr/local/libexec/agpc/ssh-forwarder.py
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET
+ReadWritePaths=/run/mote/host-ssh
+
+[Install]
+WantedBy=multi-user.target
