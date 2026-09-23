@@ -148,7 +148,7 @@ class AgentAppsInstallerTest(unittest.TestCase):
         staged_source.write_text(json.dumps(record))
         (site / publish_apt.AGENT_INSTALLER_ALIASES[1]).write_bytes(staged_source.read_bytes())
         with mock.patch.dict("os.environ", {}, clear=True):
-                with self.assertRaisesRegex(publish_apt.PublishError, "differs from the reviewed record|share an exact source release"):
+            with self.assertRaisesRegex(publish_apt.PublishError, "differs from the reviewed record|share an exact source release"):
                 publish_apt.sign_release(site, self.root)
 
 
