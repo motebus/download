@@ -2007,8 +2007,10 @@ or the canonical installer for historical v1.</p>
 </html>""")
     index = index.replace("</html>", """<h2>Native platform boundary</h2>
 <p>AGPC is 100% native. Linux uses signed Debian packages; Windows native
-integration is planned. The former macOS Docker bootstrap is retired and is
-kept only as historical documentation; it is not an AGPC installation path.
+integration is planned. The former <a href="agpc-mac.sh">macOS bootstrap</a>
+(and its <a href="AGPC-MAC.md">historical documentation</a>) is retired and is
+not an AGPC installation path. Its <a href="agpc.mac.source.json">source record</a>
+and <a href="agpc.mac.source.json.asc">signature</a> remain only as provenance.
 OCI images are reserved for cloud or server deployments outside AGPC.</p>
 <p>New Windows PC: <a href="agpc-win.ps1">agpc-win.ps1</a>
 (<a href="agpc-win.ps1.asc">signature</a>) installs WSL 2, Ubuntu 26.04 by default and AGPC,
