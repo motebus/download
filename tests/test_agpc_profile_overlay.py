@@ -115,7 +115,7 @@ class NativeProfileOverlayTests(unittest.TestCase):
             core = config["release"]["packages"][0]
             original = (bundle / core["asset"]).read_bytes()
             good_depends = p.package_field(bundle / core["asset"], "Depends")
-            for bad in (good_depends.replace("contextd (>= 0.1.0-5)", "contextd (>= 0.0.0-1)"),
+            for bad in (good_depends.replace("contextd (>= 0.1.0-6)", "contextd (>= 0.0.0-1)"),
                         good_depends.replace(", uchatd (>= 0.5.0-1)", ""),
                         good_depends + ", agpc-manager (>= 9.0.0-1)"):
                 shutil.copy2(f.make_deb(root / f"bad-core-{len(list(root.iterdir()))}", core, bad), bundle)
