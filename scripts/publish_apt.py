@@ -367,7 +367,7 @@ AGENT_PROFILE_REDISTRIBUTABLE = tuple(
     name for old in AGENT_LOOP_REDISTRIBUTABLE
     for name in (("agpc-apps",) if old == "agent-apps" else
                  (old, "contextd") if old == "cx-loop" else (old,)))
-AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-5", "contextd": "0.1.0-1",
+AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-5", "contextd": "0.1.0-2",
                         "uchatd": "0.5.0-1", "uchat": "3.2.0-5", "agpc-apps": "0.3.0-1"}
 
 
@@ -809,7 +809,7 @@ def validate_uchat_dependencies(bundle: Path, approved: dict, *, apps_owner="age
 
 def validate_profile_dependencies(bundle: Path, approved: dict) -> None:
     """The native profile directly admits local context and durable messaging."""
-    for owner, dependency, floor in (("agent-sphere", "contextd", "0.1.0-1"),
+    for owner, dependency, floor in (("agent-sphere", "contextd", "0.1.0-2"),
                                      ("agent-sphere", "uchatd", "0.5.0-1"),
                                      ("agpc-apps", "agent-sphere", "0.3.0-1")):
         terms = package_field(bundle / approved[owner]["asset"], "Depends").split(",")
