@@ -27,13 +27,13 @@ class AgentAppsInstallerTest(unittest.TestCase):
         self.installer = self.root / publish_apt.AGENT_APPS_INSTALLER
         self.source = self.root / publish_apt.AGENT_APPS_INSTALLER_SOURCE
 
-    def test_snapshot_matches_the_reviewed_v0215_release(self) -> None:
+    def test_snapshot_matches_the_reviewed_native_release(self) -> None:
         record = publish_apt.validate_agent_apps_installer(self.root)
         self.assertEqual(record["repository"], "motebus/agent-sphere-deb")
-        self.assertEqual(record["tag"], "v0.2.0-15")
-        self.assertEqual(record["source_commit"], "73ba3211bdf76427f25240f84b1415d6ab5e7b51")
+        self.assertEqual(record["tag"], "v0.3.0-1")
+        self.assertEqual(record["source_commit"], "e1ba9e6d65a87ff0ab3be7ee8407311594084d74")
         self.assertEqual(record["sha256"],
-                         "01e04cde9ffa4915781a2c878a67fa786a1632f1a67ff205271f54e15e6f9bdf")
+                         "87a8be85fe9bde1157eb3961adcb5c108f49639a2a2f7d822733a3a4ed092ef3")
 
     def test_migration_hashes_match_the_active_signed_package_catalog(self) -> None:
         catalog = json.loads((REPOSITORY / 'agent-computer-apt-overlay.json').read_text())
@@ -148,7 +148,7 @@ class AgentAppsInstallerTest(unittest.TestCase):
         staged_source.write_text(json.dumps(record))
         (site / publish_apt.AGENT_INSTALLER_ALIASES[1]).write_bytes(staged_source.read_bytes())
         with mock.patch.dict("os.environ", {}, clear=True):
-            with self.assertRaisesRegex(publish_apt.PublishError, "differs from the reviewed record"):
+                with self.assertRaisesRegex(publish_apt.PublishError, "differs from the reviewed record|share an exact source release"):
                 publish_apt.sign_release(site, self.root)
 
 

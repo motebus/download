@@ -63,7 +63,7 @@ class InstallContractTest(unittest.TestCase):
             and path.name.endswith(".sh")
             and path.name != "github-setup.sh"
         }
-        self.assertEqual(actual, set(RELEASE_SCRIPTS) | {"agpc.sh", "agent-sphere-apps.sh", "agpc-mac.sh"})
+        self.assertEqual(actual, set(RELEASE_SCRIPTS) | {"agpc.sh", "agpc-all.sh", "agent-sphere-apps.sh", "agpc-mac.sh"})
         for filename in RELEASE_SCRIPTS:
             installer = ROOT / filename
             self.assertTrue(installer.stat().st_mode & 0o111)

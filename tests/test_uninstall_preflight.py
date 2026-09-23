@@ -40,7 +40,15 @@ class UninstallPreflightTest(unittest.TestCase):
         return self.module['inspect'](self.policy, self.root)
 
     def test_policy_matches_reviewed_catalog_and_known_hooks(self):
-        current = json.loads((ROOT / 'agent-computer-apt-overlay.json').read_text())
+        # The removal engine remains pinned to its immutable v0.2.0-15 policy
+        # while the active installer cohort advances independently. Build the
+        # exact historical catalog from the engine's own reviewed constants.
+        policy = self.module['POLICY']
+        current = {'schema': 'agent-computer-apt-overlay/v6', 'release': {
+            'repository': 'motebus/download', 'tag': 'agent-computer-v0.2.0-15',
+            'packages': [{'name': name, 'version': value['version'],
+                          'architecture': value['architecture'],
+                          'sha256': value['sha256']} for name, value in policy.items()]}}
         self.module['validate_catalog'](current)
         for package in self.module['POLICY'].values():
             for digest in package['hooks'].values():

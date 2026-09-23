@@ -915,8 +915,11 @@ def download_agent_computer_overlay(repository_root: Path, destination: Path) ->
     # return an empty asset list for a large newly published release even
     # though the REST asset collection is complete. Resolve that collection
     # by the immutable numeric release ID before admitting the cohort.
+    if metadata.get("isDraft") is True:
+        require(False, "Agent Computer overlay source must be the exact published release")
     if not metadata.get("assets"):
         releases = json.loads(run("gh", "api", f"repos/{release['repository']}/releases?per_page=100", capture=True))
+        require(isinstance(releases, list), "Agent Computer overlay release metadata is unavailable")
         matches = [item for item in releases if item.get("tag_name") == release["tag"]]
         require(len(matches) == 1 and matches[0].get("draft") is False,
                 "Agent Computer overlay release metadata is unavailable")
@@ -937,6 +940,16 @@ def download_agent_computer_overlay(repository_root: Path, destination: Path) ->
                 "aggregate release must not redistribute Obsidian or undeclared DEBs")
     destination.mkdir(parents=True, exist_ok=True)
     assets_by_name = {asset.get("name"): asset for asset in metadata.get("assets", [])}
+    if any(not (isinstance(asset, dict) and type(asset.get("id")) is int and asset["id"] > 0)
+           for asset in metadata.get("assets", [])):
+        # Fixture clients and older GitHub CLI versions expose only names;
+        # retain the reviewed release-download command for that compatibility
+        # path, while production large releases use immutable REST IDs.
+        patterns = [argument for package in overlay_packages(config) for argument in ("--pattern", package["asset"])]
+        run("gh", "release", "download", release["tag"], "--repo", release["repository"],
+            "--dir", str(destination), *patterns)
+        validate_agent_computer_overlay(repository_root, destination)
+        return
     # Download by the REST asset ID. This avoids the GitHub CLI's release
     # download path, which may report "no assets" while a large release's
     # asset collection is still available through the immutable IDs.
