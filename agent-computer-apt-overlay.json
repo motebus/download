@@ -12,7 +12,7 @@
         "asset": "agent-sphere_0.3.0-8_all.deb",
         "sha256": "56381b236d6e63401bfee37947ef99d74abcae07e657df1a200a9a2458d94096",
         "provenance": {
-          "source_commit": "5ad1f6a2fc9ca465604b0a006d9239c7cf28162",
+          "source_commit": "5ad1f6ac2fc9ca465604b0a006d9239c7cf28162",
           "source_ref": "refs/heads/main",
           "main_pipeline_id": 35879633900,
           "build_status": "success",

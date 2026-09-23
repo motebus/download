@@ -31,7 +31,7 @@ class AgentAppsInstallerTest(unittest.TestCase):
         record = publish_apt.validate_agent_apps_installer(self.root)
         self.assertEqual(record["repository"], "motebus/agent-sphere-deb")
         self.assertEqual(record["tag"], "v0.3.0-8")
-        self.assertEqual(record["source_commit"], "5ad1f6a2fc9ca465604b0a006d9239c7cf28162")
+        self.assertEqual(record["source_commit"], "5ad1f6ac2fc9ca465604b0a006d9239c7cf28162")
         self.assertEqual(record["sha256"],
                          "e2d85658175b971c1f5adbcb99176f4421400463c0d50fd14886c7c0bab39364")
 
