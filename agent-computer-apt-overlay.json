@@ -3,7 +3,7 @@
   "release": {
     "repository": "motebus/download",
     "tag": "agent-computer-v0.3.0-7",
-    "source_commit": "c522a3a98b90f7e4f0f6710539e2a98b45a0c629",
+    "source_commit": "54d194655e7ab82ef5ac83fab613cdf7fece3c6a",
     "packages": [
       {
         "name": "agent-sphere",
