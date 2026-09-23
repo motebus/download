@@ -36,7 +36,17 @@ def containers():
 
 def installer_diagnostics():
     """Keep the failed detached job's service evidence in the Actions log."""
+    debug_setup = (
+        "from pathlib import Path\n"
+        "import sys\n"
+        "source=Path('/usr/libexec/uchat/setup-default.py').read_text()\n"
+        "source=source.rsplit('except (Exception, KeyboardInterrupt):', 1)[0] + "
+        "\"except (Exception, KeyboardInterrupt):\\n    import traceback\\n    traceback.print_exc()\\n    raise\\n\"\n"
+        "sys.argv=['setup-default.py','--user','runner']\n"
+        "exec(compile(source, '/usr/libexec/uchat/setup-default.py', 'exec'), {'__name__':'__main__'})\n"
+    )
     for command in (
+        ('sudo', 'python3', '-c', debug_setup),
         ('sudo', 'id', 'runner'),
         ('sudo', 'getent', 'group', 'uchat'),
         ('sudo', 'cat', '/etc/uchatd/uchatd.json'),
