@@ -83,7 +83,7 @@ class NativeProfileOverlayTests(unittest.TestCase):
             lambda r: r["packages"].reverse(),
             lambda r: r["packages"].pop(),
             lambda r: r["retention_packages"].append(copy.deepcopy(r["retention_packages"][-1])),
-            lambda r: r["retention_packages"][-1].update(version="0.3.0-2", asset="agent-apps_0.3.0-2_all.deb"),
+            lambda r: r["retention_packages"][-1].update(version="0.3.0-1", asset="agent-apps_0.3.0-1_all.deb"),
             lambda r: r["packages"][0]["provenance"].update(public_payload_reviewed=False),
         ):
             changed = copy.deepcopy(config)
@@ -198,7 +198,7 @@ class NativeProfileInstallerTests(unittest.TestCase):
         path = self.root / "agpc-all.source.json"
         original = path.read_bytes()
         for changes in ({"profile": "standard"}, {"asset": "agpc.sh"},
-                        {"source_commit": "b" * 40}, {"tag": "v0.3.0-2"},
+                        {"source_commit": "b" * 40}, {"tag": "v0.3.0-3"},
                         {"schema": p.AGENT_APPS_INSTALLER_SCHEMA}, {"sha256": "a" * 64},
                         {"unreviewed": True}):
             record = json.loads(original)
