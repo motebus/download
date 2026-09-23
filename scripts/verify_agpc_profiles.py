@@ -63,6 +63,24 @@ def installer_diagnostics():
         subprocess.run(command, check=False, text=True, timeout=120)
 
 
+def start_contextd_with_diagnostics():
+    """Start the native service and expose systemd's reason when it fails."""
+    print('+ sudo systemctl start contextd.service', flush=True)
+    result = subprocess.run(['sudo', 'systemctl', 'start', 'contextd.service'],
+                            check=False, text=True, capture_output=True, timeout=120)
+    if result.returncode == 0:
+        return
+    for command in (
+        ('sudo', 'systemctl', 'status', 'contextd.service', '--no-pager'),
+        ('sudo', 'journalctl', '-u', 'contextd.service', '-n', '120', '--no-pager'),
+        ('sudo', 'runuser', '-u', 'contextd', '--', '/usr/sbin/contextd', 'check',
+         '--config', '/etc/contextd/contextd.json'),
+    ):
+        print('+', *command, flush=True)
+        subprocess.run(command, check=False, text=True, timeout=120)
+    raise subprocess.CalledProcessError(result.returncode, ['sudo', 'systemctl', 'start', 'contextd.service'])
+
+
 
 def context_lifecycle(caller):
     binary = '/usr/sbin/contextd'
@@ -166,7 +184,7 @@ def main():
         # The native package enables contextd, while disposable CI images may
         # leave enabled units stopped after the transaction. Start the reviewed
         # unit before checking its service-user isolation and socket contract.
-        run('sudo', 'systemctl', 'start', 'contextd.service')
+        start_contextd_with_diagnostics()
         assert containers() == before_containers, 'Native installation changed container runtime packages.'
         service = run('sudo', 'python3', str(root/'scripts/verify_contextd_service.py'), capture=True)
         lifecycle = context_lifecycle(user)
