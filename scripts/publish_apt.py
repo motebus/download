@@ -809,7 +809,7 @@ def validate_uchat_dependencies(bundle: Path, approved: dict, *, apps_owner="age
 
 def validate_profile_dependencies(bundle: Path, approved: dict) -> None:
     """The native profile directly admits local context and durable messaging."""
-    for owner, dependency, floor in (("agent-sphere", "contextd", "0.1.0-2"),
+    for owner, dependency, floor in (("agent-sphere", "contextd", "0.1.0-1"),
                                      ("agent-sphere", "uchatd", "0.5.0-1"),
                                      ("agpc-apps", "agent-sphere", "0.3.0-1")):
         terms = package_field(bundle / approved[owner]["asset"], "Depends").split(",")
