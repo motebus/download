@@ -360,7 +360,7 @@
         "version": "2.0.0-12",
         "architecture": "amd64",
         "asset": "ss-webos_2.0.0-12_amd64.deb",
-        "sha256": "42f11638be9f8c8070edf52495f2c666f2967a12da955d72c9c4197fad623aa7",
+        "sha256": "b9a02d33dd2f816912e1fec56db8b8c1dbe96c0b2938b3ec1ba332c7288c7f4d",
         "provenance": {
           "source_commit": "4df736b629d99778fae77876ca6688618f197274",
           "source_ref": "refs/heads/main",
