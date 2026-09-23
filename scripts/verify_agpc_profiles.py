@@ -37,6 +37,10 @@ def containers():
 def installer_diagnostics():
     """Keep the failed detached job's service evidence in the Actions log."""
     for command in (
+        ('sudo', 'id', 'runner'),
+        ('sudo', 'getent', 'group', 'uchat'),
+        ('sudo', 'cat', '/etc/uchatd/uchatd.json'),
+        ('sudo', 'runuser', '-u', 'runner', '--', '/usr/bin/uchat', 'uname', '--json'),
         ('sudo', 'systemctl', 'status', 'uchatd.service', '--no-pager'),
         ('sudo', 'journalctl', '-u', 'uchatd.service', '-n', '80', '--no-pager'),
         ('sudo', 'stat', '-c', '%n %u:%g %a', '/var/lib/uchatd',
