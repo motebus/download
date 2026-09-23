@@ -24,9 +24,15 @@ sudo bash ./agpc-all.sh</pre>
 <p>Standard preserves existing applications. Full includes the renamed <code>agpc-apps</code> package and handles an installed legacy <code>agent-apps</code> through its transition package. Existing SQLite-based uChat installations need the separate offline migration before upgrading.</p>
 <p><code>contextd</code> runs inside AGPC. CoD Server (<code>codd</code>) remains in the cloud. Windows native support and new S Channel / Agent identity integration are separate future work.</p>
 <h2>Verify downloads</h2>
-<p><a href="agpc-native-SHA256SUMS">SHA-256 checksums</a> Â· <a href="agpc-native-SHA256SUMS.asc">Checksum signature</a> Â· <a href="medge-archive-keyring.gpg">Archive public key</a></p>
-<p>Standard: <a href="agpc.sh.asc">signature</a> Â· <a href="agpc.source.json">source record</a><br>Full: <a href="agpc-all.sh.asc">signature</a> Â· <a href="agpc-all.source.json">source record</a></p>
+<p><a href="agpc-native-SHA256SUMS">SHA-256 checksums</a> · <a href="agpc-native-SHA256SUMS.asc">Checksum signature</a> · <a href="medge-archive-keyring.gpg">Archive public key</a></p>
+<p>Standard: <a href="agpc.sh.asc">signature</a> · <a href="agpc.source.json">source record</a><br>Full: <a href="agpc-all.sh.asc">signature</a> · <a href="agpc-all.source.json">source record</a></p>
 <p><a href="https://github.com/motebus/download/releases">Versioned releases and historical platform previews</a></p>
 <small>Package installation does not establish application health, device admission or cross-machine handoff readiness.</small>
+<h2>Windows</h2>
+<p><a href="agpc.exe">Download agpc.exe (x86-64)</a>. The x86-64 download is the unsigned <strong>0.1.0-host-access-preview.1</strong> native host-access installer. Download and run <code>agpc.exe</code>, then approve Windows UAC. It bundles the Mote host-access components and handles OpenSSH setup. No Docker or WSL is required.</p>
+<pre>curl.exe -fL https://motebus.github.io/download/agpc.exe -o agpc.exe
+.\agpc.exe</pre>
+<p>This locally built preview has authenticated SSH and operator-confirmed native RDP client evidence on one PC. It is not the full AGPC runtime; CDP, SFTP and clean-machine acceptance remain pending. The latest performance source change is not included. Full-runtime readiness may remain incomplete (exit code 3).</p>
+<p>ARM64 remains the earlier manifest-dependent preview. <a href="https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.1">Windows release notes and limitations</a>.</p>
 </body>
 </html>
