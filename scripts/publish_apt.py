@@ -819,7 +819,10 @@ def validate_profile_dependencies(bundle: Path, approved: dict) -> None:
     for package in approved.values():
         if package["name"] == "obsidian":
             continue
-        for field in ("Depends", "Pre-Depends", "Recommends", "Suggests", "Provides"):
+        # Compatibility virtuals such as mote-transportd's Provides: mote-chatd
+        # do not create a runtime dependency on retired ownership. Transition
+        # package aliases are audited separately by validate_full_overlay_payload.
+        for field in ("Depends", "Pre-Depends", "Recommends", "Suggests"):
             require(not re.search(r"(?<![a-z0-9+.-])(?:agent-apps|mote-chatd|codd)(?![a-z0-9+.-])",
                                   package_field(bundle / package["asset"], field)),
                     f"{package['name']}: native profile must not restore old Apps or cloud codd ownership")
