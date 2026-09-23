@@ -163,6 +163,10 @@ def main():
         elif args.profile == 'full':
             assert installed('agent-apps') is None, 'Fresh full installation must not add the compatibility transition.'
         assert run('sudo', 'dpkg', '--audit', capture=True) == ''
+        # The native package enables contextd, while disposable CI images may
+        # leave enabled units stopped after the transaction. Start the reviewed
+        # unit before checking its service-user isolation and socket contract.
+        run('sudo', 'systemctl', 'start', 'contextd.service')
         assert containers() == before_containers, 'Native installation changed container runtime packages.'
         service = run('sudo', 'python3', str(root/'scripts/verify_contextd_service.py'), capture=True)
         lifecycle = context_lifecycle(user)
