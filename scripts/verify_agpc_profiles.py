@@ -40,8 +40,7 @@ def installer_diagnostics():
         "from pathlib import Path\n"
         "import sys\n"
         "source=Path('/usr/libexec/uchat/setup-default.py').read_text()\n"
-        "source=source.rsplit('except (Exception, KeyboardInterrupt):', 1)[0] + "
-        "\"except (Exception, KeyboardInterrupt):\\n    import traceback\\n    traceback.print_exc()\\n    raise\\n\"\n"
+        "source=source.replace(\"        p.exit(1, 'uChat setup failed; inspect account, configuration and service status. Existing configuration was retained or restored.\\\\n')\", \"        import traceback; traceback.print_exc(); raise\")\n"
         "sys.argv=['setup-default.py','--user','runner']\n"
         "exec(compile(source, '/usr/libexec/uchat/setup-default.py', 'exec'), {'__name__':'__main__'})\n"
     )
