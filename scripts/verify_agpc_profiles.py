@@ -173,12 +173,11 @@ def main():
             raise
         expected = {'agent-sphere', 'agent-ultra', 'agpc-manager', 'contextd', 'uchatd'}
         if args.profile != 'standard': expected.add('agpc-apps')
-        if args.profile == 'upgrade': expected.add('agent-apps')
         versions = {name: installed(name) for name in sorted(expected)}
         assert all(versions[name] == approved[name]['version'] for name in expected), versions
         if args.profile == 'standard':
             assert installed('agpc-apps') is None and installed('agent-apps') is None
-        elif args.profile == 'full':
+        else:
             assert installed('agent-apps') is None, 'Fresh full installation must not add the compatibility transition.'
         assert run('sudo', 'dpkg', '--audit', capture=True) == ''
         # The native package enables contextd, while disposable CI images may
