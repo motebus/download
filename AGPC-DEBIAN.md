@@ -108,15 +108,14 @@ remain under the desktop user's ownership. The installer does not select a
 Vault, enable its sync plugin, download model weights, or provide model and
 transport credentials.
 
-Fresh installation selects twenty-seven canonical packages. A migrated host may
-also retain one documentation-only `mote-chatd` record protecting locked DPKG
-configuration ownership. `mote-transportd` owns D/MSG transport; `uchatd` owns the persistent chat Inbox.
-An ordinary `mote-chatd 2.0.0-4` installation whose locked file is not owned
-as a DPKG conffile uses native replacement by `mote-transportd`, without the
-retention record. The installer admits only this reviewed transport migration
-and the reviewed MCP, CX, Vault Sync, inference and Manager package renames, and checks
-the final APT transaction before DPKG runs. It refuses
-unrelated removals, downgrades and retirement of that protected record.
+Fresh installation selects the canonical packages. `mote-chatd` is retired:
+`mote-transportd` owns native D/MSG transport and `uchatd` owns the persistent
+chat Inbox. An existing reviewed `mote-chatd` runtime or former documentation
+record is removed during upgrade while the native transport replacement is
+installed. No new package or virtual dependency uses the old name. The
+installer admits only this reviewed transport migration and the reviewed MCP,
+CX, Vault Sync, inference and Manager package renames, and checks the final APT
+transaction before DPKG runs. It refuses unrelated removals and downgrades.
 
 `mote-mcpd` replaces `mote-bridge-mcp`. It keeps the on-demand stdio
 `mote mcp serve|doctor` interface. The system Codex registration uses
@@ -482,7 +481,7 @@ an unrelated repository failure still stops installation.
 UChat provides the local inbox and peer conversations, terminal selection for
 copying, explicit `/copy` commands where the terminal permits clipboard writes,
 and bracketed multiline paste that stays in the draft until Enter is pressed.
-Chat setup and delivery remain owned by MoteChatD.
+Chat setup and delivery remain owned by uchatd.
 
 An approved `medge-public-release/v18` bundle contains these independent Debian
 packages in dependency-safe audit order:
@@ -517,8 +516,8 @@ Server, Redixs, and every other OCI-only service are excluded; `ss-webos` is
 the independent Debian client runtime and remains included.
 
 The five B/SSH service rows are SSH, SFTP, Git, MCP over SSH, and Sync for an
-Obsidian Vault. D/MSG adds UChat through `mote-chatd` and `uchat`, independent
-of MoteD and Mote Proxy. Install Sphere provides their approved Debian
+Obsidian Vault. D/MSG adds UChat through `uchatd` and `uchat`, independent of
+MoteD and Mote Proxy. Install Sphere provides their approved Debian
 package prerequisites, but it never discovers, creates, selects, modifies, or
 copies a Vault. Vault pairing and runtime Sync acceptance remain separate
 post-install operations owned by `mote-sync` and `mote-syncd`.
@@ -752,12 +751,11 @@ upstream prerequisite to be available to APT in the same transaction or already
 installed. Desktop installation does not
 provision or modify user vaults.
 
-`retention_packages` is empty or contains one explicit `mote-chatd` package with
-the same record fields and `Architecture: all`. It must have documentation-only
-payload and no `Provides` runtime alias. This guard is solely for reviewed
-migration of existing configuration ownership; it is excluded from fresh
-canonical membership and must not be selected by either fresh-install plan.
-CX uses direct replacement and has no retention package. Retired runtimes
+For the native v7 profile, `retention_packages` contains only the explicit
+`agent-apps` documentation transition. `mote-chatd` has no retention package,
+no virtual `Provides` alias, and is forbidden in fresh plans. Existing
+installations are handled by the reviewed remove-and-replace transaction. CX
+uses direct replacement and has no retention package. Retired runtimes
 `mcp-run`, `ultra-mcp-ssh`, `model-node`, `model-grid`, `mote-sync`, `mote-syncd`,
 `cx-node`, `mote-chatd`, and `mote-bridge-mcp` are forbidden in fresh plans. Historical base DEBs
 remain available byte-for-byte for legacy consumers.

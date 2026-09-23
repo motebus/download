@@ -30,7 +30,7 @@ class AgentAppsInstallerTest(unittest.TestCase):
     def test_snapshot_matches_the_reviewed_native_release(self) -> None:
         record = publish_apt.validate_agent_apps_installer(self.root)
         self.assertEqual(record["repository"], "motebus/agent-sphere-deb")
-        self.assertEqual(record["tag"], "v0.3.0-1")
+        self.assertEqual(record["tag"], "v0.3.0-2")
         self.assertEqual(record["source_commit"], "e1ba9e6d65a87ff0ab3be7ee8407311594084d74")
         self.assertEqual(record["sha256"],
                          "87a8be85fe9bde1157eb3961adcb5c108f49639a2a2f7d822733a3a4ed092ef3")

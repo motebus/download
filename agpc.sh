@@ -1116,25 +1116,21 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.3.0-1 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-1 uchatd=0.5.0-1 "$obsidian")
+packages=(agent-sphere=0.3.0-2 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-1 uchatd=0.5.0-1 "$obsidian")
 if [[ $agpc_profile == full ]]; then
-    packages+=(agpc-apps=0.3.0-1)
+    packages+=(agpc-apps=0.3.0-2)
     # The old documentation-only metapackage becomes an exact dependency bridge.
     # Never remove the old name or its application dependency chain.
     if old_apps=$(dpkg-query -W -f='${Status}' agent-apps 2>/dev/null); then
         [[ $old_apps == 'install ok installed' ]] || fail 'Existing agent-apps is not fully configured; repair its package state first.'
-        packages+=(agent-apps=0.3.0-1)
+        packages+=(agent-apps=0.3.0-2)
     else
         [[ $? == 1 ]] || fail 'Cannot inspect the legacy application metapackage.'
     fi
 fi
-# Preserve DPKG ownership of the locked legacy identity with the reviewed
-# documentation-only record. Never remove a protected mote-chatd record.
-if [[ $legacy_state == retention:* ]]; then
-    packages+=(mote-chatd=2.0.0-6)
-elif [[ $legacy_state == ordinary:* ]]; then
-    # An installed old name otherwise makes APT prefer its newer retention
-    # candidate. Explicitly select the reviewed normal replacement path.
+# mote-chatd is retired. Remove either the old runtime or its former
+# documentation-only retention record while installing native mote-transportd.
+if [[ $legacy_state != absent ]]; then
     packages+=(mote-chatd-)
 fi
 
@@ -1173,9 +1169,8 @@ declare -A removed=() installed=() configured=() artifacts=()
 public_cx_migration=false
 declare -A replacement=([mote-sync]=mote-vault-sync [mote-syncd]=mote-vault-syncd [model-node]=model-llm)
 declare -A reviewed_old=([mote-sync]=1.1.0-2 [mote-syncd]=1.1.0-2 [model-node]=0.1.0-2)
-if [[ $legacy_state == ordinary:installed ]]; then
+if [[ $legacy_state != absent ]]; then
     replacement[mote-chatd]=mote-transportd
-    reviewed_old[mote-chatd]=2.0.0-4
 fi
 if [[ $mcp_state == installed:* ]]; then
     replacement[mote-bridge-mcp]=mote-mcpd
@@ -1192,7 +1187,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.3.0-1 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-1 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-4 [uchatd]=0.5.0-1)
+declare -A floor=([agent-sphere]=0.3.0-2 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-2 [agent-apps]=0.3.0-2 [contextd]=0.1.0-1 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-4 [uchatd]=0.5.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1202,14 +1197,21 @@ while IFS= read -r line; do
     [[ $direction == '<' || $direction == '=' || $direction == '>' ]] || fail 'invalid version action'
     if [[ $action == '**REMOVE**' ]]; then
         case "$name" in cx-node|cx-agent|codex-mesh) public_cx_migration=true ;; esac
-        [[ -n ${replacement[$name]:-} && $old == "${reviewed_old[$name]}" && $new == - && -z ${removed[$name]:-} ]] || fail "removal of $name"
+        if [[ $name == mote-chatd ]]; then
+            [[ $new == - && -z ${removed[$name]:-} &&
+               (($legacy_state == ordinary:installed && $old == 2.0.0-4) ||
+               ($legacy_state == retention:* &&
+                ($old == 2.0.0-4 || $old == 2.0.0-6))) ]] || fail 'removal of retired mote-chatd'
+        else
+            [[ -n ${replacement[$name]:-} && $old == "${reviewed_old[$name]}" && $new == - && -z ${removed[$name]:-} ]] || fail "removal of $name"
+        fi
         removed[$name]=true
     elif [[ $action == '**CONFIGURE**' || $action == /*.deb ]]; then
         ! agentsphere_container_runtime_package "$name" || fail "container runtime package $name is outside native AGPC installation"
         if [[ ${agpc_profile:-standard} == standard && ( $name == agpc-apps || $name == agent-apps ) ]]; then
             fail 'application composition is outside the standard AGPC profile'
         fi
-        [[ $name != mote-chatd || $legacy_state == retention:* ]] || fail 'retention is not admitted for this ownership state'
+        [[ $name != mote-chatd ]] || fail 'retired package mote-chatd is not installable'
         case "$name" in sphere-manager|mote-sync|mote-syncd|cx-node|cx-agent|codex-mesh|model-node|model-grid|mcp-run|ultra-mcp-ssh|mote-bridge-mcp) fail "retired package $name" ;; esac
         [[ $new != - ]] || fail 'missing target version'
         [[ $old == - ]] || dpkg --compare-versions "$new" ge "$old" || fail "downgrade of $name"
@@ -1283,8 +1285,8 @@ while read -r action package rest; do
     case "$action" in
         Remv)
             case "$name:$rest" in
-                'mote-chatd:[2.0.0-4]'*)
-                    [[ $legacy_state == ordinary:installed ]] || fail 'Refusing removal of protected or unreviewed mote-chatd ownership.'
+                'mote-chatd:[2.0.0-4]'*|'mote-chatd:[2.0.0-6]'*)
+                    [[ $legacy_state == ordinary:installed || $legacy_state == retention:* ]] || fail 'Refusing removal of unreviewed retired mote-chatd ownership.'
                     removed[mote-chatd]=mote-transportd ;;
                 'mote-bridge-mcp:[3.0.0-2]'*)
                     [[ $mcp_state == installed:* ]] || fail 'Refusing unreviewed MCP package removal.'

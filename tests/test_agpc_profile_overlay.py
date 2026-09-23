@@ -31,6 +31,7 @@ def config_fixture():
     config["release"]["packages"] = packages
     transition = copy.deepcopy(records["agpc-apps"])
     transition.update(name="agent-apps", asset="agent-apps_0.3.0-1_all.deb")
+    config["release"]["retention_packages"] = []
     config["release"]["retention_packages"].append(transition)
     return config
 
@@ -73,7 +74,7 @@ class NativeProfileOverlayTests(unittest.TestCase):
         self.assertEqual(p.core_components(config), (*p.AGENT_LOOP_SPHERE_COMPONENTS, "contextd", "uchatd"))
         self.assertNotIn("agent-apps", expected)
         self.assertNotIn("uchat", p.core_components(config))
-        for retain in ([], ["mote-chatd"], ["agent-apps"], ["mote-chatd", "agent-apps"]):
+        for retain in ([], ["agent-apps"]):
             changed = copy.deepcopy(config)
             changed["release"]["retention_packages"] = [r for r in config["release"]["retention_packages"]
                                                        if r["name"] in retain]

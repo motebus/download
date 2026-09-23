@@ -39,6 +39,9 @@ def installer_diagnostics():
     for command in (
         ('sudo', 'systemctl', 'status', 'uchatd.service', '--no-pager'),
         ('sudo', 'journalctl', '-u', 'uchatd.service', '-n', '80', '--no-pager'),
+        ('sudo', 'stat', '-c', '%n %u:%g %a', '/var/lib/uchatd',
+         '/var/lib/uchatd/store.identity.json', '/var/lib/uchatd-redis',
+         '/run/uchatd-store/redis.sock'),
         ('sudo', 'find', '/var/lib', '-maxdepth', '1', '-type', 'd', '-name', 'agpc-install.*',
          '-exec', 'sh', '-c', 'for d do test -f "$d/install.log" && { echo "--- $d/install.log"; tail -n 120 "$d/install.log"; }; done', 'sh', '{}', '+'),
     ):

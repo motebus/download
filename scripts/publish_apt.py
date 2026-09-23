@@ -367,7 +367,7 @@ AGENT_PROFILE_REDISTRIBUTABLE = tuple(
     name for old in AGENT_LOOP_REDISTRIBUTABLE
     for name in (("agpc-apps",) if old == "agent-apps" else
                  (old, "contextd") if old == "cx-loop" else (old,)))
-AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-1", "contextd": "0.1.0-1",
+AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-2", "contextd": "0.1.0-1",
                         "uchatd": "0.5.0-1", "uchat": "3.2.0-4", "agpc-apps": "0.3.0-1"}
 
 
@@ -385,12 +385,14 @@ def canonical_packages(config):
         return AGENT_PROFILE_REDISTRIBUTABLE
     return AGENT_LOOP_REDISTRIBUTABLE if config["schema"] == AGENT_COMPUTER_LOOP_SCHEMA else AGENT_COMPUTER_REDISTRIBUTABLE
 
-# Retention packages are migration evidence, never fresh-install components.
-AGENT_COMPUTER_RETENTION = ("mote-chatd",)
-AGENT_PROFILE_RETENTION = (*AGENT_COMPUTER_RETENTION, "agent-apps")
+# Historical v5/v6 overlays retain the old documentation-only record. The
+# native v7 profile retires mote-chatd completely; only the agent-apps name
+# transition remains as a compatibility record.
+AGENT_COMPUTER_LEGACY_RETENTION = ("mote-chatd",)
+AGENT_PROFILE_RETENTION = ("agent-apps",)
 
 def retention_packages(config):
-    return AGENT_PROFILE_RETENTION if config["schema"] == AGENT_COMPUTER_PROFILE_SCHEMA else AGENT_COMPUTER_RETENTION
+    return AGENT_PROFILE_RETENTION if config["schema"] == AGENT_COMPUTER_PROFILE_SCHEMA else AGENT_COMPUTER_LEGACY_RETENTION
 
 
 AGENT_COMPUTER_RETIRED = {"mcp-run", "ultra-mcp-ssh", "model-node", "model-grid",
@@ -648,7 +650,7 @@ def validate_full_overlay_config(release: dict, *, schema=AGENT_COMPUTER_FULL_SC
         require(set(package) == {"name", "version", "architecture", "asset", "sha256", "provenance"},
                 "full overlay package fields are invalid")
         name = package["name"]
-        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "agpc-apps", "jujue", *AGENT_COMPUTER_RETENTION) else "amd64"
+        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "agpc-apps", "jujue", *AGENT_COMPUTER_LEGACY_RETENTION) else "amd64"
         require(package["architecture"] == architecture, f"{name}: invalid full overlay architecture")
         require(isinstance(package["version"], str)
                 and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", package["version"]),
