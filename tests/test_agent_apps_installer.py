@@ -33,7 +33,7 @@ class AgentAppsInstallerTest(unittest.TestCase):
         self.assertEqual(record["tag"], "v0.3.0-5")
         self.assertEqual(record["source_commit"], "327ce8280feac204eeaf9b9b39db234b4445d7f4")
         self.assertEqual(record["sha256"],
-                         "b70408c8c1958da5306bea393037bd5f4882838adcc911f14007f3c31d19487d")
+                         "72c8f5b1cae3e400f3bb5ad7f60464c421f8aaaa3f7f0dcdcb0b36a42add3640")
 
     def test_migration_hashes_match_the_active_signed_package_catalog(self) -> None:
         catalog = json.loads((REPOSITORY / 'agent-computer-apt-overlay.json').read_text())
