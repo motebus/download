@@ -2,19 +2,19 @@
   "schema": "agent-computer-apt-overlay/v7",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.3.0-19",
-    "source_commit": "bb106f7996df62dcb31e53fcfb68cd72c70ab0bd",
+    "tag": "agent-computer-v0.3.0-20",
+    "source_commit": "0989d0be10720e0c02b26be561360abf44a89568",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.3.0-17",
+        "version": "0.3.0-18",
         "architecture": "all",
-        "asset": "agent-sphere_0.3.0-17_all.deb",
-        "sha256": "961d060017247d07055a263a83a82bba401be9b78a233f8a7e07fdd6e0f7eb90",
+        "asset": "agent-sphere_0.3.0-18_all.deb",
+        "sha256": "6e3c9fb57367be1b6fa2991bcb138bfbb0933956aae93690ba13c5ed839e2e94",
         "provenance": {
-          "source_commit": "dea10e72a8c9f9e57362bcbb6dc22da056d67e49",
+          "source_commit": "cfbdf88fee49f71ce650bb83ef34113ab414aed1",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35907931244,
+          "main_pipeline_id": 35910555324,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -245,17 +245,16 @@
       },
       {
         "name": "contextd",
-        "version": "0.1.0-13",
+        "version": "0.1.0-14",
         "architecture": "amd64",
-        "asset": "contextd_0.1.0-13_amd64.deb",
-        "sha256": "f367b30cb5447e35a7d50c7302bd07f7b64046f05e880be48fd6b88a561f04b2",
+        "asset": "contextd_0.1.0-14_amd64.deb",
+        "sha256": "b66065aeefdeca0d6e6abf254e3b1488c5a343d7963a9c0924056332dd22dbe2",
         "provenance": {
-          "source_commit": "5b7a195adb2b625b6a5427d574fe9b3fbc67f21f",
+          "source_commit": "571b0e956972e9fe6dadc0ca47893a44d91e106f",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 27255,
+          "main_pipeline_id": 27257,
           "build_status": "success",
-          "public_payload_reviewed": true,
-    "main_pipeline_id": 27256
+          "public_payload_reviewed": true
         }
       },
       {
