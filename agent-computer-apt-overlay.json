@@ -2,19 +2,19 @@
   "schema": "agent-computer-apt-overlay/v7",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.3.0-1",
-    "source_commit": "77ee88dbb2003d28bb8d122cf9064a766870f663",
+    "tag": "agent-computer-v0.3.0-2",
+    "source_commit": "9f411c3cf5282042029b8a43a85d04ab3f7a1a2c",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.3.0-1",
+        "version": "0.3.0-2",
         "architecture": "all",
-        "asset": "agent-sphere_0.3.0-1_all.deb",
-        "sha256": "9c4efaa537a0373684133a421a0857bbfd3d71fca53c09c3fd53fc6e79ba2037",
+        "asset": "agent-sphere_0.3.0-2_all.deb",
+        "sha256": "e427f9a79c8e30e45ed57273ac7bbfa8fdf137cc0bc57cddef0fa7ea6869f307",
         "provenance": {
-          "source_commit": "e1ba9e6d65a87ff0ab3be7ee8407311594084d74",
+          "source_commit": "bf87945b1a8cc11e2b4bd435c371b292eecf3ddb",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35845224223,
+          "main_pipeline_id": 35852313959,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -424,20 +424,6 @@
       }
     ],
     "retention_packages": [
-      {
-        "name": "mote-chatd",
-        "version": "2.0.0-6",
-        "architecture": "all",
-        "asset": "mote-chatd_2.0.0-6_all.deb",
-        "sha256": "b6c278fc03eb6c53fbf7569bf58ce636afcef0084ee388e2db08096bf5bef188",
-        "provenance": {
-          "source_commit": "4656c80032e7b4252a35153e89f7b9594c4a808d",
-          "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35299171433,
-          "build_status": "success",
-          "public_payload_reviewed": true
-        }
-      },
       {
         "name": "agent-apps",
         "version": "0.3.0-1",
