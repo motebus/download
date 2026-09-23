@@ -30,10 +30,10 @@ class AgentAppsInstallerTest(unittest.TestCase):
     def test_snapshot_matches_the_reviewed_native_release(self) -> None:
         record = publish_apt.validate_agent_apps_installer(self.root)
         self.assertEqual(record["repository"], "motebus/agent-sphere-deb")
-        self.assertEqual(record["tag"], "v0.3.0-3")
-        self.assertEqual(record["source_commit"], "127b6d8e67d488eec8e170f2202ff898f40fc01f")
+        self.assertEqual(record["tag"], "v0.3.0-4")
+        self.assertEqual(record["source_commit"], "23670ef918e6de1d29e990b0336b00add1f38e90")
         self.assertEqual(record["sha256"],
-                         "fba0144117bcfba251f52bce1100260a45e6aa052fbd00871f89cbfdf099037c")
+                         "d3cc25551220b7b860e70230ca9426d1dffbcd91524e3a678355877d098a5151")
 
     def test_migration_hashes_match_the_active_signed_package_catalog(self) -> None:
         catalog = json.loads((REPOSITORY / 'agent-computer-apt-overlay.json').read_text())
