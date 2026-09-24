@@ -1,0 +1,59 @@
+{
+  "schema": "agpc.windows-public-preview/v1",
+  "version": "0.1.0-host-access-preview.2",
+  "platform": "windows",
+  "architecture": "x86_64",
+  "artifact": {
+    "name": "agpc.exe",
+    "bytes": 48907776,
+    "sha256": "fe057e80ffb0f31788f354b21d3d7cea158138090b766b228bc95c04cfa040da"
+  },
+  "build_version": "0.1.0-access-mcp-preview.2",
+  "profile": "agpc.windows-access/v1",
+  "authenticode_signed": false,
+  "full_runtime_ready": false,
+  "host_installation_included": false,
+  "source": {
+    "repository": "https://gitlab.ypcloud.com/codex/codex-agpc/codex-win/agpc-win",
+    "commit": "4d4d58fd8709608546aca809d6a461ea5e035677"
+  },
+  "runtime_manifest": {
+    "file": "RUNTIME-MANIFEST.json",
+    "sha256": "d89e537236893a363795c1779a3aea4f04a0beffc7578b0346e1190716fe2d6f"
+  },
+  "embedded_components": [
+    "sphered",
+    "mote-proxy",
+    "mote-mcp-ultra"
+  ],
+  "rdp": {
+    "client_preference": "sdl-freerdp.exe",
+    "client_install": "automatic_if_missing",
+    "client_package": "FreeRDP 3.31.1-1 MSYS2 UCRT64 x86_64",
+    "client_package_sha256": "bfd94fc698df9e004fa63dc185bb6adcf7c6ad8c9bfa966987305befbe287954",
+    "host_supported_on_windows_home": false,
+    "remote_ready": false
+  },
+  "cdp": {
+    "local_browser_preview": true,
+    "remote_ready": false
+  },
+  "mcp": {
+    "packaged": true,
+    "component_version": "0.3.0",
+    "default_policy": "deny",
+    "tool_execution_verified": false,
+    "authorization_verified": false
+  },
+  "validation": {
+    "go_tests": "passed",
+    "go_vet": "passed",
+    "powershell_51_native_probes": "passed",
+    "powershell_7_native_probes": "passed",
+    "clean_machine_install": "not_verified",
+    "remote_ssh": "not_verified_for_this_build",
+    "remote_rdp": "not_verified_for_this_build",
+    "remote_cdp": "not_implemented",
+    "remote_mcp_execution": "not_verified"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schema": "agpc.native-access-preview/v1",
+  "version": "0.1.0-access-mcp-preview.2",
+  "architecture": "x86_64",
+  "file": "agpc.exe",
+  "sha256": "fe057e80ffb0f31788f354b21d3d7cea158138090b766b228bc95c04cfa040da",
+  "bytes": 48907776,
+  "signed": false,
+  "full_runtime_ready": false,
+  "peer_ssh_verified": false,
+  "input_manifest_sha256": "32d7665fcd861712e803e78e0df2a91ea73e48dcb514de5281959fc7b0ef44a1",
+  "embedded_components": [
+    "sphered",
+    "mote-proxy",
+    "mote-mcp-ultra"
+  ],
+  "rdp": {
+    "client_preference": "sdl-freerdp.exe",
+    "client_install": "automatic_if_missing",
+    "client_package": "FreeRDP 3.31.1-1 MSYS2 UCRT64 x86_64",
+    "client_package_sha256": "bfd94fc698df9e004fa63dc185bb6adcf7c6ad8c9bfa966987305befbe287954",
+    "host_supported_on_windows_home": false,
+    "remote_ready": false
+  },
+  "cdp": {
+    "local_browser_preview": true,
+    "remote_ready": false
+  },
+  "mcp": {
+    "packaged": true,
+    "component_version": "0.3.0",
+    "default_policy": "deny",
+    "tool_execution_verified": false,
+    "authorization_verified": false
+  },
+  "profile": "agpc.windows-access/v1"
+}
