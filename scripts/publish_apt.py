@@ -372,7 +372,7 @@ AGENT_PROFILE_REDISTRIBUTABLE = tuple(
                  (old, "contextd") if old == "cx-loop" else (old,)))
 AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-42", "contextd": "0.1.0-27",
                         "uchatd": "0.6.0-1", "uchat": "3.2.0-7", "agpc-apps": "0.3.0-1",
-                        "agpc-cdp": "0.1.0-1"}
+                        "agpc-cdp": "0.1.0-2"}
 
 
 def is_full_overlay(config):
