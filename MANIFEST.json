@@ -1,0 +1,39 @@
+{
+  "schema": "agpc.native-access-preview/v1",
+  "version": "0.1.0-access-mcp-preview.2",
+  "architecture": "x86_64",
+  "file": "agpc.exe",
+  "sha256": "1fba392d0119ffc5e0743cea0bdc102732aa3cd9cdf8e0002b4a6d1df3dccda9",
+  "bytes": 48894976,
+  "signed": false,
+  "full_runtime_ready": false,
+  "peer_ssh_verified": false,
+  "input_manifest_sha256": "32d7665fcd861712e803e78e0df2a91ea73e48dcb514de5281959fc7b0ef44a1",
+  "embedded_components": [
+    "sphered",
+    "mote-proxy",
+    "mote-mcp-ultra"
+  ],
+  "rdp": {
+    "client_preference": "mstsc.exe",
+    "client_install": "none",
+    "client_package": null,
+    "client_package_sha256": null,
+    "host_supported_on_windows_home": false,
+    "remote_ready": false
+  },
+  "cdp": {
+    "local_browser_preview": true,
+    "remote_ready": false
+  },
+  "mcp": {
+    "packaged": true,
+    "component_version": "0.3.0",
+    "default_policy": "deny",
+    "tool_execution_verified": false,
+    "authorization_verified": false
+  },
+  "profile": "agpc.windows-access/v1",
+  "distribution_version": "0.1.0-host-access-preview.3",
+  "source_state": "private working-tree changes based on 4d4d58fd8709608546aca809d6a461ea5e035677"
+}
