@@ -746,6 +746,34 @@ class PublicAptTest(unittest.TestCase):
                         with self.assertRaisesRegex(publish_apt.PublishError, "GitLab URL is forbidden"):
                             publish_apt.validate_public_deb_content(asset)
 
+    def test_playwright_vendor_exception_is_bound_to_package_path_and_bytes(self) -> None:
+        vendor = b"upstream helper https://" + b"gitlab" + b".freedesktop.org/xdg/xdg-utils/-/issues"
+        digest = hashlib.sha256(vendor).hexdigest()
+        path = publish_apt.UPSTREAM_PLAYWRIGHT_XDG_PATH
+        with mock.patch.object(publish_apt, "UPSTREAM_PLAYWRIGHT_XDG_SHA256", digest):
+            for package, relative, payload, admitted in (
+                ("agpc-cdp", path, vendor, True),
+                ("agpc-cdp", path, vendor + b"changed", False),
+                ("agpc-cdp", "usr/bin/xdg-open", vendor, False),
+                ("ss-webos", path, vendor, False),
+            ):
+                with self.subTest(package=package, path=relative, admitted=admitted), tempfile.TemporaryDirectory() as temp:
+                    root = Path(temp)
+                    asset = self.make_deb(root, package=package)
+                    package_root = root / f"package-{package}"
+                    installed = package_root / relative
+                    installed.parent.mkdir(parents=True)
+                    installed.write_bytes(payload)
+                    subprocess.run(
+                        ["dpkg-deb", "--build", "--root-owner-group", str(package_root), str(asset)],
+                        check=True, stdout=subprocess.DEVNULL,
+                    )
+                    if admitted:
+                        publish_apt.validate_public_deb_content(asset)
+                    else:
+                        with self.assertRaisesRegex(publish_apt.PublishError, "GitLab URL is forbidden"):
+                            publish_apt.validate_public_deb_content(asset)
+
     def test_electron_vendor_exception_is_bound_to_package_path_and_bytes(self) -> None:
         vendor = b"\x7fELF upstream comment https://" + b"about.gitlab" + b".com/blog/public"
         digest = hashlib.sha256(vendor).hexdigest()
