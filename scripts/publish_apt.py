@@ -1054,6 +1054,17 @@ def approved_upstream_electron(package: str, path: str, data: bytes) -> bool:
             and hashlib.sha256(data).hexdigest() == UPSTREAM_ELECTRON_SHA256)
 
 
+UPSTREAM_PLAYWRIGHT_XDG_PATH = "usr/lib/agpc-cdp/node_modules/playwright-core/lib/xdg-open"
+UPSTREAM_PLAYWRIGHT_XDG_SHA256 = "7d759d54f0d4ce1beeb34ee62c587985b5042374e8de237b0dcb8cd47aa698cf"
+
+
+def approved_upstream_playwright(package: str, path: str, data: bytes) -> bool:
+    # Unmodified Playwright Core 1.63.0 xdg-open helper. Its comments reference
+    # the public freedesktop.org issue tracker; bind the exception to exact bytes.
+    return (package == "agpc-cdp" and path == UPSTREAM_PLAYWRIGHT_XDG_PATH
+            and hashlib.sha256(data).hexdigest() == UPSTREAM_PLAYWRIGHT_XDG_SHA256)
+
+
 def validate_public_deb_content(asset: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="medge-public-deb-") as temp_name:
         extracted = Path(temp_name)
@@ -1065,7 +1076,8 @@ def validate_public_deb_content(asset: Path) -> None:
                 relative = candidate.relative_to(extracted).as_posix()
                 if (approved_upstream_notice(package, relative, data)
                         or approved_upstream_node(package, relative, data)
-                        or approved_upstream_electron(package, relative, data)):
+                        or approved_upstream_electron(package, relative, data)
+                        or approved_upstream_playwright(package, relative, data)):
                     continue
                 require_no_gitlab_url_bytes(data, f"{asset.name}:{relative}")
 
