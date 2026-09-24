@@ -327,7 +327,7 @@ versions. Its fixed legacy installer profiles describe that historical release.
 They do not define the new four-package product.
 
 The current root `uninstall.sh` removes the reviewed 31-package
-`agent-computer-v0.3.0-49` native AGPC and compatibility set. It verifies the signed catalog,
+`agent-computer-v0.3.0-50` native AGPC and compatibility set. It verifies the signed catalog,
 installed versions, package removal hooks, and the exact APT transaction.
 Configuration, topology files, user data, Vaults, models, Obsidian, OS dependencies
 and APT registration are retained. It does not purge or automatically remove

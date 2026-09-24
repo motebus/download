@@ -8,7 +8,7 @@ agpc_entrypoint=agpc-all.sh
 usage() {
     printf '%s\n' \
         "Usage: $agpc_entrypoint [--yes] [--user USER] [--help]" \
-        'Install native AGPC: agent-sphere, agent-ultra, agpc-manager, contextd and uchatd.' \
+        'Install native AGPC: agent-sphere, agent-ultra, agpc-manager, agpc-cdp, contextd and uchatd.' \
         'agpc-all.sh additionally installs agpc-apps; existing applications are preserved.' \
         'Supports Ubuntu 24.04 and 26.04 amd64; creates only missing reviewed APT key/source files.' \
         'Downloads the pinned official Obsidian DEB for the same APT transaction.' \
@@ -552,7 +552,7 @@ python3 - "$agpc_profile" "${packages[@]}" > "$stage/packages.json" <<'AGPC_PACK
 import json,subprocess,sys
 records=[]
 profile=sys.argv[1]
-required={'agent-sphere','agent-ultra','agpc-manager','contextd','uchat','uchatd'}
+required={'agent-sphere','agent-ultra','agpc-manager','agpc-cdp','contextd','uchat','uchatd'}
 if profile=='full':required.add('agpc-apps')
 elif profile!='standard':sys.exit('Unknown AGPC install profile')
 selected=set()
@@ -1376,7 +1376,7 @@ if [[ $legacy_state == retention:installed || $legacy_state == retirement:unpack
     chmod 0644 "$retirement_bridge"
     transaction_legacy_state=retirement:installed
 fi
-packages=(agent-sphere=0.3.0-42 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchat=3.2.0-7 uchatd=0.6.0-1 "$obsidian")
+packages=(agent-sphere=0.3.0-42 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 agpc-cdp=0.1.0-1 contextd=0.1.0-27 uchat=3.2.0-7 uchatd=0.6.0-1 "$obsidian")
 if [[ $agpc_profile == full ]]; then
     packages+=(agpc-apps=0.3.0-1)
     # The old documentation-only metapackage becomes an exact dependency bridge.
@@ -1447,7 +1447,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.3.0-42 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-7 [mote-proxy]=2.0.0-9 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-7 [uchatd]=0.6.0-1)
+declare -A floor=([agent-sphere]=0.3.0-42 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-cdp]=0.1.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-7 [mote-proxy]=2.0.0-9 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-7 [uchatd]=0.6.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1480,7 +1480,7 @@ while IFS= read -r line; do
         if [[ -n ${floor[$name]:-} ]]; then
             dpkg --compare-versions "$new" ge "${floor[$name]}" || fail "obsolete package $name"
         fi
-        if [[ $name == agent-sphere || $name == agpc-apps || $name == agent-apps || $name == agent-ultra || $name == agpc-manager || $name == contextd ]]; then
+        if [[ $name == agent-sphere || $name == agpc-apps || $name == agent-apps || $name == agent-ultra || $name == agpc-manager || $name == agpc-cdp || $name == contextd ]]; then
             [[ $new == "${floor[$name]}" ]] || fail "unexpected composition version $name"
         fi
         if [[ $name == mote-transportd && $legacy_state == ordinary:* ]]; then

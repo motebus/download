@@ -20,6 +20,7 @@ def config_fixture():
     config["schema"] = p.AGENT_COMPUTER_PROFILE_SCHEMA
     records = {r["name"]: r for r in config["release"]["packages"]}
     records["agpc-apps"] = records.pop("agent-apps")
+    records["agpc-cdp"] = copy.deepcopy(records["agent-ultra"])
     records["contextd"] = copy.deepcopy(records["uchatd"])
     packages = []
     for name in p.AGENT_PROFILE_REDISTRIBUTABLE:
@@ -68,12 +69,15 @@ class NativeProfileOverlayTests(unittest.TestCase):
         config = config_fixture()
         expected = [name for old in p.AGENT_LOOP_REDISTRIBUTABLE for name in
                     (["agpc-apps"] if old == "agent-apps" else
+                     [old, "agpc-cdp"] if old == "agpc-manager" else
                      [old, "contextd"] if old == "cx-loop" else [old])]
         self.assertEqual(list(p.canonical_packages(config)), expected)
         self.assertEqual(expected.count("uchatd"), 1)
         self.assertEqual(p.core_components(config), (*p.AGENT_LOOP_SPHERE_COMPONENTS, "contextd", "uchat", "uchatd"))
         self.assertNotIn("agent-apps", expected)
         self.assertIn("uchat", p.core_components(config))
+        self.assertIn("agpc-cdp", expected)
+        self.assertNotIn("agpc-cdp", p.core_components(config))
         for retain in ([], ["agent-apps"]):
             changed = copy.deepcopy(config)
             changed["release"]["retention_packages"] = [r for r in config["release"]["retention_packages"]
@@ -187,6 +191,7 @@ class NativeProfileInstallerTests(unittest.TestCase):
         record = json.loads((self.root / "agpc.source.json").read_text())
         record.pop("profile")
         record["schema"] = p.AGENT_APPS_INSTALLER_SCHEMA
+        record["repository"] = p.AGENT_COMPUTER_OVERLAY_REPOSITORY
         (self.root / "agpc.source.json").write_text(json.dumps(record))
         for canonical, alias in zip(("agpc.sh", "agpc.source.json"), p.AGENT_INSTALLER_ALIASES):
             shutil.copy2(self.root / canonical, self.root / alias)

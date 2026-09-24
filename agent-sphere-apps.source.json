@@ -1,9 +1,9 @@
 {
   "schema": "agpc-installer-source/v2",
-  "repository": "motebus/agent-sphere-deb",
-  "tag": "v0.3.0-42",
-  "source_commit": "ec08b3667289f0269856d72b42f1e6a72bbd553a",
+  "repository": "motebus/download",
+  "tag": "v0.3.0-43",
+  "source_commit": "f1b545dc25021ae6611ee18dc6b9feaa5a27672e",
   "asset": "agpc-all.sh",
-  "sha256": "59e5642815a5a74a92e67042d27fb65c036c4ce5ccb15cbfe80f84cca627f014",
+  "sha256": "4edf75aeb663457827bbe1d319cc0a5b37a98f5fc37e05784f6816048c4976ef",
   "profile": "full"
 }

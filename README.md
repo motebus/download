@@ -5,7 +5,7 @@ Ubuntu 24.04 or 26.04 amd64, with systemd, Bash and Python 3.10+.
 
 | Profile | Download | Includes |
 | --- | --- | --- |
-| Standard | [agpc.sh](https://motebus.github.io/download/agpc.sh) | Agent Sphere, local Agent Ultra, AGPC Manager, contextd and Redis-backed uchatd |
+| Standard | [agpc.sh](https://motebus.github.io/download/agpc.sh) | Agent Sphere, local Agent Ultra, AGPC Manager, CDP client/provider, contextd and Redis-backed uchatd |
 | Full | [agpc-all.sh](https://motebus.github.io/download/agpc-all.sh) | Standard plus agpc-apps |
 
 Standard:
@@ -33,6 +33,11 @@ before this installer can proceed.
 installed. New S Channel and Agent identity integration remain deferred. Package
 installation does not establish full runtime or cross-machine handoff readiness.
 The historical `agent-sphere-apps.sh` compatibility entry follows Full.
+
+Both profiles install `agpc-cdp`, which provides the terminal `cdp` client and
+the `cdpd` provider daemon. The daemon is fail-closed and remains disabled until
+the host has a reviewed `/etc/agpc-cdp/cdpd-binding.cjs` Mote P/S deployment
+binding. Package installation does not establish remote CDP readiness.
 
 ## Work and context contract
 

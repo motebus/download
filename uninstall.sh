@@ -68,6 +68,12 @@ POLICY = {'agent-sphere': {'version': '0.3.0-42',
                   'hooks': {'prerm': None, 'postrm': None},
                   'units': [],
                   'retained_payloads': []},
+ 'agpc-cdp': {'version': '0.1.0-1',
+              'architecture': 'all',
+              'sha256': '44a7498ed925f25b9f7c978c37341a9b3532aabbd4dd809b85c718164ba5456a',
+              'hooks': {'prerm': None, 'postrm': None},
+              'units': [],
+              'retained_payloads': []},
  'agpc-apps': {'version': '0.3.0-1',
                'architecture': 'all',
                'sha256': '8032aee6aeb08416a7a9ddbcc0954db8b4e4206f7e048b37e81d246eb63a5eb1',
@@ -293,7 +299,7 @@ ALTERNATE_POLICY = {
                          'postrm': '02871c8153d49689646e983371234cf65d957a25daeada99c0d5c9809fc7745b'},
                'units': ['ss-webosd.service'],
                'retained_payloads': []}]}
-RELEASE_TAG = 'agent-computer-v0.3.0-49'
+RELEASE_TAG = 'agent-computer-v0.3.0-50'
 
 def fail(message):
     raise RuntimeError(message)
