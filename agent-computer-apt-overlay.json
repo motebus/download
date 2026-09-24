@@ -2,19 +2,19 @@
   "schema": "agent-computer-apt-overlay/v7",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.3.0-39",
-    "source_commit": "493141bfc4411e30e87fea534cc1ea377280f071",
+    "tag": "agent-computer-v0.3.0-40",
+    "source_commit": "0000000000000000000000000000000000000000",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.3.0-32",
+        "version": "0.3.0-33",
         "architecture": "all",
-        "asset": "agent-sphere_0.3.0-32_all.deb",
-        "sha256": "3c7941bb77d0cb57ade1764762dc42f6902abb50674cdf0deb3f6b313cf24a0a",
+        "asset": "agent-sphere_0.3.0-33_all.deb",
+        "sha256": "227801aa8bf3d85f73ebd4156dc2d72c29da0f63d0a1b7d723aae86e720f804f",
         "provenance": {
-          "source_commit": "c10e5c5fe6a1a15f5d4a9425b9ace0e7255ce704",
+          "source_commit": "44a0861b69ce1dafa274d10cd982fec5b667061a",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35953174838,
+          "main_pipeline_id": 35955043038,
           "build_status": "success",
           "public_payload_reviewed": true
         }

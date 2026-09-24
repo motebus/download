@@ -1152,7 +1152,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.3.0-32 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchatd=0.5.0-1 "$obsidian")
+packages=(agent-sphere=0.3.0-33 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchatd=0.5.0-1 "$obsidian")
 if [[ $agpc_profile == full ]]; then
     packages+=(agpc-apps=0.3.0-1)
     # The old documentation-only metapackage becomes an exact dependency bridge.
@@ -1165,7 +1165,7 @@ if [[ $agpc_profile == full ]]; then
     fi
 fi
 # mote-chatd is retired. Remove either the old runtime or its former
-# documentation-only retention record while installing native mote-transportd.
+# documentation-only retention record while selecting native uchatd.
 if [[ $legacy_state != absent ]]; then
     packages+=(mote-chatd-)
 fi
@@ -1206,7 +1206,7 @@ public_cx_migration=false
 declare -A replacement=([mote-sync]=mote-vault-sync [mote-syncd]=mote-vault-syncd [model-node]=model-llm)
 declare -A reviewed_old=([mote-sync]=1.1.0-2 [mote-syncd]=1.1.0-2 [model-node]=0.1.0-2)
 if [[ $legacy_state != absent ]]; then
-    replacement[mote-chatd]=mote-transportd
+    replacement[mote-chatd]=uchatd
 fi
 if [[ $mcp_state == installed:* ]]; then
     replacement[mote-bridge-mcp]=mote-mcpd
@@ -1223,7 +1223,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.3.0-32 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-5 [uchatd]=0.5.0-1)
+declare -A floor=([agent-sphere]=0.3.0-33 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-5 [uchatd]=0.5.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1281,6 +1281,9 @@ while IFS= read -r line; do
     fi
 done
 for name in "${!removed[@]}"; do
+    if [[ $name == mote-chatd && $uchat_state == redis:0.5.0-1 ]]; then
+        continue
+    fi
     [[ -n ${installed[${replacement[$name]}]:-} ]] || fail "$name removal lacks its reviewed replacement"
 done
 if $public_cx_migration; then
@@ -1323,7 +1326,7 @@ while read -r action package rest; do
             case "$name:$rest" in
                 'mote-chatd:[2.0.0-4]'*|'mote-chatd:[2.0.0-6]'*)
                     [[ $legacy_state == ordinary:installed || $legacy_state == retention:* ]] || fail 'Refusing removal of unreviewed retired mote-chatd ownership.'
-                    removed[mote-chatd]=mote-transportd ;;
+                    removed[mote-chatd]=uchatd ;;
                 'mote-bridge-mcp:[3.0.0-2]'*)
                     [[ $mcp_state == installed:* ]] || fail 'Refusing unreviewed MCP package removal.'
                     removed[mote-bridge-mcp]=mote-mcpd ;;
@@ -1353,6 +1356,9 @@ while read -r action package rest; do
     esac
 done < "$temporary/plan"
 for name in "${!removed[@]}"; do
+    if [[ $name == mote-chatd && $uchat_state == redis:0.5.0-1 ]]; then
+        continue
+    fi
     [[ -n ${planned[${removed[$name]}]:-} ]] || fail "$name removal lacks its replacement. Package installation was not started."
 done
 # A piped script has no interactive stdin. Obtain the controlling terminal
