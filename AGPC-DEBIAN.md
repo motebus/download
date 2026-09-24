@@ -209,7 +209,7 @@ Redis ACK -> context close`. A handoff sends the task and context reference
 through a Mesh Box; the receiving agent claims the Inbox work and asks CoD for
 the authorized context.
 
-AGPC installs `uchat 3.2.0-6` and `uchatd 0.6.0-1`. Machine chat is open by
+AGPC installs `uchat 3.2.0-7` and `uchatd 0.6.0-1`. Machine chat is open by
 default: open `uchat`, type `@medge-home`, and chat. No chat login, mesh join,
 pair keys or permission setup is required. Each computer keeps its own
 `@machine-name` and inbox. `uchatd` owns

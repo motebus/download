@@ -116,7 +116,7 @@ class NativeProfileOverlayTests(unittest.TestCase):
             original = (bundle / core["asset"]).read_bytes()
             good_depends = p.package_field(bundle / core["asset"], "Depends")
             for bad in (good_depends.replace(f"contextd (>= {p.AGENT_PROFILE_FLOORS['contextd']})", "contextd (>= 0.0.0-1)"),
-                        good_depends.replace(", uchat (>= 3.2.0-6)", ""),
+                        good_depends.replace(", uchat (>= 3.2.0-7)", ""),
                         good_depends.replace(", uchatd (>= 0.6.0-1)", ""),
                         good_depends + ", agpc-manager (>= 9.0.0-1)"):
                 shutil.copy2(f.make_deb(root / f"bad-core-{len(list(root.iterdir()))}", core, bad), bundle)
@@ -156,7 +156,7 @@ class NativeProfileOverlayTests(unittest.TestCase):
             original = (bundle / apps["asset"]).read_bytes()
             depends = p.package_field(bundle / apps["asset"], "Depends")
             shutil.copy2(f.make_deb(root / "bad-apps", apps,
-                                  depends.replace("uchat (>= 3.2.0-6)", "uchat (>= 3.1.0-1)")), bundle)
+                                  depends.replace("uchat (>= 3.2.0-7)", "uchat (>= 3.1.0-1)")), bundle)
             with self.assertRaises(subprocess.CalledProcessError):
                 p.validate_uchat_dependencies(bundle, approved, apps_owner="agpc-apps", native_profile=True)
             (bundle / apps["asset"]).write_bytes(original)
