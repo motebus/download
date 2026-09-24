@@ -9,6 +9,7 @@ import urllib.request
 PROFILE_FILES = {
     'agpc.sh', 'agpc.source.json', 'agpc-all.sh', 'agpc-all.source.json',
     'agent-sphere-apps.sh', 'agent-sphere-apps.source.json',
+    'uninstall.sh',
 }
 LIMIT = 2 * 1024 * 1024
 

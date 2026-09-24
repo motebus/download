@@ -32,6 +32,7 @@ class ProfilePublicationTests(unittest.TestCase):
         for source, alias in [('agpc-all.sh','agent-sphere-apps.sh'),
                               ('agpc-all.source.json','agent-sphere-apps.source.json')]:
             (self.root/alias).write_bytes((self.root/source).read_bytes())
+        (self.root/'uninstall.sh').write_bytes(b'#!/bin/sh\n# current uninstaller\n')
         self.manifest = {'schema':'agent-sphere-release/v2', 'source_commit':'a'*40,
                          'source_ref':'refs/heads/main', 'version':'0.3.0-1',
                          'component_baseline':{'pending_native_components':[]},
@@ -124,6 +125,7 @@ class ProfilePublicationTests(unittest.TestCase):
         self.assertEqual((self.site/'agpc.sh').read_bytes(),selected['agpc.sh'])
         self.assertEqual((self.site/'agpc-all.sh').read_bytes(),selected['agpc-all.sh'])
         self.assertEqual((self.site/'agent-sphere-apps.sh').read_bytes(),selected['agpc-all.sh'])
+        self.assertEqual((self.site/'uninstall.sh').read_bytes(),selected['uninstall.sh'])
         self.assertEqual(profiles.digest(self.package.read_bytes()),before[self.package.relative_to(self.site).as_posix()])
         for line in (self.site/'agpc-native-SHA256SUMS').read_text().splitlines():
             digest,name=line.split('  ')
