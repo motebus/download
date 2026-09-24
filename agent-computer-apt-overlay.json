@@ -2,19 +2,19 @@
   "schema": "agent-computer-apt-overlay/v7",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.3.0-42",
-    "source_commit": "af7d124a137b0172824604b553bd1d7782ae254d",
+    "tag": "agent-computer-v0.3.0-43",
+    "source_commit": "4ce0871ff94f80587b4ea0c998649e92e22bd6e3",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.3.0-35",
+        "version": "0.3.0-36",
         "architecture": "all",
-        "asset": "agent-sphere_0.3.0-35_all.deb",
-        "sha256": "2ce55267ebc6059800c75bd6e2452eb439b04e6b3f5a0fc2ed2614ad04d9513d",
+        "asset": "agent-sphere_0.3.0-36_all.deb",
+        "sha256": "31a9df9ea8766cf47719310de2cf9d843970aa8791f16f2af6ff2fe826e06ab5",
         "provenance": {
-          "source_commit": "d4180de56b0ff0f358f203f7157a3f4588a59de4",
+          "source_commit": "2099927b0118d170de68a973a0e8d1af37305204",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35957049717,
+          "main_pipeline_id": 35960525793,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -385,28 +385,28 @@
       },
       {
         "name": "uchat",
-        "version": "3.2.0-5",
+        "version": "3.2.0-6",
         "architecture": "amd64",
-        "asset": "uchat_3.2.0-5_amd64.deb",
-        "sha256": "eac2155c848850671be18c96b065a11401b4bb044d5cef2a28deec55b30e5d65",
+        "asset": "uchat_3.2.0-6_amd64.deb",
+        "sha256": "bfd0edd8f955d79e030d43fc12da01c8aa64f8f9bfc5cb46ced4c8814c19e789",
         "provenance": {
-          "source_commit": "ee11e9fffa52654c9e2cd408a1cb88667eba9881",
+          "source_commit": "76162c5130b6c6fe063579f88084c3d4a808f314",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 27232,
+          "main_pipeline_id": 27293,
           "build_status": "success",
           "public_payload_reviewed": true
         }
       },
       {
         "name": "uchatd",
-        "version": "0.5.0-1",
+        "version": "0.6.0-1",
         "architecture": "amd64",
-        "asset": "uchatd_0.5.0-1_amd64.deb",
-        "sha256": "09942827595803be547a6b0086340570ed05353f8846c9ef110a46e00ace75a5",
+        "asset": "uchatd_0.6.0-1_amd64.deb",
+        "sha256": "0b6a9b4680ecb50a7a700829cf7df95e845694a258dd20053a8d6738fd358650",
         "provenance": {
-          "source_commit": "ee11e9fffa52654c9e2cd408a1cb88667eba9881",
+          "source_commit": "76162c5130b6c6fe063579f88084c3d4a808f314",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 27232,
+          "main_pipeline_id": 27293,
           "build_status": "success",
           "public_payload_reviewed": true
         }

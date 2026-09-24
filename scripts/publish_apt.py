@@ -362,13 +362,13 @@ AGENT_LOOP_SPHERE_COMPONENTS = (*AGENT_SPHERE_COMPONENTS, "mote-mcp-ultra", "cx-
 AGENT_LOOP_REDISTRIBUTABLE = tuple(name for old in AGENT_COMPUTER_REDISTRIBUTABLE
     for name in ((old, "cx-loop") if old == "cx-mesh" else (old, "mote-mcp-ultra") if old == "mote-mcpd" else (old,)))
 
-AGENT_PROFILE_SPHERE_COMPONENTS = (*AGENT_LOOP_SPHERE_COMPONENTS, "contextd", "uchatd")
+AGENT_PROFILE_SPHERE_COMPONENTS = (*AGENT_LOOP_SPHERE_COMPONENTS, "contextd", "uchat", "uchatd")
 AGENT_PROFILE_REDISTRIBUTABLE = tuple(
     name for old in AGENT_LOOP_REDISTRIBUTABLE
     for name in (("agpc-apps",) if old == "agent-apps" else
                  (old, "contextd") if old == "cx-loop" else (old,)))
-AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-35", "contextd": "0.1.0-27",
-                        "uchatd": "0.5.0-1", "uchat": "3.2.0-5", "agpc-apps": "0.3.0-1"}
+AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-36", "contextd": "0.1.0-27",
+                        "uchatd": "0.6.0-1", "uchat": "3.2.0-6", "agpc-apps": "0.3.0-1"}
 
 
 def is_full_overlay(config):
@@ -789,8 +789,8 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
 
 def validate_uchat_dependencies(bundle: Path, approved: dict, *, apps_owner="agent-apps", native_profile=False) -> None:
     """Keep Redis private and make the daemon/transport migration inseparable."""
-    for owner, dependency, floor in ((apps_owner, "uchat", "3.2.0-4" if native_profile else "3.1.0-1"),
-                                     ("uchat", "uchatd", "0.5.0-1" if native_profile else "0.2.0-1"),
+    for owner, dependency, floor in ((apps_owner, "uchat", "3.2.0-6" if native_profile else "3.1.0-1"),
+                                     ("uchat", "uchatd", "0.6.0-1" if native_profile else "0.2.0-1"),
                                      ("uchatd", "redis-server", "5:6.2"),
                                      ("uchatd", "mote-transportd", "2.0.0-6")):
         asset = bundle / approved[owner]["asset"]
@@ -810,7 +810,8 @@ def validate_uchat_dependencies(bundle: Path, approved: dict, *, apps_owner="age
 def validate_profile_dependencies(bundle: Path, approved: dict) -> None:
     """The native profile directly admits local context and durable messaging."""
     for owner, dependency, floor in (("agent-sphere", "contextd", "0.1.0-1"),
-                                     ("agent-sphere", "uchatd", "0.5.0-1"),
+                                     ("agent-sphere", "uchat", "3.2.0-6"),
+                                     ("agent-sphere", "uchatd", "0.6.0-1"),
                                      ("agpc-apps", "agent-sphere", "0.3.0-1")):
         terms = package_field(bundle / approved[owner]["asset"], "Depends").split(",")
         versions = [m[1] for term in terms if (m := re.fullmatch(

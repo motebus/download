@@ -51,7 +51,7 @@ def make_bundle(root):
         elif name == "agent-apps":
             depends = "agpc-apps (= 0.3.0-1)"
         elif name in ("uchat", "cx-loop"):
-            depends = "uchatd (>= 0.5.0-1)"
+            depends = "uchatd (>= 0.6.0-1)"
         elif name == "uchatd":
             depends = "redis-server (>= 5:6.2), mote-transportd (>= 9.0.0-1)"
         elif name == "mote-mcp-ultra":
@@ -71,9 +71,9 @@ class NativeProfileOverlayTests(unittest.TestCase):
                      [old, "contextd"] if old == "cx-loop" else [old])]
         self.assertEqual(list(p.canonical_packages(config)), expected)
         self.assertEqual(expected.count("uchatd"), 1)
-        self.assertEqual(p.core_components(config), (*p.AGENT_LOOP_SPHERE_COMPONENTS, "contextd", "uchatd"))
+        self.assertEqual(p.core_components(config), (*p.AGENT_LOOP_SPHERE_COMPONENTS, "contextd", "uchat", "uchatd"))
         self.assertNotIn("agent-apps", expected)
-        self.assertNotIn("uchat", p.core_components(config))
+        self.assertIn("uchat", p.core_components(config))
         for retain in ([], ["agent-apps"]):
             changed = copy.deepcopy(config)
             changed["release"]["retention_packages"] = [r for r in config["release"]["retention_packages"]
@@ -116,7 +116,8 @@ class NativeProfileOverlayTests(unittest.TestCase):
             original = (bundle / core["asset"]).read_bytes()
             good_depends = p.package_field(bundle / core["asset"], "Depends")
             for bad in (good_depends.replace(f"contextd (>= {p.AGENT_PROFILE_FLOORS['contextd']})", "contextd (>= 0.0.0-1)"),
-                        good_depends.replace(", uchatd (>= 0.5.0-1)", ""),
+                        good_depends.replace(", uchat (>= 3.2.0-6)", ""),
+                        good_depends.replace(", uchatd (>= 0.6.0-1)", ""),
                         good_depends + ", agpc-manager (>= 9.0.0-1)"):
                 shutil.copy2(f.make_deb(root / f"bad-core-{len(list(root.iterdir()))}", core, bad), bundle)
                 with self.assertRaises((p.PublishError, subprocess.CalledProcessError)):
@@ -155,7 +156,7 @@ class NativeProfileOverlayTests(unittest.TestCase):
             original = (bundle / apps["asset"]).read_bytes()
             depends = p.package_field(bundle / apps["asset"], "Depends")
             shutil.copy2(f.make_deb(root / "bad-apps", apps,
-                                  depends.replace("uchat (>= 3.2.0-5)", "uchat (>= 3.1.0-1)")), bundle)
+                                  depends.replace("uchat (>= 3.2.0-6)", "uchat (>= 3.1.0-1)")), bundle)
             with self.assertRaises(subprocess.CalledProcessError):
                 p.validate_uchat_dependencies(bundle, approved, apps_owner="agpc-apps", native_profile=True)
             (bundle / apps["asset"]).write_bytes(original)
