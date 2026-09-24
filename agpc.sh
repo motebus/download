@@ -839,8 +839,14 @@ def classify():
         successor = subprocess.run(['dpkg-query', '-W', '-f=${Version}|${Architecture}|${Status}',
                                     'mote-mcpd'], capture_output=True, text=True)
         if (owner.returncode or owner.stdout.strip() != 'mote-mcpd: ' + NORMAL or
-                successor.returncode or successor.stdout not in ('3.0.0-3|amd64|install ok installed', '3.1.0-1|amd64|install ok installed')):
+                successor.returncode or successor.stdout not in (
+                    '3.0.0-3|amd64|install ok installed',
+                    '3.1.0-1|amd64|install ok installed',
+                    '3.1.0-1|amd64|deinstall ok config-files')):
             raise ValueError('obsolete legacy MCP conffile lacks its exact installed successor owner')
+        needs_baseline = successor.stdout == '3.1.0-1|amd64|deinstall ok config-files'
+    else:
+        needs_baseline = False
     # No old postrm exists in the reviewed release, including residual records.
     for hook in ('preinst', 'postrm'):
         if os.path.lexists(INFO + hook):
@@ -867,7 +873,8 @@ def classify():
         evidence[CONFIG] = config[1]
     else:
         evidence[CONFIG] = None
-    return state + ':' + hashlib.sha256(json.dumps(evidence, sort_keys=True).encode()).hexdigest()
+    prefix = 'baseline:' if needs_baseline else ''
+    return prefix + state + ':' + hashlib.sha256(json.dumps(evidence, sort_keys=True).encode()).hexdigest()
 
 
 if __name__ == '__main__':
@@ -1347,7 +1354,7 @@ if [[ $legacy_state == retention:installed ]]; then
     chmod 0644 "$retirement_bridge"
     transaction_legacy_state=retirement:installed
 fi
-packages=(agent-sphere=0.3.0-36 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchat=3.2.0-6 uchatd=0.6.0-1 "$obsidian")
+packages=(agent-sphere=0.3.0-37 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchat=3.2.0-6 uchatd=0.6.0-1 "$obsidian")
 if [[ $agpc_profile == full ]]; then
     packages+=(agpc-apps=0.3.0-1)
     # The old documentation-only metapackage becomes an exact dependency bridge.
@@ -1418,7 +1425,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.3.0-36 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-7 [mote-proxy]=2.0.0-9 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-6 [uchatd]=0.6.0-1)
+declare -A floor=([agent-sphere]=0.3.0-37 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-7 [mote-proxy]=2.0.0-9 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-6 [uchatd]=0.6.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
