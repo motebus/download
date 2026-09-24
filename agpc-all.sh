@@ -708,6 +708,16 @@ from pathlib import Path
 REVIEWED = {('cx-node', '0.3.3-1'): {'prerm': '6f8bd5bdd9cd01e2ac11e5eccd3806ec8cf0550702b219ad2fb34f96eb650cd4', 'postrm': '70a40e034e0dbed5e29954a848a85541eb648907096da632d4943ce91fbd8cdc'}, ('cx-agent', '0.3.4-2'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('cx-agent', '0.3.4-3'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('codex-mesh', '1.0.0-1'): {'prerm': None, 'postrm': None}, ('codex-mesh', '1.0.0-2'): {'prerm': None, 'postrm': None}, ('cx-node', '0.3.3-4'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.3-6'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.4-1~local20260909'): {'prerm': '2721920390b04cef164a34b5347a36a8794c3bb443462224ed83fbd440453cba', 'postrm': 'f6f8be756d1d6b62dd906b7587e55f15cf060073c0e0cbf46d4bb31840640087'}}
 MESH_FILES = {'/etc/codex/skills/codex-mesh/SKILL.md':'382087d284fed820b9a96a0ad4c4fd8c',
               '/etc/mote/codex-mesh/config.json':'f60b18dbe124af2bec9eb264cd6598af'}
+CX_MESH_SUCCESSORS = {
+    ('1.1.0-1', 'amd64', 'install ok installed'),
+    ('1.2.0-1', 'amd64', 'install ok installed'),
+    ('2.0.0-1', 'amd64', 'install ok installed'),
+    ('2.0.0-2', 'amd64', 'install ok installed'),
+}
+RENAMED_CX_MESH_SUCCESSORS = {
+    ('2.0.0-1', 'amd64', 'install ok installed'),
+    ('2.0.0-2', 'amd64', 'install ok installed'),
+}
 
 def checked(path, digest=None, mode=None, optional=False, limit=1048576, uid=0):
     try: before=os.lstat(path)
@@ -779,7 +789,7 @@ def cx4_state(state, files):
         if files[receipt][-1]!=1:raise ValueError('unsafe old4 migration receipt link count')
     else:
         successor=query('cx-mesh')
-        if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed'],['2.0.0-1','amd64','install ok installed']):
+        if successor is None or tuple(successor.splitlines()[:3]) not in CX_MESH_SUCCESSORS:
             raise ValueError('old4 residual requires exact installed CX-Mesh successor')
         for suffix in ('preinst','postinst','prerm','md5sums'):
             if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):
@@ -858,7 +868,7 @@ def cx6_drain_state(files, owner_uid):
 
 def current_cx_paths():
     successor=query('cx-mesh')
-    if successor is None or successor.splitlines()[:3]!=['2.0.0-1','amd64','install ok installed']:
+    if successor is None or tuple(successor.splitlines()[:3]) not in RENAMED_CX_MESH_SUCCESSORS:
         return False
     for path in ('/etc/cx-node','/var/lib/cx-node','/usr/bin/cx-node','/usr/bin/cx-agent'):
         if os.path.lexists(path):raise ValueError('retired CX path remains: '+path)
@@ -902,7 +912,7 @@ def cx6_obsolete_state(state, rows, files, version="0.3.3-6"):
         if files[receipt][-1]!=1:raise ValueError('unsafe obsolete CX migration receipt link count')
     else:
         successor=query('cx-mesh')
-        if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed'],['2.0.0-1','amd64','install ok installed']):
+        if successor is None or tuple(successor.splitlines()[:3]) not in CX_MESH_SUCCESSORS:
             raise ValueError('obsolete CX residual requires exact installed CX-Mesh successor')
         for suffix in ('preinst','postinst','prerm','md5sums'):
             if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):raise ValueError('unexpected obsolete CX residual payload or hook')
@@ -935,7 +945,7 @@ def classify():
             wanted=sorted([[path,digest] for path,digest in MESH_FILES.items()])
             if state=='deinstall ok config-files' and sorted(rows)==[row+['obsolete'] for row in wanted]:
                 successor=query('cx-mesh')
-                if successor is None or successor.splitlines()[:3] not in (['1.1.0-1','amd64','install ok installed'],['1.2.0-1','amd64','install ok installed'],['2.0.0-1','amd64','install ok installed']):
+                if successor is None or tuple(successor.splitlines()[:3]) not in CX_MESH_SUCCESSORS:
                     raise ValueError('residual Mesh conffiles require exact installed successor')
                 for path in MESH_FILES:
                     owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
@@ -1117,7 +1127,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.3.0-30 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchatd=0.5.0-1 "$obsidian")
+packages=(agent-sphere=0.3.0-31 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchatd=0.5.0-1 "$obsidian")
 if [[ $agpc_profile == full ]]; then
     packages+=(agpc-apps=0.3.0-1)
     # The old documentation-only metapackage becomes an exact dependency bridge.
@@ -1188,7 +1198,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.3.0-30 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-5 [uchatd]=0.5.0-1)
+declare -A floor=([agent-sphere]=0.3.0-31 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-5 [uchatd]=0.5.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
