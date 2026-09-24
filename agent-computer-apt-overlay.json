@@ -2,19 +2,19 @@
   "schema": "agent-computer-apt-overlay/v7",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.3.0-31",
-    "source_commit": "5b5f6a8cb6f0246ec2902566d46036c73911ccc5",
+    "tag": "agent-computer-v0.3.0-32",
+    "source_commit": "REPLACE_AFTER_COMMIT",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.3.0-26",
+        "version": "0.3.0-27",
         "architecture": "all",
-        "asset": "agent-sphere_0.3.0-26_all.deb",
-        "sha256": "2090c8b91f8a642ab94b88756c391f729e1122390be53d146916ce3dd471ac19",
+        "asset": "agent-sphere_0.3.0-27_all.deb",
+        "sha256": "3050861fe9bb54b5a10e8a565de853883060dffc0c25034a15bf06e4465c5869",
         "provenance": {
-          "source_commit": "b1c4a80247aa4f630adf9bff63648e16778593c1",
+          "source_commit": "1b2735adb7180e687172d0eb2a8cbefd268e425d",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35934517294,
+          "main_pipeline_id": 35936137098,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -245,14 +245,14 @@
       },
       {
         "name": "contextd",
-        "version": "0.1.0-23",
+        "version": "0.1.0-24",
         "architecture": "amd64",
-        "asset": "contextd_0.1.0-23_amd64.deb",
-        "sha256": "55f8a26fc2118e3e9b9407c2dbfa37d16ce4404641c6fbcdeaf7b48d39da0783",
+        "asset": "contextd_0.1.0-24_amd64.deb",
+        "sha256": "0c8b539ab3f532703c3b759b6f4743a4563590d274b201987c7b775493021ca7",
         "provenance": {
-          "source_commit": "9a8bdb3abd2a609e128f1f458b6af5e5fa1ee3df",
+          "source_commit": "14e150efddf323b5f65110ed4b208f1809edae33",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 27270,
+          "main_pipeline_id": 27272,
           "build_status": "success",
           "public_payload_reviewed": true
         }
