@@ -180,17 +180,27 @@ write_ssh_readiness_helper() {
     cat <<'AGPC_SSH_READINESS_PY'
 #!/usr/bin/python3
 """Validate and activate Ubuntu SSH without modifying its owner configuration."""
+import base64
+import binascii
 import json
 import os
+import re
+import selectors
 import socket
 import stat
 import subprocess
 import sys
+import tempfile
 import time
 
 
 class Refused(Exception):
     pass
+
+
+SSH_DIRECTORY = "/etc/ssh"
+PROBE_DIRECTORY = "/run"
+ED25519_PUBLIC_PREFIX = b"\x00\x00\x00\x0bssh-ed25519\x00\x00\x00\x20"
 
 
 def command(args, timeout=30):
@@ -229,6 +239,127 @@ def trusted_runtime_directory():
         raise Refused("ssh-runtime-directory-untrusted")
 
 
+def host_key_metadata(path, private=False):
+    try:
+        metadata = os.lstat(path)
+    except FileNotFoundError:
+        return None
+    forbidden = 0o077 if private else 0o022
+    if (not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != 0 or
+            metadata.st_mode & forbidden or metadata.st_nlink != 1):
+        raise Refused("ssh-host-key-file-untrusted")
+    return metadata
+
+
+def ensure_ed25519_host_key():
+    # Only OpenSSH creates private key material. This helper inspects private
+    # file metadata, never opens its contents, and reads only the public file.
+    for path in (os.path.dirname(SSH_DIRECTORY), SSH_DIRECTORY):
+        metadata = os.lstat(path)
+        if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_mode & 0o022:
+            raise Refused("ssh-host-key-directory-untrusted")
+    private = os.path.join(SSH_DIRECTORY, "ssh_host_ed25519_key")
+    public = private + ".pub"
+    private_metadata = host_key_metadata(private, private=True)
+    public_metadata = host_key_metadata(public)
+    if private_metadata is None and public_metadata is None:
+        # -A creates missing standard host keys and does not rotate existing
+        # keys. Refuse a partial pair rather than replacing an owner's identity.
+        if command(["/usr/bin/ssh-keygen", "-A"]).returncode:
+            raise Refused("ssh-host-key-generation-failed")
+        private_metadata = host_key_metadata(private, private=True)
+        public_metadata = host_key_metadata(public)
+    if private_metadata is None or public_metadata is None:
+        raise Refused("ssh-ed25519-host-key-pair-incomplete")
+    descriptor = os.open(public, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK)
+    with os.fdopen(descriptor, "rb") as stream:
+        opened = os.fstat(stream.fileno())
+        if (opened.st_dev, opened.st_ino, opened.st_mode, opened.st_uid, opened.st_nlink) != (
+                public_metadata.st_dev, public_metadata.st_ino, public_metadata.st_mode,
+                public_metadata.st_uid, public_metadata.st_nlink):
+            raise Refused("ssh-host-key-file-changed")
+        data = stream.read(4097)
+    try:
+        lines = data.decode("ascii").strip().splitlines()
+        fields = lines[0].split() if len(lines) == 1 else []
+        if len(data) > 4096 or len(fields) < 2 or fields[0] != "ssh-ed25519":
+            raise ValueError()
+        wire = base64.b64decode(fields[1], validate=True)
+        if len(wire) != len(ED25519_PUBLIC_PREFIX) + 32 or not wire.startswith(ED25519_PUBLIC_PREFIX):
+            raise ValueError()
+        if base64.b64encode(wire).decode("ascii") != fields[1]:
+            raise ValueError()
+    except (UnicodeError, ValueError, binascii.Error):
+        raise Refused("ssh-ed25519-host-public-key-invalid") from None
+    return fields[1]
+
+
+def verified_key_exchange(args):
+    # Ordinary stderr can contain peer-supplied multiline diagnostics. The
+    # caller suppresses them and forces only this local OpenSSH source/function
+    # record, emitted after signature verification. Bind it to this process.
+    process = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.PIPE, start_new_session=True,
+                               env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"})
+    try:
+        marker = re.compile(rb"debug1: kex\.c:kex_input_newkeys\(\):[0-9]+ \((?:bin=(?:/usr/bin/)?ssh, )?pid=" +
+                            str(process.pid).encode("ascii") + rb"\): SSH2_MSG_NEWKEYS received")
+        deadline, received, pending = time.monotonic() + 5, 0, b""
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stderr, selectors.EVENT_READ)
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not selector.select(remaining):
+                    return False
+                data = os.read(process.stderr.fileno(), 4096)
+                if not data:
+                    return False
+                received += len(data)
+                if received > 65536:
+                    return False
+                pending += data
+                while b"\n" in pending:
+                    line, pending = pending.split(b"\n", 1)
+                    if marker.fullmatch(line.rstrip(b"\r")):
+                        return True
+    finally:
+        try:
+            if process.poll() is None:
+                process.kill()
+            process.wait(timeout=1)
+        finally:
+            process.stderr.close()
+
+
+def pinned_host_key_ready(public_key):
+    # The pinned value comes only from the validated local public key file.
+    # This is a host-proof probe: no user credentials, session or command.
+    with tempfile.TemporaryDirectory(prefix="agpc-ssh-probe.", dir=PROBE_DIRECTORY) as directory:
+        known_hosts = os.path.join(directory, "known_hosts")
+        descriptor = os.open(known_hosts, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
+        with os.fdopen(descriptor, "w", encoding="ascii") as stream:
+            stream.write("127.0.0.1 ssh-ed25519 " + public_key + "\n")
+        options = (
+            "StrictHostKeyChecking=yes", "UserKnownHostsFile=" + known_hosts,
+            "GlobalKnownHostsFile=/dev/null", "HostKeyAlgorithms=ssh-ed25519",
+            "UpdateHostKeys=no", "VerifyHostKeyDNS=no", "CanonicalizeHostname=no",
+            "BatchMode=yes", "IdentityFile=none", "IdentityAgent=none", "IdentitiesOnly=yes",
+            "PubkeyAuthentication=no", "PasswordAuthentication=no", "KbdInteractiveAuthentication=no",
+            "GSSAPIAuthentication=no", "HostbasedAuthentication=no", "PreferredAuthentications=none",
+            "NumberOfPasswordPrompts=0", "ConnectionAttempts=1", "ConnectTimeout=2",
+            "ClearAllForwardings=yes", "ForwardAgent=no", "ForwardX11=no", "PermitLocalCommand=no",
+            "ControlMaster=no", "ControlPath=none", "ControlPersist=no", "ProxyCommand=none", "ProxyJump=none",
+            "LogVerbose=kex.c:kex_input_newkeys():*",
+        )
+        # -q overrides -vv's ordinary output; LogVerbose forces only the local
+        # proof record. Peers cannot inject a fake marker through debug/errors.
+        args = ["/usr/bin/ssh", "-F", "/dev/null", "-vv", "-q", "-N", "-T"]
+        for option in options:
+            args.extend(["-o", option])
+        args.extend(["-l", "agpc-hostkey-probe", "-p", "22", "127.0.0.1"])
+        return verified_key_exchange(args)
+
+
 def banner_ready():
     # This is the existing MoteD host handoff target, not a MoteC reachability test.
     try:
@@ -253,6 +384,7 @@ def banner_ready():
 
 def ensure_ssh_ready():
     result = {"schema": "agpc.ssh-readiness/v1", "package_installed": False,
+              "ssh_host_key_ready": False,
               "configuration_valid": False, "activation_unit": None,
               "boot_enabled": False, "loopback_ssh_ready": False,
               "mote_reachability": "not-tested", "full_runtime_ready": False,
@@ -264,6 +396,7 @@ def ensure_ssh_ready():
         if package.returncode or package.stdout != "install ok installed":
             raise Refused("openssh-server-not-configured")
         result["package_installed"] = True
+        public_key = ensure_ed25519_host_key()
         trusted_runtime_directory()
         if command(["/usr/sbin/sshd", "-t"]).returncode:
             raise Refused("sshd-configuration-invalid")
@@ -280,7 +413,7 @@ def ensure_ssh_ready():
         result["activation_unit"] = selected
         state = listener if socket_selected else service
         # Preserve the existing socket/service choice. No restart, stop, unmask,
-        # key generation, authentication edits, listen changes or firewall edits.
+        # authentication edits, listen changes or firewall edits.
         if state["UnitFileState"] != "enabled":
             if command(["/usr/bin/systemctl", "enable", selected]).returncode:
                 raise Refused("ssh-enable-failed")
@@ -304,6 +437,9 @@ def ensure_ssh_ready():
             raise Refused("ssh-activation-not-ready")
         if not result["loopback_ssh_ready"]:
             raise Refused("loopback-ssh-banner-unavailable")
+        if not pinned_host_key_ready(public_key):
+            raise Refused("loopback-ssh-host-key-unverified")
+        result["ssh_host_key_ready"] = True
     except Refused as error:
         result["error"] = str(error)
     except (OSError, ValueError, subprocess.SubprocessError):
@@ -336,7 +472,7 @@ JOB_PLATFORM
 }
 
 agentsphere_run_detached() {
-    local stage worker_guard worker_obsidian unit result code count state argument
+    local stage worker_guard worker_obsidian worker_transition unit result code count state argument
     stage=$job_stage
     [[ $stage =~ ^/var/lib/agpc-install\.[A-Za-z0-9]{8}$ ]] || return 1
     python3 - "$stage" <<'AGPC_STAGE' || return
@@ -347,10 +483,16 @@ assert not os.listdir(sys.argv[1])
 AGPC_STAGE
     worker_guard=$stage/guard
     worker_obsidian=$stage/obsidian_1.13.7_amd64.deb
+    worker_transition=
     # The existing temporary inputs are root-owned; copy into the durable root
     # stage so caller exit/cleanup cannot remove inputs from the detached job.
     cp -- "$guard" "$worker_guard" || return
     cp -- "$obsidian" "$worker_obsidian" || return
+    if [[ -n ${retirement_bridge:-} ]]; then
+        worker_transition=$stage/mote-chatd_2.0.0-7_all.deb
+        cp -- "$retirement_bridge" "$worker_transition" || return
+        chmod 0600 "$worker_transition" || return
+    fi
     chmod 0700 "$worker_guard" || return
     chmod 0600 "$worker_obsidian" || return
     write_ssh_readiness_helper > "$stage/ssh-readiness.py" || return
@@ -361,6 +503,7 @@ AGPC_STAGE
         printf 'agpc_chat_user=%q\n' "${agpc_chat_user:-}"
         printf 'agpc_profile=%q\n' "$agpc_profile"
         printf 'uchat_state=%q\n' "$uchat_state"
+        printf 'retirement_bridge=%q\n' "$worker_transition"
         printf 'packages=('
         for argument in "${packages[@]}"; do
             [[ $argument != "$obsidian" ]] || argument=$worker_obsidian
@@ -391,6 +534,11 @@ AGPC_RESULT
 }
 trap finish EXIT
 sha256sum --check --status "$stage/inputs.sha256"
+if [[ -n $retirement_bridge ]]; then
+    phase=chatd-retirement
+    dpkg --unpack "$retirement_bridge"
+    dpkg --configure mote-chatd
+fi
 phase=apt
 apt-get -o "DPkg::Pre-Install-Pkgs::=$guard" \
     -o "DPkg::Tools::Options::$guard::Version=3" \
@@ -447,7 +595,11 @@ phase=complete
 AGPC_WORKER
     } > "$stage/worker" || return
     chmod 0600 "$stage/worker" "$stage/ssh-readiness.py" || return
-    sha256sum "$stage/guard" "$stage/worker" "$stage/ssh-readiness.py" "$worker_obsidian" > "$stage/inputs.sha256" || return
+    if [[ -n $worker_transition ]]; then
+        sha256sum "$stage/guard" "$stage/worker" "$stage/ssh-readiness.py" "$worker_obsidian" "$worker_transition" > "$stage/inputs.sha256" || return
+    else
+        sha256sum "$stage/guard" "$stage/worker" "$stage/ssh-readiness.py" "$worker_obsidian" > "$stage/inputs.sha256" || return
+    fi
     chmod 0600 "$stage/inputs.sha256" || return
     unit=agpc-install-${stage##*.}
     printf 'Installation job: %s\nLog: %s/install.log\nResult: %s/result.json\n' "$unit" "$stage" "$stage"
@@ -529,8 +681,9 @@ classify_legacy_chatd() {
         [[ ${#lines[@]} -ge 2 ]] || { legacy_error 'Cannot classify legacy mote-chatd ownership.'; return 1; }
         state=${lines[0]}; version=${lines[1]}
         case "$state" in installed|config-files) ;; *) legacy_error 'Unsupported legacy mote-chatd DPKG state; repair the incomplete transaction first.'; return 1 ;; esac
-        [[ -n $version ]] && dpkg --compare-versions "$version" le 2.0.0-6 \
-            || { legacy_error 'Unsupported legacy mote-chatd version.'; return 1; }
+        case "$version" in 2.0.0-4|2.0.0-6|2.0.0-7) ;; *)
+            legacy_error 'Unsupported legacy mote-chatd version.'; return 1 ;;
+        esac
         for line in "${lines[@]:2}"; do
             [[ -n ${line//[[:space:]]/} ]] || continue
             read -r path digest flag extra <<< "$line"
@@ -549,6 +702,33 @@ classify_legacy_chatd() {
         target_uid=${target_access%%:*}; target_mode=${target_access#*:}
         [[ $target_uid == 0 && $target_mode =~ ^[0-7]{3,4}$ ]] && (( (8#$target_mode & 0022) == 0 )) \
             || { legacy_error 'Existing topology must be root-owned and not writable by group or others.'; return 1; }
+        if [[ $version == 2.0.0-7 ]]; then
+            [[ $protected == 1 && $normal == 0 && $other == 0 ]] \
+                || { legacy_error 'Retirement bridge ownership is malformed.'; return 1; }
+            identity=$(dpkg-query -W -f='${Architecture}\n${Status}' mote-chatd 2>/dev/null) \
+                || { legacy_error 'Cannot inspect retirement bridge identity.'; return 1; }
+            [[ $identity == $'all\ninstall ok installed' || $identity == $'all\ndeinstall ok config-files' ]] \
+                || { legacy_error 'Retirement bridge has an unsupported DPKG identity.'; return 1; }
+            if [[ $state == installed ]]; then
+                for hook in preinst prerm postrm; do
+                    case "$hook" in
+                        preinst) expected=907278cf0b4d3bae73894fd4e85b73513c1f5769a98620d4eb3ef77c44a9ddac ;;
+                        prerm) expected=31c94985e4d532e677ac3b673a6f6cfa89cd7e986466fdd6c99538a2949f4696 ;;
+                        postrm) expected=977b560177c7afd78adb5277026a9dbb5dc4ebdad5afdc53f4b1e23dc490511d ;;
+                    esac
+                    path=/var/lib/dpkg/info/mote-chatd.$hook
+                    [[ $(stat -c '%u:%g:%a:%F' -- "$path" 2>/dev/null) == '0:0:755:regular file' ]] \
+                        || { legacy_error "Retirement $hook has unsupported ownership, mode or file type."; return 1; }
+                    actual=$(sha256sum "$path") || { legacy_error "Cannot inspect retirement $hook."; return 1; }
+                    [[ ${actual%% *} == "$expected" ]] \
+                        || { legacy_error "Retirement $hook differs from the reviewed bridge."; return 1; }
+                done
+                printf 'retirement:installed\n'
+            else
+                printf 'retired-config\n'
+            fi
+            return 0
+        fi
         if [[ $protected == 1 ]]; then
             printf 'retention:%s\n' "$state"
             return 0
@@ -1152,7 +1332,23 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.3.0-33 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchatd=0.5.0-1 "$obsidian")
+retirement_bridge=
+transaction_legacy_state=$legacy_state
+if [[ $legacy_state == retention:installed ]]; then
+    retirement_bridge=$temporary/mote-chatd_2.0.0-7_all.deb
+    curl --fail --location --proto '=https' --proto-redir '=https' --retry 2 \
+        --output "$retirement_bridge" \
+        https://motebus.github.io/download/pool/main/m/mote-chatd/mote-chatd_2.0.0-7_all.deb
+    printf '%s  %s\n' 82ef11e5377038d287330e005bc1ed3912925a39acd1b14e0bf3c44e50935d0e "$retirement_bridge" | sha256sum --check --status \
+        || fail 'mote-chatd retirement bridge checksum mismatch. Package installation was not started.'
+    [[ $(dpkg-deb -f "$retirement_bridge" Package) == mote-chatd && \
+       $(dpkg-deb -f "$retirement_bridge" Version) == 2.0.0-7 && \
+       $(dpkg-deb -f "$retirement_bridge" Architecture) == all ]] \
+        || fail 'mote-chatd retirement bridge metadata mismatch. Package installation was not started.'
+    chmod 0644 "$retirement_bridge"
+    transaction_legacy_state=retirement:installed
+fi
+packages=(agent-sphere=0.3.0-35 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchatd=0.5.0-1 "$obsidian")
 if [[ $agpc_profile == full ]]; then
     packages+=(agpc-apps=0.3.0-1)
     # The old documentation-only metapackage becomes an exact dependency bridge.
@@ -1166,9 +1362,9 @@ if [[ $agpc_profile == full ]]; then
 fi
 # mote-chatd is retired. Remove either the old runtime or its former
 # documentation-only retention record while selecting native uchatd.
-if [[ $legacy_state != absent ]]; then
-    packages+=(mote-chatd-)
-fi
+case "$legacy_state" in
+    ordinary:installed|retention:installed|retirement:installed) packages+=(mote-chatd-) ;;
+esac
 
 # APT protocol v3 is checked again under APT's lock before any DPKG action.
 {
@@ -1176,7 +1372,7 @@ printf '%s\n' '#!/bin/bash' 'set -euo pipefail'
 declare -f agentsphere_container_runtime_package classify_legacy_chatd classify_legacy_mcp classify_legacy_cx classify_legacy_manager classify_legacy_uchat
 printf 'expected_uchat_state=%q\n' "$uchat_state"
 printf 'agpc_profile=%q\n' "$agpc_profile"
-printf 'expected_legacy_state=%q\n' "$legacy_state"
+printf 'expected_legacy_state=%q\n' "$transaction_legacy_state"
 printf 'expected_mcp_state=%q\n' "$mcp_state"
 printf 'expected_cx_state=%q\n' "$cx_state"
 printf 'expected_manager_state=%q\n' "$manager_state"
@@ -1223,7 +1419,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.3.0-33 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-5 [uchatd]=0.5.0-1)
+declare -A floor=([agent-sphere]=0.3.0-35 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-7 [mote-proxy]=2.0.0-9 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-5 [uchatd]=0.5.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1237,7 +1433,8 @@ while IFS= read -r line; do
             [[ $new == - && -z ${removed[$name]:-} &&
                (($legacy_state == ordinary:installed && $old == 2.0.0-4) ||
                ($legacy_state == retention:* &&
-                ($old == 2.0.0-4 || $old == 2.0.0-6))) ]] || fail 'removal of retired mote-chatd'
+                ($old == 2.0.0-4 || $old == 2.0.0-6)) ||
+               ($legacy_state == retirement:installed && $old == 2.0.0-7)) ]] || fail 'removal of retired mote-chatd'
         else
             [[ -n ${replacement[$name]:-} && $old == "${reviewed_old[$name]}" && $new == - && -z ${removed[$name]:-} ]] || fail "removal of $name"
         fi
@@ -1324,8 +1521,8 @@ while read -r action package rest; do
     case "$action" in
         Remv)
             case "$name:$rest" in
-                'mote-chatd:[2.0.0-4]'*|'mote-chatd:[2.0.0-6]'*)
-                    [[ $legacy_state == ordinary:installed || $legacy_state == retention:* ]] || fail 'Refusing removal of unreviewed retired mote-chatd ownership.'
+                'mote-chatd:[2.0.0-4]'*|'mote-chatd:[2.0.0-6]'*|'mote-chatd:[2.0.0-7]'*)
+                    [[ $legacy_state == ordinary:installed || $legacy_state == retention:* || $legacy_state == retirement:installed ]] || fail 'Refusing removal of unreviewed retired mote-chatd ownership.'
                     removed[mote-chatd]=uchatd ;;
                 'mote-bridge-mcp:[3.0.0-2]'*)
                     [[ $mcp_state == installed:* ]] || fail 'Refusing unreviewed MCP package removal.'

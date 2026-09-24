@@ -367,7 +367,7 @@ AGENT_PROFILE_REDISTRIBUTABLE = tuple(
     name for old in AGENT_LOOP_REDISTRIBUTABLE
     for name in (("agpc-apps",) if old == "agent-apps" else
                  (old, "contextd") if old == "cx-loop" else (old,)))
-AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-33", "contextd": "0.1.0-27",
+AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-35", "contextd": "0.1.0-27",
                         "uchatd": "0.5.0-1", "uchat": "3.2.0-5", "agpc-apps": "0.3.0-1"}
 
 
@@ -389,7 +389,7 @@ def canonical_packages(config):
 # native v7 profile retires mote-chatd completely; only the agent-apps name
 # transition remains as a compatibility record.
 AGENT_COMPUTER_LEGACY_RETENTION = ("mote-chatd",)
-AGENT_PROFILE_RETENTION = ("agent-apps",)
+AGENT_PROFILE_RETENTION = ("mote-chatd", "agent-apps")
 
 def retention_packages(config):
     return AGENT_PROFILE_RETENTION if config["schema"] == AGENT_COMPUTER_PROFILE_SCHEMA else AGENT_COMPUTER_LEGACY_RETENTION

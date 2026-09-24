@@ -2,19 +2,19 @@
   "schema": "agent-computer-apt-overlay/v7",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.3.0-40",
-    "source_commit": "9b94265d63c399606cd28eee09948714c780d39c",
+    "tag": "agent-computer-v0.3.0-42",
+    "source_commit": "0000000000000000000000000000000000000000",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.3.0-33",
+        "version": "0.3.0-35",
         "architecture": "all",
-        "asset": "agent-sphere_0.3.0-33_all.deb",
-        "sha256": "227801aa8bf3d85f73ebd4156dc2d72c29da0f63d0a1b7d723aae86e720f804f",
+        "asset": "agent-sphere_0.3.0-35_all.deb",
+        "sha256": "2ce55267ebc6059800c75bd6e2452eb439b04e6b3f5a0fc2ed2614ad04d9513d",
         "provenance": {
-          "source_commit": "44a0861b69ce1dafa274d10cd982fec5b667061a",
+          "source_commit": "d4180de56b0ff0f358f203f7157a3f4588a59de4",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35955043038,
+          "main_pipeline_id": 35957049717,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -77,28 +77,28 @@
       },
       {
         "name": "moted",
-        "version": "3.6.0-2",
+        "version": "3.6.0-7",
         "architecture": "amd64",
-        "asset": "moted_3.6.0-2_amd64.deb",
-        "sha256": "dd5aae37ecda299b1e0dcd85c96af4f5ba7f7a83e08bf8ee75f2dc7d54602c55",
+        "asset": "moted_3.6.0-7_amd64.deb",
+        "sha256": "8ad88a3f0e295d7694c99fe4c927291256b8c02f850e1aeb837abd101760d6e8",
         "provenance": {
-          "source_commit": "3b385d61d794a5b8fea8657b776bbea6c44d11e6",
+          "source_commit": "5a8c1fa1ccd2435966c264d858c986ea43009793",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26478,
+          "main_pipeline_id": 27290,
           "build_status": "success",
           "public_payload_reviewed": true
         }
       },
       {
         "name": "mote-proxy",
-        "version": "2.0.0-5",
+        "version": "2.0.0-9",
         "architecture": "amd64",
-        "asset": "mote-proxy_2.0.0-5_amd64.deb",
-        "sha256": "469f8a794a975b704f3886bf0d149cf81289b4c56145c9f45a781bbf4d8a3548",
+        "asset": "mote-proxy_2.0.0-9_amd64.deb",
+        "sha256": "776684423763f0f48e02eba0fff5f47b3f9ccd1ff26b2fb1aae03e65f1b7087f",
         "provenance": {
-          "source_commit": "b2c7d5415d238a6dfca5f7f2955ebe756eaa546e",
+          "source_commit": "94fbbe1b0a7eb60bce4751d2b95cf08d4d7d4ec6",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26326,
+          "main_pipeline_id": 27291,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -424,6 +424,20 @@
       }
     ],
     "retention_packages": [
+      {
+        "name": "mote-chatd",
+        "version": "2.0.0-7",
+        "architecture": "all",
+        "asset": "mote-chatd_2.0.0-7_all.deb",
+        "sha256": "82ef11e5377038d287330e005bc1ed3912925a39acd1b14e0bf3c44e50935d0e",
+        "provenance": {
+          "source_commit": "d4180de56b0ff0f358f203f7157a3f4588a59de4",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 35957049717,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
       {
         "name": "agent-apps",
         "version": "0.3.0-1",
