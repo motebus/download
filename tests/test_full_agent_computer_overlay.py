@@ -21,7 +21,7 @@ def config_fixture(loop=False):
     proof = {"source_commit": "a" * 40, "source_ref": "refs/heads/main", "main_pipeline_id": 123,
              "build_status": "success", "public_payload_reviewed": True}
     def record(name):
-        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "jujue", "mote-chatd") else "amd64"
+        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "agpc-cdp", "jujue", "mote-chatd") else "amd64"
         version = "3.1.0-1" if loop and name == "mote-mcpd" else "9.0.0-1"
         return {"name": name, "version": version, "architecture": architecture,
                 "asset": f"{name}_{version}_{architecture}.deb", "sha256": "b" * 64,

@@ -318,6 +318,7 @@ ALLOWED_ROOT_FILES = {
     "agpc-all.source.json",
     "agent-sphere-apps.sh",
     "agent-sphere-apps.source.json",
+    ".gitlab-ci.yml",
     ".gitignore",
     "github-setup.sh",
     "sphere.sh",
@@ -335,6 +336,7 @@ ALLOWED_ROOT_DIRS = {".git", ".github", "scripts", "sphere-runner", "tests"}
 AGENT_COMPUTER_OVERLAY_FILE = "agent-computer-apt-overlay.json"
 AGENT_COMPUTER_OVERLAY_SCHEMA = "agent-computer-apt-overlay/v1"
 AGENT_COMPUTER_OVERLAY_REPOSITORY = "motebus/agent-sphere-deb"
+AGENT_PROFILE_INSTALLER_REPOSITORY = "motebus/download"
 AGENT_COMPUTER_OVERLAY_PACKAGES = (("agent-sphere", "all"), ("mote-transportd", "amd64"))
 AGENT_COMPUTER_FULL_SCHEMA = "agent-computer-apt-overlay/v5"
 AGENT_COMPUTER_LOOP_SCHEMA = "agent-computer-apt-overlay/v6"
@@ -366,9 +368,11 @@ AGENT_PROFILE_SPHERE_COMPONENTS = (*AGENT_LOOP_SPHERE_COMPONENTS, "contextd", "u
 AGENT_PROFILE_REDISTRIBUTABLE = tuple(
     name for old in AGENT_LOOP_REDISTRIBUTABLE
     for name in (("agpc-apps",) if old == "agent-apps" else
+                 (old, "agpc-cdp") if old == "agpc-manager" else
                  (old, "contextd") if old == "cx-loop" else (old,)))
 AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-42", "contextd": "0.1.0-27",
-                        "uchatd": "0.6.0-1", "uchat": "3.2.0-7", "agpc-apps": "0.3.0-1"}
+                        "uchatd": "0.6.0-1", "uchat": "3.2.0-7", "agpc-apps": "0.3.0-1",
+                        "agpc-cdp": "0.1.0-1"}
 
 
 def is_full_overlay(config):
@@ -551,7 +555,10 @@ def validate_agent_apps_installer(root: Path) -> dict:
                     "Agent Apps installer profile is invalid")
         elif schema == AGENT_PROFILE_INSTALLER_SCHEMA:
             require(record["profile"] == "standard", "agpc.sh must declare the standard profile")
-        require(record["repository"] == AGENT_COMPUTER_OVERLAY_REPOSITORY,
+        expected_repository = (AGENT_PROFILE_INSTALLER_REPOSITORY
+                               if schema == AGENT_PROFILE_INSTALLER_SCHEMA
+                               else AGENT_COMPUTER_OVERLAY_REPOSITORY)
+        require(record["repository"] == expected_repository,
                 "Agent Apps installer source repository is not allowed")
         require(isinstance(record["tag"], str)
                 and re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", record["tag"]),
@@ -650,7 +657,7 @@ def validate_full_overlay_config(release: dict, *, schema=AGENT_COMPUTER_FULL_SC
         require(set(package) == {"name", "version", "architecture", "asset", "sha256", "provenance"},
                 "full overlay package fields are invalid")
         name = package["name"]
-        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "agpc-apps", "jujue", *AGENT_COMPUTER_LEGACY_RETENTION) else "amd64"
+        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "agpc-apps", "agpc-cdp", "jujue", *AGENT_COMPUTER_LEGACY_RETENTION) else "amd64"
         require(package["architecture"] == architecture, f"{name}: invalid full overlay architecture")
         require(isinstance(package["version"], str)
                 and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", package["version"]),
