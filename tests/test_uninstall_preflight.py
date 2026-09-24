@@ -50,10 +50,24 @@ class UninstallPreflightTest(unittest.TestCase):
                           'architecture': value['architecture'],
                           'sha256': value['sha256']} for name, value in policy.items()]}}
         self.module['validate_catalog'](current)
-        for package in self.module['POLICY'].values():
+        reviewed = list(self.module['POLICY'].values())
+        reviewed += [item for variants in self.module['ALTERNATE_POLICY'].values() for item in variants]
+        for package in reviewed:
+            self.assertRegex(package['sha256'], '^[0-9a-f]{64}$')
             for digest in package['hooks'].values():
                 self.assertTrue(digest is None or re.fullmatch('[0-9a-f]{64}', digest))
             self.assertTrue(all(re.fullmatch('[a-zA-Z0-9_.-]+[.](service|target|socket|timer)', u) for u in package['units']))
+
+    def test_exact_reviewed_upgrade_alternatives_are_admitted(self):
+        select = self.module['reviewed_policy']
+        policy = self.module['POLICY']
+        for name, variants in self.module['ALTERNATE_POLICY'].items():
+            for expected in variants:
+                self.assertIs(select(name, expected['version'], expected['architecture'], policy), expected)
+            with self.assertRaisesRegex(RuntimeError, 'Unreviewed package version'):
+                select(name, '999.0-1', variants[0]['architecture'], policy)
+        with self.assertRaisesRegex(RuntimeError, 'Unreviewed package version'):
+            select('moted', '3.6.2-1', 'arm64', policy)
 
     def test_installed_packages_are_selected_and_conffiles_preserved(self):
         conf = self.root / 'owner.conf'
@@ -151,7 +165,8 @@ class NativeRemovalTransactionTest(unittest.TestCase):
             policy = {'agpc-removal-fixture': {'version': '1.0-1', 'architecture': 'all',
                       'sha256': hashlib.sha256(deb.read_bytes()).hexdigest(),
                       'hooks': {'prerm': None, 'postrm': None}, 'units': [], 'retained_payloads': ['/etc/agpc-removal-fixture-mchat.env']}}
-            code = CODE[:CODE.index('POLICY = ')] + 'POLICY = ' + repr(policy) + '\n' + CODE[CODE.index('RELEASE_TAG = '):]
+            code = (CODE[:CODE.index('POLICY = ')] + 'POLICY = ' + repr(policy)
+                    + '\nALTERNATE_POLICY = {}\n' + CODE[CODE.index('RELEASE_TAG = '):])
             code = code.replace("Path('/var/lib/dpkg/info')", 'Path(' + repr(str(info / 'info')) + ')')
             code = code.replace("Path('/var/lib/dpkg')", 'Path(' + repr(str(info)) + ')')
             code = code.replace("['dpkg-query', '-W'", "['dpkg-query', '--admindir=" + str(info) + "', '-W'")

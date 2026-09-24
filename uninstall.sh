@@ -258,6 +258,41 @@ POLICY = {'agent-sphere': {'version': '0.3.0-42',
                 'hooks': {'prerm': None, 'postrm': None},
                 'units': [],
                 'retained_payloads': []}}
+ALTERNATE_POLICY = {
+ 'moted': [{'version': '3.6.2-1',
+            'architecture': 'amd64',
+            'sha256': 'c559e504f25d5ddacd66e5a02d3c69040e038e157ed8788a1f8e03ef613bff18',
+            'hooks': {'prerm': '06417d4752bdad767de25177e4c4e79a4dd2cd2c1e880e33b4a9bd468f650e04',
+                      'postrm': '7dc2190bba29dbb3b3a1a84c620df4c9bf672c1c170c395968f01ce98c34fad7'},
+            'units': ['moted-ssh-relay.service', 'moted.service'],
+            'retained_payloads': ['/usr/share/moted/bootstrap/moted-mchat.env']}],
+ 'mote-proxy': [{'version': '2.0.2-1',
+                 'architecture': 'amd64',
+                 'sha256': 'ec646e93f13ca25bc100631e7a0843e5b2fcf6696ca1e46859e0e6db61c3d023',
+                 'hooks': {'prerm': '41c68e5fadb7cdc90b9e97d080c3291d4be10ab072079ba62e406c365b571d1c',
+                           'postrm': 'cc16f50e01db6295410191a0b8b933093c15079acdad5f5e6f7dd2886da18a63'},
+                 'units': ['mote-proxy.service'],
+                 'retained_payloads': ['/usr/share/mote-proxy/mote-proxy-mchat.env']}],
+ 'mote-mcp-ultra': [{'version': '0.3.0-1',
+                     'architecture': 'amd64',
+                     'sha256': 'afb043986d3b153cce378a2a0ba2772d420b06d132579f385c26b98e6ca20d47',
+                     'hooks': {'prerm': None, 'postrm': None},
+                     'units': [],
+                     'retained_payloads': []}],
+ 'cx-mesh': [{'version': '2.0.0-2',
+              'architecture': 'amd64',
+              'sha256': '39a4474dcbea13728af06e322bce862110db0dcc662b3e2b04cad30bacc5b1a4',
+              'hooks': {'prerm': 'dcbc3d89b484ef2548c496cdaf532a1a69bcba8c2aa1de74dd4debcb7a3005d7',
+                        'postrm': '4932afd86c8916e16152aa75e0ed0bc4d8ffc0bdc9e8d6bcc541875b4b849cf5'},
+              'units': ['cx-mesh.service'],
+              'retained_payloads': ['/usr/share/cx-mesh/bootstrap/cx-mesh-mchat.env']}],
+ 'ss-webos': [{'version': '2.0.0-15',
+               'architecture': 'amd64',
+               'sha256': '7e19b4720e278f76a57196db042874f70422a70cd8cdabd4aefdcb64c0eb5300',
+               'hooks': {'prerm': None,
+                         'postrm': '02871c8153d49689646e983371234cf65d957a25daeada99c0d5c9809fc7745b'},
+               'units': ['ss-webosd.service'],
+               'retained_payloads': []}]}
 RELEASE_TAG = 'agent-computer-v0.3.0-49'
 
 def fail(message):
@@ -291,6 +326,16 @@ def retained_file(path):
         fail('Unsupported configuration file type: ' + str(path))
     return None
 
+def reviewed_policy(name, version, architecture, policy):
+    variants = [policy[name]]
+    if policy is POLICY:
+        variants.extend(ALTERNATE_POLICY.get(name, []))
+    matches = [item for item in variants
+               if (item['version'], item['architecture']) == (version, architecture)]
+    if len(matches) != 1:
+        fail('Unreviewed package version; no packages changed: ' + name)
+    return matches[0]
+
 def inspect(policy=POLICY, info=Path('/var/lib/dpkg/info')):
     candidates = {}
     retained = {}
@@ -307,8 +352,7 @@ def inspect(policy=POLICY, info=Path('/var/lib/dpkg/info')):
             continue
         if state != 'installed':
             fail('Incomplete package state; repair DPKG before removal: ' + name)
-        if (version, architecture) != (expected['version'], expected['architecture']):
-            fail('Unreviewed package version; no packages changed: ' + name)
+        expected = reviewed_policy(name, version, architecture, policy)
         conffiles = {}
         for line in query(name, '$' + '{Conffiles}').splitlines():
             parts = line.split()
