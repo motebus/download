@@ -43,7 +43,7 @@ def main():
     proc = dict(line.split(':', 1) for line in Path(f'/proc/{pid}/status').read_text().splitlines() if ':' in line)
     require(set(map(int, proc['Uid'].split())) == {service.pw_uid},
             'The real daemon process is not running entirely as the service UID.')
-    require(proc['NoNewPrivs'].strip() == '1', 'The installed unit must enforce NoNewPrivileges.')
+    require(proc['NoNewPrivs'].strip() == '0', 'The daemon must retain namespace-map staging permission; workers enforce NoNewPrivileges.')
     for path, mode in [('/var/lib/contextd', 0o700), ('/run/contextd', 0o755)]:
         metadata = Path(path).lstat()
         require(stat.S_ISDIR(metadata.st_mode) and stat.S_IMODE(metadata.st_mode) == mode
