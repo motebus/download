@@ -40,12 +40,12 @@ class UninstallPreflightTest(unittest.TestCase):
         return self.module['inspect'](self.policy, self.root)
 
     def test_policy_matches_reviewed_catalog_and_known_hooks(self):
-        # The removal engine remains pinned to its immutable v0.2.0-15 policy
+        # The removal engine remains pinned to its current signed v0.3.0-49 policy
         # while the active installer cohort advances independently. Build the
         # exact historical catalog from the engine's own reviewed constants.
         policy = self.module['POLICY']
-        current = {'schema': 'agent-computer-apt-overlay/v6', 'release': {
-            'repository': 'motebus/download', 'tag': 'agent-computer-v0.2.0-15',
+        current = {'schema': 'agent-computer-apt-overlay/v7', 'release': {
+            'repository': 'motebus/download', 'tag': self.module['RELEASE_TAG'],
             'packages': [{'name': name, 'version': value['version'],
                           'architecture': value['architecture'],
                           'sha256': value['sha256']} for name, value in policy.items()]}}
@@ -161,7 +161,7 @@ class NativeRemovalTransactionTest(unittest.TestCase):
             stage = base / 'stage'
             stage.mkdir()
             (stage / 'engine.py').write_text(code)
-            release = {'schema': 'agent-computer-apt-overlay/v6', 'release': {
+            release = {'schema': 'agent-computer-apt-overlay/v7', 'release': {
                 'repository': 'motebus/download', 'tag': engine()['RELEASE_TAG'],
                 'packages': [dict(name=name, **{k:v for k,v in row.items() if k in ('version','architecture','sha256')}) for name,row in policy.items()]}}
             (stage / 'agent-computer-apt-overlay.json').write_text(json.dumps(release))
