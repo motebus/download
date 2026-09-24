@@ -489,7 +489,7 @@ AGPC_STAGE
     cp -- "$guard" "$worker_guard" || return
     cp -- "$obsidian" "$worker_obsidian" || return
     if [[ -n ${retirement_bridge:-} ]]; then
-        worker_transition=$stage/mote-chatd_2.0.0-8_all.deb
+        worker_transition=$stage/mote-chatd_2.0.0-9_all.deb
         cp -- "$retirement_bridge" "$worker_transition" || return
         chmod 0600 "$worker_transition" || return
     fi
@@ -680,8 +680,8 @@ classify_legacy_chatd() {
         mapfile -t lines <<< "$record"
         [[ ${#lines[@]} -ge 2 ]] || { legacy_error 'Cannot classify legacy mote-chatd ownership.'; return 1; }
         state=${lines[0]}; version=${lines[1]}
-        case "$state" in installed|config-files) ;; *) legacy_error 'Unsupported legacy mote-chatd DPKG state; repair the incomplete transaction first.'; return 1 ;; esac
-        case "$version" in 2.0.0-4|2.0.0-6|2.0.0-8) ;; *)
+        case "$state" in installed|config-files|unpacked) ;; *) legacy_error 'Unsupported legacy mote-chatd DPKG state; repair the incomplete transaction first.'; return 1 ;; esac
+        case "$version" in 2.0.0-4|2.0.0-6|2.0.0-8|2.0.0-9) ;; *)
             legacy_error 'Unsupported legacy mote-chatd version.'; return 1 ;;
         esac
         for line in "${lines[@]:2}"; do
@@ -702,19 +702,23 @@ classify_legacy_chatd() {
         target_uid=${target_access%%:*}; target_mode=${target_access#*:}
         [[ $target_uid == 0 && $target_mode =~ ^[0-7]{3,4}$ ]] && (( (8#$target_mode & 0022) == 0 )) \
             || { legacy_error 'Existing topology must be root-owned and not writable by group or others.'; return 1; }
-        if [[ $version == 2.0.0-8 ]]; then
+        if [[ $version == 2.0.0-8 || $version == 2.0.0-9 ]]; then
             [[ $protected == 1 && $normal == 0 && $other == 0 ]] \
                 || { legacy_error 'Retirement bridge ownership is malformed.'; return 1; }
             identity=$(dpkg-query -W -f='${Architecture}\n${Status}' mote-chatd 2>/dev/null) \
                 || { legacy_error 'Cannot inspect retirement bridge identity.'; return 1; }
-            [[ $identity == $'all\ninstall ok installed' || $identity == $'all\ndeinstall ok config-files' ]] \
-                || { legacy_error 'Retirement bridge has an unsupported DPKG identity.'; return 1; }
-            if [[ $state == installed ]]; then
+            case "$state:$identity" in
+                $'installed:all\ninstall ok installed'|$'config-files:all\ndeinstall ok config-files'|$'unpacked:all\ninstall ok unpacked') ;;
+                *) legacy_error 'Retirement bridge has an unsupported DPKG identity.'; return 1 ;;
+            esac
+            if [[ $state == installed || $state == unpacked ]]; then
                 for hook in preinst prerm postrm; do
-                    case "$hook" in
-                        preinst) expected=b5f6130b284e010ebe8bc9fd07637b4e24d9bbc4bc1c5c9a58a21b8de8c006eb ;;
-                        prerm) expected=75d1e13eb0e81354500e83297cf8122a28ab73be609b490c4f10c71515ef99b3 ;;
-                        postrm) expected=977b560177c7afd78adb5277026a9dbb5dc4ebdad5afdc53f4b1e23dc490511d ;;
+                    case "$version:$hook" in
+                        2.0.0-8:preinst) expected=b5f6130b284e010ebe8bc9fd07637b4e24d9bbc4bc1c5c9a58a21b8de8c006eb ;;
+                        2.0.0-8:prerm) expected=75d1e13eb0e81354500e83297cf8122a28ab73be609b490c4f10c71515ef99b3 ;;
+                        2.0.0-9:preinst) expected=f3445a370e61b6a326aab12ac958c40e7c20888bd9296ae7f22d8552e708cd4f ;;
+                        2.0.0-9:prerm) expected=59d2c559a7261ddeb4664e2790b89e56a599c83ce8b76849b1e0420edd6f2e87 ;;
+                        *:postrm) expected=977b560177c7afd78adb5277026a9dbb5dc4ebdad5afdc53f4b1e23dc490511d ;;
                     esac
                     path=/var/lib/dpkg/info/mote-chatd.$hook
                     [[ $(stat -c '%u:%g:%a:%F' -- "$path" 2>/dev/null) == '0:0:755:regular file' ]] \
@@ -723,13 +727,14 @@ classify_legacy_chatd() {
                     [[ ${actual%% *} == "$expected" ]] \
                         || { legacy_error "Retirement $hook differs from the reviewed bridge."; return 1; }
                 done
-                printf 'retirement:installed\n'
+                printf 'retirement:%s\n' "$state"
             else
                 printf 'retired-config\n'
             fi
             return 0
         fi
         if [[ $protected == 1 ]]; then
+            [[ $state != unpacked ]] || { legacy_error 'Only the reviewed retirement bridge may be recovered from an unpacked state.'; return 1; }
             printf 'retention:%s\n' "$state"
             return 0
         fi
@@ -1340,21 +1345,21 @@ chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
 retirement_bridge=
 transaction_legacy_state=$legacy_state
-if [[ $legacy_state == retention:installed ]]; then
-    retirement_bridge=$temporary/mote-chatd_2.0.0-8_all.deb
+if [[ $legacy_state == retention:installed || $legacy_state == retirement:unpacked ]]; then
+    retirement_bridge=$temporary/mote-chatd_2.0.0-9_all.deb
     curl --fail --location --proto '=https' --proto-redir '=https' --retry 2 \
         --output "$retirement_bridge" \
-        https://motebus.github.io/download/pool/main/m/mote-chatd/mote-chatd_2.0.0-8_all.deb
-    printf '%s  %s\n' 1a197cf89dec7c598822ad7084c95903cacbb50af8cdbf05d87a7874a6b994d6 "$retirement_bridge" | sha256sum --check --status \
+        https://motebus.github.io/download/pool/main/m/mote-chatd/mote-chatd_2.0.0-9_all.deb
+    printf '%s  %s\n' 5b1a3c8cba45ea321d9c3ee70962b78f5e203133f7413ae33873a9006ea5b8b7 "$retirement_bridge" | sha256sum --check --status \
         || fail 'mote-chatd retirement bridge checksum mismatch. Package installation was not started.'
     [[ $(dpkg-deb -f "$retirement_bridge" Package) == mote-chatd && \
-       $(dpkg-deb -f "$retirement_bridge" Version) == 2.0.0-8 && \
+       $(dpkg-deb -f "$retirement_bridge" Version) == 2.0.0-9 && \
        $(dpkg-deb -f "$retirement_bridge" Architecture) == all ]] \
         || fail 'mote-chatd retirement bridge metadata mismatch. Package installation was not started.'
     chmod 0644 "$retirement_bridge"
     transaction_legacy_state=retirement:installed
 fi
-packages=(agent-sphere=0.3.0-39 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchat=3.2.0-6 uchatd=0.6.0-1 "$obsidian")
+packages=(agent-sphere=0.3.0-40 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchat=3.2.0-6 uchatd=0.6.0-1 "$obsidian")
 if [[ $agpc_profile == full ]]; then
     packages+=(agpc-apps=0.3.0-1)
     # The old documentation-only metapackage becomes an exact dependency bridge.
@@ -1369,7 +1374,7 @@ fi
 # mote-chatd is retired. Remove either the old runtime or its former
 # documentation-only retention record while selecting native uchatd.
 case "$legacy_state" in
-    ordinary:installed|retention:installed|retirement:installed) packages+=(mote-chatd-) ;;
+    ordinary:installed|retention:installed|retirement:installed|retirement:unpacked) packages+=(mote-chatd-) ;;
 esac
 
 # APT protocol v3 is checked again under APT's lock before any DPKG action.
@@ -1425,7 +1430,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.3.0-39 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-7 [mote-proxy]=2.0.0-9 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-6 [uchatd]=0.6.0-1)
+declare -A floor=([agent-sphere]=0.3.0-40 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-7 [mote-proxy]=2.0.0-9 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-6 [uchatd]=0.6.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1440,7 +1445,7 @@ while IFS= read -r line; do
                (($legacy_state == ordinary:installed && $old == 2.0.0-4) ||
                ($legacy_state == retention:* &&
                 ($old == 2.0.0-4 || $old == 2.0.0-6)) ||
-               ($legacy_state == retirement:installed && $old == 2.0.0-8)) ]] || fail 'removal of retired mote-chatd'
+               ($legacy_state == retirement:installed && ($old == 2.0.0-8 || $old == 2.0.0-9))) ]] || fail 'removal of retired mote-chatd'
         else
             [[ -n ${replacement[$name]:-} && $old == "${reviewed_old[$name]}" && $new == - && -z ${removed[$name]:-} ]] || fail "removal of $name"
         fi
@@ -1527,8 +1532,8 @@ while read -r action package rest; do
     case "$action" in
         Remv)
             case "$name:$rest" in
-                'mote-chatd:[2.0.0-4]'*|'mote-chatd:[2.0.0-6]'*|'mote-chatd:[2.0.0-8]'*)
-                    [[ $legacy_state == ordinary:installed || $legacy_state == retention:* || $legacy_state == retirement:installed ]] || fail 'Refusing removal of unreviewed retired mote-chatd ownership.'
+                'mote-chatd:[2.0.0-4]'*|'mote-chatd:[2.0.0-6]'*|'mote-chatd:[2.0.0-8]'*|'mote-chatd:[2.0.0-9]'*)
+                    [[ $legacy_state == ordinary:installed || $legacy_state == retention:* || $legacy_state == retirement:installed || $legacy_state == retirement:unpacked ]] || fail 'Refusing removal of unreviewed retired mote-chatd ownership.'
                     removed[mote-chatd]=uchatd ;;
                 'mote-bridge-mcp:[3.0.0-2]'*)
                     [[ $mcp_state == installed:* ]] || fail 'Refusing unreviewed MCP package removal.'
