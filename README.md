@@ -72,45 +72,36 @@ content. No Docker or OCI is used for AGPC validation or publication.
 ## Earlier platform previews
 
 The following notes describe separately published previews. They do not change
-the current native Linux standard/full profiles. Windows native integration is
-a separate future target; historical macOS Docker experiments are not supported
+the current native Linux standard/full profiles. Full Windows native integration remains incomplete; historical macOS Docker experiments are not supported
 AGPC installation paths.
 
 ## Windows
 
-Uses PowerShell 7.4+ when available and falls back to the matching Windows
-PowerShell 5.1 host shipped with Windows 10/11. On x86-64:
+[Download agpc.exe (x86-64)](https://motebus.github.io/download/agpc.exe):
+**0.1.0-host-access-preview.2**, an unsigned outbound-access preview with
+FreeRDP 3.31.1 and native MCP. Download and run `agpc.exe`, then approve Windows
+UAC when prompted. No Docker or WSL is required. FreeRDP is provisioned when
+missing and needs Internet access for its initial download.
 
-```powershell
-curl.exe -fL https://motebus.github.io/download/agpc.exe -o agpc.exe
-.\agpc.exe
-```
+RDP uses an independent Mote channel. Windows Home supports the FreeRDP client;
+FreeRDP does not add an RDP host to Windows Home. MCP binaries are packaged with
+deny-by-default policy. Local CDP remains a preview.
 
-On ARM64:
+This executable uses the `agpc.windows-access/v1` outbound profile: it does not
+include moted or provision a complete inbound host installation. Full
+uChat/contextd/Redis/CoD integration and remote CDP admission remain incomplete.
+Remote SSH/RDP and MCP authorization/tool execution are not accepted for this
+exact build. Native build tests and PowerShell 5.1/7 suites passed; fixtures do
+not establish remote readiness or clean-machine acceptance.
 
-```powershell
-curl.exe -fL https://motebus.github.io/download/agpc-arm64.exe -o agpc-arm64.exe
-.\agpc-arm64.exe
-```
-
-Running the executable with no command invokes the overall installer. Use the
-explicit form below when the manifest path is known; `info`, `status` and
-`doctor` remain read-only diagnostics:
-
-```powershell
-.\agpc.exe install -RuntimeManifest C:\ProgramData\AGPC\runtime-manifest.json
-.\agpc.exe status -Json
-```
-
-The overall installer verifies the approved manifest, downloads the six native
-Mote components, registers Windows SCM services and enables OpenSSH. It fails
-closed without approved runtime bundles; no WSL or Debian fallback is used.
-These preview EXEs are unsigned; no execution-policy change is needed.
+[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.2).
+ARM64 remains the earlier manifest-dependent preview at
+[agpc-arm64.exe](https://motebus.github.io/download/agpc-arm64.exe).
 
 ## Native-only boundary
 
 AGPC is 100% native. The supported Linux path installs signed Debian packages
-with `agpc.sh` or `agpc-all.sh`; Windows native integration is a future target.
+with `agpc.sh` or `agpc-all.sh`; Full Windows native integration remains incomplete; the outbound-access preview is available above.
 There is no Docker, Podman, `ag-net`, WSL fallback or container runtime in the
 AGPC product. OCI images are reserved for cloud or server deployments outside
 AGPC. The former macOS Docker bootstrap is retired and is not an installation
@@ -123,9 +114,9 @@ and unmanaged executable replacement, and records the result under
 `/usr/local/lib/agpc-native/install.json`. The installed `agpc` command defaults
 to read-only status. The downloaded script defaults to installation.
 
-Windows installation requires the approved native runtime manifest and bundles;
-without them `install` exits 2 with `native_runtime_manifest_required`. The
-Windows EXEs embed the overall PowerShell installer.
+The current x86-64 Windows preview embeds its outbound-access bundles. Full-host
+installation still requires the approved native host runtime and is not included
+in this release. The earlier ARM64 preview remains manifest-dependent.
 
 Linux/Windows diagnostics include bounded Codex App-Server health checks and
 read-only MCP tool discovery. Installation does not establish AGPC Ready.
@@ -165,4 +156,4 @@ The optional Codex diagnostic requires a separately provided binary.
 
 Downloads show an artifact start line and SHA-256 completion without repeated transfer-rate or elapsed-time output. Core packages include the independent mote-mcp-ultra server, CX-Mesh execution runtime, uchat and uchatd. The legacy mote-mcpd gateway and its six tools are retired; inbox remains with uchatd. Existing medge and agpc-manager versions and configuration are preserved.
 
-Linux core installation includes the `rdp TARGET.mote` command and two menu entries: **FreeRDP(xrdp)** and **FreeRDP(physical)**, both using FreeRDP at 1920×1080. Native Remmina remains installed with RDP, Secret Service and built-in SSH/SFTP support. Open Remmina from the app menu to manage saved profiles. There are no Open with Remmina launcher actions. Existing profiles and credentials are preserved. Target profile registration is required; no live targets or credentials are bundled. Existing single-mode profiles and listeners require the migration described in the versioned release. RDP uses its independent Mote relay, without SSH forwarding. RDP relay v2 selects Physical on remote loopback 3389 or XRDP on loopback 3390; both can operate concurrently through distinct local listeners. The installer also provides standard xrdp/xorgxrdp host setup. The host uses TLS and a loopback listener, retaining its configured port. A new xrdp installation uses port 3390; Physical RDP reserves 3389; `--rdp-port PORT` overrides this choice. Existing GNOME access is preserved. A compatible Xorg desktop session must already be installed. Use the client as your desktop user with the authorized Mote ingress address, and verify the target server certificate. Desktop login and Mote transport acceptance remain pending. Windows uses its built-in mstsc client; native RDP host and transport acceptance remain pending.
+Linux core installation includes the `rdp TARGET.mote` command and two menu entries: **FreeRDP(xrdp)** and **FreeRDP(physical)**, both using FreeRDP at 1920×1080. Native Remmina remains installed with RDP, Secret Service and built-in SSH/SFTP support. Open Remmina from the app menu to manage saved profiles. There are no Open with Remmina launcher actions. Existing profiles and credentials are preserved. Target profile registration is required; no live targets or credentials are bundled. Existing single-mode profiles and listeners require the migration described in the versioned release. RDP uses its independent Mote relay, without SSH forwarding. RDP relay v2 selects Physical on remote loopback 3389 or XRDP on loopback 3390; both can operate concurrently through distinct local listeners. The installer also provides standard xrdp/xorgxrdp host setup. The host uses TLS and a loopback listener, retaining its configured port. A new xrdp installation uses port 3390; Physical RDP reserves 3389; `--rdp-port PORT` overrides this choice. Existing GNOME access is preserved. A compatible Xorg desktop session must already be installed. Use the client as your desktop user with the authorized Mote ingress address, and verify the target server certificate. Desktop login and Mote transport acceptance remain pending. The current Windows x86-64 preview uses the SDL FreeRDP 3.31.1 client; native RDP host and end-to-end transport acceptance remain pending.
