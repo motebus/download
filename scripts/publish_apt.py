@@ -789,7 +789,7 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
 
 def validate_uchat_dependencies(bundle: Path, approved: dict, *, apps_owner="agent-apps", native_profile=False) -> None:
     """Keep Redis private and make the daemon/transport migration inseparable."""
-    for owner, dependency, floor in ((apps_owner, "uchat", "3.2.0-6" if native_profile else "3.1.0-1"),
+    for owner, dependency, floor in ((apps_owner, "uchat", "3.2.0-4" if native_profile else "3.1.0-1"),
                                      ("uchat", "uchatd", "0.6.0-1" if native_profile else "0.2.0-1"),
                                      ("uchatd", "redis-server", "5:6.2"),
                                      ("uchatd", "mote-transportd", "2.0.0-6")):
