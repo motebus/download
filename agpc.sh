@@ -552,7 +552,7 @@ python3 - "$agpc_profile" "${packages[@]}" > "$stage/packages.json" <<'AGPC_PACK
 import json,subprocess,sys
 records=[]
 profile=sys.argv[1]
-required={'agent-sphere','agent-ultra','agpc-manager','contextd','uchatd'}
+required={'agent-sphere','agent-ultra','agpc-manager','contextd','uchat','uchatd'}
 if profile=='full':required.add('agpc-apps')
 elif profile!='standard':sys.exit('Unknown AGPC install profile')
 selected=set()
@@ -570,7 +570,7 @@ AGPC_PACKAGES
 phase=uchat
 # Only a proven fresh installation is eligible for explicit store provisioning.
 # init-store itself refuses a prior identity or any nonempty Redis namespace.
-if [[ $uchat_state == absent ]]; then
+if [[ $uchat_state == absent || $uchat_state == sqlite-cache:* ]]; then
     systemctl stop uchatd.service
     systemctl reset-failed uchatd.service || true
     systemctl start uchatd-redis.service
@@ -1283,33 +1283,32 @@ if __name__ == '__main__':
 MANAGER_PREFLIGHT
 }
 
-# A legacy SQLite-backed Inbox must complete the separately reviewed component upgrade
-# before this aggregate transaction. Never migrate or inspect message content here.
+# SQLite Inbox files are retired cache. Classify only the installed package so
+# the worker can initialize Redis after an old cache-only release is replaced.
 classify_legacy_uchat() {
     local record result
     local -a fields
     if record=$(dpkg-query -W -f='${Status}\n${Version}\n' uchatd 2>/dev/null); then
         mapfile -t fields <<< "$record"
-        if [[ ${#fields[@]} == 2 && ${fields[0]} == 'install ok installed' ]] &&
-            dpkg --compare-versions "${fields[1]}" ge 0.5.0-1; then
-            printf 'redis:%s\n' "${fields[1]}"
+        if [[ ${#fields[@]} == 2 && ${fields[0]} == 'install ok installed' ]]; then
+            if dpkg --compare-versions "${fields[1]}" ge 0.5.0-1; then
+                printf 'redis:%s\n' "${fields[1]}"
+            else
+                printf 'sqlite-cache:%s\n' "${fields[1]}"
+            fi
             return 0
         fi
     else
         result=$?
         [[ $result == 1 ]] || { printf '%s\n' 'Cannot inspect uchatd package state.' >&2; return 1; }
-        if [[ ! -e /etc/uchatd/uchatd.json && ! -L /etc/uchatd/uchatd.json &&
-              ! -e /var/lib/uchatd && ! -L /var/lib/uchatd ]]; then
-            printf '%s\n' absent
-            return 0
-        fi
+        printf '%s\n' absent
+        return 0
     fi
-    printf '%s\n' 'Complete the uchatd SQLite-to-Redis migration and component upgrade before installing this AGPC release. Existing Inbox data was not changed.' \
-        'Use the uchatd 0.5.0 package README offline-import procedure; existing stores are never reinitialized here.' >&2
+    printf '%s\n' 'Existing uchatd package state is incomplete or malformed; repair DPKG before installing this AGPC release.' >&2
     return 1
 }
 
-uchat_state=$(classify_legacy_uchat) || fail 'uChat migration preflight failed. No download or package change was started.'
+uchat_state=$(classify_legacy_uchat) || fail 'uChat package preflight failed. No download or package change was started.'
 legacy_state=$(classify_legacy_chatd) || fail 'Legacy preflight failed. No download or package change was started.'
 mcp_state=$(classify_legacy_mcp) || fail 'MCP preflight failed. No download or package change was started.'
 cx_state=$(classify_legacy_cx) || fail 'CX preflight failed. No download or package change was started.'
@@ -1348,7 +1347,7 @@ if [[ $legacy_state == retention:installed ]]; then
     chmod 0644 "$retirement_bridge"
     transaction_legacy_state=retirement:installed
 fi
-packages=(agent-sphere=0.3.0-35 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchatd=0.5.0-1 "$obsidian")
+packages=(agent-sphere=0.3.0-36 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchat=3.2.0-6 uchatd=0.6.0-1 "$obsidian")
 if [[ $agpc_profile == full ]]; then
     packages+=(agpc-apps=0.3.0-1)
     # The old documentation-only metapackage becomes an exact dependency bridge.
@@ -1378,7 +1377,7 @@ printf 'expected_cx_state=%q\n' "$cx_state"
 printf 'expected_manager_state=%q\n' "$manager_state"
 cat <<'GUARD'
 fail() { printf 'Agent Computer transaction refused: %s\n' "$*" >&2; exit 1; }
-uchat_state=$(classify_legacy_uchat) || fail 'uChat migration is required at transaction time'
+uchat_state=$(classify_legacy_uchat) || fail 'uChat package state is invalid at transaction time'
 [[ $uchat_state == "$expected_uchat_state" ]] || fail 'uChat state changed after preflight'
 legacy_state=$(classify_legacy_chatd) || fail 'legacy ownership is unsupported at transaction time'
 [[ $legacy_state == "$expected_legacy_state" ]] || fail 'legacy ownership changed after preflight'
@@ -1419,7 +1418,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.3.0-35 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-7 [mote-proxy]=2.0.0-9 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-5 [uchatd]=0.5.0-1)
+declare -A floor=([agent-sphere]=0.3.0-36 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-7 [mote-proxy]=2.0.0-9 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-6 [uchatd]=0.6.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1478,7 +1477,7 @@ while IFS= read -r line; do
     fi
 done
 for name in "${!removed[@]}"; do
-    if [[ $name == mote-chatd && $uchat_state == redis:0.5.0-1 ]]; then
+    if [[ $name == mote-chatd && $uchat_state == redis:* ]]; then
         continue
     fi
     [[ -n ${installed[${replacement[$name]}]:-} ]] || fail "$name removal lacks its reviewed replacement"
@@ -1553,7 +1552,7 @@ while read -r action package rest; do
     esac
 done < "$temporary/plan"
 for name in "${!removed[@]}"; do
-    if [[ $name == mote-chatd && $uchat_state == redis:0.5.0-1 ]]; then
+    if [[ $name == mote-chatd && $uchat_state == redis:* ]]; then
         continue
     fi
     [[ -n ${planned[${removed[$name]}]:-} ]] || fail "$name removal lacks its replacement. Package installation was not started."
