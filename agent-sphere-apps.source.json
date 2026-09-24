@@ -3,7 +3,7 @@
   "repository": "motebus/agent-sphere-deb",
   "tag": "v0.3.0-40",
   "source_commit": "cbc020e247edf1d845d5f4ac445de3f20cd16b36",
-  "asset": "agent-sphere-apps.sh",
+  "asset": "agpc-all.sh",
   "sha256": "798846905515288ba16e8b53070554b53f64a9398308f1a7e460be9a140f8897",
   "profile": "full"
 }
