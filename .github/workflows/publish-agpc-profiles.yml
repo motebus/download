@@ -51,6 +51,8 @@ jobs:
           gpgv --keyring ./medge-archive-keyring.gpg apt-site/agpc.source.json.asc apt-site/agpc.source.json
           gpgv --keyring ./medge-archive-keyring.gpg apt-site/agpc-all.sh.asc apt-site/agpc-all.sh
           gpgv --keyring ./medge-archive-keyring.gpg apt-site/agpc-all.source.json.asc apt-site/agpc-all.source.json
+          gpgv --keyring ./medge-archive-keyring.gpg apt-site/uninstall.sh.asc apt-site/uninstall.sh
+          cmp --silent uninstall.sh apt-site/uninstall.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: agpc-native-staged-site
