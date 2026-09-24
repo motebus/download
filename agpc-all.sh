@@ -718,6 +718,18 @@ RENAMED_CX_MESH_SUCCESSORS = {
     ('2.0.0-1', 'amd64', 'install ok installed'),
     ('2.0.0-2', 'amd64', 'install ok installed'),
 }
+# cx-mesh 2.0.0-2 deliberately retires the obsolete Codex Mesh extension
+# files. Bind its complete DPKG payload before allowing the residual owner
+# package to be forgotten.
+CX_MESH_2002_INFO = {
+    '/var/lib/dpkg/info/cx-mesh.conffiles': ('7c904958362944a95ffdbe4eb6653377884626781a0464789495ec124191bc2b',0o644),
+    '/var/lib/dpkg/info/cx-mesh.list': ('96638772246e7dba81e60b7f643f36e3ff2f7bd70e6cdb7aac507fb75949400b',0o644),
+    '/var/lib/dpkg/info/cx-mesh.md5sums': ('a7d13482f1286499141c94fea3c1f400326fc0c1e47b335445bdeb651d6951f0',0o644),
+    '/var/lib/dpkg/info/cx-mesh.preinst': ('16c8412e67154b7abf111f83ff2f21ca94e41919f60a3df4677d25a6e962ccff',0o755),
+    '/var/lib/dpkg/info/cx-mesh.postinst': ('f87e91fba3d57f4ed2548646f374ae63de50e3a33e6b1a93c4a4977703e37f49',0o755),
+    '/var/lib/dpkg/info/cx-mesh.prerm': ('dcbc3d89b484ef2548c496cdaf532a1a69bcba8c2aa1de74dd4debcb7a3005d7',0o755),
+    '/var/lib/dpkg/info/cx-mesh.postrm': ('4932afd86c8916e16152aa75e0ed0bc4d8ffc0bdc9e8d6bcc541875b4b849cf5',0o755),
+}
 
 def checked(path, digest=None, mode=None, optional=False, limit=1048576, uid=0):
     try: before=os.lstat(path)
@@ -947,11 +959,24 @@ def classify():
                 successor=query('cx-mesh')
                 if successor is None or tuple(successor.splitlines()[:3]) not in CX_MESH_SUCCESSORS:
                     raise ValueError('residual Mesh conffiles require exact installed successor')
-                for path in MESH_FILES:
-                    owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
-                    if owner.returncode or owner.stdout.strip()!='cx-mesh: '+path:raise ValueError('residual Mesh conffile lacks sole successor ownership')
+                successor_state=tuple(successor.splitlines()[:3])
+                if successor_state==('2.0.0-2','amd64','install ok installed'):
+                    for path in MESH_FILES:
+                        if os.path.lexists(path):raise ValueError('retired Mesh extension file remains: '+path)
+                        owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
+                        if owner.returncode!=1 or owner.stdout:raise ValueError('retired Mesh extension path has unexpected package ownership')
+                        files[path]=None
+                    for path,(digest,mode) in CX_MESH_2002_INFO.items():
+                        files[path]=checked(path,digest=digest,mode=mode)
+                        if files[path][-1]!=1:raise ValueError('unsafe CX-Mesh successor metadata link count')
+                else:
+                    for path in MESH_FILES:
+                        owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
+                        if owner.returncode or owner.stdout.strip()!='cx-mesh: '+path:raise ValueError('residual Mesh conffile lacks sole successor ownership')
+                        files[path]=checked(path)
             elif sorted(rows)!=wanted:raise ValueError('unreviewed Mesh conffile ownership')
-            for path in MESH_FILES:files[path]=checked(path)
+            else:
+                for path in MESH_FILES:files[path]=checked(path)
             for hook in ('preinst','postinst','prerm','postrm'):
                 if os.path.lexists('/var/lib/dpkg/info/'+name+'.'+hook):raise ValueError('unexpected Mesh cleanup hook')
         else:
@@ -1127,7 +1152,7 @@ printf '%s  %s\n' 17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9a
     || fail 'Official Obsidian package metadata mismatch. Package installation was not started.'
 chmod 0755 "$temporary"
 chmod 0644 "$obsidian"
-packages=(agent-sphere=0.3.0-31 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchatd=0.5.0-1 "$obsidian")
+packages=(agent-sphere=0.3.0-32 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 contextd=0.1.0-27 uchatd=0.5.0-1 "$obsidian")
 if [[ $agpc_profile == full ]]; then
     packages+=(agpc-apps=0.3.0-1)
     # The old documentation-only metapackage becomes an exact dependency bridge.
@@ -1198,7 +1223,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.3.0-31 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-5 [uchatd]=0.5.0-1)
+declare -A floor=([agent-sphere]=0.3.0-32 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-2 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-5 [uchatd]=0.5.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
