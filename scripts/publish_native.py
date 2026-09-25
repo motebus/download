@@ -221,11 +221,26 @@ def windows_host_preview(pin):
     require(set(pin) == {"tag", "manifest_sha256", "sha256", "bytes"}, "invalid Windows preview pin")
     require(re.fullmatch(r"agpc-windows-v\d+\.\d+\.\d+-host-access-preview\.\d+", pin["tag"]) is not None, "invalid Windows host tag")
     manifest = json.loads(fetch_release(pin["tag"], "MANIFEST.json", pin["manifest_sha256"]))
-    require(manifest["schema"] == "agpc.windows-public-preview/v1"
-            and manifest["platform"] == "windows" and manifest["architecture"] == "x86_64"
-            and pin["tag"] == "agpc-windows-v" + manifest["version"]
-            and manifest["artifact"] == {"name": "agpc.exe", "bytes": pin["bytes"], "sha256": pin["sha256"]},
-            "Windows host manifest mismatch")
+    standard_manifest = (manifest.get("schema") == "agpc.windows-public-preview/v1"
+                         and manifest.get("platform") == "windows"
+                         and manifest.get("architecture") == "x86_64"
+                         and manifest.get("artifact") == {"name": "agpc.exe", "bytes": pin["bytes"],
+                                                          "sha256": pin["sha256"]})
+    local_build_manifest = (manifest.get("schema") == "agpc.windows-local-release/v1"
+                            and manifest.get("file") == "agpc.exe"
+                            and manifest.get("architecture") == "x86_64"
+                            and manifest.get("bytes") == pin["bytes"]
+                            and manifest.get("sha256") == pin["sha256"]
+                            and manifest.get("build_origin") == "user-authorized-local-build"
+                            and manifest.get("ci_artifact") is False
+                            and re.fullmatch(r"[0-9a-f]{40}", manifest.get("source_commit", "")) is not None
+                            and manifest.get("authenticode_signed") is False
+                            and manifest.get("full_runtime_ready") is False
+                            and manifest.get("embedded_components") == ["sphered", "mote-proxy", "mote-mcp-ultra"]
+                            and manifest.get("cdp") == {"scope": "local-only", "local_alias": "local.mote",
+                                                        "remote_support": "retired"})
+    require(pin["tag"] == "agpc-windows-v" + manifest.get("version", "")
+            and (standard_manifest or local_build_manifest), "Windows host manifest mismatch")
     executable = fetch_release(pin["tag"], "agpc.exe", pin["sha256"])
     require(len(executable) == pin["bytes"], "Windows host size mismatch")
     return validate_windows_executable(executable, pin["sha256"], 0x8664), manifest
