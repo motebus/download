@@ -84,6 +84,32 @@ class NativePagesTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid Windows host tag"):
             native.windows_host_preview(dict(pin, tag="latest"))
 
+    def test_windows_host_preview_accepts_pinned_user_authorized_local_build(self):
+        executable = bytearray(256)
+        executable[:2] = b"MZ"
+        struct.pack_into("<I", executable, 60, 64)
+        executable[64:68] = b"PE\0\0"
+        struct.pack_into("<H", executable, 68, 0x8664)
+        pin = {"tag": "agpc-windows-v0.1.0-host-access-preview.5", "manifest_sha256": "a" * 64,
+               "sha256": native.digest(executable), "bytes": len(executable)}
+        manifest = {"schema": "agpc.windows-local-release/v1", "version": "0.1.0-host-access-preview.5",
+                    "file": "agpc.exe", "architecture": "x86_64", "bytes": len(executable),
+                    "sha256": pin["sha256"], "authenticode_signed": False,
+                    "source_commit": "d" * 40, "build_origin": "user-authorized-local-build",
+                    "ci_artifact": False, "full_runtime_ready": False,
+                    "embedded_components": ["sphered", "mote-proxy", "mote-mcp-ultra"],
+                    "cdp": {"scope": "local-only", "local_alias": "local.mote", "remote_support": "retired"}}
+        with patch.object(native, "fetch_release", side_effect=[json.dumps(manifest).encode(), bytes(executable)]):
+            result, actual = native.windows_host_preview(pin)
+            self.assertEqual(result, executable)
+            self.assertEqual(actual, manifest)
+        for change in ({"ci_artifact": True}, {"source_commit": "main"},
+                       {"cdp": {"scope": "remote"}}, {"full_runtime_ready": True}):
+            invalid = {**manifest, **change}
+            with patch.object(native, "fetch_release", side_effect=[json.dumps(invalid).encode()]):
+                with self.assertRaisesRegex(ValueError, "Windows host manifest mismatch"):
+                    native.windows_host_preview(pin)
+
     def test_windows_cpu_hash_and_extra_file_checks(self):
         executable = bytearray(256)
         executable[:2] = b"MZ"
