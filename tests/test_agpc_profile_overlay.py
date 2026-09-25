@@ -21,6 +21,7 @@ def config_fixture():
     records = {r["name"]: r for r in config["release"]["packages"]}
     records["agpc-apps"] = records.pop("agent-apps")
     records["agpc-cdp"] = copy.deepcopy(records["agent-ultra"])
+    records["agpc-cdp"]["architecture"] = "amd64"
     records["contextd"] = copy.deepcopy(records["uchatd"])
     packages = []
     for name in p.AGENT_PROFILE_REDISTRIBUTABLE:

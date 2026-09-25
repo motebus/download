@@ -40,7 +40,7 @@ class UninstallPreflightTest(unittest.TestCase):
         return self.module['inspect'](self.policy, self.root)
 
     def test_policy_matches_reviewed_catalog_and_known_hooks(self):
-        # The removal engine remains pinned to its current signed v0.3.0-51 policy
+        # The removal engine remains pinned to its current signed v0.3.0-53 policy
         # while the active installer cohort advances independently. Build the
         # exact historical catalog from the engine's own reviewed constants.
         policy = self.module['POLICY']

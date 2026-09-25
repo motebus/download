@@ -54,9 +54,9 @@ chmod 0755 /usr/sbin/policy-rc.d
 printf 'AGPC verification: Ubuntu %s installing official Obsidian prerequisite\n' "$1"
 apt-get --no-install-recommends --no-remove -y install "/prerequisites/$2"
 printf 'Prerequisite obsidian %s\n' "$(dpkg-query -W -f='${Version}' obsidian)"
-apt-get --simulate --no-remove install agent-sphere agent-ultra agpc-manager agent-apps
-printf 'AGPC verification: Ubuntu %s installing the four AGPC entry packages\n' "$1"
-apt-get --no-remove -y install agent-sphere agent-ultra agpc-manager agent-apps
+apt-get --simulate --no-remove install agent-sphere agent-ultra agpc-manager agpc-cdp contextd uchat uchatd agpc-apps
+printf 'AGPC verification: Ubuntu %s installing the current AGPC profile packages\n' "$1"
+apt-get --no-remove -y install agent-sphere agent-ultra agpc-manager agpc-cdp contextd uchat uchatd agpc-apps
 test -z "$(dpkg --audit)"
 dpkg-query -W -f='InstalledAGPC\t${binary:Package}\t${Version}\t${db:Status-Abbrev}\n'
 python3 /verification/verify_uchat_install.py
@@ -207,7 +207,7 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
             selected = validate_plan(output, base, overlay, full=True)
             validate_installed_cohort(output, overlay)
             count = len(publish_apt.canonical_packages(overlay))
-            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra agpc-manager agent-apps "
+            print(f"Ubuntu {version}: signed-index apt install agent-sphere agent-ultra agpc-manager agpc-cdp contextd uchat uchatd agpc-apps "
                   f"resolves canonical{count} with the exact official Obsidian prerequisite; "
                   f"all {count + len(overlay['release']['external_prerequisites'])} packages installed and configured by native APT/DPKG; "
                   "no container runtime packages, retired runtimes, retention guards or removals; service/owner readiness is separate")

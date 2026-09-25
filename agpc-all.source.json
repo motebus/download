@@ -1,9 +1,9 @@
 {
   "schema": "agpc-installer-source/v2",
   "repository": "motebus/download",
-  "tag": "v0.3.0-44",
-  "source_commit": "4f7bd9bd9f1593d359e168bb9cd2edb260455462",
+  "tag": "v0.3.0-46",
+  "source_commit": "acaff53fe26d1f21ee5d63d0339fa9cd5dc14dbd",
   "asset": "agpc-all.sh",
-  "sha256": "e0aa9da6fe4a3c97cda12ed984272987ebf30b642c9020b641c06726019ebb18",
+  "sha256": "9ba17af03d00b2c873cd73250c765ae43516e883c389855c4dae841d9ceaa7ac",
   "profile": "full"
 }

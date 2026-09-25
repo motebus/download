@@ -372,7 +372,7 @@ AGENT_PROFILE_REDISTRIBUTABLE = tuple(
                  (old, "contextd") if old == "cx-loop" else (old,)))
 AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-42", "contextd": "0.1.0-27",
                         "uchatd": "0.6.0-1", "uchat": "3.2.0-7", "agpc-apps": "0.3.0-1",
-                        "agpc-cdp": "0.1.0-2"}
+                        "agpc-cdp": "0.2.0-1"}
 
 
 def is_full_overlay(config):
@@ -657,7 +657,7 @@ def validate_full_overlay_config(release: dict, *, schema=AGENT_COMPUTER_FULL_SC
         require(set(package) == {"name", "version", "architecture", "asset", "sha256", "provenance"},
                 "full overlay package fields are invalid")
         name = package["name"]
-        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "agpc-apps", "agpc-cdp", "jujue", *AGENT_COMPUTER_LEGACY_RETENTION) else "amd64"
+        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "agpc-apps", "jujue", *AGENT_COMPUTER_LEGACY_RETENTION) else "amd64"
         require(package["architecture"] == architecture, f"{name}: invalid full overlay architecture")
         require(isinstance(package["version"], str)
                 and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", package["version"]),
