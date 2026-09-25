@@ -3,7 +3,7 @@
   "repository": "motebus/download",
   "tag": "v0.3.0-46",
   "source_commit": "acaff53fe26d1f21ee5d63d0339fa9cd5dc14dbd",
-  "asset": "agent-sphere-apps.sh",
+  "asset": "agpc-all.sh",
   "sha256": "9ba17af03d00b2c873cd73250c765ae43516e883c389855c4dae841d9ceaa7ac",
   "profile": "full"
 }
