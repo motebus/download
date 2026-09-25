@@ -29,11 +29,12 @@ sudo bash ./agpc-all.sh</pre>
 <p><a href="https://github.com/motebus/download/releases">Versioned releases and historical platform previews</a></p>
 <small>Package installation does not establish application health, device admission or cross-machine handoff readiness.</small>
 <h2>Windows</h2>
-<p><a href="agpc.exe">Download agpc.exe (x86-64)</a>: unsigned <strong>0.1.0-host-access-preview.2</strong>, an outbound-access preview with FreeRDP 3.31.1 and native MCP. Run <code>agpc.exe</code> and approve Windows UAC when prompted. No Docker or WSL is required. First-time FreeRDP provisioning requires Internet access.</p>
+<p><a href="agpc.exe">Download agpc.exe (x86-64)</a>: unsigned <strong>0.1.0-host-access-preview.6</strong>, an outbound-access preview with local CDP, a per-user cdpd, FreeRDP 3.31.1 and native MCP. Run <code>agpc.exe</code> and approve Windows UAC when prompted. No Docker or WSL is required. First-time FreeRDP provisioning requires Internet access.</p>
 <pre>curl.exe -fL https://motebus.github.io/download/agpc.exe -o agpc.exe
 .\agpc.exe</pre>
 <p>RDP uses its independent Mote channel. Windows Home can use the FreeRDP client; this does not add an RDP server to Windows Home. MCP binaries are packaged with deny-by-default policy. Local CDP is a preview.</p>
 <p><strong>This is not the complete AGPC host installer.</strong> The outbound profile does not include moted or provision inbound host access. Full uChat/contextd/Redis/CoD integration and remote CDP admission are incomplete. Remote SSH/RDP and MCP execution have not been accepted for this exact build. Native build and PowerShell 5.1/7 test suites passed; fixture tests do not establish remote readiness.</p>
-<p>ARM64 remains the earlier manifest-dependent preview. <a href="https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.2">Windows release notes, checksums and limitations</a>.</p>
+<p>The CDP CLI and MCP browser adapter use the authenticated local P channel to cdpd. Headed Google Maps and a live Rust MCP adapter request passed on medge-oa.mote. Windows CDP remains local-only.</p>
+<p>ARM64 remains the earlier manifest-dependent preview. <a href="https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.6">Windows release notes, checksums and limitations</a>.</p>
 </body>
 </html>

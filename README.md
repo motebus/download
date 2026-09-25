@@ -86,8 +86,8 @@ AGPC installation paths.
 ## Windows
 
 [Download agpc.exe (x86-64)](https://motebus.github.io/download/agpc.exe):
-**0.1.0-host-access-preview.5**, an unsigned outbound-access preview with
-the local CDP CLI, FreeRDP 3.31.1 and native MCP. Download and run `agpc.exe`, then approve Windows
+**0.1.0-host-access-preview.6**, an unsigned outbound-access preview with
+the local CDP CLI, per-user `cdpd`, FreeRDP 3.31.1 and native MCP. Download and run `agpc.exe`, then approve Windows
 UAC when prompted. No Docker or WSL is required. FreeRDP is provisioned when
 missing and needs Internet access for its initial download.
 
@@ -105,6 +105,11 @@ prerequisites; `plan` and `run` require an expiring operator policy and request:
 .\agpc.exe cdp run 'C:\path\policy.json' 'C:\path\request.json'
 ```
 
+Start `agpc.exe cdpd serve POLICY` with a private, expiring operator policy,
+then use `agpc.exe cdp --head local.mote [command]`. The CLI and bundled MCP
+`browser_cdp` adapter use the authenticated local P pipe to `cdpd`. Headed
+Google Maps and the Rust MCP adapter were verified on `medge-oa.mote`.
+
 This executable uses the `agpc.windows-access/v1` outbound profile: it does not
 include moted or provision a complete inbound host installation. Full
 uChat/contextd/Redis/CoD integration remains incomplete.
@@ -112,7 +117,7 @@ Remote SSH/RDP and MCP authorization/tool execution are not accepted for this
 exact build. Live local CDP operations completed under PowerShell 5.1 and 7;
 this does not establish remote readiness or clean-machine acceptance.
 
-[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.5).
+[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.6).
 ARM64 remains the earlier manifest-dependent preview at
 [agpc-arm64.exe](https://motebus.github.io/download/agpc-arm64.exe).
 
