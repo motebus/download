@@ -2,7 +2,7 @@
   "schema": "agent-computer-apt-overlay/v7",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.3.0-51",
+    "tag": "agent-computer-v0.3.0-52",
     "source_commit": "0f2e96c7ad9d81eeffd9bb887cb536ff2c21c314",
     "packages": [
       {
@@ -49,14 +49,14 @@
       },
       {
         "name": "agpc-cdp",
-        "version": "0.1.0-2",
+        "version": "0.1.0-3",
         "architecture": "all",
-        "asset": "agpc-cdp_0.1.0-2_all.deb",
-        "sha256": "f9b999bdb8eb70141d6e484967d36f86c6f55af22d024493e66d0033252df4b0",
+        "asset": "agpc-cdp_0.1.0-3_all.deb",
+        "sha256": "525ce948a8736e38785ac0c69cb528ca9a255482a76d9e4c2d44cde1c6c21374",
         "provenance": {
-          "source_commit": "89253805c3e50dbafeca5442296357ad4fb4ed97",
+          "source_commit": "983ee25a4bee28593977e1c030671028fd28d008",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 27322,
+          "main_pipeline_id": 27328,
           "build_status": "success",
           "public_payload_reviewed": true
         }
