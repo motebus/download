@@ -35,9 +35,12 @@ installation does not establish full runtime or cross-machine handoff readiness.
 The historical `agent-sphere-apps.sh` compatibility entry follows Full.
 
 Both profiles install `agpc-cdp`, which provides the terminal `cdp` client and
-the `cdpd` provider daemon. The daemon is fail-closed and remains disabled until
-the host has a reviewed `/etc/agpc-cdp/cdpd-binding.cjs` Mote P/S deployment
-binding. Package installation does not establish remote CDP readiness.
+the `cdpd` provider daemon. The client resolves the `moted`-owned `type=mote`
+record and uses the native P channel directly to `cdpd`; CDP traffic does not
+traverse SSH, `mote-proxy`, `moted`, or WSS. Target OS username/password is
+verified by `cdpd` through PAM. S-channel admission is a mutually exclusive
+alternative. A selected desktop user service, an available native Chrome/Edge
+runtime, and live target acceptance remain runtime setup checks.
 
 ## Work and context contract
 
