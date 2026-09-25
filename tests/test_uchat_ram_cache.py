@@ -1,7 +1,6 @@
-"""The installed-package smoke gate must recover from an empty Redis cache."""
+"""The installed-package smoke gate enforces Redis as the sole durable Inbox store."""
 import importlib.util
 from pathlib import Path
-import sqlite3
 import tempfile
 import unittest
 
@@ -10,24 +9,28 @@ smoke = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(smoke)
 
 
-class RamCacheTests(unittest.TestCase):
-    def test_current_and_historical_cache_modes_are_distinct(self):
-        for ram, expected in ((True, 'no'), (False, 'yes')):
-            args = smoke.redis_command(Path('/fixture'), ram)
-            self.assertEqual(args[args.index('--appendonly') + 1], expected)
-            self.assertEqual(args[args.index('--save') + 1], '')
+class DurableRedisTests(unittest.TestCase):
+    def test_runtime_uses_strict_durable_redis(self):
+        args = smoke.redis_command(Path('/fixture'))
+        self.assertEqual(args[args.index('--appendonly') + 1], 'yes')
+        self.assertEqual(args[args.index('--appendfsync') + 1], 'always')
+        self.assertEqual(args[args.index('--aof-load-truncated') + 1], 'no')
+        self.assertEqual(args[args.index('--save') + 1], '')
 
-    def test_sqlite_required_and_redis_files_forbidden(self):
+    def test_redis_aof_required_and_sqlite_forbidden(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             with self.assertRaises(AssertionError):
                 smoke.verify_durable_store(root)
-            with sqlite3.connect(root / 'inbox.sqlite3') as db:
-                db.executescript("CREATE TABLE metadata(key,value); INSERT INTO metadata VALUES('initialized','yes'); CREATE TABLE records(key); INSERT INTO records VALUES('item:fixture');")
+            aof = root / 'appendonlydir' / 'appendonly.aof.1.incr.aof'
+            aof.parent.mkdir()
+            aof.touch()
             smoke.verify_durable_store(root)
-            for name in ('dump.rdb', 'appendonly.aof.1.incr.aof'):
-                path = root / name
-                path.touch()
-                with self.assertRaises(AssertionError):
-                    smoke.verify_durable_store(root)
-                path.unlink()
+            sqlite = root / 'inbox.sqlite3'
+            sqlite.touch()
+            with self.assertRaises(AssertionError):
+                smoke.verify_durable_store(root)
+
+
+if __name__ == '__main__':
+    unittest.main()

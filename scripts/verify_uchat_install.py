@@ -8,28 +8,22 @@ from pathlib import Path
 import pwd
 import signal
 import socket
-import sqlite3
 import subprocess
 import tempfile
 import time
 import uuid
 
 
-def redis_command(root, ram_cache):
+def redis_command(root):
     return ['redis-server', '--port', '0', '--unixsocket', str(root / 'r.sock'),
-            '--unixsocketperm', '600', '--dir', str(root), '--appendonly',
-            'no' if ram_cache else 'yes', '--appendfsync', 'always', '--save', '',
-            '--maxmemory-policy', 'noeviction']
+            '--unixsocketperm', '600', '--dir', str(root), '--appendonly', 'yes',
+            '--appendfsync', 'always', '--no-appendfsync-on-rewrite', 'no',
+            '--aof-load-truncated', 'no', '--save', '', '--maxmemory-policy', 'noeviction']
 
 
 def verify_durable_store(root):
-    assert not list(root.rglob('*.aof*')) and not list(root.rglob('*.rdb')), 'Redis wrote a persistent cache file'
-    database = root / 'inbox.sqlite3'
-    assert database.is_file(), 'authoritative SQLite Inbox is missing'
-    with sqlite3.connect(database.as_uri() + '?mode=ro', uri=True) as db:
-        assert db.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
-        assert dict(db.execute('SELECT key,value FROM metadata'))['initialized'] == 'yes'
-        assert db.execute("SELECT count(*) FROM records WHERE key LIKE 'item:%'").fetchone()[0] > 0
+    assert not list(root.rglob('*.sqlite*')), 'retired SQLite Inbox state was created'
+    assert list(root.rglob('*.aof*')), 'durable Redis AOF is missing'
 
 
 def connect(path):
@@ -96,13 +90,11 @@ def main():
     subprocess.run(['uchatd', 'check-config'], check=True)
     subprocess.run(['uchat', '--version'], check=True)
     version = subprocess.check_output(['dpkg-query', '-W', '-f=${Version}', 'uchatd'], text=True).strip()
-    ram_cache = subprocess.run(['dpkg', '--compare-versions', version, 'ge', '0.4.0-1']).returncode == 0
-    if ram_cache:
-        settings = Path('/etc/uchatd/redis.conf').read_text().splitlines()
-        for setting in ('appendonly no', 'save ""', 'dir /run/uchatd-store',
-                        'rename-command SAVE ""', 'rename-command BGSAVE ""',
-                        'rename-command BGREWRITEAOF ""'):
-            assert setting in settings, setting
+    assert subprocess.run(['dpkg', '--compare-versions', version, 'ge', '0.6.0-1']).returncode == 0
+    settings = Path('/etc/uchatd/redis.conf').read_text().splitlines()
+    for setting in ('appendonly yes', 'appendfsync always', 'no-appendfsync-on-rewrite no',
+                    'aof-load-truncated no', 'save ""', 'dir /var/lib/uchatd-redis'):
+        assert setting in settings, setting
     subprocess.run(['cx-mesh-network', 'check-config', '--config', '/etc/cx-mesh/network.json'], check=True)
     assert Path('/usr/libexec/uchat/setup-default.py').stat().st_mode & 0o777 == 0o755
     processes, sessions = [], []
@@ -138,10 +130,6 @@ def main():
                              conversations=['fixture'], send_types=['task', 'result'])],
             groups={}, peers={})))
         config.chmod(0o644)
-        if ram_cache:
-            values = json.loads(config.read_text())
-            values['database'] = str(root / 'inbox.sqlite3')
-            config.write_text(json.dumps(values))
         prefix = ['setpriv', '--reuid', str(account.pw_uid), '--regid', str(account.pw_gid), '--init-groups']
         subprocess.run(prefix + ['uchatd', 'check-config', '--config', str(config)], check=True)
         print('Installed uchatd can read owner-protected CX-Mesh membership as its service account')
@@ -151,7 +139,7 @@ def main():
                 processes.append(process)
                 return process
             try:
-                start(*redis_command(root, ram_cache))
+                start(*redis_command(root))
                 connect(root / 'r.sock').close()
                 start('uchatd', 'serve', '--config', str(config))
                 human = Session(root / 'u.sock', '@human'); sessions.append(human)
@@ -176,9 +164,8 @@ def main():
                 for process in reversed(processes):
                     process.kill(); process.wait(timeout=10)
                 processes.clear()
-                if ram_cache:
-                    verify_durable_store(root)
-                start(*redis_command(root, ram_cache))
+                verify_durable_store(root)
+                start(*redis_command(root))
                 connect(root / 'r.sock').close()
                 start('uchatd', 'serve', '--config', str(config))
                 chief = Session(root / 'u.sock', '@chief'); sessions.append(chief)
@@ -205,9 +192,8 @@ def main():
                 assert (item['parent_id'], item['thread_id'], item['content']['text']) == (
                     sent, 'fixture-thread', 'fixture completed')
                 assert human.call('GET', inbox_id=sent)['item']['state'] == 'REPLIED'
-                if ram_cache:
-                    verify_durable_store(root)
-                    print('Installed uChat: SQLite durability and RAM-only Redis cache-loss recovery passed')
+                verify_durable_store(root)
+                print('Installed uChat: durable Redis AOF crash recovery passed; SQLite remains retired')
                 print('Installed uChat: shared Mesh profile, protected machine name, independent Inbox, Chief lease, private Redis, crash persistence and auto reply passed')
             except BaseException:
                 print((root / 'process.log').read_text())
