@@ -401,7 +401,7 @@ class FullAgentComputerOverlayTest(unittest.TestCase):
                     output.replace("Inst agos (9.0.0-1", "Inst agos (2.0.0-1"), output + "Remv unrelated [1]\n"):
             with self.assertRaises(p.PublishError):
                 resolution.validate_plan(bad, base, config, full=True)
-        self.assertIn("apt-get --simulate --no-remove install agent-sphere agent-ultra agpc-manager agent-apps", resolution.FULL_SIMULATION)
+        self.assertIn("apt-get --simulate --no-remove install agent-sphere agent-ultra agpc-manager agpc-cdp contextd uchat uchatd agpc-apps", resolution.FULL_SIMULATION)
         self.assertNotIn("trusted=yes", resolution.FULL_SIMULATION)
         self.assertNotIn("install agent-sphere\n", resolution.FULL_SIMULATION)
 
