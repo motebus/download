@@ -125,7 +125,7 @@ def main():
         config.write_text(json.dumps(dict(
             socket=str(root / 'u.sock'), redis_socket=str(root / 'r.sock'),
             mesh='local', node='local', machine_uid=0, mesh_config=str(network),
-            lease_ms=30000, presence_ms=30000,
+            lease_ms=30000, presence_ms=30000, store_identity=str(root / 'store.identity.json'),
             principals=[dict(uid=0, addresses=['@human', '@worker'],
                              conversations=['fixture'], send_types=['task', 'result'])],
             groups={}, peers={})))
@@ -141,6 +141,8 @@ def main():
             try:
                 start(*redis_command(root))
                 connect(root / 'r.sock').close()
+                subprocess.run(prefix + ['uchatd', 'init-store', '--config', str(config)], check=True)
+                subprocess.run(prefix + ['uchatd', 'check-store', '--config', str(config)], check=True)
                 start('uchatd', 'serve', '--config', str(config))
                 human = Session(root / 'u.sock', '@human'); sessions.append(human)
                 names = human.call('UNAME_LIST')
@@ -167,6 +169,7 @@ def main():
                 verify_durable_store(root)
                 start(*redis_command(root))
                 connect(root / 'r.sock').close()
+                subprocess.run(prefix + ['uchatd', 'check-store', '--config', str(config)], check=True)
                 start('uchatd', 'serve', '--config', str(config))
                 chief = Session(root / 'u.sock', '@chief'); sessions.append(chief)
                 assert chief.call('GET', inbox_id=chief_item)['item']['to'] == ['@chief']
