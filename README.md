@@ -30,7 +30,10 @@ SQLite-based uChat installation must complete the separate offline migration
 before this installer can proceed.
 
 `@machine-name` is the default user-to-user Inbox route; it requires no setting or check. `contextd` owns local task context isolation; cloud CoD Server (`codd`) is not
-installed. New S Channel and Agent identity integration remain deferred. Package
+installed. Local MCP execution uses the independent S Channel authority in
+`mote-secd`; requests require administrator approval and the caller must have
+explicit membership in `mote-sec-consumer`. Remote M-channel admission and
+cross-machine agent delegation are not enabled by this package update. Package
 installation does not establish full runtime or cross-machine handoff readiness.
 The historical `agent-sphere-apps.sh` compatibility entry follows Full.
 
@@ -172,6 +175,6 @@ Codex CLI is not downloaded, installed or updated by `agpc.sh`. Existing Codex
 files and links are preserved, including installations from earlier previews.
 The optional Codex diagnostic requires a separately provided binary.
 
-Downloads show an artifact start line and SHA-256 completion without repeated transfer-rate or elapsed-time output. Core packages include the independent mote-mcp-ultra server, CX-Mesh execution runtime, uchat and uchatd. The legacy mote-mcpd gateway and its six tools are retired; inbox remains with uchatd. Existing medge and agpc-manager versions and configuration are preserved.
+Downloads show an artifact start line and SHA-256 completion without repeated transfer-rate or elapsed-time output. Core packages include the local `mote-mcpd` gateway, its independent `mote-secd` rights authority, CX-Mesh execution runtime, uchat and uchatd. `mote-mcp-ultra` is retired: its native adapters are embedded in `mote-mcpd`, with existing administrator configuration preserved during the reviewed package transition. `ultra-mcp` and `ultra-mcp-xx` are cloud components and are not installed on AGPC. Inbox remains with uchatd. Existing medge and agpc-manager versions and configuration are preserved.
 
 Linux core installation includes the `rdp TARGET.mote` command and two menu entries: **FreeRDP(xrdp)** and **FreeRDP(physical)**, both using FreeRDP at 1920×1080. Native Remmina remains installed with RDP, Secret Service and built-in SSH/SFTP support. Open Remmina from the app menu to manage saved profiles. There are no Open with Remmina launcher actions. Existing profiles and credentials are preserved. Target profile registration is required; no live targets or credentials are bundled. Existing single-mode profiles and listeners require the migration described in the versioned release. RDP uses its independent Mote relay, without SSH forwarding. RDP relay v2 selects Physical on remote loopback 3389 or XRDP on loopback 3390; both can operate concurrently through distinct local listeners. The installer also provides standard xrdp/xorgxrdp host setup. The host uses TLS and a loopback listener, retaining its configured port. A new xrdp installation uses port 3390; Physical RDP reserves 3389; `--rdp-port PORT` overrides this choice. Existing GNOME access is preserved. A compatible Xorg desktop session must already be installed. Use the client as your desktop user with the authorized Mote ingress address, and verify the target server certificate. Desktop login and Mote transport acceptance remain pending. The current Windows x86-64 preview uses the SDL FreeRDP 3.31.1 client; native RDP host and end-to-end transport acceptance remain pending.
