@@ -364,13 +364,13 @@ AGENT_LOOP_SPHERE_COMPONENTS = (*AGENT_SPHERE_COMPONENTS, "mote-mcp-ultra", "cx-
 AGENT_LOOP_REDISTRIBUTABLE = tuple(name for old in AGENT_COMPUTER_REDISTRIBUTABLE
     for name in ((old, "cx-loop") if old == "cx-mesh" else (old, "mote-mcp-ultra") if old == "mote-mcpd" else (old,)))
 
-AGENT_PROFILE_SPHERE_COMPONENTS = (*AGENT_LOOP_SPHERE_COMPONENTS, "contextd", "uchat", "uchatd")
+AGENT_PROFILE_SPHERE_COMPONENTS = (*AGENT_SPHERE_COMPONENTS, "cx-loop", "contextd", "uchat", "uchatd")
 AGENT_PROFILE_REDISTRIBUTABLE = tuple(
     name for old in AGENT_LOOP_REDISTRIBUTABLE
-    for name in (("agpc-apps",) if old == "agent-apps" else
+    for name in (() if old == "mote-mcp-ultra" else ("agpc-apps",) if old == "agent-apps" else
                  (old, "agpc-cdp") if old == "agpc-manager" else
                  (old, "contextd") if old == "cx-loop" else (old,)))
-AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-42", "contextd": "0.1.0-27",
+AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-43", "mote-mcpd": "3.3.0-1", "mote-secd": "1.1.0-1", "contextd": "0.1.0-27",
                         "uchatd": "0.6.0-1", "uchat": "3.2.0-7", "agpc-apps": "0.3.0-1",
                         "agpc-cdp": "0.2.0-1"}
 
@@ -737,7 +737,10 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
         validate_profile_dependencies(bundle, approved)
     if config["schema"] in (AGENT_COMPUTER_LOOP_SCHEMA, AGENT_COMPUTER_PROFILE_SCHEMA):
         validate_cx_loop_dependencies(bundle, approved)
-        validate_mcp_ultra_dependencies(bundle, approved)
+        if profile:
+            validate_mcp_gateway_dependencies(bundle, approved)
+        else:
+            validate_mcp_ultra_dependencies(bundle, approved)
     # Runtime composition must never pull the management UI back into execution.
     graph = {}
     for package in release["packages"]:
@@ -764,7 +767,8 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
     for package in overlay_packages(config):
         asset = bundle / package["asset"]
         for field in ("Depends", "Pre-Depends", "Recommends", "Suggests", "Provides"):
-            for retired in ("mote-bridge-mcp", "cx-agent", "codex-mesh", "sphere-manager"):
+            for retired in (("mote-bridge-mcp", "cx-agent", "codex-mesh", "sphere-manager")
+                            + (("mote-mcp-ultra",) if profile else ())):
                 require(not re.search(r"(?<![a-z0-9+.-])" + re.escape(retired) + r"(?![a-z0-9+.-])",
                                       package_field(asset, field)),
                         f"{asset.name}: {field} retains the retired {retired} package")
@@ -853,6 +857,26 @@ def validate_cx_loop_dependencies(bundle: Path, approved: dict) -> None:
         require(not re.search(r"(?<![a-z0-9+.-])(?:redis(?:-server|-tools)?|inboxd)(?![a-z0-9+.-])",
             package_field(bundle / approved["cx-loop"]["asset"], field)),
             "cx-loop: Redis and Inbox must remain private to uchatd")
+
+
+def validate_mcp_gateway_dependencies(bundle: Path, approved: dict) -> None:
+    """The local gateway embeds adapters and consumes the independent S authority."""
+    require("mote-mcp-ultra" not in approved, "retired provider bundle is not a runtime component")
+    asset = bundle / approved["mote-mcpd"]["asset"]
+    for name, floor in (("mote-mcpd", "3.3.0-1"), ("mote-secd", "1.1.0-1")):
+        run("dpkg", "--compare-versions", approved[name]["version"], "ge", floor)
+    terms = [term.strip() for term in package_field(asset, "Depends").split(",")]
+    versions = [m[1] for term in terms if (m := re.fullmatch(r"mote-secd \(>= ([^\s()]+)\)", term))]
+    require(len(versions) == 1, "mote-mcpd requires the independent mote-secd authority")
+    run("dpkg", "--compare-versions", versions[0], "ge", "1.1.0-1")
+    run("dpkg", "--compare-versions", approved["mote-secd"]["version"], "ge", versions[0])
+    for field in ("Depends", "Pre-Depends", "Recommends", "Suggests"):
+        require(not re.search(r"(?<![a-z0-9+.-])(?:redis(?:-server|-tools)?|inboxd|mote-mcp-ultra)(?![a-z0-9+.-])",
+                              package_field(asset, field)),
+                f"mote-mcpd: {field} must not restore retired providers or own Inbox storage")
+    for field in ("Breaks", "Replaces"):
+        require("mote-mcp-ultra (<< 0.3.0)" in [term.strip() for term in package_field(asset, field).split(",")],
+                f"mote-mcpd: {field} must preserve the reviewed provider ownership transition")
 
 
 def validate_mcp_ultra_dependencies(bundle: Path, approved: dict) -> None:
