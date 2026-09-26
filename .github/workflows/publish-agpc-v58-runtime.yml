@@ -38,14 +38,14 @@ jobs:
           cat > "$RUNNER_TEMP/git-askpass.sh" <<'EOF'
           #!/usr/bin/env bash
           case "$1" in
-            *Username*) printf '%s\n' "$AGPC_GITLAB_READ_USER" ;;
             *Password*) printf '%s\n' "$AGPC_GITLAB_READ_TOKEN" ;;
             *) exit 1 ;;
           esac
           EOF
           chmod 0700 "$RUNNER_TEMP/git-askpass.sh"
+          authenticated_url="https://${AGPC_GITLAB_READ_USER}@${AGPC_GITLAB_SOURCE_URL#https://}"
           GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh" GIT_TERMINAL_PROMPT=0 \
-            git clone --filter=blob:none --no-checkout "$AGPC_GITLAB_SOURCE_URL" source
+            git clone --filter=blob:none --no-checkout "$authenticated_url" source
           git -C source fetch --depth=1 origin "$AGPC_SOURCE_COMMIT"
           git -C source checkout --detach "$AGPC_SOURCE_COMMIT"
           test "$(git -C source rev-parse HEAD)" = "$AGPC_SOURCE_COMMIT"
@@ -121,14 +121,14 @@ jobs:
           cat > "$RUNNER_TEMP/git-askpass.sh" <<'EOF'
           #!/usr/bin/env bash
           case "$1" in
-            *Username*) printf '%s\n' "$AGPC_GITLAB_READ_USER" ;;
             *Password*) printf '%s\n' "$AGPC_GITLAB_READ_TOKEN" ;;
             *) exit 1 ;;
           esac
           EOF
           chmod 0700 "$RUNNER_TEMP/git-askpass.sh"
+          authenticated_url="https://${AGPC_GITLAB_READ_USER}@${AGPC_GITLAB_SOURCE_URL#https://}"
           GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh" GIT_TERMINAL_PROMPT=0 \
-            git clone --filter=blob:none --no-checkout "$AGPC_GITLAB_SOURCE_URL" source
+            git clone --filter=blob:none --no-checkout "$authenticated_url" source
           git -C source fetch --depth=1 origin "$AGPC_SOURCE_COMMIT"
           git -C source checkout --detach "$AGPC_SOURCE_COMMIT"
           test "$(git -C source rev-parse HEAD)" = "$AGPC_SOURCE_COMMIT"
