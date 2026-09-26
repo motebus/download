@@ -28,17 +28,14 @@ jobs:
       - name: Check out exact reviewed GitLab source
         env:
           AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
-          AGPC_GITLAB_READ_USER: ${{ secrets.AGPC_GITLAB_READ_USER }}
           AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
         run: |
           set -euo pipefail
           test -n "$AGPC_GITLAB_READ_TOKEN"
-          test -n "$AGPC_GITLAB_READ_USER"
           test -n "$AGPC_GITLAB_SOURCE_URL"
           cat > "$RUNNER_TEMP/git-askpass.sh" <<'EOF'
           #!/usr/bin/env bash
           case "$1" in
-            *Username*) printf '%s\n' "$AGPC_GITLAB_READ_USER" ;;
             *Password*) printf '%s\n' "$AGPC_GITLAB_READ_TOKEN" ;;
             *) exit 1 ;;
           esac
@@ -113,7 +110,6 @@ jobs:
       - name: Check out exact reviewed GitLab source
         env:
           AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
-          AGPC_GITLAB_READ_USER: ${{ secrets.AGPC_GITLAB_READ_USER }}
           AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
         run: |
           set -euo pipefail
@@ -121,7 +117,6 @@ jobs:
           cat > "$RUNNER_TEMP/git-askpass.sh" <<'EOF'
           #!/usr/bin/env bash
           case "$1" in
-            *Username*) printf '%s\n' "$AGPC_GITLAB_READ_USER" ;;
             *Password*) printf '%s\n' "$AGPC_GITLAB_READ_TOKEN" ;;
             *) exit 1 ;;
           esac
