@@ -1,0 +1,161 @@
+name: Publish AGPC v58 native runtime from reviewed GitLab source
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+  pages: write
+  id-token: write
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  AGPC_SOURCE_COMMIT: 7b25bb2857f99d9ed6898ad500ee18927939b994
+
+concurrency:
+  group: medge-apt-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: release
+    steps:
+      - name: Check out exact reviewed GitLab source
+        env:
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_READ_USER: ${{ secrets.AGPC_GITLAB_READ_USER }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$AGPC_GITLAB_READ_TOKEN"
+          test -n "$AGPC_GITLAB_READ_USER"
+          test -n "$AGPC_GITLAB_SOURCE_URL"
+          cat > "$RUNNER_TEMP/git-askpass.sh" <<'EOF'
+          #!/usr/bin/env bash
+          case "$1" in
+            *Username*) printf '%s\n' "$AGPC_GITLAB_READ_USER" ;;
+            *Password*) printf '%s\n' "$AGPC_GITLAB_READ_TOKEN" ;;
+            *) exit 1 ;;
+          esac
+          EOF
+          chmod 0700 "$RUNNER_TEMP/git-askpass.sh"
+          GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh" GIT_TERMINAL_PROMPT=0 \
+            git clone --filter=blob:none --no-checkout "$AGPC_GITLAB_SOURCE_URL" source
+          git -C source fetch --depth=1 origin "$AGPC_SOURCE_COMMIT"
+          git -C source checkout --detach "$AGPC_SOURCE_COMMIT"
+          test "$(git -C source rev-parse HEAD)" = "$AGPC_SOURCE_COMMIT"
+          git -C source remote remove origin
+      - name: Install native repository tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends apt-utils gnupg
+      - name: Verify reviewed source and publication boundaries
+        working-directory: source
+        run: |
+          python3 -m unittest discover -s tests -v
+          python3 scripts/publish_apt.py validate-tree .
+      - name: Import protected archive key
+        env:
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$MEDGE_APT_SIGNING_KEY"
+          printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
+      - name: Preserve deployed site and activate signed v8 native profiles
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: |
+          python3 scripts/publish_agpc_apt.py . "$GITHUB_WORKSPACE/apt-site" \
+            --evidence "$RUNNER_TEMP/agpc-promotion.json"
+          bash "$GITHUB_WORKSPACE/apt-site/agpc.sh" --help
+          bash "$GITHUB_WORKSPACE/apt-site/agpc-all.sh" --help
+      - name: Verify signed runtime entrypoints and APT metadata
+        working-directory: source
+        run: |
+          gpgv --keyring ./medge-archive-keyring.gpg "$GITHUB_WORKSPACE/apt-site/dists/stable/InRelease"
+          for name in agent-computer-apt-overlay.json agpc.sh agpc.source.json agpc-all.sh agpc-all.source.json uninstall.sh; do
+            gpgv --keyring ./medge-archive-keyring.gpg \
+              "$GITHUB_WORKSPACE/apt-site/$name.asc" "$GITHUB_WORKSPACE/apt-site/$name"
+          done
+          cmp --silent uninstall.sh "$GITHUB_WORKSPACE/apt-site/uninstall.sh"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agpc-v58-native-staged-site
+          path: apt-site/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agpc-v58-promotion-evidence
+          path: ${{ runner.temp }}/agpc-promotion*.json
+          if-no-files-found: error
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apt-site
+          retention-days: 30
+
+  native-acceptance:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [standard, full, upgrade]
+    steps:
+      - name: Check out exact reviewed GitLab source
+        env:
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_READ_USER: ${{ secrets.AGPC_GITLAB_READ_USER }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$AGPC_GITLAB_READ_TOKEN"
+          cat > "$RUNNER_TEMP/git-askpass.sh" <<'EOF'
+          #!/usr/bin/env bash
+          case "$1" in
+            *Username*) printf '%s\n' "$AGPC_GITLAB_READ_USER" ;;
+            *Password*) printf '%s\n' "$AGPC_GITLAB_READ_TOKEN" ;;
+            *) exit 1 ;;
+          esac
+          EOF
+          chmod 0700 "$RUNNER_TEMP/git-askpass.sh"
+          GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh" GIT_TERMINAL_PROMPT=0 \
+            git clone --filter=blob:none --no-checkout "$AGPC_GITLAB_SOURCE_URL" source
+          git -C source fetch --depth=1 origin "$AGPC_SOURCE_COMMIT"
+          git -C source checkout --detach "$AGPC_SOURCE_COMMIT"
+          test "$(git -C source rev-parse HEAD)" = "$AGPC_SOURCE_COMMIT"
+          git -C source remote remove origin
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: agpc-v58-native-staged-site
+          path: apt-site
+      - name: Install and reinstall native signed profile on disposable VM
+        run: >-
+          python3 source/scripts/verify_agpc_profiles.py apt-site
+          --profile '${{ matrix.profile }}'
+          --evidence acceptance/result.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: agpc-v58-native-acceptance-${{ matrix.profile }}
+          path: acceptance/
+          if-no-files-found: warn
+
+  deploy:
+    needs: [build, native-acceptance]
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish signed AGPC v58 native runtime
+        id: deployment
+        uses: actions/deploy-pages@v4
