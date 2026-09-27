@@ -12,7 +12,7 @@ permissions:
 
 env:
   PYTHONDONTWRITEBYTECODE: "1"
-  AGPC_SOURCE_COMMIT: 0123fdc9f1870763e04bb33a16355b59b411d87f
+  AGPC_SOURCE_COMMIT: cae1d10e046436ae5a3fa6173d5e15c9639ea808
 
 concurrency:
   group: medge-apt-pages
