@@ -132,4 +132,62 @@ class ProfilePublicationTests(unittest.TestCase):
             self.assertEqual(profiles.digest((self.site/name).read_bytes()),digest)
 
 
+class WindowsOnlyPagesTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name) / 'root'; (self.root/'scripts').mkdir(parents=True)
+        self.site = Path(self.temp.name) / 'site'; self.site.mkdir()
+        self.pin = {'tag':'agpc-windows-v0.1.0-host-access-preview.8',
+                    'manifest_sha256':'a'*64}
+        (self.root/'scripts/native-pages.json').write_text(json.dumps({'windows_x86_64':self.pin}))
+        (self.site/'agpc.sh').write_bytes(b'newer Linux profile')
+        (self.site/'agpc.exe').write_bytes(b'old Windows preview')
+        (self.site/'agent-computer-apt-overlay.json').write_text(json.dumps({
+            'schema':'agent-computer-apt-overlay/v8',
+            'release':{'tag':'agent-computer-v0.3.0-69'}}))
+        self.record = {'schema':'agpc.native-pages/v2',
+                       'linux_profiles':{'aggregate_tag':'agent-computer-v0.3.0-69'},
+                       'files':{name:{'sha256':native.file_digest(self.site/name),
+                                      'bytes':(self.site/name).stat().st_size}
+                                for name in ('agpc.sh','agpc.exe')}}
+        (self.site/'agpc-native.source.json').write_text(json.dumps(self.record))
+        sums = {name:item['sha256'] for name,item in self.record['files'].items()}
+        sums['agpc-native.source.json'] = native.file_digest(self.site/'agpc-native.source.json')
+        (self.site/'agpc-native-SHA256SUMS').write_bytes(''.join(
+            f"{sha}  {name}\n" for name,sha in sorted(sums.items())).encode())
+        for name in ('agpc.sh','agpc.exe','agpc-native.source.json',
+                     'agpc-native-SHA256SUMS','agent-computer-apt-overlay.json'):
+            (self.site/(name+'.asc')).write_text('signed')
+        (self.site/'index.html').write_text('newer landing page')
+
+    def publish(self):
+        def sign(root, site, names):
+            for name in names:(site/(name+'.asc')).write_text('new signature')
+        with patch.object(native.subprocess,'run',return_value=subprocess.CompletedProcess([],0)), \
+             patch.object(native,'windows_host_preview',return_value=(b'preview8',{'version':'preview8'})), \
+             patch.object(native,'sign_files',side_effect=sign):
+            native.overlay_windows(self.root,self.site,Path(self.temp.name)/'evidence.json')
+
+    def test_windows_update_preserves_newer_signed_linux_cohort(self):
+        original = native.snapshot(self.site)
+        self.publish()
+        self.assertEqual((self.site/'agpc.exe').read_bytes(),b'preview8')
+        self.assertEqual((self.site/'agpc.sh').read_bytes(),b'newer Linux profile')
+        self.assertEqual((self.site/'index.html').read_text(),'newer landing page')
+        for name, sha in original.items():
+            if name not in {'agpc.exe','agpc.exe.asc','agpc-native.source.json',
+                            'agpc-native.source.json.asc','agpc-native-SHA256SUMS',
+                            'agpc-native-SHA256SUMS.asc'}:
+                self.assertEqual(native.file_digest(self.site/name),sha)
+        updated = json.loads((self.site/'agpc-native.source.json').read_text())
+        self.assertEqual(updated['files']['agpc.exe']['sha256'],native.digest(b'preview8'))
+        self.assertEqual(updated['linux_profiles'],self.record['linux_profiles'])
+
+    def test_unsigned_or_mismatched_existing_site_is_rejected(self):
+        (self.site/'agpc.sh').write_bytes(b'corrupt profile')
+        with self.assertRaisesRegex(ValueError,'existing native file'):
+            self.publish()
+
+
 if __name__ == '__main__':unittest.main()

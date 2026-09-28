@@ -2,6 +2,11 @@ name: Publish native AGPC Pages entrypoints
 
 on:
   workflow_dispatch:
+    inputs:
+      windows_only:
+        description: Preserve the signed site and update only agpc.exe
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -57,8 +62,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
         run: |
-          python3 scripts/publish_native.py restore-and-overlay . apt-site \
-            --evidence "$RUNNER_TEMP/native-pages-verification.json"
+          if [ "${{ inputs.windows_only }}" = "true" ]; then
+            python3 scripts/publish_native.py restore-and-overlay-windows . apt-site \
+              --evidence "$RUNNER_TEMP/native-pages-verification.json"
+          else
+            python3 scripts/publish_native.py restore-and-overlay . apt-site \
+              --evidence "$RUNNER_TEMP/native-pages-verification.json"
+          fi
           bash apt-site/agpc.sh --help
           bash apt-site/agpc-all.sh --help
           bash apt-site/agpc-apps.sh install --dry-run --json
