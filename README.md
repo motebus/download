@@ -86,13 +86,15 @@ AGPC installation paths.
 ## Windows
 
 [Download agpc.exe (x86-64)](https://motebus.github.io/download/agpc.exe):
-**0.1.0-host-access-preview.6**, an unsigned outbound-access preview with
-the local CDP CLI, per-user `cdpd`, FreeRDP 3.31.1 and native MCP. Download and run `agpc.exe`, then approve Windows
-UAC when prompted. No Docker or WSL is required. FreeRDP is provisioned when
-missing and needs Internet access for its initial download.
+**0.1.0-host-access-preview.8**, an unsigned outbound-access preview with
+local CDP/cdpd, the Windows `mstsc.exe` RDP client, and native MCP. One elevated
+installation registers `agpc.exe` on the machine PATH and creates `cdp.exe`,
+`rdp.exe`, `run.exe`, `mesh.exe`, and `uchat.exe` as hard links to that one
+payload. New sign-in sessions can use those names directly from PowerShell.
+No Docker or WSL is required.
 
-RDP uses an independent Mote channel. Windows Home supports the FreeRDP client;
-FreeRDP does not add an RDP host to Windows Home. MCP binaries are packaged with
+RDP uses an independent Mote channel. Windows Home supports the `mstsc.exe` client
+but has no built-in RDP host. MCP binaries are packaged with
 deny-by-default policy. Windows CDP is local-only; remote CDP is retired.
 
 In PowerShell, `local.mote` resolves to this PC. `cdp doctor` inventories local
@@ -114,10 +116,12 @@ This executable uses the `agpc.windows-access/v1` outbound profile: it does not
 include moted or provision a complete inbound host installation. Full
 uChat/contextd/Redis/CoD integration remains incomplete.
 Remote SSH/RDP and MCP authorization/tool execution are not accepted for this
-exact build. Live local CDP operations completed under PowerShell 5.1 and 7;
-this does not establish remote readiness or clean-machine acceptance.
+exact build. RUN, Mesh, and uChat commands report owner-not-installed until
+their production services and S admission exist. Local CDP prerequisites were
+observed on MEDGE-OA; this does not establish browser execution on this exact
+build, remote readiness, or clean-machine acceptance.
 
-[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.6).
+[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.8).
 ARM64 remains the earlier manifest-dependent preview at
 [agpc-arm64.exe](https://motebus.github.io/download/agpc-arm64.exe).
 
