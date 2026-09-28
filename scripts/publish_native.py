@@ -332,15 +332,72 @@ def overlay(root, site, evidence_path, base=None):
     print(json.dumps({"native": record["version"], "preserved_files": result["preserved_files"], "changed_paths": result["changed_paths"]}, indent=2))
 
 
+def overlay_windows(root, site, evidence_path, base=None):
+    """Advance only the pinned Windows host preview on an existing signed site."""
+    before = snapshot(site)
+    key = str((root / "medge-archive-keyring.gpg").resolve())
+    for name in ("agpc-native.source.json", "agpc-native-SHA256SUMS", "agpc.exe",
+                 "agent-computer-apt-overlay.json"):
+        subprocess.run(["gpgv", "--keyring", key, str(site / (name + ".asc")),
+                        str(site / name)], check=True)
+    record = json.loads((site / "agpc-native.source.json").read_text())
+    require(record.get("schema") == "agpc.native-pages/v2"
+            and isinstance(record.get("files"), dict)
+            and isinstance(record.get("linux_profiles"), dict),
+            "existing signed native profile metadata required")
+    cohort = json.loads((site / "agent-computer-apt-overlay.json").read_text())
+    require(record["linux_profiles"].get("aggregate_tag") == cohort.get("release", {}).get("tag"),
+            "existing native profile cohort differs from signed site")
+    for name, item in record["files"].items():
+        require(re.fullmatch(r"[A-Za-z0-9_.-]+", name) is not None
+                and (site / name).is_file() and not (site / name).is_symlink()
+                and (site / name).stat().st_size == item["bytes"]
+                and file_digest(site / name) == item["sha256"],
+                "existing native file differs from signed metadata")
+    prior_sums = {name: item["sha256"] for name, item in record["files"].items()}
+    prior_sums["agpc-native.source.json"] = file_digest(site / "agpc-native.source.json")
+    expected_sums = "".join(f"{sha}  {name}\n"
+                            for name, sha in sorted(prior_sums.items())).encode()
+    require((site / "agpc-native-SHA256SUMS").read_bytes() == expected_sums,
+            "existing native checksum inventory differs from signed metadata")
+    pin = json.loads((root / "scripts/native-pages.json").read_text())["windows_x86_64"]
+    executable, manifest = windows_host_preview(pin)
+    record["files"]["agpc.exe"] = {"sha256": digest(executable), "bytes": len(executable)}
+    record["windows_x86_64"] = {
+        "release": f"https://github.com/{REPOSITORY}/releases/tag/{pin['tag']}",
+        "manifest_sha256": pin["manifest_sha256"], "manifest": manifest}
+    changed_names = {"agpc.exe", "agpc-native.source.json", "agpc-native-SHA256SUMS"}
+    (site / "agpc.exe").write_bytes(executable)
+    (site / "agpc.exe").chmod(0o755)
+    (site / "agpc-native.source.json").write_text(json.dumps(record, indent=2) + "\n")
+    updated_sums = {name: item["sha256"] for name, item in record["files"].items()}
+    updated_sums["agpc-native.source.json"] = file_digest(site / "agpc-native.source.json")
+    (site / "agpc-native-SHA256SUMS").write_bytes(
+        "".join(f"{sha}  {name}\n" for name, sha in sorted(updated_sums.items())).encode())
+    sign_files(root, site, changed_names)
+    after = snapshot(site)
+    allowed = changed_names | {name + ".asc" for name in changed_names}
+    verify_preservation(before, after, allowed)
+    evidence_path.write_text(json.dumps({
+        "schema": "agpc.windows-pages-evidence/v1", "base": base,
+        "release": pin["tag"], "published_sha256": after["agpc.exe"],
+        "changed_paths": sorted(name for name in allowed if before.get(name) != after.get(name)),
+        "preserved_files": len(set(before) - allowed)}, indent=2) + "\n")
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["restore-and-overlay", "overlay"])
+    parser.add_argument("command", choices=["restore-and-overlay", "overlay",
+                                            "restore-and-overlay-windows", "overlay-windows"])
     parser.add_argument("root", type=Path)
     parser.add_argument("site", type=Path)
     parser.add_argument("--evidence", type=Path, required=True)
     args = parser.parse_args()
-    base = restore_current(args.site) if args.command == "restore-and-overlay" else None
-    overlay(args.root, args.site, args.evidence, base)
+    base = restore_current(args.site) if args.command.startswith("restore-and-") else None
+    if args.command.endswith("-windows"):
+        overlay_windows(args.root, args.site, args.evidence, base)
+    else:
+        overlay(args.root, args.site, args.evidence, base)
     if base:
         require(current_pages() == base, "Pages deployment changed before promotion")
 
