@@ -1,4 +1,4 @@
-name: Publish AGPC v81 native runtime from reviewed GitLab source
+name: Publish AGPC v82 native runtime from reviewed GitLab source
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
 
 env:
   PYTHONDONTWRITEBYTECODE: "1"
-  AGPC_SOURCE_COMMIT: f4f5b9ea053aa3bd062861ce871374bc300233e5
+  AGPC_SOURCE_COMMIT: 813bc305cac1a3b70f2b4d45e295bf6aa72b8c8e
 
 concurrency:
   group: medge-apt-pages
@@ -68,24 +68,25 @@ jobs:
             --evidence "$RUNNER_TEMP/agpc-promotion.json"
           bash "$GITHUB_WORKSPACE/apt-site/agpc.sh" --help
           bash "$GITHUB_WORKSPACE/apt-site/agpc-all.sh" --help
+          bash "$GITHUB_WORKSPACE/apt-site/agpc-apps.sh" --help
       - name: Verify signed runtime entrypoints and APT metadata
         working-directory: source
         run: |
           gpgv --keyring ./medge-archive-keyring.gpg "$GITHUB_WORKSPACE/apt-site/dists/stable/InRelease"
-          for name in agent-computer-apt-overlay.json agpc.sh agpc.source.json agpc-all.sh agpc-all.source.json uninstall.sh; do
+          for name in agent-computer-apt-overlay.json agpc.sh agpc.source.json agpc-all.sh agpc-all.source.json agpc-apps.sh agpc-apps.source.json uninstall.sh; do
             gpgv --keyring ./medge-archive-keyring.gpg \
               "$GITHUB_WORKSPACE/apt-site/$name.asc" "$GITHUB_WORKSPACE/apt-site/$name"
           done
           cmp --silent uninstall.sh "$GITHUB_WORKSPACE/apt-site/uninstall.sh"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: agpc-v81-native-staged-site
+          name: agpc-v82-native-staged-site
           path: apt-site/
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: agpc-v81-promotion-evidence
+          name: agpc-v82-promotion-evidence
           path: ${{ runner.temp }}/agpc-promotion*.json
           if-no-files-found: error
       - uses: actions/upload-pages-artifact@v3
@@ -100,7 +101,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [standard, full, upgrade, upgrade-home]
+        profile: [standard, full, apps, upgrade, upgrade-home]
     steps:
       - name: Check out exact reviewed GitLab source
         env:
@@ -120,7 +121,7 @@ jobs:
           git -C source remote remove origin
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: agpc-v81-native-staged-site
+          name: agpc-v82-native-staged-site
           path: apt-site
       - name: Install and reinstall native signed profile on disposable VM
         run: >-
@@ -130,7 +131,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: agpc-v81-native-acceptance-${{ matrix.profile }}
+          name: agpc-v82-native-acceptance-${{ matrix.profile }}
           path: acceptance/
           if-no-files-found: warn
 
@@ -141,6 +142,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Publish signed AGPC v81 native runtime
+      - name: Publish signed AGPC v82 native runtime
         id: deployment
         uses: actions/deploy-pages@v4
