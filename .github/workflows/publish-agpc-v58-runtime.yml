@@ -12,7 +12,7 @@ permissions:
 
 env:
   PYTHONDONTWRITEBYTECODE: "1"
-  AGPC_SOURCE_COMMIT: ca9b368ac01517c14b69e20657378ac746365966
+  AGPC_SOURCE_COMMIT: 4e0553d966f1d3a5de13fd4d26930b426a185ecb
 
 concurrency:
   group: medge-apt-pages
@@ -58,7 +58,7 @@ jobs:
           set -euo pipefail
           test -n "$MEDGE_APT_SIGNING_KEY"
           printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
-      - name: Preserve deployed site and activate signed v9 native profiles
+      - name: Preserve deployed site and activate signed v10 native profiles
         working-directory: source
         env:
           GH_TOKEN: ${{ github.token }}
