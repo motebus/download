@@ -1,4 +1,4 @@
-name: Publish AGPC v84 native runtime from reviewed GitLab source
+name: Publish AGPC v85 native runtime from reviewed GitLab source
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
 
 env:
   PYTHONDONTWRITEBYTECODE: "1"
-  AGPC_SOURCE_COMMIT: 2f88ef2e4773794d1f88be81dbb8ffa8128f936a
+  AGPC_SOURCE_COMMIT: 873c0c9bb84fc694d99d008a87f6a3055d8bbe0c
 
 concurrency:
   group: medge-apt-pages
@@ -80,13 +80,13 @@ jobs:
           cmp --silent uninstall.sh "$GITHUB_WORKSPACE/apt-site/uninstall.sh"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: agpc-v84-native-staged-site
+          name: agpc-v85-native-staged-site
           path: apt-site/
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: agpc-v84-promotion-evidence
+          name: agpc-v85-promotion-evidence
           path: ${{ runner.temp }}/agpc-promotion*.json
           if-no-files-found: error
       - uses: actions/upload-pages-artifact@v3
@@ -121,7 +121,7 @@ jobs:
           git -C source remote remove origin
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: agpc-v84-native-staged-site
+          name: agpc-v85-native-staged-site
           path: apt-site
       - name: Install and reinstall native signed profile on disposable VM
         run: >-
@@ -131,7 +131,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: agpc-v84-native-acceptance-${{ matrix.profile }}
+          name: agpc-v85-native-acceptance-${{ matrix.profile }}
           path: acceptance/
           if-no-files-found: warn
 
@@ -142,6 +142,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Publish signed AGPC v84 native runtime
+      - name: Publish signed AGPC v85 native runtime
         id: deployment
         uses: actions/deploy-pages@v4
