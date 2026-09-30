@@ -1,4 +1,4 @@
-name: Publish AGPC v88 native runtime from reviewed GitLab source
+name: Publish AGPC v88 native runtime without retired agent-apps index
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
 
 env:
   PYTHONDONTWRITEBYTECODE: "1"
-  AGPC_SOURCE_COMMIT: cf3382d32fff06e7dc3dd8a64b2a1eb5164df75f
+  AGPC_SOURCE_COMMIT: 6391be34da9feccb0b3ffa62de7f034974417160
 
 concurrency:
   group: medge-apt-pages
