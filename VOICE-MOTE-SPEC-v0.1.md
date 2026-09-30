@@ -7,7 +7,7 @@
 | 欄位 | 定義 |
 | --- | --- |
 | Product | YPCloud Voice-Mote |
-| Platform | AGPC |
+| Platform | AGPC-linux（AGPC 原生 Linux 平台） |
 | OS | Ubuntu Linux |
 | Category | Agentic Voice I/O / Voice Execution |
 | Installer | `voice-mote.sh` |
@@ -403,3 +403,9 @@ Voice-Mesh 不等同 SIP cluster；RTP media mixing 不是此層的首要責任�
 Canonical statement：
 
 > Voice Dot runs on Voice-Mote. Voice-Mote runs on AGPC. Voice-Motes form Voice-Mesh.
+
+## AGPC-linux implementation status
+
+Source lives in `agpc-linux/components/voice-mote`. The first runtime increment is `0.1.0~preview.1`: local control daemon, persistent Voice Dot administration, diagnostics, local control audit and an independently tested GPT-Live wire adapter. It does not yet bind SIP/media sessions, S policy, context, MCP actions or uChat call events. `verify` therefore returns not ready. This component does not change the existing AGPC baseline or register a second Mote identity.
+
+The operator-selected acceptance host is recorded in deployment evidence, not bundled in the reusable package. Native system-service acceptance, existing AGPC identity preservation and real SIP/AI acceptance remain separate release gates.

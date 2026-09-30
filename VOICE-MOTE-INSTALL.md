@@ -2,9 +2,9 @@
 
 Version: `0.1.0-bootstrap.1`. APT package: `voice-mote`.
 
-`voice-mote.sh` bootstraps Voice-Mote on an existing Ubuntu AGPC. It checks the platform, requires full AGPC Ready evidence, checks package state, previews the APT transaction, installs `voice-mote`, and runs `/usr/bin/voice-mote verify`. Package scripts own configuration and service lifecycle. The bootstrap does not create a second machine identity.
+`voice-mote.sh` bootstraps Voice-Mote on an existing Ubuntu AGPC-linux host. It checks the platform, requires full AGPC Ready evidence, checks package state, previews the APT transaction, installs `voice-mote`, and runs `/usr/bin/voice-mote verify`. Package scripts own configuration and service lifecycle. The bootstrap does not create a second machine identity.
 
-This release contains the bootstrap only. It does not include `voice-moted`, SIP/media adapters or a realtime AI runtime. At release preparation, the authenticated public APT index did not contain `voice-mote`; installation remains blocked until that runtime package is published. Publishing this installer does not establish Voice-Mote Ready.
+This release contains the bootstrap only. It does not include `voice-moted`, SIP/media adapters or a realtime AI runtime. At release preparation, the authenticated public APT index did not contain `voice-mote`; installation remains blocked until that runtime package is published. Publishing this installer does not establish Voice-Mote Ready. The AGPC-linux source now includes a control-runtime preview (`0.1.0~preview.1`) with 17 passing module tests and isolated native package validation. It has not been promoted to the public APT repository; full system-service and live SIP/AI acceptance remain pending.
 
 ## Download and authenticate
 
