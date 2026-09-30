@@ -302,6 +302,7 @@ MOTE_TRANSPORT_PACKAGES = (
     ("mote-proxy", "1.3.0-35", "all"),
 )
 ALLOWED_ROOT_FILES = {
+    "voice-mote.sh", "VOICE-MOTE-SPEC-v0.1.md", "VOICE-MOTE-INSTALL.md",
     "AGPC-DEBIAN.md",
     "agpc-mac.sh", "agpc.mac.source.json", "AGPC-MAC.md",
     ".gitattributes",
@@ -1693,6 +1694,7 @@ def validate_tree(root: Path) -> None:
             f"{installer_name} must be executable",
         )
         run("bash", "-n", str(installer))
+    run("bash", "-n", str(root / "voice-mote.sh"))
     actual_shell_entries = {
         path.name for path in root.iterdir()
         if path.is_file()
@@ -1700,7 +1702,7 @@ def validate_tree(root: Path) -> None:
         and path.name != "github-setup.sh"
     }
     require(
-        actual_shell_entries == set(RELEASE_SCRIPTS_V19) | {name for name in agent_installer_files(root) if name.endswith(".sh")},
+        actual_shell_entries == set(RELEASE_SCRIPTS_V19) | {"voice-mote.sh"} | {name for name in agent_installer_files(root) if name.endswith(".sh")},
         "public repository must contain exactly the approved release scripts",
     )
     publish_workflow = (root / ".github/workflows/publish-apt.yml").read_text(

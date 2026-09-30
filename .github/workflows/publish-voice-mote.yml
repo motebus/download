@@ -1,0 +1,63 @@
+name: Publish signed Voice-Mote bootstrap
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+  pages: write
+  id-token: write
+concurrency:
+  group: medge-apt-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Test bootstrap failure gates and site preservation
+        run: |
+          bash -n voice-mote.sh
+          bash voice-mote.sh --help
+          python3 -m unittest discover -s tests -p 'test_voice_mote.py' -v
+          python3 scripts/publish_apt.py validate-tree .
+      - name: Import protected archive key
+        env:
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$MEDGE_APT_SIGNING_KEY"
+          printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
+      - name: Restore deployed site and sign Voice-Mote downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: |
+          python3 scripts/publish_voice_mote.py . apt-site --restore --evidence "$RUNNER_TEMP/voice-mote-publication.json"
+          cmp voice-mote.sh apt-site/voice-mote.sh
+          gpgv --keyring ./medge-archive-keyring.gpg apt-site/voice-mote.sh.asc apt-site/voice-mote.sh
+          gpgv --keyring ./medge-archive-keyring.gpg apt-site/voice-mote.source.json.asc apt-site/voice-mote.source.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: voice-mote-publication-evidence
+          path: ${{ runner.temp }}/voice-mote-publication.json
+          if-no-files-found: error
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apt-site
+          retention-days: 30
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish signed Voice-Mote downloads
+        id: deployment
+        uses: actions/deploy-pages@v4
