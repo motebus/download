@@ -1,6 +1,8 @@
 # Voice-Mote bootstrap installer
 
-Version: `0.1.0-bootstrap.1`. APT package: `voice-mote`.
+Version: `0.1.0-bootstrap.2`. APT package: `voice-mote`.
+
+This revision fixes stdin execution (`curl ... | sudo bash`): an unset `BASH_SOURCE[0]` no longer aborts before prerequisite checks. File execution and sourcing retain their existing behavior.
 
 `voice-mote.sh` bootstraps Voice-Mote on an existing Ubuntu AGPC-linux host. It checks the platform, requires full AGPC Ready evidence, checks package state, previews the APT transaction, installs `voice-mote`, and runs `/usr/bin/voice-mote verify`. Package scripts own configuration and service lifecycle. The bootstrap does not create a second machine identity.
 

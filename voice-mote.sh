@@ -4,7 +4,7 @@ set -Eeuo pipefail
 
 usage() {
     cat <<'HELP'
-YPCloud Voice-Mote bootstrap 0.1.0-bootstrap.1
+YPCloud Voice-Mote bootstrap 0.1.0-bootstrap.2
 Usage: sudo bash voice-mote.sh [--yes] [--check] [--agpc-verify /absolute/path]
        bash voice-mote.sh --help | --version
 
@@ -123,7 +123,7 @@ main() {
     while (($#)); do
         case "$1" in
             --help|-h) usage; return ;;
-            --version) printf '0.1.0-bootstrap.1\n'; return ;;
+            --version) printf '0.1.0-bootstrap.2\n'; return ;;
             --agpc-verify)
                 (($# >= 2)) && [[ $2 == /* ]] || die '--agpc-verify requires an absolute executable path'
                 agpc_verify=$2; shift 2 ;;
@@ -137,4 +137,5 @@ main() {
     install_voice
 }
 
-if [[ ${BASH_SOURCE[0]} == "$0" ]]; then main "$@"; fi
+# Bash reading from stdin has no BASH_SOURCE entry. Sourcing still defines functions only.
+if [[ ${BASH_SOURCE[0]:-$0} == "$0" ]]; then main "$@"; fi

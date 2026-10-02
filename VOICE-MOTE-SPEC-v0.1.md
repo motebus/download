@@ -139,7 +139,7 @@ Bootstrap 流程：
 
 ### 目前 bootstrap 整合狀態
 
-Bootstrap 版本為 `0.1.0-bootstrap.1`，發布目標為 [voice-mote.sh](https://motebus.github.io/download/voice-mote.sh)，附有 script 與 source record 的 archive 簽章。發布來源為 `motebus/download`；詳細操作見 [安裝說明](VOICE-MOTE-INSTALL.md)。
+Bootstrap 版本為 `0.1.0-bootstrap.2`，發布目標為 [voice-mote.sh](https://motebus.github.io/download/voice-mote.sh)，附有 script 與 source record 的 archive 簽章。發布來源為 `motebus/download`；詳細操作見 [安裝說明](VOICE-MOTE-INSTALL.md)。
 
 腳本沿用主機既有受信任 APT sources，不新增 repository 或信任金鑰，也不自動執行 `agpc.sh`。此次發布只包含 bootstrap，不包含 `voice-moted` 或 Voice runtime 套件。發布準備時，已驗證的正式 APT 索引尚未包含 `voice-mote`。
 

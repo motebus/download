@@ -18,10 +18,27 @@ class BootstrapTests(unittest.TestCase):
         return subprocess.run(['bash', '-c', 'source ' + shlex.quote(str(ROOT / 'voice-mote.sh')) + '\n' + code], capture_output=True, text=True)
 
     def test_help_and_version_do_not_require_root(self):
-        for option, expected in [('--help', 'bootstrap'), ('--version', '0.1.0-bootstrap.1')]:
+        for option, expected in [('--help', 'bootstrap'), ('--version', '0.1.0-bootstrap.2')]:
             p = subprocess.run(['bash', str(ROOT / 'voice-mote.sh'), option], capture_output=True, text=True)
             self.assertEqual(p.returncode, 0, p.stderr)
             self.assertIn(expected, p.stdout)
+
+    def test_stdin_entrypoint_dispatches_without_bash_source(self):
+        script = (ROOT / 'voice-mote.sh').read_text()
+        for option, code, expected in [('--help', 0, 'bootstrap'),
+                                       ('--version', 0, '0.1.0-bootstrap.2'),
+                                       ('--unknown', 1, 'unknown argument')]:
+            with self.subTest(option=option):
+                p = subprocess.run(['bash', '-s', '--', option], input=script,
+                                   capture_output=True, text=True)
+                self.assertEqual(p.returncode, code, p.stderr)
+                self.assertIn(expected, p.stdout + p.stderr)
+                self.assertNotIn('unbound variable', p.stderr)
+
+    def test_sourcing_does_not_run_main(self):
+        p = self.shell('printf SOURCE_ONLY')
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertEqual(p.stdout, 'SOURCE_ONLY')
 
     def test_invalid_arguments_stop_before_platform(self):
         for args in ['--unknown', '--agpc-verify', '--agpc-verify relative']:
