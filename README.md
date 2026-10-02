@@ -86,12 +86,28 @@ AGPC installation paths.
 ## Windows
 
 [Download agpc.exe (x86-64)](https://motebus.github.io/download/agpc.exe):
-**0.1.0-host-access-preview.8**, an unsigned outbound-access preview with
+**0.1.0-host-access-preview.9**, an unsigned outbound-access preview with
 local CDP/cdpd, the Windows `mstsc.exe` RDP client, and native MCP. One elevated
 installation registers `agpc.exe` on the machine PATH and creates `cdp.exe`,
 `rdp.exe`, `run.exe`, `mesh.exe`, and `uchat.exe` as hard links to that one
 payload. New sign-in sessions can use those names directly from PowerShell.
-No Docker or WSL is required.
+No Docker or WSL is required for native Windows.
+One `agpc.exe` also manages the explicit `agpc-wsl` sibling runtime. Bare
+invocation selects `agpc-win` (native Windows/PowerShell). WSL commands select
+`agpc-wsl` (WSL Linux/Bash); the runtimes have independent node identities and
+Mesh admission. Native Windows does not require WSL or switch into it silently.
+
+```powershell
+.\agpc.exe wsl status -Json
+.\agpc.exe wsl plan -NodeName mypc-wsl -Distro Ubuntu-24.04 -UserName jujue
+.\agpc.exe wsl install -NodeName mypc-wsl -Distro Ubuntu-24.04 -UserName jujue
+```
+
+The WSL installer uses SHA-256 pinned Linux release `v0.3.0-46`, requests UAC
+and retains protected per-account restart state. Local Linux password entry
+stays in the console. Live WSL install/reboot/resume and Mesh admission are
+not verified in this preview. Go tests/vet and native PowerShell 5.1/7 suites
+passed; publication uses the user-authorized local Windows build.
 
 RDP uses an independent Mote channel. Windows Home supports the `mstsc.exe` client
 but has no built-in RDP host. MCP binaries are packaged with
@@ -121,7 +137,7 @@ their production services and S admission exist. Local CDP prerequisites were
 observed on MEDGE-OA; this does not establish browser execution on this exact
 build, remote readiness, or clean-machine acceptance.
 
-[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.8).
+[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.9).
 ARM64 remains the earlier manifest-dependent preview at
 [agpc-arm64.exe](https://motebus.github.io/download/agpc-arm64.exe).
 
