@@ -86,7 +86,7 @@ AGPC installation paths.
 ## Windows
 
 [Download agpc.exe (x86-64)](https://motebus.github.io/download/agpc.exe):
-**0.1.0-host-access-preview.9**, an unsigned outbound-access preview with
+**0.1.0-host-access-preview.10**, an unsigned outbound-access preview with
 local CDP/cdpd, the Windows `mstsc.exe` RDP client, and native MCP. One elevated
 installation registers `agpc.exe` on the machine PATH and creates `cdp.exe`,
 `rdp.exe`, `run.exe`, `mesh.exe`, and `uchat.exe` as hard links to that one
@@ -132,12 +132,22 @@ This executable uses the `agpc.windows-access/v1` outbound profile: it does not
 include moted or provision a complete inbound host installation. Full
 uChat/contextd/Redis/CoD integration remains incomplete.
 Remote SSH/RDP and MCP authorization/tool execution are not accepted for this
-exact build. RUN, Mesh, and uChat commands report owner-not-installed until
+exact build. RUN and Mesh commands report owner-not-installed until
 their production services and S admission exist. Local CDP prerequisites were
 observed on MEDGE-OA; this does not establish browser execution on this exact
 build, remote readiness, or clean-machine acceptance.
 
-[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.9).
+[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.10).
+
+Preview 10 adds native human uChat client commands: `uchat uput @machine MESSAGE`,
+`uchat ubox [AFTER_CURSOR]`, `uchat uget INBOX_ID`, and `uchat info`.
+The client authenticates the installed daemon's Windows service identity and
+requires owner-protected endpoint configuration. The Windows uchatd, durable
+Redis, account binding and Mesh routing are not packaged; client operations
+report `uchat_endpoint_not_installed` until those owners are installed.
+Bare `uchat` still reports the unavailable interactive TUI. CDP now explains
+its missing remote P/S provider; no remote provider or transport fallback is added.
+
 ARM64 remains the earlier manifest-dependent preview at
 [agpc-arm64.exe](https://motebus.github.io/download/agpc-arm64.exe).
 
