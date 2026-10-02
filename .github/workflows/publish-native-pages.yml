@@ -71,7 +71,12 @@ jobs:
           fi
           bash apt-site/agpc.sh --help
           bash apt-site/agpc-all.sh --help
-          bash apt-site/agpc-apps.sh install --dry-run --json
+          if [ "${{ inputs.windows_only }}" = "true" ]; then
+            bash -n apt-site/agpc-apps.sh
+            bash apt-site/agpc-apps.sh --help
+          else
+            bash apt-site/agpc-apps.sh install --dry-run --json
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: native-pages-verification
