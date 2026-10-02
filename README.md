@@ -85,8 +85,11 @@ AGPC installation paths.
 
 ## Windows
 
+Preview 14 fixes MCP discovery by preserving the Windows SystemDrive variable. Native protocol initialization passes against the installed stdio provider; the default catalog remains empty, and tool authorization/execution remain unverified. No mote-mcpd service or agpc-manager command is added in this release.
+
+
 [Download agpc.exe (x86-64)](https://motebus.github.io/download/agpc.exe):
-**0.1.0-host-access-preview.13**, an unsigned outbound-access preview with
+**0.1.0-host-access-preview.14**, an unsigned outbound-access preview with
 local CDP/cdpd, the Windows `mstsc.exe` RDP client, and native MCP. One elevated
 installation registers the stable `C:\Program Files\AGPC\bin` machine PATH and creates `cdp.exe`,
 `rdp.exe`, `run.exe`, `mesh.exe`, and `uchat.exe` as hard links to that one
@@ -137,7 +140,7 @@ their production services and S admission exist. Local CDP prerequisites were
 observed on MEDGE-OA; this does not establish browser execution on this exact
 build, remote readiness, or clean-machine acceptance.
 
-[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.13).
+[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.14).
 
 Preview 10 adds native human uChat client commands: `uchat uput @machine MESSAGE`,
 `uchat ubox [AFTER_CURSOR]`, `uchat uget INBOX_ID`, and `uchat info`.
