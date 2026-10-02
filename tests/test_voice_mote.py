@@ -18,7 +18,7 @@ class BootstrapTests(unittest.TestCase):
         return subprocess.run(['bash', '-c', 'source ' + shlex.quote(str(ROOT / 'voice-mote.sh')) + '\n' + code], capture_output=True, text=True)
 
     def test_help_and_version_do_not_require_root(self):
-        for option, expected in [('--help', 'bootstrap'), ('--version', '0.1.0-bootstrap.2')]:
+        for option, expected in [('--help', 'bootstrap'), ('--version', '0.1.0-bootstrap.3')]:
             p = subprocess.run(['bash', str(ROOT / 'voice-mote.sh'), option], capture_output=True, text=True)
             self.assertEqual(p.returncode, 0, p.stderr)
             self.assertIn(expected, p.stdout)
@@ -26,7 +26,7 @@ class BootstrapTests(unittest.TestCase):
     def test_stdin_entrypoint_dispatches_without_bash_source(self):
         script = (ROOT / 'voice-mote.sh').read_text()
         for option, code, expected in [('--help', 0, 'bootstrap'),
-                                       ('--version', 0, '0.1.0-bootstrap.2'),
+                                       ('--version', 0, '0.1.0-bootstrap.3'),
                                        ('--unknown', 1, 'unknown argument')]:
             with self.subTest(option=option):
                 p = subprocess.run(['bash', '-s', '--', option], input=script,
@@ -114,6 +114,40 @@ install_voice
         r = self.transaction(check=False, fail='--simulate')
         self.assertNotEqual(r.returncode, 0)
         self.assertEqual(r.stdout.count('install voice-mote'), 1)
+
+
+    def test_preview_routes_to_distinct_prerequisites(self):
+        r = self.shell('platform_check() { :; }; verify_preview_host() { echo PREVIEW; }; verify_agpc() { die strict; }; install_voice() { echo INSTALL; }; main --preview --check')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('PREVIEW', r.stdout)
+        self.assertIn('INSTALL', r.stdout)
+
+    def test_preview_rejects_combined_checker(self):
+        r = self.shell('platform_check() { :; }; install_voice() { echo MUTATED; }; main --preview --agpc-verify /checker')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertNotIn('MUTATED', r.stdout)
+
+    def test_preview_rejects_unsupported_platform(self):
+        r = self.shell('VERSION_ID=22.04; dpkg() { echo amd64; }; verify_preview_host')
+        self.assertNotEqual(r.returncode, 0)
+
+    def test_preview_rejects_newer_installed_version_before_download(self):
+        r = self.shell('dpkg-query() { echo 1.0; }; curl() { echo MUTATED; }; prepare_preview')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('downgrade', r.stderr)
+        self.assertNotIn('MUTATED', r.stdout)
+
+    def test_corrupt_preview_never_reaches_apt_simulation(self):
+        r = self.shell('''preview=true; check_only=true; assume_yes=true
+preview_stage=''
+dpkg() { :; }; dpkg-query() { return 1; }
+apt-get() { echo "APT:$*"; }
+curl() { local dest="${@: -1}"; printf corrupt > "$dest"; }
+install_voice
+''')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('checksum mismatch', r.stderr)
+        self.assertNotIn('--simulate', r.stdout)
 
 
 class PublicationTests(unittest.TestCase):

@@ -1,43 +1,48 @@
 # Voice-Mote bootstrap installer
 
-Version: `0.1.0-bootstrap.2`. APT package: `voice-mote`.
+Version: `0.1.0-bootstrap.3`. APT package: `voice-mote`.
 
-This revision fixes stdin execution (`curl ... | sudo bash`): an unset `BASH_SOURCE[0]` no longer aborts before prerequisite checks. File execution and sourcing retain their existing behavior.
+## Install the published preview on medge-tv
 
-`voice-mote.sh` bootstraps Voice-Mote on an existing Ubuntu AGPC-linux host. It checks the platform, requires full AGPC Ready evidence, checks package state, previews the APT transaction, installs `voice-mote`, and runs `/usr/bin/voice-mote verify`. Package scripts own configuration and service lifecycle. The bootstrap does not create a second machine identity.
+The explicit `--preview` mode installs the released `0.1.0~preview.3` control runtime on an existing Ubuntu 24.04 amd64 AGPC. It requires an installed `agpc-manager`, existing machine identity, systemd and healthy package state. Full AGPC acceptance is not asserted or required for this limited preview installation. medge-tv currently has AGPC installed but has not passed full live readiness.
 
-This release contains the bootstrap only. It does not include `voice-moted`, SIP/media adapters or a realtime AI runtime. At release preparation, the authenticated public APT index did not contain `voice-mote`; installation remains blocked until that runtime package is published. Publishing this installer does not establish Voice-Mote Ready. The AGPC-linux source now includes a control-runtime preview (`0.1.0~preview.1`) with 17 passing module tests and isolated native package validation. It has not been promoted to the public APT repository; full system-service and live SIP/AI acceptance remain pending.
-
-## Download and authenticate
-
-Download `voice-mote.sh`, `voice-mote.sh.asc`, `voice-mote.source.json` and `voice-mote.source.json.asc` from `https://motebus.github.io/download/`. Verify both signatures with the independently trusted MoteBus archive key, then match the script SHA-256 to `files["voice-mote.sh"].sha256` in the signed source record. The record identifies the GitHub source commit.
-
-On a host whose AGPC installation has already established the archive key trust:
+Download and authenticate before running:
 
 ```sh
-gpgv --keyring /etc/apt/keyrings/medge-archive-keyring.gpg voice-mote.sh.asc voice-mote.sh
-gpgv --keyring /etc/apt/keyrings/medge-archive-keyring.gpg voice-mote.source.json.asc voice-mote.source.json
-python3 -c 'import hashlib,json; from pathlib import Path; r=json.loads(Path("voice-mote.source.json").read_text()); assert hashlib.sha256(Path("voice-mote.sh").read_bytes()).hexdigest()==r["files"]["voice-mote.sh"]["sha256"]'
-bash ./voice-mote.sh --help
-sudo bash ./voice-mote.sh
+mkdir -p ~/voice-mote-install
+cd ~/voice-mote-install
+for file in voice-mote.sh voice-mote.sh.asc voice-mote.source.json voice-mote.source.json.asc; do
+    curl --fail --show-error --location --proto '=https' --proto-redir '=https' \
+        "https://motebus.github.io/download/$file" -o "$file" || exit 1
+done
+gpgv --keyring /etc/apt/keyrings/medge-archive-keyring.gpg voice-mote.sh.asc voice-mote.sh || exit 1
+gpgv --keyring /etc/apt/keyrings/medge-archive-keyring.gpg voice-mote.source.json.asc voice-mote.source.json || exit 1
+python3 -c 'import hashlib,json; from pathlib import Path; r=json.loads(Path("voice-mote.source.json").read_text()); assert hashlib.sha256(Path("voice-mote.sh").read_bytes()).hexdigest()==r["files"]["voice-mote.sh"]["sha256"]' || exit 1
+sudo bash ./voice-mote.sh --preview --check
+sudo bash ./voice-mote.sh --preview --yes
+voice-mote status
 ```
 
-Do not treat a newly downloaded same-origin key as independent trust. The bootstrap preserves existing APT sources and keys; trusted repositories must already be configured without signature-bypass options such as `trusted=yes`.
+Use the independently trusted MoteBus archive key established by AGPC installation; a newly downloaded same-origin key alone does not establish trust. If the trusted key is stored elsewhere, use its established path.
 
-## AGPC acceptance
+Preview downloads the fixed GitHub release asset from [preview.3](https://github.com/motebus/download/releases/tag/voice-mote-v0.1.0-preview.3). Its SHA-256 is pinned inside this signed bootstrap:
 
-By default the bootstrap invokes `/usr/bin/agpc-manager ready --json` and requires `state=ready`, `live_verified=true`, and a scope other than `local-precheck`. The currently observed local-precheck contract does not meet this gate. A completed AGPC acceptance workflow can supply its approved checker:
+`3c8c5514637c6fdc23dff5173556796190546f47afe49948502e784bf36fac93`
 
-```sh
-sudo bash ./voice-mote.sh --agpc-verify /absolute/path/to/agpc-ready-check
-```
+The installer checks package name/version/architecture and refuses to downgrade a newer installed version. APT simulates and installs the verified local package, retaining authenticated configured repositories for dependencies. This does not promote the package into production APT. Future preview upgrades require a reviewed installer revision; production lifecycle remains with APT.
 
-The checker takes no arguments, must verify full live readiness and return zero only on success. It and its parent directories must be root-owned, non-writable by others and not symlinks. It runs with a 120-second timeout. This is an integration interface, not an assertion that AGPC already ships such a checker. A constant-success script is not a readiness check.
+Exit zero means the exact preview package is installed and `voice-moted` is running. It does **not** mean Voice-Mote Ready. SIP, media, Voice Dots, model access, policy and real phone acceptance need separate setup. `voice-mote verify` remains nonzero until full capability is implemented and verified. The opt-in voice agent is not enabled by this installer. No kiosk configuration, credentials, SIP accounts or machine identity are copied. Map is not an installation dependency.
 
-## Operations and failure behavior
+## Production APT mode
 
-`--version` and `--help` require no privilege. `--check` checks prerequisites and simulates installation using cached APT indexes; it does not install packages or establish Voice-Mote capability. `--yes` accepts the APT transaction for an authorized noninteractive installation.
+Without `--preview`, the existing strict contract is unchanged: require full AGPC Ready, install `voice-mote` from configured trusted APT repositories and require successful capability verification. The runtime preview is not yet promoted to that repository.
 
-Missing prerequisites, failed or incomplete AGPC acceptance, package unavailability, incomplete dpkg state, APT errors or transactions requiring removals stop the bootstrap. Installation does not permit unauthenticated packages or automatic downgrades. If installation succeeds but Voice-Mote verification fails, it returns a nonzero exit code and preserves installed packages for diagnosis. SIP, model, policy and tool configuration must be completed through the runtime's supported interfaces.
+The default check is `/usr/bin/agpc-manager ready --json`: `state=ready`, `live_verified=true`, and scope other than `local-precheck`. An approved full acceptance checker can be supplied with `--agpc-verify /absolute/path`. It takes no arguments, must be root-owned with non-writable, non-symlink ancestors, and must return zero only on full live acceptance. A constant-success checker is not valid. This option cannot be combined with `--preview`.
 
-See [Voice-Mote Specification v0.1](VOICE-MOTE-SPEC-v0.1.md) for the product contract.
+## Operations
+
+`--help` and `--version` need no privilege. `--check` checks prerequisites and simulates with cached APT indexes; preview also downloads and authenticates the package into a temporary directory which is removed on exit. It does not install or update packages. `--yes` accepts the installation transaction. Normal installation refreshes configured APT indexes and stops on update failures.
+
+Both modes reject broken dpkg state and package removals, disable unauthenticated/insecure repository options and automatic downgrades, and preserve existing sources and keys. Failure preserves installed packages for diagnosis. Production capability failure remains a nonzero exit; preview reports its limited installation outcome explicitly.
+
+See [Voice-Mote Specification v0.1](VOICE-MOTE-SPEC-v0.1.md).

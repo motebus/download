@@ -8,7 +8,7 @@ import subprocess
 
 import publish_native as native
 
-VERSION = '0.1.0-bootstrap.2'
+VERSION = '0.1.0-bootstrap.3'
 FILES = {'voice-mote.sh', 'voice-mote.source.json', 'VOICE-MOTE-SPEC-v0.1.md', 'VOICE-MOTE-INSTALL.md'}
 ALLOWED = FILES | {name + '.asc' for name in FILES}
 
