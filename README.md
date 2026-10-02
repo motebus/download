@@ -85,6 +85,8 @@ AGPC installation paths.
 
 ## Windows
 
+Preview 17 keeps Windows doctor and explicit WSL status output inside AGPC Manager, including exit codes. Results remain selectable and scrollable after completion. Diagnostics have bounded output, a timeout and owned-process cancellation when the window closes. PowerShell 5.1/7.6.5 regressions and packaged diagnostic checks passed. Native uchatd, durable Redis and live chat delivery remain pending.
+
 Preview 16 fixes native PowerShell startup when a foreign-edition module path is inherited. Packaged MCP discovery and manager status pass with that invalid parent path. Native clipboard round-trips pass in a private test window station without accessing the user's interactive clipboard; terminal-host interaction and live chat delivery remain unverified.
 
 
@@ -95,7 +97,7 @@ Preview 14 fixes MCP discovery by preserving the Windows SystemDrive variable. N
 
 
 [Download agpc.exe (x86-64)](https://motebus.github.io/download/agpc.exe):
-**0.1.0-host-access-preview.16**, an unsigned outbound-access preview with
+**0.1.0-host-access-preview.17**, an unsigned outbound-access preview with
 local CDP/cdpd, the Windows `mstsc.exe` RDP client, and native MCP. One elevated
 installation registers the stable `C:\Program Files\AGPC\bin` machine PATH and creates `cdp.exe`,
 `rdp.exe`, `run.exe`, `mesh.exe`, `uchat.exe`, and `agpc-manager.exe` as hard links to that one
