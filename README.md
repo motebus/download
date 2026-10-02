@@ -86,7 +86,7 @@ AGPC installation paths.
 ## Windows
 
 [Download agpc.exe (x86-64)](https://motebus.github.io/download/agpc.exe):
-**0.1.0-host-access-preview.11**, an unsigned outbound-access preview with
+**0.1.0-host-access-preview.12**, an unsigned outbound-access preview with
 local CDP/cdpd, the Windows `mstsc.exe` RDP client, and native MCP. One elevated
 installation registers the stable `C:\Program Files\AGPC\bin` machine PATH and creates `cdp.exe`,
 `rdp.exe`, `run.exe`, `mesh.exe`, and `uchat.exe` as hard links to that one
@@ -137,7 +137,7 @@ their production services and S admission exist. Local CDP prerequisites were
 observed on MEDGE-OA; this does not establish browser execution on this exact
 build, remote readiness, or clean-machine acceptance.
 
-[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.11).
+[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.12).
 
 Preview 10 adds native human uChat client commands: `uchat uput @machine MESSAGE`,
 `uchat ubox [AFTER_CURSOR]`, `uchat uget INBOX_ID`, and `uchat info`.
@@ -145,13 +145,15 @@ The client authenticates the installed daemon's Windows service identity and
 requires owner-protected endpoint configuration. The Windows uchatd, durable
 Redis, account binding and Mesh routing are not packaged; client operations
 report `uchat_endpoint_not_installed` until those owners are installed.
-Bare `uchat` still reports the unavailable interactive TUI. CDP now explains
+Bare `uchat` now opens the native Windows terminal UI. CDP now explains
 its missing remote P/S provider; no remote provider or transport fallback is added.
 
 Preview 11 fixes command lookup across upgrades and rejects mistyped CDP
 selectors such as `medge-home.mpte` before checking remote admission.
 It preserves the existing local CDP and native human uChat client boundaries;
-missing daemon/storage/TUI or remote P/S providers remain unavailable.
+missing daemon/storage or remote P/S providers remain unavailable.
+Preview 12 adds the native terminal UI: bare `uchat` opens it, `/connect @machine` selects a recipient, and `/help` shows its commands. It opens disconnected when the protected native daemon endpoint is absent; offline sends retain the draft and say **Not sent**. No message is queued or replayed. Native Go tests, PowerShell 5.1/7.6.5 suites and an owned Windows console launch/input/exit test passed. Native uchatd, Redis, account binding and live chat delivery remain unavailable in this preview.
+
 ARM64 remains the earlier manifest-dependent preview at
 [agpc-arm64.exe](https://motebus.github.io/download/agpc-arm64.exe).
 
