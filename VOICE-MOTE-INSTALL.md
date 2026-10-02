@@ -1,10 +1,10 @@
 # Voice-Mote bootstrap installer
 
-Version: `0.1.0-bootstrap.3`. APT package: `voice-mote`.
+Version: `0.1.0-bootstrap.4`. APT package: `voice-mote`.
 
-## Install the published preview on medge-tv
+## Install the published preview on an AGPC
 
-The explicit `--preview` mode installs the released `0.1.0~preview.3` control runtime on an existing Ubuntu 24.04 amd64 AGPC. It requires an installed `agpc-manager`, existing machine identity, systemd and healthy package state. Full AGPC acceptance is not asserted or required for this limited preview installation. medge-tv currently has AGPC installed but has not passed full live readiness.
+The explicit `--preview` mode installs the released `0.1.0~preview.5` control runtime on an existing Ubuntu 24.04 amd64 AGPC. It requires an installed `agpc-manager`, existing machine identity, systemd and healthy package state. Full AGPC acceptance is not asserted or required for this limited preview installation.
 
 Download and authenticate before running:
 
@@ -25,9 +25,9 @@ voice-mote status
 
 Use the independently trusted MoteBus archive key established by AGPC installation; a newly downloaded same-origin key alone does not establish trust. If the trusted key is stored elsewhere, use its established path.
 
-Preview downloads the fixed GitHub release asset from [preview.3](https://github.com/motebus/download/releases/tag/voice-mote-v0.1.0-preview.3). Its SHA-256 is pinned inside this signed bootstrap:
+Preview downloads the fixed GitHub release asset from [preview.5](https://github.com/motebus/download/releases/tag/voice-mote-v0.1.0-preview.5). Its SHA-256 is pinned inside this signed bootstrap:
 
-`3c8c5514637c6fdc23dff5173556796190546f47afe49948502e784bf36fac93`
+`5f1970c671f91e2b8fb5aaaeddddb7b8484df19b11dfb346b69da7caaa8359b0`
 
 The installer checks package name/version/architecture and refuses to downgrade a newer installed version. APT simulates and installs the verified local package, retaining authenticated configured repositories for dependencies. This does not promote the package into production APT. Future preview upgrades require a reviewed installer revision; production lifecycle remains with APT.
 
@@ -46,3 +46,9 @@ The default check is `/usr/bin/agpc-manager ready --json`: `state=ready`, `live_
 Both modes reject broken dpkg state and package removals, disable unauthenticated/insecure repository options and automatic downgrades, and preserve existing sources and keys. Failure preserves installed packages for diagnosis. Production capability failure remains a nonzero exit; preview reports its limited installation outcome explicitly.
 
 See [Voice-Mote Specification v0.1](VOICE-MOTE-SPEC-v0.1.md).
+
+## Preview.5 voice pilot
+
+This runtime fixes streamed voice transport and supports G.722 and G.711 with a 16 kHz audio bridge. A reviewed host configuration can bind individual Voice Dots to voices, for example `123` to Gleam and `456` to Meridian, with Taiwan Mandarin instructions. Each destination requires its own enabled Dot, SIP route and scoped S policy. The installer does not create these host-specific settings.
+
+The pilot supports one call at a time. Session finalization can briefly keep the agent busy after hangup. Native ARM64 and full Voice-Mote readiness remain unverified.

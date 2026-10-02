@@ -4,12 +4,12 @@ set -Eeuo pipefail
 
 usage() {
     cat <<'HELP'
-YPCloud Voice-Mote bootstrap 0.1.0-bootstrap.3
+YPCloud Voice-Mote bootstrap 0.1.0-bootstrap.4
 Usage: sudo bash voice-mote.sh [--preview] [--yes] [--check] [--agpc-verify /absolute/path]
        bash voice-mote.sh --help | --version
 
 Installs the voice-mote APT package on an existing Ubuntu AGPC.
---preview      Install the pinned preview.3 control runtime on Ubuntu 24.04 amd64.
+--preview      Install the pinned preview.5 control runtime on Ubuntu 24.04 amd64.
                Requires installed AGPC; full live acceptance remains pending.
 --check        Run prerequisites and cached APT simulation without installation.
 --yes          Accept the APT transaction noninteractively.
@@ -95,17 +95,17 @@ prepare_preview() {
     command -v curl >/dev/null || die 'preview requires curl'
     local installed
     installed=$(dpkg-query -W -f='${Version}' voice-mote 2>/dev/null || true)
-    if [[ -n $installed ]] && dpkg --compare-versions "$installed" gt '0.1.0~preview.3'; then
+    if [[ -n $installed ]] && dpkg --compare-versions "$installed" gt '0.1.0~preview.5'; then
         die 'installed voice-mote is newer than this preview; refusing downgrade'
     fi
     preview_stage=$(mktemp -d /var/tmp/voice-mote.XXXXXXXX)
     trap 'rm -rf -- "$preview_stage"' EXIT
     package_target="$preview_stage/voice-mote.deb"
     curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 180 \
-        'https://github.com/motebus/download/releases/download/voice-mote-v0.1.0-preview.3/voice-mote_0.1.0.preview.3_all.deb' -o "$package_target"
-    printf '%s  %s\n' '3c8c5514637c6fdc23dff5173556796190546f47afe49948502e784bf36fac93' "$package_target" | sha256sum --check --status || die 'preview package checksum mismatch'
+        'https://github.com/motebus/download/releases/download/voice-mote-v0.1.0-preview.5/voice-mote_0.1.0.preview.5_all.deb' -o "$package_target"
+    printf '%s  %s\n' '5f1970c671f91e2b8fb5aaaeddddb7b8484df19b11dfb346b69da7caaa8359b0' "$package_target" | sha256sum --check --status || die 'preview package checksum mismatch'
     [[ $(dpkg-deb -f "$package_target" Package) == voice-mote &&
-       $(dpkg-deb -f "$package_target" Version) == '0.1.0~preview.3' &&
+       $(dpkg-deb -f "$package_target" Version) == '0.1.0~preview.5' &&
        $(dpkg-deb -f "$package_target" Architecture) == all ]] || die 'unexpected preview package metadata'
     chmod 0755 "$preview_stage"
     chmod 0644 "$package_target"
@@ -147,9 +147,9 @@ sys.exit(0 if m and m[1] != "(none)" else 1)
     apt-get "${apt_options[@]}" --no-remove install "${package_target:-voice-mote}"
     [[ -x /usr/bin/voice-mote ]] || die 'package installation completed but /usr/bin/voice-mote is missing'
     if ${preview:-false}; then
-        [[ $(dpkg-query -W -f='${Status} ${Version}' voice-mote) == 'install ok installed 0.1.0~preview.3' ]] || die 'installed preview version mismatch'
+        [[ $(dpkg-query -W -f='${Status} ${Version}' voice-mote) == 'install ok installed 0.1.0~preview.5' ]] || die 'installed preview version mismatch'
         systemctl is-active --quiet voice-moted || die 'preview installed but voice-moted is not active'
-        printf 'Voice-Mote preview.3 installed; voice-moted running. SIP/AI setup and full capability verification remain pending.\n'
+        printf 'Voice-Mote preview.5 installed; voice-moted running. SIP/AI setup and full capability verification remain pending.\n'
         return
     fi
     if ! /usr/bin/voice-mote verify; then
@@ -165,7 +165,7 @@ main() {
     while (($#)); do
         case "$1" in
             --help|-h) usage; return ;;
-            --version) printf '0.1.0-bootstrap.3\n'; return ;;
+            --version) printf '0.1.0-bootstrap.4\n'; return ;;
             --agpc-verify)
                 (($# >= 2)) && [[ $2 == /* ]] || die '--agpc-verify requires an absolute executable path'
                 agpc_verify=$2; shift 2 ;;

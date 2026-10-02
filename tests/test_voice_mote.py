@@ -18,7 +18,7 @@ class BootstrapTests(unittest.TestCase):
         return subprocess.run(['bash', '-c', 'source ' + shlex.quote(str(ROOT / 'voice-mote.sh')) + '\n' + code], capture_output=True, text=True)
 
     def test_help_and_version_do_not_require_root(self):
-        for option, expected in [('--help', 'bootstrap'), ('--version', '0.1.0-bootstrap.3')]:
+        for option, expected in [('--help', 'bootstrap'), ('--version', '0.1.0-bootstrap.4')]:
             p = subprocess.run(['bash', str(ROOT / 'voice-mote.sh'), option], capture_output=True, text=True)
             self.assertEqual(p.returncode, 0, p.stderr)
             self.assertIn(expected, p.stdout)
@@ -26,7 +26,7 @@ class BootstrapTests(unittest.TestCase):
     def test_stdin_entrypoint_dispatches_without_bash_source(self):
         script = (ROOT / 'voice-mote.sh').read_text()
         for option, code, expected in [('--help', 0, 'bootstrap'),
-                                       ('--version', 0, '0.1.0-bootstrap.3'),
+                                       ('--version', 0, '0.1.0-bootstrap.4'),
                                        ('--unknown', 1, 'unknown argument')]:
             with self.subTest(option=option):
                 p = subprocess.run(['bash', '-s', '--', option], input=script,
