@@ -1,0 +1,94 @@
+name: Verify AGPC v91 profiles without deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: Reviewed GitLab source commit containing the acceptance fix (40 hex characters)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  AGPC_SOURCE_COMMIT: ${{ inputs.source_commit }}
+  ARTIFACT_RUN_ID: "36955020288"
+
+jobs:
+  native-acceptance:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [standard, apps, full, upgrade, upgrade-home]
+    steps:
+      - name: Validate exact source and existing artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$AGPC_SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ARTIFACT_RUN_ID" > "$RUNNER_TEMP/artifact-run.json"
+          python3 - "$RUNNER_TEMP/artifact-run.json" <<'PY'
+          import json
+          import sys
+          with open(sys.argv[1]) as source:
+              run = json.load(source)
+          assert run['id'] == 36955020288
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          assert run['head_sha'] == 'f6c14696d9065a7a466d747da1d0cbfa8f6e412a'
+          assert run['path'] == '.github/workflows/publish-agpc-v58-runtime.yml'
+          PY
+      - name: Check out exact reviewed GitLab source
+        env:
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_READ_USER: ${{ secrets.AGPC_GITLAB_READ_USER }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$AGPC_GITLAB_READ_TOKEN"
+          test -n "$AGPC_GITLAB_READ_USER"
+          test -n "$AGPC_GITLAB_SOURCE_URL"
+          authorization="$(printf '%s:%s' "$AGPC_GITLAB_READ_USER" "$AGPC_GITLAB_READ_TOKEN" | base64 -w0)"
+          echo "::add-mask::$authorization"
+          git -c "http.extraHeader=Authorization: Basic $authorization" \
+            clone --no-checkout "$AGPC_GITLAB_SOURCE_URL" source
+          git -C source checkout --detach "$AGPC_SOURCE_COMMIT"
+          test "$(git -C source rev-parse HEAD)" = "$AGPC_SOURCE_COMMIT"
+          git -C source remote remove origin
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: agpc-v91-native-staged-site
+          path: apt-site
+          run-id: ${{ env.ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Record runner and candidate evidence
+        env:
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          set -euo pipefail
+          mkdir -p acceptance
+          systemctl --version | tee acceptance/systemd-version.txt
+          printf 'source_commit=%s\nartifact_run_id=%s\nprofile=%s\n' \
+            "$AGPC_SOURCE_COMMIT" "$ARTIFACT_RUN_ID" "$PROFILE" > acceptance/candidate.txt
+          cd source
+          python3 -m unittest discover -s tests -p test_agpc_profile_acceptance.py -v
+      - name: Verify signed profile on disposable native VM
+        env:
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          set -euo pipefail
+          python3 source/scripts/verify_agpc_profiles.py apt-site \
+            --profile "$PROFILE" --evidence acceptance/result.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: agpc-v91-verification-${{ matrix.profile }}
+          path: acceptance/
+          if-no-files-found: warn
