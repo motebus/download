@@ -49,9 +49,9 @@
   },
   "debian_installer_sha256": "01e04cde9ffa4915781a2c878a67fa786a1632f1a67ff205271f54e15e6f9bdf",
   "windows_x86_64": {
-    "tag": "agpc-windows-v0.1.0-host-access-preview.17",
-    "manifest_sha256": "53f5b95f38d50eb93f8fc527e512a8b6605dc12040f441ca88e02a5c3be1f51b",
-    "sha256": "79b1383c9546b8a41cae45f9e76c14b8123677d4f408c22b8b93d25b7df9009d",
-    "bytes": 49367040
+    "tag": "agpc-windows-v0.1.0-host-access-preview.18",
+    "manifest_sha256": "38a6c2dfa419ee4f9bd01be6db3c045b0ee9b1143416317ebf4915726185461c",
+    "sha256": "719ddf744faea06581d272802e5678d274951c0f193fb25747d8df3e489554a6",
+    "bytes": 49377792
   }
 }
