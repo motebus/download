@@ -13,6 +13,7 @@ permissions:
 env:
   PYTHONDONTWRITEBYTECODE: "1"
   AGPC_SOURCE_COMMIT: 09d20c60f2c84698ad6bb28243f236a6bf02b7ac
+  AGPC_ACCEPTANCE_SOURCE_COMMIT: f475d5ca55605c6b684307305c38f0b048078d98
 
 concurrency:
   group: medge-apt-pages
@@ -116,8 +117,8 @@ jobs:
           echo "::add-mask::$authorization"
           git -c "http.extraHeader=Authorization: Basic $authorization" \
             clone --no-checkout "$AGPC_GITLAB_SOURCE_URL" source
-          git -C source checkout --detach "$AGPC_SOURCE_COMMIT"
-          test "$(git -C source rev-parse HEAD)" = "$AGPC_SOURCE_COMMIT"
+          git -C source checkout --detach "$AGPC_ACCEPTANCE_SOURCE_COMMIT"
+          test "$(git -C source rev-parse HEAD)" = "$AGPC_ACCEPTANCE_SOURCE_COMMIT"
           git -C source remote remove origin
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
