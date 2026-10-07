@@ -8,6 +8,9 @@ on:
         type: string
 permissions:
   contents: read
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  AGPC_SOURCE_COMMIT: 946edba4426c081f7fecaff6fb5ed077042c10a4
 concurrency:
   group: native-package-publication
   cancel-in-progress: false
@@ -19,11 +22,25 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          ref: main
-          persist-credentials: false
+      - name: Check out exact reviewed GitLab source
+        env:
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_READ_USER: ${{ secrets.AGPC_GITLAB_READ_USER }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$AGPC_GITLAB_READ_TOKEN"
+          test -n "$AGPC_GITLAB_READ_USER"
+          test -n "$AGPC_GITLAB_SOURCE_URL"
+          authorization="$(printf '%s:%s' "$AGPC_GITLAB_READ_USER" "$AGPC_GITLAB_READ_TOKEN" | base64 -w0)"
+          echo "::add-mask::$authorization"
+          git -c "http.extraHeader=Authorization: Basic $authorization" \
+            clone --no-checkout "$AGPC_GITLAB_SOURCE_URL" source
+          git -C source checkout --detach "$AGPC_SOURCE_COMMIT"
+          test "$(git -C source rev-parse HEAD)" = "$AGPC_SOURCE_COMMIT"
+          git -C source remote remove origin
       - name: Publish only source-reviewed immutable asset pins
+        working-directory: source
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
