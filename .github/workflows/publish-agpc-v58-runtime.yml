@@ -1,4 +1,4 @@
-name: Publish AGPC v94 with S, Manager and disabled Mesh RUN
+name: Publish AGPC v95 with S, Manager and disabled Mesh RUN
 
 on:
   workflow_dispatch:
@@ -12,8 +12,8 @@ permissions:
 
 env:
   PYTHONDONTWRITEBYTECODE: "1"
-  AGPC_SOURCE_COMMIT: 09d20c60f2c84698ad6bb28243f236a6bf02b7ac
-  AGPC_ACCEPTANCE_SOURCE_COMMIT: f475d5ca55605c6b684307305c38f0b048078d98
+  AGPC_SOURCE_COMMIT: d7d56ff1e3ca80f5f6c648149e41377b053b3614
+  AGPC_ACCEPTANCE_SOURCE_COMMIT: d7d56ff1e3ca80f5f6c648149e41377b053b3614
 
 concurrency:
   group: medge-apt-pages
@@ -81,13 +81,13 @@ jobs:
           cmp --silent uninstall.sh "$GITHUB_WORKSPACE/apt-site/uninstall.sh"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: agpc-v94-native-staged-site
+          name: agpc-v95-native-staged-site
           path: apt-site/
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: agpc-v94-promotion-evidence
+          name: agpc-v95-promotion-evidence
           path: ${{ runner.temp }}/agpc-promotion*.json
           if-no-files-found: error
       - uses: actions/upload-pages-artifact@v3
@@ -122,7 +122,7 @@ jobs:
           git -C source remote remove origin
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: agpc-v94-native-staged-site
+          name: agpc-v95-native-staged-site
           path: apt-site
       - name: Install and reinstall native signed profile on disposable VM
         run: >-
@@ -132,7 +132,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: agpc-v94-native-acceptance-${{ matrix.profile }}
+          name: agpc-v95-native-acceptance-${{ matrix.profile }}
           path: acceptance/
           if-no-files-found: warn
 
@@ -143,6 +143,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Publish signed AGPC v94 native runtime
+      - name: Publish signed AGPC v95 native runtime
         id: deployment
         uses: actions/deploy-pages@v4
