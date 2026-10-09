@@ -788,6 +788,25 @@ classify_legacy_chatd() {
 }
 # The old removal hook deletes its managed Codex entry. Validate its exact
 # normal ownership and stock table before downloads, then recheck under lock.
+classify_legacy_ultra() {
+python3 - <<'ULTRA_PREFLIGHT'
+import hashlib, subprocess, sys
+result = subprocess.run(['dpkg-query', '-W', '-f=${Version}|${Architecture}|${Status}\n${Conffiles}', 'mote-mcp-ultra'], capture_output=True, text=True)
+if result.returncode == 1 and not result.stdout.strip():
+    print('absent'); sys.exit(0)
+if result.returncode != 0:
+    sys.exit('Cannot inspect retired Ultra package')
+record = result.stdout
+fields = record.split('\n', 1)[0].split('|')
+if len(fields) != 3 or fields[0] not in ('0.1.0-1', '0.2.0-1', '0.2.1-1', '0.2.1-2') or fields[1] != 'amd64':
+    sys.exit('Unreviewed retired Ultra package')
+state = {'install ok installed': 'installed', 'deinstall ok config-files': 'config-files'}.get(fields[2])
+if state is None:
+    sys.exit('Incomplete retired Ultra package state')
+print(state + ':' + fields[0] + ':' + hashlib.sha256(record.encode()).hexdigest())
+ULTRA_PREFLIGHT
+}
+
 classify_legacy_mcp() {
 python3 - <<'MCP_PREFLIGHT'
 import hashlib
@@ -1339,6 +1358,7 @@ classify_legacy_uchat() {
 
 uchat_state=$(classify_legacy_uchat) || fail 'uChat package preflight failed. No download or package change was started.'
 legacy_state=$(classify_legacy_chatd) || fail 'Legacy preflight failed. No download or package change was started.'
+ultra_state=$(classify_legacy_ultra) || fail 'Ultra preflight failed. No download or package change was started.'
 mcp_state=$(classify_legacy_mcp) || fail 'MCP preflight failed. No download or package change was started.'
 cx_state=$(classify_legacy_cx) || fail 'CX preflight failed. No download or package change was started.'
 manager_state=$(classify_legacy_manager) || fail 'Manager preflight failed. No download or package change was started.'
@@ -1376,7 +1396,7 @@ if [[ $legacy_state == retention:installed || $legacy_state == retirement:unpack
     chmod 0644 "$retirement_bridge"
     transaction_legacy_state=retirement:installed
 fi
-packages=(agent-sphere=0.3.0-42 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 agpc-cdp=0.2.0-1 contextd=0.1.0-27 uchat=3.2.0-7 uchatd=0.6.0-1 "$obsidian")
+packages=(agent-sphere=0.3.0-43 agent-ultra=0.1.0-1 agpc-manager=3.3.0-1 agpc-cdp=0.2.0-1 contextd=0.1.0-27 uchat=3.2.0-7 uchatd=0.6.0-1 "$obsidian")
 if [[ $agpc_profile == full ]]; then
     packages+=(agpc-apps=0.3.0-1)
     # The old documentation-only metapackage becomes an exact dependency bridge.
@@ -1397,10 +1417,11 @@ esac
 # APT protocol v3 is checked again under APT's lock before any DPKG action.
 {
 printf '%s\n' '#!/bin/bash' 'set -euo pipefail'
-declare -f agentsphere_container_runtime_package classify_legacy_chatd classify_legacy_mcp classify_legacy_cx classify_legacy_manager classify_legacy_uchat
+declare -f agentsphere_container_runtime_package classify_legacy_chatd classify_legacy_mcp classify_legacy_ultra classify_legacy_cx classify_legacy_manager classify_legacy_uchat
 printf 'expected_uchat_state=%q\n' "$uchat_state"
 printf 'agpc_profile=%q\n' "$agpc_profile"
 printf 'expected_legacy_state=%q\n' "$transaction_legacy_state"
+printf 'expected_ultra_state=%q\n' "$ultra_state"
 printf 'expected_mcp_state=%q\n' "$mcp_state"
 printf 'expected_cx_state=%q\n' "$cx_state"
 printf 'expected_manager_state=%q\n' "$manager_state"
@@ -1410,6 +1431,8 @@ uchat_state=$(classify_legacy_uchat) || fail 'uChat package state is invalid at 
 [[ $uchat_state == "$expected_uchat_state" ]] || fail 'uChat state changed after preflight'
 legacy_state=$(classify_legacy_chatd) || fail 'legacy ownership is unsupported at transaction time'
 [[ $legacy_state == "$expected_legacy_state" ]] || fail 'legacy ownership changed after preflight'
+ultra_state=$(classify_legacy_ultra) || fail 'retired Ultra state is unsupported at transaction time'
+[[ $ultra_state == "$expected_ultra_state" ]] || fail 'retired Ultra state changed after preflight'
 mcp_state=$(classify_legacy_mcp) || fail 'legacy MCP state is unsupported at transaction time'
 [[ $mcp_state == "$expected_mcp_state" ]] || fail 'legacy MCP state changed after preflight'
 cx_state=$(classify_legacy_cx) || fail 'legacy CX state is unsupported at transaction time'
@@ -1436,6 +1459,11 @@ if [[ $mcp_state == installed:* ]]; then
     replacement[mote-bridge-mcp]=mote-mcpd
     reviewed_old[mote-bridge-mcp]=3.0.0-2
 fi
+if [[ $ultra_state == installed:* ]]; then
+    replacement[mote-mcp-ultra]=mote-mcpd
+    ultra_version=${ultra_state#installed:}
+    reviewed_old[mote-mcp-ultra]=${ultra_version%%:*}
+fi
 if [[ $manager_state == installed:sha256:* ]]; then
     replacement[sphere-manager]=agpc-manager
     reviewed_old[sphere-manager]=3.1.0-1
@@ -1447,7 +1475,7 @@ for entry in "${cx_predecessors[@]}"; do
         if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
     esac
 done
-declare -A floor=([agent-sphere]=0.3.0-42 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-cdp]=0.2.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-7 [mote-proxy]=2.0.0-9 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-7 [uchatd]=0.6.0-1)
+declare -A floor=([agent-sphere]=0.3.0-43 [agent-ultra]=0.1.0-1 [agpc-manager]=3.3.0-1 [agpc-cdp]=0.2.0-1 [agpc-apps]=0.3.0-1 [agent-apps]=0.3.0-1 [contextd]=0.1.0-27 [moted]=3.6.0-7 [mote-proxy]=2.0.0-9 [medge]=3.3.0-1 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [cx-mesh]=1.2.0-1 [mote-mcpd]=3.3.0-1 [mote-secd]=1.1.0-1 [cx-loop]=0.1.0-4 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-7 [uchatd]=0.6.0-1)
 while IFS= read -r line; do
     read -r -a fields <<< "$line"
     [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
@@ -1474,7 +1502,7 @@ while IFS= read -r line; do
             fail 'application composition is outside the standard AGPC profile'
         fi
         [[ $name != mote-chatd ]] || fail 'retired package mote-chatd is not installable'
-        case "$name" in sphere-manager|mote-sync|mote-syncd|cx-node|cx-agent|codex-mesh|model-node|model-grid|mcp-run|ultra-mcp-ssh|mote-bridge-mcp) fail "retired package $name" ;; esac
+        case "$name" in sphere-manager|mote-sync|mote-syncd|cx-node|cx-agent|codex-mesh|model-node|model-grid|mcp-run|ultra-mcp-ssh|mote-bridge-mcp|mote-mcp-ultra) fail "retired package $name" ;; esac
         [[ $new != - ]] || fail 'missing target version'
         [[ $old == - ]] || dpkg --compare-versions "$new" ge "$old" || fail "downgrade of $name"
         if [[ -n ${floor[$name]:-} ]]; then
@@ -1519,12 +1547,12 @@ if $public_cx_migration; then
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected CX artifact architecture'
     printf '%s  %s\n' caa078bdd810580dc8b35380d2fe8abbda6ff6c4338f2a8c8dbbba3051d02af0 "$path" | sha256sum --check --status || fail 'CX artifact changed'
 fi
-if [[ -n ${removed[mote-bridge-mcp]:-} ]]; then
-    [[ ${installed[mote-mcpd]:-} == 3.1.0-1 ]] || fail 'MCP migration requires exact mote-mcpd 3.1.0-1'
+if [[ -n ${removed[mote-bridge-mcp]:-} || -n ${removed[mote-mcp-ultra]:-} ]]; then
+    [[ ${installed[mote-mcpd]:-} == 3.3.0-1 ]] || fail 'MCP migration requires exact mote-mcpd 3.3.0-1'
     path=${artifacts[mote-mcpd]}
     [[ ! -L $path && -f $path ]] || fail 'unsafe MCP artifact'
     [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected MCP artifact architecture'
-    printf '%s  %s\n' fae185fc735571c73adee70fb3095851541fce3a7b13b468c41cae32bec44a60 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
+    printf '%s  %s\n' aa71837f08f2de684df8afbec91bd624762534b0b7c1e9f889dc86e0beb5969d "$path" | sha256sum --check --status || fail 'MCP artifact changed'
 fi
 if [[ -n ${removed[sphere-manager]:-} ]]; then
     [[ ${installed[agpc-manager]:-} == 3.3.0-1 ]] || fail 'Manager migration requires exact agpc-manager 3.3.0-1'
@@ -1556,6 +1584,10 @@ while read -r action package rest; do
                 'mote-bridge-mcp:[3.0.0-2]'*)
                     [[ $mcp_state == installed:* ]] || fail 'Refusing unreviewed MCP package removal.'
                     removed[mote-bridge-mcp]=mote-mcpd ;;
+                'mote-mcp-ultra:'*)
+                    ultra_version=${ultra_state#installed:}; ultra_version=${ultra_version%%:*}
+                    [[ $ultra_state == installed:* && $rest == "[$ultra_version]"* ]] || fail 'Refusing unreviewed Ultra package removal.'
+                    removed[mote-mcp-ultra]=mote-mcpd ;;
                 'sphere-manager:[3.1.0-1]'*)
                     [[ $manager_state == installed:sha256:* ]] || fail 'Refusing unreviewed Manager package removal.'
                     removed[sphere-manager]=agpc-manager ;;
