@@ -1,0 +1,64 @@
+name: Publish signed AGPC Voice installer
+
+on:
+  workflow_dispatch:
+
+# Same capabilities, secret names and Pages lock as the existing Voice-Mote
+# publisher. This workflow does not grant scopes or provision credentials.
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: medge-apt-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Import existing protected archive key
+        env:
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$MEDGE_APT_SIGNING_KEY"
+          printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
+      - name: Stage signed source-bound Voice downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: |
+          python3 scripts/publish_agpc_voice.py . apt-site --evidence "$RUNNER_TEMP/agpc-voice-publication.json"
+          gpgv --keyring ./medge-archive-keyring.gpg apt-site/agpc-voice.sh.asc apt-site/agpc-voice.sh
+          gpgv --keyring ./medge-archive-keyring.gpg apt-site/agpc-voice.source.json.asc apt-site/agpc-voice.source.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agpc-voice-publication-evidence
+          path: ${{ runner.temp }}/agpc-voice-publication.json
+          if-no-files-found: error
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apt-site
+          retention-days: 30
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish signed AGPC Voice downloads
+        id: deployment
+        uses: actions/deploy-pages@v4
