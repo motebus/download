@@ -78,6 +78,8 @@ class VoicePublicationTests(unittest.TestCase):
     def api(self, endpoint):
         project = int(endpoint.split("/")[1])
         commit = "a" * 40 if project == 1341 else "b" * 40
+        if "/members/all/" in endpoint:
+            return dict(access_level=40)
         if endpoint.endswith("/approvals"):
             return dict(approved=True, approved_by=[dict(user=dict(id=34))])
         if "/merge_requests/" in endpoint:
@@ -147,6 +149,11 @@ class VoicePublicationTests(unittest.TestCase):
                 obj["merge_commit_sha"] = "c" * 40
             return obj
         self.reject("exact merged source review", get_json=wrong)
+
+    def test_ordinary_developer_approval_cannot_substitute_for_maintainer(self):
+        def developer(path):
+            return dict(access_level=30) if "/members/all/" in path else self.api(path)
+        self.reject("Maintainer source approval required", get_json=developer)
 
     def test_unbound_package_url_rejected(self):
         self.packages[0]["url"] = None

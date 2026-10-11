@@ -17,6 +17,8 @@ requires `version`, `source_commit` (40 hexadecimal characters), positive
 `install_review` (project1341 MR number) / `disclosure_review`
 (`project`1341 or1348 and positive `iid`). No private source URL is disclosed. The install review must
 be approved, merged into project1341 main, and bind the exact build commit.
+At least one approver must have current Maintainer/Owner membership. Repository
+write access or an ordinary Developer approval cannot substitute for that role.
 Disclosure review must similarly bind that commit or the component main commit.
 Input records cannot select a different host, repository, download URL or key.
 Public records contain project/commit/CI/MR identities, not private host URLs.

@@ -117,6 +117,14 @@ def verify_review(iid, project, commit, get_json=api_json):
     approvals = get_json(endpoint + "/approvals")
     native.require(approvals.get("approved") is True and bool(approvals.get("approved_by")),
                    "source review approval missing")
+    maintainer = False
+    for approval in approvals["approved_by"]:
+        user_id = approval.get("user", {}).get("id")
+        native.require(type(user_id) is int and user_id > 0, "review approver identity missing")
+        member = get_json(f"projects/{project}/members/all/{user_id}")
+        if type(member.get("access_level")) is int and member["access_level"] >= 40:
+            maintainer = True
+    native.require(maintainer, "Maintainer source approval required")
 
 
 def extract_bundle(data, destination, record):
