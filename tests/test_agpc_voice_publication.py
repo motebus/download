@@ -87,7 +87,7 @@ class VoicePublicationTests(unittest.TestCase):
         if "/pipelines/" in endpoint:
             return dict(id=project, status="success", ref="main", sha=commit)
         job = int(endpoint.rsplit("/", 1)[1])
-        return dict(id=job, status="success", ref="main", commit=dict(id=commit),
+        return dict(id=job, status="success", ref="main", tag=False, commit=dict(id=commit),
                     pipeline=dict(id=project, sha=commit, ref="main"))
 
     def component(self, endpoint):
@@ -138,6 +138,12 @@ class VoicePublicationTests(unittest.TestCase):
                 obj["ref"] = "feature"
             return obj
         self.reject("successful exact main CI", get_json=branch)
+        def tag(path):
+            obj = self.api(path)
+            if "/jobs/" in path:
+                obj["tag"] = True
+            return obj
+        self.reject("successful exact main CI", get_json=tag)
         def unapproved(path):
             return dict(approved=False, approved_by=[]) if path.endswith("/approvals") else self.api(path)
         self.reject("source review approval missing", get_json=unapproved)

@@ -94,7 +94,7 @@ def verify_job(project, job_id, commit, get_json=api_json):
     native.require(type(job_id) is int and job_id > 0
                    and re.fullmatch(r"[a-f0-9]{40}", commit), "invalid source CI identity")
     job = get_json(f"projects/{project}/jobs/{job_id}")
-    native.require(job.get("id") == job_id and job.get("status") == "success"
+    native.require(job.get("id") == job_id and job.get("status") == "success" and job.get("tag") is False
                    and job.get("ref") == "main" and job.get("commit", {}).get("id") == commit
                    and job.get("pipeline", {}).get("sha") == commit
                    and job.get("pipeline", {}).get("ref") == "main", "successful exact main CI required")
