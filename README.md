@@ -99,7 +99,7 @@ Preview 14 fixes MCP discovery by preserving the Windows SystemDrive variable. N
 Preview 18 validates the protected uChat endpoint through pinned Windows file and ancestor handles, including ownership, ACL and size checks. Untrusted configuration is rejected. It does not install native Redis or uchatd, provision accounts, or complete the UAC identity handoff; live chat remains unavailable.
 
 [Download agpc.exe (x86-64)](https://motebus.github.io/download/agpc.exe):
-**0.1.0-host-access-preview.18**, an unsigned outbound-access preview with
+**0.1.0-host-access-preview.22**, an unsigned experimental outbound-access preview with
 local CDP/cdpd, the Windows `mstsc.exe` RDP client, and native MCP. One elevated
 installation registers the stable `C:\Program Files\AGPC\bin` machine PATH and creates `cdp.exe`,
 `rdp.exe`, `run.exe`, `mesh.exe`, `uchat.exe`, and `agpc-manager.exe` as hard links to that one
@@ -109,6 +109,17 @@ One `agpc.exe` also manages the explicit `agpc-wsl` sibling runtime. Bare
 invocation selects `agpc-win` (native Windows/PowerShell). WSL commands select
 `agpc-wsl` (WSL Linux/Bash); the runtimes have independent node identities and
 Mesh admission. Native Windows does not require WSL or switch into it silently.
+
+Preview 22 adds guarded installer paths for owner-provided uChat runtime bundles:
+explicit Windows account selection, protected Redis/TLS/provider input checks
+before service changes, durable store initialization without replacement,
+protected client endpoint publication, and native SCM startup diagnostics.
+These paths require a complete approved runtime manifest. The executable embeds
+only sphered, mote-proxy and mote-mcp-ultra; it does not bundle or automatically
+install Redis or uchatd. Installing it alone does not enable persistent live
+uChat, complete AGPC Core, establish AGPC Ready, or indicate production readiness.
+Apps and Voice remain separate installers. Native ARM64, persistent installation
+and restart recovery remain unverified; cross-member RUN remains unavailable.
 
 ```powershell
 .\agpc.exe wsl status -Json
@@ -150,7 +161,7 @@ their production services and S admission exist. Local CDP prerequisites were
 observed on MEDGE-OA; this does not establish browser execution on this exact
 build, remote readiness, or clean-machine acceptance.
 
-[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.18).
+[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.22).
 
 Preview 10 adds native human uChat client commands: `uchat uput @machine MESSAGE`,
 `uchat ubox [AFTER_CURSOR]`, `uchat uget INBOX_ID`, and `uchat info`.
