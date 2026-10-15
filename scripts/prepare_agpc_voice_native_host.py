@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Prepare only /opt in the reviewed disposable Noble Voice CI job.
+"""Prepare three fixed shared directories in the disposable Noble Voice CI job.
 
 The reviewed workflow and its root invocation authorize this operation. GitHub
 environment strings do not authorize it. This is not a production-host repair
-tool. The CLI accepts no target override and never creates /opt/agpc.
+tool. The CLI accepts no target override and preserves all existing children.
 """
 import argparse
 import hashlib
@@ -16,7 +16,11 @@ import struct
 import sys
 
 
-TARGET = Path('/opt')
+PREPARATION_TARGETS = ((Path('/opt'), 'agpc'), (Path('/usr/share'), None),
+                       (Path('/usr/share/doc'), 'agpc-voice'))
+PREPARATION_ANCESTORS = (Path('/'), Path('/usr'), Path('/usr/lib'))
+PROTECTED_PATHS = (Path('/opt/agpc'), Path('/usr/lib/agpc-voice'),
+                   Path('/usr/share/doc/agpc-voice'))
 SHARED_ANCESTORS = tuple(Path(name) for name in (
     '/', '/lib', '/lib/systemd', '/lib/systemd/system', '/opt', '/usr',
     '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/doc'))
@@ -123,12 +127,12 @@ def acl_metadata(acls):
             for name, raw in acls.items()}
 
 
-def no_agpc(fd):
+def no_child(fd, name):
     try:
-        os.stat('agpc', dir_fd=fd, follow_symlinks=False)
+        os.stat(name, dir_fd=fd, follow_symlinks=False)
     except FileNotFoundError:
         return
-    raise PreparationError('agpc path already exists')
+    raise PreparationError(name + ' path already exists')
 
 
 def path_matches(path, expected, allowed_modes):
@@ -171,8 +175,17 @@ def observe_shared_ancestors(*, emit=emit_json):
         emit(record)
 
 
-def prepare_directory(path, *, emit=emit_json):
-    """Internal path injection is for offline fixtures; main always supplies /opt."""
+def prepare_directory(path, *, protected_name='agpc', guard=None, emit=emit_json):
+    """Internal injection is for offline fixtures; prepare_host supplies fixed targets."""
+    def check_protected(fd):
+        paths = []
+        if protected_name is not None:
+            no_child(fd, protected_name)
+            paths.append(str(path / protected_name))
+        if guard is not None:
+            paths.extend(guard())
+        return sorted(set(paths))
+
     require(os.geteuid() == 0, 'Root execution required')
     before = os.stat(path, follow_symlinks=False)
     emit(dict(schema='agpc.voice-native-host-preparation/v1', event='before',
@@ -200,15 +213,18 @@ def prepare_directory(path, *, emit=emit_json):
             entries = acl_entries(raw)
             if name == ACL_NAMES[0]:
                 require(acl_mode(entries) == stat.S_IMODE(opened.st_mode), 'Access ACL differs from mode')
-        no_agpc(fd)
+        check_protected(fd)
         current = path_matches(path, opened, (0o755, 0o777))
         require(current.st_mode == opened.st_mode, 'Directory permissions changed before preparation')
         require(observe_xattrs(fd) == (original_acls, original_other), 'Attributes changed before preparation')
         if stat.S_IMODE(opened.st_mode) == 0o777:
+            check_protected(fd)
             mutation_attempted = True
             os.fchmod(fd, 0o755)
             chmod_completed = True
             changed = True
+            path_matches(path, opened, (0o755,))
+            check_protected(fd)
         # Clamp the access mask before removing named entries. No window with
         # 0777 permissions is introduced by deleting a restrictive named ACL.
         clamped, other = observe_xattrs(fd)
@@ -228,15 +244,19 @@ def prepare_directory(path, *, emit=emit_json):
         trusted_directory(clamped_info, (0o755,))
         require(identity(clamped_info) == identity(opened), 'Open directory identity changed')
         path_matches(path, clamped_info, (0o755,))
-        no_agpc(fd)
+        check_protected(fd)
         for name in ACL_NAMES:
             if name not in clamped:
                 continue
+            path_matches(path, clamped_info, (0o755,))
+            check_protected(fd)
             require(os.getxattr(fd, name) == clamped[name], 'ACL changed before removal')
             mutation_attempted = True
             os.removexattr(fd, name)
             removed.append(name)
             changed = True
+            path_matches(path, clamped_info, (0o755,))
+            check_protected(fd)
         after = os.fstat(fd)
         trusted_directory(after, (0o755,))
         require(identity(after) == identity(opened), 'Open directory identity changed')
@@ -246,15 +266,15 @@ def prepare_directory(path, *, emit=emit_json):
         path_matches(path, after, (0o755,))
         # A child may have been created while the original directory was 0777.
         # Tighten first, then reject any such child without deleting it or
-        # reopening permissions. This includes a dangling symlink named agpc.
-        no_agpc(fd)
+        # reopening permissions. This includes a dangling protected symlink.
+        protected_paths = check_protected(fd)
         path_matches(path, after, (0o755,))
         accepted = True
         return dict(schema='agpc.voice-native-host-preparation/v1', path=str(path),
                     before=metadata(before), after=metadata(after), changed=changed,
                     acls_before=acl_metadata(original_acls), removed_acl_names=removed,
                     acl_names_absent_after_chmod=absent_after_chmod, other_xattr_names=other,
-                    agpc_absent=True, production_admission=False)
+                    protected_paths_absent=protected_paths, production_admission=False)
     finally:
         try:
             after_info = os.fstat(fd)
@@ -267,6 +287,7 @@ def prepare_directory(path, *, emit=emit_json):
                     trusted_directory(after_info, (0o755,))
                     require(identity(after_info) == identity(opened), 'Final directory identity changed')
                     path_matches(path, after_info, (0o755,))
+                    final['protected_paths_absent'] = check_protected(fd)
                 final_acls, final_other = observe_xattrs(fd)
                 final.update(acls=acl_metadata(final_acls), other_xattr_names=final_other)
                 if original_acls is not None:
@@ -281,10 +302,75 @@ def prepare_directory(path, *, emit=emit_json):
                 if accepted:
                     final['accepted'] = False
                     emit(final)
-                    raise PreparationError('Final attributes are unobservable or changed') from None
+                    raise PreparationError('Final preparation observation is unobservable or changed') from None
             emit(final)
         finally:
             os.close(fd)
+
+
+def prepare_host(*, emit=emit_json):
+    """Prepare only the fixed parent-before-child sequence; never restore loosened modes."""
+    require(os.geteuid() == 0, 'Root execution required')
+    snapshots, completed, results = {}, [], []
+    active = None
+    accepted = False
+    protected_paths = None
+    targets = {path for path, _ in PREPARATION_TARGETS}
+
+    def guard():
+        for path, original in snapshots.items():
+            if path == active:
+                modes = (stat.S_IMODE(original.st_mode), 0o755)
+            elif path in completed:
+                modes = (0o755,)
+            else:
+                modes = (stat.S_IMODE(original.st_mode),)
+            path_matches(path, original, modes)
+        for path in PROTECTED_PATHS:
+            try:
+                os.stat(path, follow_symlinks=False)
+            except FileNotFoundError:
+                continue
+            raise PreparationError('Protected package path already exists: ' + str(path))
+        # Bind the absence observation to unchanged directory identities.
+        for path, original in snapshots.items():
+            require(identity(os.stat(path, follow_symlinks=False)) == identity(original),
+                    'Protected package ancestry changed')
+        return list(map(str, PROTECTED_PATHS))
+
+    try:
+        for path in (*PREPARATION_ANCESTORS, *(path for path, _ in PREPARATION_TARGETS)):
+            info = os.stat(path, follow_symlinks=False)
+            trusted_directory(info, (0o755, 0o777) if path in targets else (0o755,))
+            snapshots[path] = info
+        guard()  # Refuse existing payloads before changing any directory.
+        for path, name in PREPARATION_TARGETS:
+            active = path
+            guard()
+            results.append(prepare_directory(path, protected_name=name, guard=guard, emit=emit))
+            completed.append(path)
+            active = None
+            guard()
+        # Earlier directories must still have the exact completed metadata;
+        # a later target cannot conceal an ACL or attribute race on its parent.
+        for (path, _), result in zip(PREPARATION_TARGETS, results):
+            fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+            try:
+                info = os.fstat(fd)
+                trusted_directory(info, (0o755,))
+                require(identity(info) == identity(snapshots[path]), 'Completed directory identity changed')
+                require(observe_xattrs(fd) == ({}, result['other_xattr_names']),
+                        'Completed directory attributes changed')
+                path_matches(path, info, (0o755,))
+            finally:
+                os.close(fd)
+        protected_paths = guard()
+        accepted = True
+        return results
+    finally:
+        emit(dict(schema='agpc.voice-native-host-preparation/v1', event='host-after',
+                  accepted=accepted, completed_paths=list(map(str, completed)),
+                  protected_paths_absent=protected_paths, production_admission=False))
 
 
 def main(argv=None):
@@ -295,7 +381,7 @@ def main(argv=None):
     require(release.get('ID') == 'ubuntu' and release.get('VERSION_ID') == '24.04'
             and platform.machine() == 'x86_64', 'Disposable Ubuntu 24.04 amd64 target required')
     observe_shared_ancestors()
-    return prepare_directory(TARGET)
+    return prepare_host()
 
 
 if __name__ == '__main__':
