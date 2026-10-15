@@ -1,0 +1,63 @@
+name: Verify Voice packages on native Noble
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  package-native:
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [fresh, upgrade]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Fetch exact closed-gate main CI test inputs
+        id: source
+        env:
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+        run: python3 scripts/stage_agpc_voice_native_inputs.py scripts/agpc-voice-native-ci.json voice-native-stage
+      - name: Prepare disposable Noble package prerequisites
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends --no-upgrade python3-yaml python3-websocket adduser init-system-helpers libc6 libssl3t64 libuuid1 libsqlite3-0 libcurl4t64 libpcre2-8-0 libspeex1 libspeexdsp1 libtiff6 libjpeg8 zlib1g libstdc++6
+          sudo install -d -m 0755 /opt/agpc-voice-native-ci /opt/agpc-voice-native-ci-results
+          sudo cp -R --no-preserve=ownership voice-native-stage/. /opt/agpc-voice-native-ci/
+          sudo chmod -R go-w /opt/agpc-voice-native-ci
+      - name: Validate packages, inactive hooks, restoration and ABI
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.source_commit }}
+          TEST_MODE: ${{ matrix.mode }}
+        run: |
+          set -euo pipefail
+          sudo env GITHUB_ACTIONS=true RUNNER_ENVIRONMENT=github-hosted GITHUB_REPOSITORY=motebus/download GITHUB_REF=refs/heads/main GITHUB_RUN_ID="$GITHUB_RUN_ID" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" GITHUB_SHA="$GITHUB_SHA" /usr/bin/python3 -I -B /opt/agpc-voice-native-ci/scripts/verify_agpc_voice_native_ci.py --mode "$TEST_MODE" --artifacts-dir /opt/agpc-voice-native-ci/packages --evidence-dir "/opt/agpc-voice-native-ci-results/$TEST_MODE" --source-commit "$SOURCE_COMMIT" --execute
+      - name: Export only this job's generated evidence for upload
+        if: always()
+        env:
+          TEST_MODE: ${{ matrix.mode }}
+        run: |
+          set -euo pipefail
+          case "$TEST_MODE" in fresh|upgrade) ;; *) exit 2 ;; esac
+          mkdir -m 0700 "$RUNNER_TEMP/voice-native-evidence"
+          if sudo test -d "/opt/agpc-voice-native-ci-results/$TEST_MODE"; then
+            sudo tar -C "/opt/agpc-voice-native-ci-results/$TEST_MODE" -cf - . > "$RUNNER_TEMP/voice-native-evidence/$TEST_MODE.tar"
+          fi
+      - name: Retain package-native evidence, without claiming installer or phone acceptance
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agpc-voice-package-native-${{ matrix.mode }}
+          path: ${{ runner.temp }}/voice-native-evidence/${{ matrix.mode }}.tar
+          if-no-files-found: error
+          retention-days: 30
