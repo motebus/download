@@ -4,6 +4,7 @@ import io
 import os
 from pathlib import Path
 import stat
+import struct
 import sys
 import tempfile
 import unittest
@@ -20,6 +21,17 @@ def owned(info, uid=0, gid=0):
     return os.stat_result(values)
 
 
+def acl(*entries):
+    return struct.pack('<I', 2) + b''.join(struct.pack('<HHI', *entry) for entry in entries)
+
+
+UNDEFINED = 0xffffffff
+FIXTURE_UID = os.getuid()  # Valid even when the test user namespace maps only this UID.
+BASE_ACL = acl((1, 7, UNDEFINED), (4, 5, UNDEFINED), (32, 5, UNDEFINED))
+EXTENDED_ACL = acl((1, 7, UNDEFINED), (2, 7, FIXTURE_UID), (4, 5, UNDEFINED),
+                   (16, 7, UNDEFINED), (32, 7, UNDEFINED))
+
+
 class NativeHostPreparationTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -32,6 +44,10 @@ class NativeHostPreparationTests(unittest.TestCase):
         self.fstat = os.fstat
         self.fchmod = os.fchmod
         self.open = os.open
+        self.listxattr = os.listxattr
+        self.getxattr = os.getxattr
+        self.removexattr = os.removexattr
+        self.setxattr = os.setxattr
         self.fds = []
 
     def open_recorded(self, path, flags):
@@ -75,7 +91,7 @@ class NativeHostPreparationTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(self.path.stat().st_mode), 0o755)
         self.assertEqual(stat.S_IMODE(other.stat().st_mode), 0o640)
         self.assertEqual(other.read_bytes(), b'unchanged payload')
-        self.assertEqual([r['event'] for r in self.logs], ['before', 'after'])
+        self.assertEqual([r['event'] for r in self.logs], ['before', 'acl-before', 'after'])
         self.assertIs(self.logs[-1]['accepted'], True)
         self.assert_closed()
 
@@ -117,15 +133,16 @@ class NativeHostPreparationTests(unittest.TestCase):
             self.run_prepare()
         self.assertEqual(self.fds, [])
 
-    def test_acl_and_capability_names_are_rejected_before_chmod(self):
+    def test_unknown_acl_and_capability_names_are_rejected_before_mutation(self):
         self.path.chmod(0o777)
-        for name in ('system.posix_acl_access', 'system.posix_acl_default',
-                     'system.posix_acl_future', 'security.capability'):
+        for name in ('system.posix_acl_future', 'system.nfs4_acl', 'security.NTACL',
+                     'security.capability', 'security.capability_future'):
             with self.subTest(name=name), patch.object(host.os, 'fchmod') as chmod:
-                with self.assertRaisesRegex(host.PreparationError, 'ACL or capability'):
+                with self.assertRaisesRegex(host.PreparationError, 'Unsupported access attribute'):
                     self.run_prepare(listxattr=lambda fd: [name])
                 chmod.assert_not_called()
                 self.assertFalse(self.logs[-1]['accepted'])
+                self.assertIs(self.logs[-1]['changed'], False)
         self.assert_closed()
 
     def test_xattr_observation_failure_refuses_without_chmod(self):
@@ -211,9 +228,13 @@ class NativeHostPreparationTests(unittest.TestCase):
 
     def test_new_acl_after_tightening_is_rejected(self):
         self.path.chmod(0o777)
-        observations = iter(([], ['system.posix_acl_access']))
-        with self.assertRaisesRegex(host.PreparationError, 'ACL or capability'):
-            self.run_prepare(listxattr=lambda fd: next(observations))
+        attributes = {}
+        def add_after_tightening(fd, mode):
+            self.fchmod(fd, mode)
+            attributes[host.ACL_NAMES[0]] = BASE_ACL
+        with patch.object(host.os, 'fchmod', side_effect=add_after_tightening):
+            with self.assertRaisesRegex(host.PreparationError, 'ACL changed unexpectedly'):
+                self.run_prepare(listxattr=lambda fd: list(attributes), getxattr=lambda fd, name: attributes[name])
         self.assertEqual(stat.S_IMODE(self.path.stat().st_mode), 0o755)
         self.assertFalse(self.logs[-1]['accepted'])
         self.assert_closed()
@@ -226,6 +247,167 @@ class NativeHostPreparationTests(unittest.TestCase):
         self.assertEqual(self.logs[-1]['metadata']['mode'], '0777')
         self.assertFalse(self.logs[-1]['accepted'])
         self.assert_closed()
+
+    def install_acl_fixture(self, *, access=True, default=True):
+        # Only this test-owned temporary directory receives actual Linux ACLs.
+        # Production /opt, system accounts and other host paths are never used.
+        if access:
+            self.setxattr(self.path, host.ACL_NAMES[0], EXTENDED_ACL)
+        if default:
+            self.setxattr(self.path, host.ACL_NAMES[1], EXTENDED_ACL)
+
+    def test_actual_linux_access_and_default_acls_are_captured_then_removed(self):
+        child = self.path / 'existing'
+        child.write_bytes(b'preserved child')
+        child.chmod(0o640)
+        self.setxattr(self.path, 'user.fixture', b'preserved attribute')
+        self.install_acl_fixture()
+        calls = []
+        def remove_after_clamp(fd, name):
+            calls.append(name)
+            self.assertIsInstance(fd, int)
+            self.assertEqual(stat.S_IMODE(self.fstat(fd).st_mode), 0o755)
+            return self.removexattr(fd, name)
+        result = self.run_prepare(listxattr=self.listxattr, removexattr=remove_after_clamp)
+        self.assertEqual(calls, list(host.ACL_NAMES))
+        self.assertEqual(result['removed_acl_names'], calls)
+        self.assertEqual(result['acls_before'][host.ACL_NAMES[0]]['hex'], EXTENDED_ACL.hex())
+        self.assertEqual(result['acls_before'][host.ACL_NAMES[1]]['hex'], EXTENDED_ACL.hex())
+        self.assertEqual(self.logs[1]['acls'], result['acls_before'])
+        self.assertEqual(self.listxattr(self.path), ['user.fixture'])
+        self.assertEqual(self.getxattr(self.path, 'user.fixture'), b'preserved attribute')
+        self.assertEqual(child.read_bytes(), b'preserved child')
+        self.assertEqual(stat.S_IMODE(child.stat().st_mode), 0o640)
+        self.assertEqual(self.listxattr(child), [])
+        self.assertEqual(self.logs[-1]['acls'], {})
+        self.assertTrue(result['changed'])
+        self.assert_closed()
+
+    def test_default_acl_on_0755_is_removed_without_unneeded_chmod(self):
+        self.install_acl_fixture(access=False)
+        with patch.object(host.os, 'fchmod', side_effect=AssertionError('Mode already clamped')):
+            result = self.run_prepare(listxattr=self.listxattr)
+        self.assertTrue(result['changed'])
+        self.assertEqual(result['removed_acl_names'], [host.ACL_NAMES[1]])
+        self.assertEqual(result['before']['mode'], '0755')
+        self.assertEqual(result['after']['mode'], '0755')
+
+    def test_malformed_acl_refuses_before_any_mutation(self):
+        invalid = [b'', b'\x00' * 28, struct.pack('<I', 3) + BASE_ACL[4:],
+                   EXTENDED_ACL[:-1], b'x' * (host.ACL_LIMIT + 1),
+                   acl((1, 8, UNDEFINED), (4, 5, UNDEFINED), (32, 5, UNDEFINED)),
+                   acl((1, 7, 0), (4, 5, UNDEFINED), (32, 5, UNDEFINED)),
+                   acl((1, 7, UNDEFINED), (2, 7, 42), (4, 5, UNDEFINED), (32, 5, UNDEFINED)),
+                   acl((1, 7, UNDEFINED), (2, 7, 42), (2, 5, 42), (4, 5, UNDEFINED),
+                       (16, 7, UNDEFINED), (32, 5, UNDEFINED)),
+                   acl((1, 7, UNDEFINED), (4, 5, UNDEFINED), (64, 5, UNDEFINED))]
+        for raw in invalid:
+            with self.subTest(raw=raw[:12]), patch.object(host.os, 'fchmod') as chmod, \
+                    patch.object(host.os, 'removexattr') as remove:
+                with self.assertRaises(host.PreparationError):
+                    self.run_prepare(listxattr=lambda fd: [host.ACL_NAMES[0]],
+                                     getxattr=lambda fd, name: raw)
+                chmod.assert_not_called()
+                remove.assert_not_called()
+                self.assertIs(self.logs[-1]['changed'], False)
+
+    def test_access_acl_must_match_observed_mode(self):
+        with patch.object(host.os, 'fchmod') as chmod, patch.object(host.os, 'removexattr') as remove:
+            with self.assertRaisesRegex(host.PreparationError, 'differs from mode'):
+                self.run_prepare(listxattr=lambda fd: [host.ACL_NAMES[0]],
+                                 getxattr=lambda fd, name: EXTENDED_ACL)
+        chmod.assert_not_called()
+        remove.assert_not_called()
+
+    def test_partial_removal_reports_retained_default_and_never_restores_permissions(self):
+        self.install_acl_fixture()
+        def fail_second(fd, name):
+            if name == host.ACL_NAMES[1]:
+                raise PermissionError('synthetic default ACL removal failure')
+            self.removexattr(fd, name)
+        with self.assertRaises(PermissionError):
+            self.run_prepare(listxattr=self.listxattr, removexattr=fail_second)
+        final = self.logs[-1]
+        self.assertIs(final['accepted'], False)
+        self.assertIs(final['changed'], True)
+        self.assertEqual(final['removed_acl_names'], [host.ACL_NAMES[0]])
+        self.assertEqual(set(final['acls']), {host.ACL_NAMES[1]})
+        self.assertEqual(stat.S_IMODE(self.path.stat().st_mode), 0o755)
+        self.assert_closed()
+
+    def test_post_removal_exception_still_reports_observed_change(self):
+        self.install_acl_fixture(access=False)
+        def remove_then_fail(fd, name):
+            self.removexattr(fd, name)
+            raise OSError('synthetic failure after syscall')
+        with self.assertRaises(OSError):
+            self.run_prepare(listxattr=self.listxattr, removexattr=remove_then_fail)
+        self.assertIs(self.logs[-1]['changed'], True)
+        self.assertFalse(self.logs[-1]['accepted'])
+        self.assertEqual(self.logs[-1]['acls'], {})
+        self.assertEqual(self.logs[-1]['removed_acl_names'], [])  # No completed Python call claimed.
+
+    def test_unexpected_acl_content_change_during_chmod_is_not_removed(self):
+        self.install_acl_fixture()
+        changed_acl = acl((1, 7, UNDEFINED), (2, 0, FIXTURE_UID), (4, 5, UNDEFINED),
+                          (16, 5, UNDEFINED), (32, 5, UNDEFINED))
+        def alter_acl(fd, mode):
+            self.fchmod(fd, mode)
+            self.setxattr(fd, host.ACL_NAMES[0], changed_acl)
+        with patch.object(host.os, 'fchmod', side_effect=alter_acl), \
+                patch.object(host.os, 'removexattr') as remove:
+            with self.assertRaisesRegex(host.PreparationError, 'ACL changed unexpectedly'):
+                self.run_prepare(listxattr=self.listxattr)
+        remove.assert_not_called()
+        self.assertEqual(self.getxattr(self.path, host.ACL_NAMES[0]), changed_acl)
+        self.assertEqual(stat.S_IMODE(self.path.stat().st_mode), 0o755)
+
+    def test_acl_reappearing_after_removal_refuses_without_repeated_removal(self):
+        self.install_acl_fixture()
+        calls = []
+        def remove_and_reintroduce(fd, name):
+            calls.append(name)
+            self.removexattr(fd, name)
+            if name == host.ACL_NAMES[0]:
+                self.setxattr(fd, name, host.clamped_access_acl(EXTENDED_ACL))
+        with self.assertRaisesRegex(host.PreparationError, 'remains or reappeared'):
+            self.run_prepare(listxattr=self.listxattr, removexattr=remove_and_reintroduce)
+        self.assertEqual(calls, list(host.ACL_NAMES))
+        self.assertIn(host.ACL_NAMES[0], self.listxattr(self.path))
+        self.assertFalse(self.logs[-1]['accepted'])
+
+    def test_agpc_created_during_acl_removal_is_preserved_and_refused(self):
+        self.install_acl_fixture(access=False)
+        def remove_and_create(fd, name):
+            self.removexattr(fd, name)
+            (self.path / 'agpc').mkdir()
+        with self.assertRaisesRegex(host.PreparationError, 'agpc path already exists'):
+            self.run_prepare(listxattr=self.listxattr, removexattr=remove_and_create)
+        self.assertTrue((self.path / 'agpc').is_dir())
+        self.assertEqual(stat.S_IMODE(self.path.stat().st_mode), 0o755)
+        self.assertFalse(self.logs[-1]['accepted'])
+
+    def test_unrelated_attribute_name_change_refuses_before_acl_removal(self):
+        self.install_acl_fixture()
+        def add_attribute(fd, mode):
+            self.fchmod(fd, mode)
+            self.setxattr(fd, 'user.new-fixture', b'preserve this value')
+        with patch.object(host.os, 'fchmod', side_effect=add_attribute), \
+                patch.object(host.os, 'removexattr') as remove:
+            with self.assertRaisesRegex(host.PreparationError, 'Unrelated attribute names changed'):
+                self.run_prepare(listxattr=self.listxattr)
+        remove.assert_not_called()
+        self.assertEqual(self.getxattr(self.path, 'user.new-fixture'), b'preserve this value')
+
+    def test_missing_attribute_during_capture_refuses_without_mutation(self):
+        def missing(fd, name):
+            raise OSError('synthetic xattr disappeared')
+        with patch.object(host.os, 'fchmod') as chmod, patch.object(host.os, 'removexattr') as remove:
+            with self.assertRaises(OSError):
+                self.run_prepare(listxattr=lambda fd: [host.ACL_NAMES[1]], getxattr=missing)
+        chmod.assert_not_called()
+        remove.assert_not_called()
+        self.assertIs(self.logs[-1]['changed'], False)
 
 
 class NativeHostCLITests(unittest.TestCase):
