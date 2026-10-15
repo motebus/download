@@ -588,13 +588,17 @@ class NativeSharedAncestorObservationTests(unittest.TestCase):
     def test_inventory_is_the_exact_fixed_shared_ancestor_set(self):
         self.assertEqual(tuple(map(str, host.SHARED_ANCESTORS)), (
             '/', '/lib', '/lib/systemd', '/lib/systemd/system', '/opt', '/usr',
-            '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/doc'))
+            '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/doc',
+            '/var', '/var/log', '/var/log/dpkg.log', '/var/lib', '/var/lib/dpkg',
+            '/var/lib/dpkg/info'))
 
     def test_temporary_projection_reports_links_and_target_metadata_without_changes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for name in ('usr/lib/systemd/system', 'opt', 'usr/bin', 'usr/sbin', 'usr/share/doc'):
+            for name in ('usr/lib/systemd/system', 'opt', 'usr/bin', 'usr/sbin', 'usr/share/doc',
+                         'var/log', 'var/lib/dpkg/info'):
                 (root / name).mkdir(parents=True, exist_ok=True)
+            (root / 'var/log/dpkg.log').write_bytes(b'unread synthetic log fixture')
             (root / 'lib').symlink_to('usr/lib', target_is_directory=True)
             (root / 'opt').chmod(0o777)
             (root / 'usr/share').chmod(0o775)
@@ -625,6 +629,38 @@ class NativeSharedAncestorObservationTests(unittest.TestCase):
             self.assertEqual(by_path[str(root / 'usr/share')]['resolved']['mode'], '0775')
             self.assertTrue(all(not r['errors'] and 'accepted' not in r for r in records))
             self.assertNotIn('value must not be read', json.dumps(records))
+
+    def test_regular_log_metadata_never_opens_contents_or_reads_attribute_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'dpkg.log'
+            path.write_bytes(b'log contents must remain unread')
+            path.chmod(0o664)
+            os.setxattr(path, 'user.fixture', b'attribute value must remain unread')
+            before = path.stat()
+            records = []
+            with ExitStack() as stack:
+                stack.enter_context(patch.object(host, 'SHARED_ANCESTORS', (path,)))
+                stack.enter_context(patch.object(Path, 'open', side_effect=AssertionError('file contents')))
+                for name in ('open', 'getxattr', 'chmod', 'fchmod', 'chown', 'unlink',
+                             'removexattr', 'setxattr'):
+                    stack.enter_context(patch.object(host.os, name, side_effect=AssertionError(name)))
+                host.observe_shared_ancestors(emit=records.append)
+            self.assertEqual(path.stat(), before)
+            self.assertEqual(path.read_bytes(), b'log contents must remain unread')
+            self.assertEqual(os.getxattr(path, 'user.fixture'), b'attribute value must remain unread')
+            self.assertEqual(len(records), 1)
+            record = records[0]
+            for key in ('lstat', 'resolved'):
+                self.assertEqual(record[key]['type'], 'regular')
+                self.assertEqual(record[key]['mode'], '0664')
+                self.assertEqual(record[key]['uid'], before.st_uid)
+                self.assertEqual(record[key]['gid'], before.st_gid)
+                self.assertEqual(record[key]['inode'], before.st_ino)
+                self.assertEqual(record[key]['links'], 1)
+                self.assertEqual(record[key + '_xattr_names'], ['user.fixture'])
+            self.assertEqual(record['errors'], {})
+            self.assertNotIn('link_target', record)
+            self.assertNotIn('remain unread', json.dumps(record))
 
     def test_read_errors_are_sanitized_and_do_not_skip_remaining_paths(self):
         with tempfile.TemporaryDirectory() as directory:
