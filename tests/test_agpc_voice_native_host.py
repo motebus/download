@@ -8,6 +8,7 @@ import stat
 import struct
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -426,23 +427,35 @@ class NativeFixedHostPreparationTests(unittest.TestCase):
             path.chmod(0o755)
         for path, _ in self.targets:
             path.chmod(0o777)
+        self.log_parent = self.root / 'var/log'
+        self.log_parent.mkdir(parents=True)
+        (self.root / 'var').chmod(0o755)
+        self.log_parent.chmod(0o775)
+        (self.log_parent / 'dpkg.log').write_bytes(b'preserved fixture log')
+        (self.log_parent / 'dpkg.log').chmod(0o644)
+        self.log_inode = self.log_parent.stat().st_ino
         self.stat, self.fstat = os.stat, os.fstat
         self.fchmod, self.remove = os.fchmod, os.removexattr
         self.logs = []
 
     def prepare(self, **overrides):
         replacements = dict(geteuid=lambda: 0,
-            stat=lambda *args, **kw: owned(self.stat(*args, **kw)),
-            fstat=lambda fd: owned(self.fstat(fd)))
+            stat=lambda *args, **kw: self.fixture_owner(self.stat(*args, **kw)),
+            fstat=lambda fd: self.fixture_owner(self.fstat(fd)))
         replacements.update(overrides)
         with ExitStack() as stack:
             for name, value in (('PREPARATION_TARGETS', self.targets),
                                 ('PREPARATION_ANCESTORS', self.ancestors),
-                                ('PROTECTED_PATHS', self.protected)):
+                                ('PROTECTED_PATHS', self.protected),
+                                ('LOG_PARENT', self.log_parent),
+                                ('LOG_ANCESTORS', (self.root, self.root / 'var'))):
                 stack.enter_context(patch.object(host, name, value))
             for name, function in replacements.items():
                 stack.enter_context(patch.object(host.os, name, side_effect=function))
             return host.prepare_host(emit=self.logs.append)
+
+    def fixture_owner(self, info):
+        return owned(info, gid=102 if info.st_ino == self.log_inode else 0)
 
     def test_exact_fixed_target_order_and_protected_anchors(self):
         self.assertEqual(host.PREPARATION_TARGETS, ((Path('/opt'), 'agpc'),
@@ -473,7 +486,10 @@ class NativeFixedHostPreparationTests(unittest.TestCase):
             self.assertEqual(child.read_bytes(), b'preserve exact payload')
             self.assertEqual(stat.S_IMODE(child.stat().st_mode), 0o640)
         self.assertIs(self.logs[-1]['accepted'], True)
-        self.assertEqual(self.logs[-1]['completed_paths'], [str(p) for p, _ in self.targets])
+        self.assertEqual(self.logs[-1]['completed_paths'],
+                         [str(p) for p, _ in self.targets] + [str(self.log_parent)])
+        self.assertEqual(stat.S_IMODE(self.log_parent.stat().st_mode), 0o755)
+        self.assertEqual((self.log_parent / 'dpkg.log').read_bytes(), b'preserved fixture log')
 
     def test_any_existing_package_anchor_refuses_before_all_mutations(self):
         for path in self.protected:
@@ -582,6 +598,229 @@ class NativeFixedHostPreparationTests(unittest.TestCase):
         self.assertEqual(os.getxattr(share, host.ACL_NAMES[1]), EXTENDED_ACL)
         self.assertFalse(self.logs[-1]['accepted'])
         self.assertIsNone(self.logs[-1]['protected_paths_absent'])
+
+
+class NativeLogParentPreparationTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.root.chmod(0o755)
+        self.parent = self.root / 'var/log'
+        self.parent.mkdir(parents=True)
+        (self.root / 'var').chmod(0o755)
+        self.parent.chmod(0o775)
+        self.leaf = self.parent / 'dpkg.log'
+        self.leaf.write_bytes(b'unchanged synthetic dpkg log')
+        self.leaf.chmod(0o644)
+        self.protected = self.root / 'package-anchor'
+        self.stat, self.fstat, self.open = os.stat, os.fstat, os.open
+        self.fchmod, self.listxattr = os.fchmod, os.listxattr
+        self.parent_identity = (self.parent.stat().st_dev, self.parent.stat().st_ino)
+        self.owners = {}
+        self.logs, self.fds = [], []
+
+    def fixture_owner(self, info):
+        fields = ('st_dev', 'st_ino', 'st_uid', 'st_gid', 'st_mode', 'st_nlink',
+                  'st_size', 'st_mtime_ns', 'st_ctime_ns')
+        result = SimpleNamespace(**{key: getattr(info, key) for key in fields})
+        result.st_uid, result.st_gid = self.owners.get(info.st_ino,
+            (0, 102 if (info.st_dev, info.st_ino) == self.parent_identity else 0))
+        return result
+
+    def recorded_open(self, path, flags, **kwargs):
+        self.assertFalse(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC))
+        self.assertTrue(flags & os.O_NOFOLLOW)
+        self.assertTrue(flags & os.O_CLOEXEC)
+        if path == 'dpkg.log':
+            self.assertTrue(flags & os.O_NONBLOCK)
+            self.assertIn('dir_fd', kwargs)
+        else:
+            self.assertTrue(flags & os.O_DIRECTORY)
+        fd = self.open(path, flags, **kwargs)
+        self.fds.append(fd)
+        return fd
+
+    def guard(self):
+        if self.protected.exists() or self.protected.is_symlink():
+            raise host.PreparationError('Protected package fixture appeared')
+        return [str(self.protected)]
+
+    def prepare(self, **overrides):
+        replacements = dict(geteuid=lambda: 0, open=self.recorded_open,
+            stat=lambda *args, **kw: self.fixture_owner(self.stat(*args, **kw)),
+            fstat=lambda fd: self.fixture_owner(self.fstat(fd)))
+        replacements.update(overrides)
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(host, 'LOG_PARENT', self.parent))
+            stack.enter_context(patch.object(host, 'LOG_ANCESTORS', (self.root, self.root / 'var')))
+            for name, function in replacements.items():
+                stack.enter_context(patch.object(host.os, name, side_effect=function))
+            for name in ('read', 'write', 'ftruncate', 'truncate', 'chown', 'getxattr',
+                         'setxattr', 'removexattr'):
+                stack.enter_context(patch.object(host.os, name, side_effect=AssertionError(name)))
+            return host.prepare_log_parent(guard=self.guard, emit=self.logs.append)
+
+    def assert_closed(self):
+        for fd in self.fds:
+            with self.assertRaises(OSError): self.fstat(fd)
+
+    def test_fixed_policy_clamps_only_parent_preserving_group_leaf_and_other_children(self):
+        self.assertEqual(host.LOG_PARENT, Path('/var/log'))
+        self.assertEqual(host.LOG_ANCESTORS, (Path('/'), Path('/var')))
+        self.assertEqual(host.LOG_PARENT_GID, 102)
+        sibling = self.parent / 'unrelated.log'
+        sibling.write_bytes(b'preserve sibling'); sibling.chmod(0o640)
+        before_leaf = self.leaf.stat()
+        result = self.prepare()
+        self.assertEqual(self.leaf.stat(), before_leaf)
+        self.assertEqual(self.leaf.read_bytes(), b'unchanged synthetic dpkg log')
+        self.assertEqual(sibling.read_bytes(), b'preserve sibling')
+        self.assertEqual(stat.S_IMODE(sibling.stat().st_mode), 0o640)
+        self.assertEqual(result['before']['gid'], 102)
+        self.assertEqual(result['after']['gid'], 102)
+        self.assertEqual(result['before']['inode'], result['after']['inode'])
+        self.assertEqual(result['after']['mode'], '0755')
+        self.assertTrue(result['changed'])
+        self.assertTrue(self.logs[-1]['accepted'])
+        self.assertEqual(self.logs[-1]['protected_paths_absent'], [str(self.protected)])
+        self.assert_closed()
+
+    def test_0755_is_noop_and_existing_root_group_policy_is_not_broadened(self):
+        self.parent.chmod(0o755)
+        with patch.object(host.os, 'fchmod', side_effect=AssertionError('unneeded chmod')):
+            result = self.prepare()
+        self.assertFalse(result['changed'])
+        with self.assertRaisesRegex(host.PreparationError, 'root-owned root-group'):
+            host.trusted_directory(self.fixture_owner(self.parent.stat()), (0o755,))
+        self.assert_closed()
+
+    def test_wrong_parent_gid_or_mode_refuses_without_mutation(self):
+        for gid, mode in ((0, 0o775), (101, 0o775), (102, 0o777), (102, 0o700)):
+            with self.subTest(gid=gid, mode=oct(mode)):
+                self.owners[self.parent.stat().st_ino] = (0, gid)
+                self.parent.chmod(mode)
+                with patch.object(host.os, 'fchmod') as chmod:
+                    with self.assertRaisesRegex(host.PreparationError, 'log parent ownership'):
+                        self.prepare()
+                chmod.assert_not_called()
+                self.assertFalse(self.logs[-1]['changed'])
+
+    def test_parent_symlink_and_unsafe_var_ancestry_refuse(self):
+        (self.root / 'var').chmod(0o775)
+        with patch.object(host.os, 'fchmod') as chmod:
+            with self.assertRaisesRegex(host.PreparationError, 'permissions'):
+                self.prepare()
+        chmod.assert_not_called()
+        (self.root / 'var').chmod(0o755)
+        displaced = self.root / 'retained-log'
+        self.parent.rename(displaced); self.parent.symlink_to(displaced, target_is_directory=True)
+        with patch.object(host.os, 'fchmod') as chmod:
+            with self.assertRaisesRegex(host.PreparationError, 'log parent ownership'):
+                self.prepare()
+        chmod.assert_not_called()
+        self.assertTrue(self.parent.is_symlink())
+
+    def test_leaf_hardlink_and_symlink_refuse(self):
+        other = self.parent / 'retained.log'
+        os.link(self.leaf, other)
+        with patch.object(host.os, 'fchmod') as chmod:
+            with self.assertRaisesRegex(host.PreparationError, 'dpkg log ownership'):
+                self.prepare()
+        chmod.assert_not_called()
+        self.leaf.unlink(); self.leaf.symlink_to(other)
+        with patch.object(host.os, 'fchmod') as chmod:
+            with self.assertRaisesRegex(host.PreparationError, 'dpkg log ownership'):
+                self.prepare()
+        chmod.assert_not_called()
+        self.assertTrue(self.leaf.is_symlink())
+        self.assert_closed()
+
+    def test_leaf_wrong_owner_group_mode_or_attributes_refuse_before_clamp(self):
+        for owner, mode in (((1, 0), 0o644), ((0, 102), 0o644), ((0, 0), 0o664)):
+            self.owners[self.leaf.stat().st_ino] = owner
+            self.leaf.chmod(mode)
+            with patch.object(host.os, 'fchmod') as chmod:
+                with self.assertRaisesRegex(host.PreparationError, 'dpkg log ownership'):
+                    self.prepare()
+            chmod.assert_not_called()
+        self.owners.clear(); self.leaf.chmod(0o644)
+        for path in (self.parent, self.leaf, self.root / 'var'):
+            os.setxattr(path, 'user.unexpected', b'preserve this value')
+            with patch.object(host.os, 'fchmod') as chmod:
+                with self.assertRaisesRegex(host.PreparationError, 'attributes'):
+                    self.prepare()
+            chmod.assert_not_called()
+            self.assertEqual(os.getxattr(path, 'user.unexpected'), b'preserve this value')
+            os.removexattr(path, 'user.unexpected')
+        self.assert_closed()
+
+    def test_parent_replacement_after_clamp_preserves_both_and_refuses(self):
+        retained = self.parent.with_name('retained-log')
+        def replace(fd, mode):
+            self.fchmod(fd, mode)
+            self.parent.rename(retained); self.parent.mkdir(mode=0o775)
+            self.parent.chmod(0o775)
+        with self.assertRaises(host.PreparationError): self.prepare(fchmod=replace)
+        self.assertEqual(stat.S_IMODE(retained.stat().st_mode), 0o755)
+        self.assertEqual(stat.S_IMODE(self.parent.stat().st_mode), 0o775)
+        self.assertEqual((retained / 'dpkg.log').read_bytes(), b'unchanged synthetic dpkg log')
+        self.assertFalse(self.logs[-1]['accepted'])
+        self.assertTrue(self.logs[-1]['changed'])
+        self.assert_closed()
+
+    def test_leaf_replacement_after_clamp_preserves_both_and_refuses(self):
+        retained = self.parent / 'retained.log'
+        def replace(fd, mode):
+            self.fchmod(fd, mode)
+            self.leaf.rename(retained); self.leaf.write_bytes(b'replacement log')
+            self.leaf.chmod(0o644)
+        with self.assertRaisesRegex(host.PreparationError, 'identity or metadata'):
+            self.prepare(fchmod=replace)
+        self.assertEqual(retained.read_bytes(), b'unchanged synthetic dpkg log')
+        self.assertEqual(self.leaf.read_bytes(), b'replacement log')
+        self.assertEqual(stat.S_IMODE(self.parent.stat().st_mode), 0o755)
+        self.assertFalse(self.logs[-1]['accepted'])
+        self.assert_closed()
+
+    def test_leaf_metadata_drift_and_package_race_after_clamp_refuse(self):
+        for action in (lambda: self.leaf.write_bytes(b'concurrent different size'),
+                       lambda: self.protected.mkdir()):
+            self.parent.chmod(0o775)
+            def race(fd, mode):
+                self.fchmod(fd, mode); action()
+            with self.assertRaises(host.PreparationError): self.prepare(fchmod=race)
+            self.assertFalse(self.logs[-1]['accepted'])
+            self.assertTrue(self.logs[-1]['changed'])
+        self.assertTrue(self.protected.is_dir())
+        self.assert_closed()
+
+    def test_chmod_syscall_then_exception_reports_actual_change(self):
+        def fail_after(fd, mode):
+            self.fchmod(fd, mode)
+            raise PermissionError('synthetic post-syscall failure')
+        with self.assertRaises(PermissionError): self.prepare(fchmod=fail_after)
+        self.assertTrue(self.logs[-1]['changed'])
+        self.assertFalse(self.logs[-1]['accepted'])
+        self.assertEqual(self.logs[-1]['metadata']['mode'], '0755')
+        self.assertEqual(self.leaf.read_bytes(), b'unchanged synthetic dpkg log')
+        self.assert_closed()
+
+    def test_final_observation_failure_cannot_report_acceptance(self):
+        observations = 0
+        def fail_final(path, **kwargs):
+            nonlocal observations
+            if isinstance(path, int) and self.fstat(path).st_ino == self.parent_identity[1]:
+                observations += 1
+                if observations == 3: raise OSError('synthetic final observation failure')
+            return self.listxattr(path, **kwargs)
+        with self.assertRaisesRegex(host.PreparationError, 'Final log preparation'):
+            self.prepare(listxattr=fail_final)
+        self.assertFalse(self.logs[-1]['accepted'])
+        self.assertTrue(self.logs[-1]['changed'])
+        self.assertIsNone(self.logs[-1]['protected_paths_absent'])
+        self.assertEqual(stat.S_IMODE(self.parent.stat().st_mode), 0o755)
+        self.assert_closed()
 
 
 class NativeSharedAncestorObservationTests(unittest.TestCase):

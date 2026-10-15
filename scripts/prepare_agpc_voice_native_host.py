@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare three fixed shared directories in the disposable Noble Voice CI job.
+"""Prepare fixed shared directories and the observed disposable Noble log parent.
 
 The reviewed workflow and its root invocation authorize this operation. GitHub
 environment strings do not authorize it. This is not a production-host repair
@@ -21,6 +21,9 @@ PREPARATION_TARGETS = ((Path('/opt'), 'agpc'), (Path('/usr/share'), None),
 PREPARATION_ANCESTORS = (Path('/'), Path('/usr'), Path('/usr/lib'))
 PROTECTED_PATHS = (Path('/opt/agpc'), Path('/usr/lib/agpc-voice'),
                    Path('/usr/share/doc/agpc-voice'))
+LOG_PARENT = Path('/var/log')
+LOG_ANCESTORS = (Path('/'), Path('/var'))
+LOG_PARENT_GID = 102  # Exact observed numeric group; no NSS name or ownership change.
 SHARED_ANCESTORS = tuple(Path(name) for name in (
     '/', '/lib', '/lib/systemd', '/lib/systemd/system', '/opt', '/usr',
     '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/doc',
@@ -310,6 +313,115 @@ def prepare_directory(path, *, protected_name='agpc', guard=None, emit=emit_json
             os.close(fd)
 
 
+def prepare_log_parent(*, guard, emit=emit_json):
+    """Clamp only the fixed observed log parent; never read or modify log contents."""
+    require(os.geteuid() == 0, 'Root execution required')
+    parent_fd = leaf_fd = None
+    before = None
+    changed = attempted = accepted = False
+    protected_paths = None
+
+    def parent_ok(info, modes):
+        require(stat.S_ISDIR(info.st_mode) and info.st_uid == 0
+                and info.st_gid == LOG_PARENT_GID and stat.S_IMODE(info.st_mode) in modes,
+                'Unexpected fixed log parent ownership, type or permissions')
+
+    def leaf_ok(info):
+        require(stat.S_ISREG(info.st_mode) and info.st_uid == info.st_gid == 0
+                and stat.S_IMODE(info.st_mode) == 0o644 and info.st_nlink == 1,
+                'Unexpected fixed dpkg log ownership, type, permissions or links')
+
+    def leaf_identity(info):
+        return (*identity(info), info.st_mode, info.st_nlink, info.st_size,
+                info.st_mtime_ns, info.st_ctime_ns)
+
+    def log_metadata(info):
+        return dict(metadata(info), links=info.st_nlink, bytes=info.st_size,
+                    mtime_ns=info.st_mtime_ns, ctime_ns=info.st_ctime_ns)
+
+    try:
+        ancestry = {}
+        for path in LOG_ANCESTORS:
+            info = os.stat(path, follow_symlinks=False)
+            trusted_directory(info, (0o755,))
+            require(not os.listxattr(path, follow_symlinks=False), 'Unexpected log ancestry attributes')
+            ancestry[path] = info
+        guard()
+        before = os.stat(LOG_PARENT, follow_symlinks=False)
+        emit(dict(schema='agpc.voice-native-host-preparation/v1', event='log-parent-before',
+                  path=str(LOG_PARENT), metadata=metadata(before)))
+        parent_ok(before, (0o755, 0o775))
+        parent_fd = os.open(LOG_PARENT, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        require(identity(os.fstat(parent_fd)) == identity(before), 'Log parent changed while opening')
+        leaf_before = os.stat('dpkg.log', dir_fd=parent_fd, follow_symlinks=False)
+        leaf_ok(leaf_before)
+        leaf_fd = os.open('dpkg.log', os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC,
+                          dir_fd=parent_fd)
+        emit(dict(schema='agpc.voice-native-host-preparation/v1', event='log-leaf-before',
+                  path=str(LOG_PARENT / 'dpkg.log'), metadata=log_metadata(leaf_before)))
+
+        def check(modes):
+            guard()
+            for path, original in ancestry.items():
+                path_matches(path, original, (0o755,))
+                require(not os.listxattr(path, follow_symlinks=False), 'Unexpected log ancestry attributes')
+            current = os.fstat(parent_fd)
+            parent_ok(current, modes)
+            at_path = os.stat(LOG_PARENT, follow_symlinks=False)
+            parent_ok(at_path, modes)
+            require(identity(current) == identity(at_path) == identity(before), 'Log parent identity changed')
+            require(not os.listxattr(parent_fd), 'Unexpected log parent attributes')
+            current_leaf = os.fstat(leaf_fd)
+            at_leaf = os.stat('dpkg.log', dir_fd=parent_fd, follow_symlinks=False)
+            leaf_ok(current_leaf); leaf_ok(at_leaf)
+            require(leaf_identity(current_leaf) == leaf_identity(at_leaf) == leaf_identity(leaf_before),
+                    'Dpkg log identity or metadata changed')
+            require(not os.listxattr(leaf_fd), 'Unexpected dpkg log attributes')
+            return guard()
+
+        check((stat.S_IMODE(before.st_mode),))
+        if stat.S_IMODE(before.st_mode) == 0o775:
+            attempted = True
+            os.fchmod(parent_fd, 0o755)
+            changed = True
+        protected_paths = check((0o755,))
+        accepted = True
+        return dict(schema='agpc.voice-native-host-preparation/v1', path=str(LOG_PARENT),
+                    before=metadata(before), after=metadata(os.fstat(parent_fd)), changed=changed,
+                    protected_paths_absent=protected_paths, production_admission=False)
+    finally:
+        final = dict(schema='agpc.voice-native-host-preparation/v1', event='log-parent-after',
+                     path=str(LOG_PARENT), accepted=accepted, changed=changed,
+                     protected_paths_absent=protected_paths if accepted else None,
+                     production_admission=False)
+        try:
+            if parent_fd is not None:
+                observed = os.fstat(parent_fd)
+                final['metadata'] = metadata(observed)
+                final['changed'] = changed or before.st_mode != observed.st_mode
+            if leaf_fd is not None:
+                final['leaf_metadata'] = log_metadata(os.fstat(leaf_fd))
+            if accepted:
+                final['protected_paths_absent'] = check((0o755,))
+        except (OSError, PreparationError) as error:
+            final.update(accepted=False, protected_paths_absent=None,
+                         observation_error=type(error).__name__)
+            if 'metadata' not in final:
+                final['changed'] = True if changed else None if attempted else False
+            if accepted:
+                raise PreparationError('Final log preparation observation changed or failed') from None
+        finally:
+            try:
+                emit(final)
+            finally:
+                try:
+                    if leaf_fd is not None:
+                        os.close(leaf_fd)
+                finally:
+                    if parent_fd is not None:
+                        os.close(parent_fd)
+
+
 def prepare_host(*, emit=emit_json):
     """Prepare only the fixed parent-before-child sequence; never restore loosened modes."""
     require(os.geteuid() == 0, 'Root execution required')
@@ -353,6 +465,8 @@ def prepare_host(*, emit=emit_json):
             completed.append(path)
             active = None
             guard()
+        results.append(prepare_log_parent(guard=guard, emit=emit))
+        completed.append(LOG_PARENT)
         # Earlier directories must still have the exact completed metadata;
         # a later target cannot conceal an ACL or attribute race on its parent.
         for (path, _), result in zip(PREPARATION_TARGETS, results):
