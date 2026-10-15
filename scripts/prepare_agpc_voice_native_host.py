@@ -23,7 +23,9 @@ PROTECTED_PATHS = (Path('/opt/agpc'), Path('/usr/lib/agpc-voice'),
                    Path('/usr/share/doc/agpc-voice'))
 SHARED_ANCESTORS = tuple(Path(name) for name in (
     '/', '/lib', '/lib/systemd', '/lib/systemd/system', '/opt', '/usr',
-    '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/doc'))
+    '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/doc',
+    '/var', '/var/log', '/var/log/dpkg.log', '/var/lib', '/var/lib/dpkg',
+    '/var/lib/dpkg/info'))
 ACL_NAMES = ('system.posix_acl_access', 'system.posix_acl_default')
 ACL_LIMIT = 4096
 ACL_UNDEFINED_ID = 0xffffffff
