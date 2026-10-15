@@ -17,6 +17,9 @@ import sys
 
 
 TARGET = Path('/opt')
+SHARED_ANCESTORS = tuple(Path(name) for name in (
+    '/', '/lib', '/lib/systemd', '/lib/systemd/system', '/opt', '/usr',
+    '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/doc'))
 ACL_NAMES = ('system.posix_acl_access', 'system.posix_acl_default')
 ACL_LIMIT = 4096
 ACL_UNDEFINED_ID = 0xffffffff
@@ -137,6 +140,35 @@ def path_matches(path, expected, allowed_modes):
 
 def emit_json(record):
     print(json.dumps(record, sort_keys=True), flush=True)
+
+
+def observe_shared_ancestors(*, emit=emit_json):
+    """Read fixed ancestor metadata only; observations never admit or repair it."""
+    def typed_metadata(info):
+        kind = ('symlink' if stat.S_ISLNK(info.st_mode) else
+                'directory' if stat.S_ISDIR(info.st_mode) else
+                'regular' if stat.S_ISREG(info.st_mode) else 'other')
+        return dict(metadata(info), type=kind, links=info.st_nlink)
+
+    for path in SHARED_ANCESTORS:
+        record = dict(schema='agpc.voice-native-shared-ancestor-observation/v1',
+                      event='shared-ancestor', path=str(path), errors={})
+
+        def observe(key, reader):
+            try:
+                record[key] = reader()
+            except OSError as error:
+                record['errors'][key] = dict(type=type(error).__name__, errno=error.errno)
+
+        observe('lstat', lambda: typed_metadata(os.stat(path, follow_symlinks=False)))
+        if record.get('lstat', {}).get('symlink'):
+            observe('link_target', lambda: os.readlink(path))
+        observe('lstat_xattr_names', lambda: sorted(os.listxattr(path, follow_symlinks=False)))
+        # Follow the same fixed path to report the effective target metadata.
+        # Read no payload or attribute values and enumerate no child paths.
+        observe('resolved', lambda: typed_metadata(os.stat(path, follow_symlinks=True)))
+        observe('resolved_xattr_names', lambda: sorted(os.listxattr(path, follow_symlinks=True)))
+        emit(record)
 
 
 def prepare_directory(path, *, emit=emit_json):
@@ -262,6 +294,7 @@ def main(argv=None):
     release = platform.freedesktop_os_release()
     require(release.get('ID') == 'ubuntu' and release.get('VERSION_ID') == '24.04'
             and platform.machine() == 'x86_64', 'Disposable Ubuntu 24.04 amd64 target required')
+    observe_shared_ancestors()
     return prepare_directory(TARGET)
 
 

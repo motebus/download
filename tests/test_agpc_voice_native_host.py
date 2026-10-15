@@ -1,6 +1,7 @@
 """Offline /opt-preparation checks; all filesystem effects stay in temporary fixtures."""
 from contextlib import ExitStack
 import io
+import json
 import os
 from pathlib import Path
 import stat
@@ -410,15 +411,88 @@ class NativeHostPreparationTests(unittest.TestCase):
         self.assertIs(self.logs[-1]['changed'], False)
 
 
+class NativeSharedAncestorObservationTests(unittest.TestCase):
+    def test_inventory_is_the_exact_fixed_shared_ancestor_set(self):
+        self.assertEqual(tuple(map(str, host.SHARED_ANCESTORS)), (
+            '/', '/lib', '/lib/systemd', '/lib/systemd/system', '/opt', '/usr',
+            '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/doc'))
+
+    def test_temporary_projection_reports_links_and_target_metadata_without_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ('usr/lib/systemd/system', 'opt', 'usr/bin', 'usr/sbin', 'usr/share/doc'):
+                (root / name).mkdir(parents=True, exist_ok=True)
+            (root / 'lib').symlink_to('usr/lib', target_is_directory=True)
+            (root / 'opt').chmod(0o777)
+            (root / 'usr/share').chmod(0o775)
+            os.setxattr(root / 'usr/lib', 'user.fixture', b'value must not be read by inventory')
+            paths = tuple(root / str(path).lstrip('/') for path in host.SHARED_ANCESTORS)
+            before = {path: path.lstat() for path in paths}
+            records = []
+            with ExitStack() as stack:
+                stack.enter_context(patch.object(host, 'SHARED_ANCESTORS', paths))
+                for name in ('open', 'getxattr', 'chmod', 'fchmod', 'chown', 'unlink',
+                             'removexattr', 'setxattr'):
+                    stack.enter_context(patch.object(host.os, name, side_effect=AssertionError(name)))
+                host.observe_shared_ancestors(emit=records.append)
+            self.assertEqual({path: path.lstat() for path in paths}, before)
+            self.assertEqual(os.readlink(root / 'lib'), 'usr/lib')
+            self.assertEqual(os.getxattr(root / 'usr/lib', 'user.fixture'),
+                             b'value must not be read by inventory')
+            self.assertEqual([r['path'] for r in records], list(map(str, paths)))
+            by_path = {r['path']: r for r in records}
+            link = by_path[str(root / 'lib')]
+            self.assertEqual(link['lstat']['type'], 'symlink')
+            self.assertEqual(link['link_target'], 'usr/lib')
+            self.assertEqual(link['resolved']['type'], 'directory')
+            self.assertEqual(link['resolved']['inode'], (root / 'usr/lib').stat().st_ino)
+            self.assertEqual(link['resolved_xattr_names'], ['user.fixture'])
+            self.assertEqual(link['lstat_xattr_names'], [])
+            self.assertEqual(by_path[str(root / 'opt')]['resolved']['mode'], '0777')
+            self.assertEqual(by_path[str(root / 'usr/share')]['resolved']['mode'], '0775')
+            self.assertTrue(all(not r['errors'] and 'accepted' not in r for r in records))
+            self.assertNotIn('value must not be read', json.dumps(records))
+
+    def test_read_errors_are_sanitized_and_do_not_skip_remaining_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            broken = root / 'broken'
+            broken.symlink_to('missing')
+            records = []
+            real_listxattr = os.listxattr
+            def fail_one(path, **kwargs):
+                if path == root and not kwargs['follow_symlinks']:
+                    raise PermissionError(13, 'do not log arbitrary exception text')
+                return real_listxattr(path, **kwargs)
+            with patch.object(host, 'SHARED_ANCESTORS', (broken, root)), \
+                    patch.object(host.os, 'listxattr', side_effect=fail_one):
+                host.observe_shared_ancestors(emit=records.append)
+            self.assertEqual(len(records), 2)
+            self.assertEqual(records[0]['link_target'], 'missing')
+            self.assertEqual(records[0]['errors']['resolved'],
+                             {'type': 'FileNotFoundError', 'errno': 2})
+            self.assertEqual(records[1]['errors']['lstat_xattr_names'],
+                             {'type': 'PermissionError', 'errno': 13})
+            self.assertEqual(records[1]['resolved']['type'], 'directory')
+            self.assertNotIn('arbitrary exception text', json.dumps(records))
+            self.assertTrue(broken.is_symlink())
+
+
 class NativeHostCLITests(unittest.TestCase):
     def test_cli_has_only_fixed_opt_target(self):
+        order = []
         with patch.object(host.os, 'geteuid', return_value=0), \
                 patch.object(host.platform, 'freedesktop_os_release',
                              return_value={'ID': 'ubuntu', 'VERSION_ID': '24.04'}), \
                 patch.object(host.platform, 'machine', return_value='x86_64'), \
-                patch.object(host, 'prepare_directory', return_value={}) as prepare:
+                patch.object(host, 'observe_shared_ancestors',
+                             side_effect=lambda: order.append('observe')) as observe, \
+                patch.object(host, 'prepare_directory',
+                             side_effect=lambda path: order.append('prepare') or {}) as prepare:
             host.main([])
+        observe.assert_called_once_with()
         prepare.assert_called_once_with(Path('/opt'))
+        self.assertEqual(order, ['observe', 'prepare'])
 
     def test_cli_rejects_path_override_before_any_directory_access(self):
         with patch.object(host, 'prepare_directory') as prepare, \
