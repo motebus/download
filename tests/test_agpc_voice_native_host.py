@@ -88,7 +88,7 @@ class NativeHostPreparationTests(unittest.TestCase):
         self.assertEqual(result['after']['mode'], '0755')
         self.assertEqual(result['before']['inode'], result['after']['inode'])
         self.assertIs(result['production_admission'], False)
-        self.assertTrue(result['agpc_absent'])
+        self.assertEqual(result['protected_paths_absent'], [str(self.path / 'agpc')])
         self.assertEqual(stat.S_IMODE(self.path.stat().st_mode), 0o755)
         self.assertEqual(stat.S_IMODE(other.stat().st_mode), 0o640)
         self.assertEqual(other.read_bytes(), b'unchanged payload')
@@ -411,6 +411,179 @@ class NativeHostPreparationTests(unittest.TestCase):
         self.assertIs(self.logs[-1]['changed'], False)
 
 
+class NativeFixedHostPreparationTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.root.chmod(0o755)
+        self.targets = tuple((self.root / str(path).lstrip('/'), name)
+                             for path, name in host.PREPARATION_TARGETS)
+        self.ancestors = tuple(self.root / str(path).lstrip('/') for path in host.PREPARATION_ANCESTORS)
+        self.protected = tuple(self.root / str(path).lstrip('/') for path in host.PROTECTED_PATHS)
+        for path in (*self.ancestors, *(p for p, _ in self.targets)):
+            path.mkdir(parents=True, exist_ok=True)
+            path.chmod(0o755)
+        for path, _ in self.targets:
+            path.chmod(0o777)
+        self.stat, self.fstat = os.stat, os.fstat
+        self.fchmod, self.remove = os.fchmod, os.removexattr
+        self.logs = []
+
+    def prepare(self, **overrides):
+        replacements = dict(geteuid=lambda: 0,
+            stat=lambda *args, **kw: owned(self.stat(*args, **kw)),
+            fstat=lambda fd: owned(self.fstat(fd)))
+        replacements.update(overrides)
+        with ExitStack() as stack:
+            for name, value in (('PREPARATION_TARGETS', self.targets),
+                                ('PREPARATION_ANCESTORS', self.ancestors),
+                                ('PROTECTED_PATHS', self.protected)):
+                stack.enter_context(patch.object(host, name, value))
+            for name, function in replacements.items():
+                stack.enter_context(patch.object(host.os, name, side_effect=function))
+            return host.prepare_host(emit=self.logs.append)
+
+    def test_exact_fixed_target_order_and_protected_anchors(self):
+        self.assertEqual(host.PREPARATION_TARGETS, ((Path('/opt'), 'agpc'),
+            (Path('/usr/share'), None), (Path('/usr/share/doc'), 'agpc-voice')))
+        self.assertEqual(host.PROTECTED_PATHS, (Path('/opt/agpc'), Path('/usr/lib/agpc-voice'),
+                                              Path('/usr/share/doc/agpc-voice')))
+
+    def test_parent_before_child_acl_preparation_preserves_children_and_other_attributes(self):
+        children = []
+        for path, _ in self.targets:
+            child = path / 'unrelated-owner-file'
+            child.write_bytes(b'preserve exact payload')
+            child.chmod(0o640)
+            children.append(child)
+            os.setxattr(path, 'user.fixture', b'preserve exact attribute')
+        for path, _ in self.targets[1:]:
+            os.setxattr(path, host.ACL_NAMES[1], EXTENDED_ACL)
+        results = self.prepare()
+        self.assertEqual([r['path'] for r in self.logs if r['event'] == 'before'],
+                         [str(p) for p, _ in self.targets])
+        for (path, _), result in zip(self.targets, results):
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o755)
+            self.assertEqual(os.listxattr(path), ['user.fixture'])
+            self.assertEqual(os.getxattr(path, 'user.fixture'), b'preserve exact attribute')
+            self.assertEqual(result['path'], str(path))
+            self.assertEqual(result['protected_paths_absent'], sorted(map(str, self.protected)))
+        for child in children:
+            self.assertEqual(child.read_bytes(), b'preserve exact payload')
+            self.assertEqual(stat.S_IMODE(child.stat().st_mode), 0o640)
+        self.assertIs(self.logs[-1]['accepted'], True)
+        self.assertEqual(self.logs[-1]['completed_paths'], [str(p) for p, _ in self.targets])
+
+    def test_any_existing_package_anchor_refuses_before_all_mutations(self):
+        for path in self.protected:
+            for kind in ('file', 'directory', 'dangling-link'):
+                with self.subTest(path=path, kind=kind):
+                    if kind == 'file': path.write_bytes(b'owner payload')
+                    elif kind == 'directory': path.mkdir()
+                    else: path.symlink_to('missing')
+                    with patch.object(host.os, 'fchmod') as chmod, \
+                            patch.object(host.os, 'removexattr') as remove:
+                        with self.assertRaisesRegex(host.PreparationError, 'Protected package path'):
+                            self.prepare()
+                    chmod.assert_not_called(); remove.assert_not_called()
+                    self.assertTrue(path.exists() or path.is_symlink())
+                    self.assertEqual(self.logs[-1]['completed_paths'], [])
+                    self.assertIsNone(self.logs[-1]['protected_paths_absent'])
+                    path.rmdir() if kind == 'directory' else path.unlink()
+        self.assertTrue(all(stat.S_IMODE(p.stat().st_mode) == 0o777 for p, _ in self.targets))
+
+    def test_unsafe_later_target_refuses_before_preparing_earlier_targets(self):
+        doc = self.targets[-1][0]
+        doc.chmod(0o775)
+        with patch.object(host.os, 'fchmod') as chmod:
+            with self.assertRaisesRegex(host.PreparationError, 'permissions'):
+                self.prepare()
+        chmod.assert_not_called()
+        doc.chmod(0o755)
+        displaced = doc.with_name('retained-doc')
+        doc.rename(displaced); doc.symlink_to(displaced, target_is_directory=True)
+        with patch.object(host.os, 'fchmod') as chmod:
+            with self.assertRaisesRegex(host.PreparationError, 'real root-owned'):
+                self.prepare()
+        chmod.assert_not_called()
+        self.assertTrue(doc.is_symlink())
+
+    def test_anchor_created_during_first_clamp_is_preserved_and_stops_later_targets(self):
+        def race(fd, mode):
+            self.fchmod(fd, mode)
+            self.protected[1].mkdir()
+        with self.assertRaisesRegex(host.PreparationError, 'Protected package path'):
+            self.prepare(fchmod=race)
+        self.assertTrue(self.protected[1].is_dir())
+        self.assertEqual([stat.S_IMODE(p.stat().st_mode) for p, _ in self.targets], [0o755, 0o777, 0o777])
+        self.assertEqual(self.logs[-1]['completed_paths'], [])
+        self.assertFalse(self.logs[-1]['accepted'])
+
+    def test_doc_identity_replacement_during_parent_clamp_is_preserved_and_refused(self):
+        share, doc = self.targets[1][0], self.targets[2][0]
+        original_doc = doc.lstat()
+        def race(fd, mode):
+            is_share = self.fstat(fd).st_ino == share.stat().st_ino
+            self.fchmod(fd, mode)
+            if is_share:
+                doc.rename(doc.with_name('retained-doc'))
+                doc.mkdir(mode=0o755)
+        with self.assertRaisesRegex(host.PreparationError, 'identity changed|permissions'):
+            self.prepare(fchmod=race)
+        self.assertEqual(doc.with_name('retained-doc').stat().st_ino, original_doc.st_ino)
+        self.assertTrue(doc.is_dir())
+        self.assertEqual(self.logs[-1]['completed_paths'], [str(self.targets[0][0])])
+        self.assertFalse(self.logs[-1]['accepted'])
+
+    def test_partial_acl_failure_retains_clamped_parent_and_never_starts_doc(self):
+        share, doc = self.targets[1][0], self.targets[2][0]
+        for path in (share, doc):
+            os.setxattr(path, host.ACL_NAMES[1], EXTENDED_ACL)
+        def fail_share(fd, name):
+            if self.fstat(fd).st_ino == share.stat().st_ino:
+                raise PermissionError('synthetic removal refusal')
+            self.remove(fd, name)
+        with self.assertRaises(PermissionError):
+            self.prepare(removexattr=fail_share)
+        self.assertEqual(stat.S_IMODE(share.stat().st_mode), 0o755)
+        self.assertEqual(stat.S_IMODE(doc.stat().st_mode), 0o777)
+        self.assertEqual(os.getxattr(share, host.ACL_NAMES[1]), EXTENDED_ACL)
+        self.assertEqual(os.getxattr(doc, host.ACL_NAMES[1]), EXTENDED_ACL)
+        self.assertEqual(self.logs[-1]['completed_paths'], [str(self.targets[0][0])])
+        self.assertIsNone(self.logs[-1]['protected_paths_absent'])
+        self.assertFalse(self.logs[-1]['accepted'])
+
+    def test_anchor_after_first_acl_removal_blocks_second_removal(self):
+        opt = self.targets[0][0]
+        for name in host.ACL_NAMES:
+            os.setxattr(opt, name, EXTENDED_ACL)
+        calls = []
+        def race(fd, name):
+            calls.append(name)
+            self.remove(fd, name)
+            self.protected[1].mkdir()
+        with self.assertRaisesRegex(host.PreparationError, 'Protected package path'):
+            self.prepare(removexattr=race)
+        self.assertEqual(calls, [host.ACL_NAMES[0]])
+        self.assertEqual(os.getxattr(opt, host.ACL_NAMES[1]), EXTENDED_ACL)
+        self.assertTrue(self.protected[1].is_dir())
+        self.assertEqual(self.logs[-1]['completed_paths'], [])
+        self.assertFalse(self.logs[-1]['accepted'])
+
+    def test_parent_acl_reintroduced_during_later_target_refuses_final_acceptance(self):
+        share, doc = self.targets[1][0], self.targets[2][0]
+        def race(fd, mode):
+            self.fchmod(fd, mode)
+            if self.fstat(fd).st_ino == doc.stat().st_ino:
+                os.setxattr(share, host.ACL_NAMES[1], EXTENDED_ACL)
+        with self.assertRaisesRegex(host.PreparationError, 'Completed directory attributes'):
+            self.prepare(fchmod=race)
+        self.assertEqual(os.getxattr(share, host.ACL_NAMES[1]), EXTENDED_ACL)
+        self.assertFalse(self.logs[-1]['accepted'])
+        self.assertIsNone(self.logs[-1]['protected_paths_absent'])
+
+
 class NativeSharedAncestorObservationTests(unittest.TestCase):
     def test_inventory_is_the_exact_fixed_shared_ancestor_set(self):
         self.assertEqual(tuple(map(str, host.SHARED_ANCESTORS)), (
@@ -479,7 +652,7 @@ class NativeSharedAncestorObservationTests(unittest.TestCase):
 
 
 class NativeHostCLITests(unittest.TestCase):
-    def test_cli_has_only_fixed_opt_target(self):
+    def test_cli_invokes_only_fixed_host_preparation_after_observations(self):
         order = []
         with patch.object(host.os, 'geteuid', return_value=0), \
                 patch.object(host.platform, 'freedesktop_os_release',
@@ -487,11 +660,11 @@ class NativeHostCLITests(unittest.TestCase):
                 patch.object(host.platform, 'machine', return_value='x86_64'), \
                 patch.object(host, 'observe_shared_ancestors',
                              side_effect=lambda: order.append('observe')) as observe, \
-                patch.object(host, 'prepare_directory',
-                             side_effect=lambda path: order.append('prepare') or {}) as prepare:
+                patch.object(host, 'prepare_host',
+                             side_effect=lambda: order.append('prepare') or {}) as prepare:
             host.main([])
         observe.assert_called_once_with()
-        prepare.assert_called_once_with(Path('/opt'))
+        prepare.assert_called_once_with()
         self.assertEqual(order, ['observe', 'prepare'])
 
     def test_cli_rejects_path_override_before_any_directory_access(self):
