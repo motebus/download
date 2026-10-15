@@ -1,0 +1,7 @@
+{
+  "archive_bytes": 7859496,
+  "archive_sha256": "ed0a83e4542f0d37444005534222b948b2f9b088e693123b4d9768486dd04d01",
+  "ci_job": 65640,
+  "schema": "agpc.voice-native-ci-public-inputs/v1",
+  "source_commit": "ad19ed1a75b549838b022a3979eb3ad48a6ccadc"
+}
