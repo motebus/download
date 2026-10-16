@@ -1,13 +1,14 @@
 {
-  "archive_bytes": 7812235,
-  "archive_sha256": "b110a9b7caab9cfe5d513032bbda947ec4d972a26259ef290bb6e2f3d98de8fd",
-  "ci_job": 65782,
+  "archive_bytes": 7812310,
+  "archive_sha256": "8b2d5c93310f4656a5b349f1f8b4e69529176d2859eb579c9547b06532653438",
+  "ci_job": 65792,
   "disclosure_review": {
-    "iid": 88,
+    "iid": 89,
     "project": 1341
   },
-  "install_review": 88,
-  "schema": "agpc.voice-publication-inputs/v1",
-  "source_commit": "04bb990e842f4e7ab6de16a1869f93da92151ed7",
+  "install_review": 89,
+  "installer_revision": 1,
+  "schema": "agpc.voice-publication-inputs/v2",
+  "source_commit": "4304f1d5711bfaefc1b135704cd033104e8c27b4",
   "version": "0.1.0~office117.20261015.2"
 }
