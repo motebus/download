@@ -40,8 +40,19 @@ def load_json(data):
     return value
 
 
+def installer_revision(record, family):
+    schema = record.get("schema")
+    native.require(schema in (family + "/v1", family + "/v2"), "invalid Voice revision schema")
+    if schema.endswith("/v1"):
+        native.require("installer_revision" not in record, "installer revision requires v2")
+        return 0
+    value = record.get("installer_revision")
+    native.require(type(value) is int and 1 <= value <= 999999, "invalid installer revision")
+    return value
+
+
 def validate_inputs(record):
-    native.require(record.get("schema") == "agpc.voice-publication-inputs/v1", "invalid Voice inputs")
+    installer_revision(record, "agpc.voice-publication-inputs")
     native.require(isinstance(record.get("version"), str)
                    and re.fullmatch(VERSION, record["version"])
                    and len(record["version"]) <= 80, "invalid Voice version")
@@ -198,8 +209,10 @@ def validate_bundle(bundle, inputs, get_json=api_json, get_bytes=api_bytes):
     verify_job(INSTALLER_PROJECT, inputs["ci_job"], inputs["source_commit"], get_json)
     verify_review(inputs["install_review"], INSTALLER_PROJECT, inputs["source_commit"], get_json)
     receipt = load_json((bundle / "BUILD-RECEIPT.json").read_bytes())
-    native.require(receipt.get("schema") == "agpc.voice-standalone-build/v1"
-                   and receipt.get("mode") == "release-staging"
+    native.require(installer_revision(receipt, "agpc.voice-standalone-build")
+                   == installer_revision(inputs, "agpc.voice-publication-inputs"),
+                   "installer revision differs from source receipt")
+    native.require(receipt.get("mode") == "release-staging"
                    and receipt.get("source_commit") == inputs["source_commit"], "exact release staging required")
     for key in ("source_admitted", "committed_runtime_verified", "runtime_package_binding_verified"):
         native.require(receipt.get(key) is True, "release admission missing: " + key)
@@ -263,18 +276,67 @@ def verify_signature(root, site, name):
                     str(site / (name + ".asc")), str(site / name)], check=True)
 
 
+def verify_revision_base(root, site, inputs, sources, packages):
+    """A revision reuses an already signed component; it cannot publish a new base."""
+    prefix = "agpc-voice/" + inputs["version"] + "/"
+    names = [prefix + name for name in ("agpc-voice.sh", "agpc-voice.source.json", "BUILD-RECEIPT.json")]
+    for pin in packages:
+        names.append(prefix + "packages/{name}_{version}_{architecture}.deb".format(**pin))
+    for name in names:
+        for suffix in ("", ".asc"):
+            path = site / (name + suffix)
+            native.require(path.is_file() and not path.is_symlink(), "signed immutable Voice base required")
+        verify_signature(root, site, name)
+    old = load_json((site / (prefix + "agpc-voice.source.json")).read_bytes())
+    base_receipt = load_json((site / (prefix + "BUILD-RECEIPT.json")).read_bytes())
+    native.require(installer_revision(old, "agpc.voice-install-source") == 0
+                   and old.get("version") == inputs["version"]
+                   and old.get("packages") == packages
+                   and old.get("voice_source") == dict(project=VOICE_PROJECT, ref="main",
+                       commit=sources["voice_commit"], ci_job=sources["voice_ci_job"], review=sources["voice_review"]),
+                   "installer revision must retain signed component provenance")
+    native.require(installer_revision(base_receipt, "agpc.voice-standalone-build") == 0
+                   and base_receipt.get("mode") == "release-staging"
+                   and base_receipt.get("source_commit") == old.get("source", {}).get("commit")
+                   and base_receipt.get("installer_sha256") == old.get("installer_sha256")
+                   == native.file_digest(site / (prefix + "agpc-voice.sh")),
+                   "signed base receipt/script binding differs")
+    base_pins = base_receipt.get("package_pins")
+    native.require(isinstance(base_pins, list) and all(isinstance(pin, dict) for pin in base_pins)
+                   and [{key: pin.get(key) for key in ("name", "version", "architecture", "depends", "sha256", "url")}
+                        for pin in base_pins] == packages,
+                   "signed base receipt/package binding differs")
+    for pin, name in zip(packages, names[3:]):
+        native.require(native.file_digest(site / name) == pin["sha256"], "signed base package differs")
+
+
 def overlay(root, site, inputs, bundle, evidence, base=None, get_json=api_json, get_bytes=api_bytes):
     receipt, sources, packages = validate_bundle(bundle, inputs, get_json, get_bytes)
+    revision = installer_revision(inputs, "agpc.voice-publication-inputs")
     before = native.snapshot(site)
     previous = site / "agpc-voice.source.json"
     if previous.exists():
         old = load_json(previous.read_bytes())
-        native.require(old.get("schema") == "agpc.voice-install-source/v1"
-                       and re.fullmatch(VERSION, old.get("version", "")), "unrecognized previous Voice record")
+        old_revision = installer_revision(old, "agpc.voice-install-source")
+        native.require(re.fullmatch(VERSION, old.get("version", "")), "unrecognized previous Voice record")
         native.require(subprocess.run(["dpkg", "--compare-versions", inputs["version"], "ge", old["version"]]).returncode == 0,
                        "Voice publication downgrade forbidden")
+        if subprocess.run(["dpkg", "--compare-versions", inputs["version"], "eq", old["version"]]).returncode == 0:
+            native.require(revision >= old_revision, "Voice installer revision downgrade forbidden")
+    if revision:
+        native.require(previous.is_file(), "signed latest Voice record required for revision")
+        old_prefix = "agpc-voice/" + old["version"] + "/"
+        if old_revision:
+            old_prefix += "installers/" + str(old_revision) + "/"
+        for name in ("agpc-voice.sh", "agpc-voice.source.json"):
+            for suffix in ("", ".asc"):
+                alias, fixed = site / (name + suffix), site / (old_prefix + name + suffix)
+                native.require(alias.is_file() and fixed.is_file() and alias.read_bytes() == fixed.read_bytes(),
+                               "latest Voice alias differs from immutable signed record")
+            verify_signature(root, site, name)
+        verify_revision_base(root, site, inputs, sources, packages)
     source_record = {
-        "schema": "agpc.voice-install-source/v1", "version": inputs["version"],
+        "schema": "agpc.voice-install-source/v2" if revision else "agpc.voice-install-source/v1", "version": inputs["version"],
         "source": {"project": INSTALLER_PROJECT,
                    "ref": "main", "commit": inputs["source_commit"], "ci_job": inputs["ci_job"]},
         "voice_source": {"project": VOICE_PROJECT,
@@ -284,13 +346,17 @@ def overlay(root, site, inputs, bundle, evidence, base=None, get_json=api_json, 
         "artifact_sha256": inputs["archive_sha256"], "installer_sha256": receipt["installer_sha256"],
         "packages": packages, "install_contract_admitted": True, "runtime_ready": False,
     }
-    prefix = "agpc-voice/" + inputs["version"] + "/"
+    base_prefix = "agpc-voice/" + inputs["version"] + "/"
+    prefix = base_prefix + "installers/" + str(revision) + "/" if revision else base_prefix
+    if revision:
+        source_record["installer_revision"] = revision
     files = {prefix + "agpc-voice.sh": (bundle / "agpc-voice.sh").read_bytes(),
              prefix + "agpc-voice.source.json": (json.dumps(source_record, indent=2, sort_keys=True) + "\n").encode(),
              prefix + "BUILD-RECEIPT.json": (bundle / "BUILD-RECEIPT.json").read_bytes()}
-    for pin in packages:
-        name = "packages/{name}_{version}_{architecture}.deb".format(**pin)
-        files[prefix + name] = (bundle / name).read_bytes()
+    if not revision:
+        for pin in packages:
+            name = "packages/{name}_{version}_{architecture}.deb".format(**pin)
+            files[prefix + name] = (bundle / name).read_bytes()
     for name, data in files.items():
         target = site / name
         if target.exists():
