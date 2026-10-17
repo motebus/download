@@ -6,9 +6,9 @@ canonical shell entry on disposable Ubuntu 24.04 amd64. The historical
 signs or publishes a release, enables Voice, changes SIP routing, contacts a
 speech provider or makes a phone call.
 
-There is deliberately no active `scripts/agpc-voice-native-entry-ci.json` yet.
-After the reviewed installer source is merged and its protected main producer
-finishes, commit that file with these exact fields:
+The committed `scripts/agpc-voice-native-entry-ci.json` binds the selected
+installer main artifact. Update it only after the reviewed installer source is
+merged and its protected main producer finishes, using these exact fields:
 
 | Field | Required value |
 | --- | --- |
@@ -21,11 +21,17 @@ finishes, commit that file with these exact fields:
 
 The consumer re-reads both source jobs/pipelines and both review approvals using
 the existing read-only GitLab connection. Component source is fixed to
-`d3349db4caa44e357650f0e225ce9526727e08a7`, pipeline 28063, job 65655 and MR 5.
-The unchanged `.2` Voice DEB is 48,834 bytes, SHA256
-`4f3daddb1e6b1290fb2bbc411b75a3ff04f26ffc9eb9f097416db40220a20453`.
+`1acb212b6c7d34be994b7f67c23821c0430fcd59`, pipeline 28133, job 65812 and MR 11.
+The selected `0.1.0~office117.20261015.2+l1isolation.2` Voice DEB is 266,432 bytes,
+SHA256 `89005f0c53235e7f72370a624a397d4ef4221a52d1a36d23fcb6b129f4c8d15a`.
 The original component job's DEB must exactly equal the staged archive member.
-Candidate.6 and FreeSWITCH retain their existing exact archive pins.
+The predecessor is `0.1.0~office117.20261015.2`, SHA256
+`4f3daddb1e6b1290fb2bbc411b75a3ff04f26ffc9eb9f097416db40220a20453`.
+FreeSWITCH `1.11.3+agpc1` retains SHA256
+`a207b111702e7ae7c8682cffa7468a450b66b4acb69203a8f545edcff25a25e4`.
+Both the read-only stager and root session helper require that same exact
+three-package set. The historical candidate.6 workflow inputs cannot admit
+this cohort.
 
 The producer ZIP must contain only `agpc-voice-native-entry-ci/` with twelve
 manifested files plus `SOURCE.json`: six helper modules, two native verifiers,
@@ -52,5 +58,8 @@ directory is archived. The root-private session is not an uploaded input or a
 production receipt. CI-origin receipts cannot be promoted to production or to
 the historical L1 admission contract.
 
-This preparation has no native-run result. The active input remains absent
-until real protected-main artifacts and review references can be supplied.
+Changing these pins does not establish a native-run result. Retain each actual
+workflow run and its original artifacts; an earlier `.2` or candidate.6 result
+is not acceptance of this new installer and package cohort. Source review,
+native installation acceptance, signed publication and L1 phone acceptance
+remain distinct records. No L1 host operation occurs in this workflow.
