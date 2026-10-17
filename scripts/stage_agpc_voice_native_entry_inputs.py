@@ -18,13 +18,14 @@ import zipfile
 import publish_agpc_voice as voice
 
 PREFIX = 'agpc-voice-native-entry-ci/'
-VOICE_COMMIT = '1acb212b6c7d34be994b7f67c23821c0430fcd59'
-VOICE_JOB, VOICE_PIPELINE, VOICE_REVIEW = 65812, 28133, 11
-VOICE_FILENAME = 'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb'
+VOICE_COMMIT = '3451049dea8e9014a50a6adef7bf2666604173e8'
+VOICE_JOB, VOICE_PIPELINE, VOICE_REVIEW = 65848, 28156, 15
+VOICE_FILENAME = 'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1_all.deb'
 VOICE_BYTES = 266432
 PACKAGE_SHA256 = {
-    VOICE_FILENAME: '89005f0c53235e7f72370a624a397d4ef4221a52d1a36d23fcb6b129f4c8d15a',
+    VOICE_FILENAME: '653d156881ade2b1093a4951bad94a1759abd374f758c1aef0ba2bce6dcb3fd6',
     'agpc-voice_0.1.0~office117.20261015.2_all.deb': '4f3daddb1e6b1290fb2bbc411b75a3ff04f26ffc9eb9f097416db40220a20453',
+    'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb': '89005f0c53235e7f72370a624a397d4ef4221a52d1a36d23fcb6b129f4c8d15a',
     'agpc-freeswitch-core_1.11.3+agpc1_amd64.deb': 'a207b111702e7ae7c8682cffa7468a450b66b4acb69203a8f545edcff25a25e4',
 }
 RUNTIME_NAMES = {'native_voice', 'native_install', 'native_rpc', 'rdp_client',
@@ -74,7 +75,7 @@ def verify_embedded(extracted):
                             'One literal release gate required')
                     declarations[target.id] = node.value.value
     require(declarations.get('INSTALL_CONTRACT_ADMITTED') is False
-            and declarations.get('RELEASE') == 'office117.20261015.2+l1isolation.2', 'Exact closed source gate required')
+            and declarations.get('RELEASE') == 'office117.20261015.2+l1isolation.2+sipauth.1', 'Exact closed source gate required')
 
 
 def validate_manifest(extracted, commit):
@@ -87,10 +88,10 @@ def validate_manifest(extracted, commit):
                 ('voice_ci_pipeline', VOICE_PIPELINE), ('voice_ci_job', VOICE_JOB), ('voice_review', VOICE_REVIEW)))
             and all(source[key] is False for key in FALSE_FLAGS), 'Native entry source binding mismatch')
     records = source['files']
-    require(isinstance(records, list) and len(records) == 12
+    require(isinstance(records, list) and len(records) == 13
             and all(isinstance(r, dict) and set(r) == {'path', 'bytes', 'sha256'}
                     and isinstance(r['path'], str) for r in records)
-            and {r['path'] for r in records} == FILES - {'SOURCE.json'}, 'Exact twelve-file inventory required')
+            and {r['path'] for r in records} == FILES - {'SOURCE.json'}, 'Exact thirteen-file inventory required')
     for record in records:
         raw = extracted[record['path']]
         require(type(record['bytes']) is int and record['bytes'] > 0

@@ -1,5 +1,13 @@
 # Canonical-entry native CI preparation
 
+SIP-auth Live workflow preparation: component MR15 is approved and merged.
+Consumer MR92 head `0207e2bda1abf39773a56f2ab020c871975d173b` passed CI28158
+(554 tests), but still needs its existing formal approval and protected-main
+producer. The active public input JSON deliberately remains the prior MR90
+record. This draft must not merge or dispatch until that record is replaced
+with the actual new main/job/original-ZIP identity. The stager rejects the old
+bundle against the new fixed component/package contract; no identity is guessed.
+
 This separate workflow tests the selected closed-gate installer through its
 canonical shell entry on disposable Ubuntu 24.04 amd64. The historical
 `verify-agpc-voice-native.yml` package-only workflow is unchanged. Neither route
@@ -21,21 +29,24 @@ merged and its protected main producer finishes, using these exact fields:
 
 The consumer re-reads both source jobs/pipelines and both review approvals using
 the existing read-only GitLab connection. Component source is fixed to
-`1acb212b6c7d34be994b7f67c23821c0430fcd59`, pipeline 28133, job 65812 and MR 11.
-The selected `0.1.0~office117.20261015.2+l1isolation.2` Voice DEB is 266,432 bytes,
-SHA256 `89005f0c53235e7f72370a624a397d4ef4221a52d1a36d23fcb6b129f4c8d15a`.
+`3451049dea8e9014a50a6adef7bf2666604173e8`, pipeline 28156, job 65848 and MR 15.
+The selected `0.1.0~office117.20261015.2+l1isolation.2+sipauth.1` Voice DEB is 266,432 bytes,
+SHA256 `653d156881ade2b1093a4951bad94a1759abd374f758c1aef0ba2bce6dcb3fd6`.
 The original component job's DEB must exactly equal the staged archive member.
-The predecessor is `0.1.0~office117.20261015.2`, SHA256
+The `upgrade` predecessor remains `0.1.0~office117.20261015.2`, SHA256
 `4f3daddb1e6b1290fb2bbc411b75a3ff04f26ffc9eb9f097416db40220a20453`.
+The distinct `upgrade-l1-isolation` predecessor is
+`0.1.0~office117.20261015.2+l1isolation.2`, SHA256
+`89005f0c53235e7f72370a624a397d4ef4221a52d1a36d23fcb6b129f4c8d15a`.
 FreeSWITCH `1.11.3+agpc1` retains SHA256
 `a207b111702e7ae7c8682cffa7468a450b66b4acb69203a8f545edcff25a25e4`.
 Both the read-only stager and root session helper require that same exact
-three-package set. The historical candidate.6 workflow inputs cannot admit
+four-package set. The historical candidate.6 workflow inputs cannot admit
 this cohort.
 
-The producer ZIP must contain only `agpc-voice-native-entry-ci/` with twelve
+The producer ZIP must contain only `agpc-voice-native-entry-ci/` with thirteen
 manifested files plus `SOURCE.json`: six helper modules, two native verifiers,
-the deterministically rendered `agpc-voice.sh`, and three fixed DEBs. The
+the deterministically rendered `agpc-voice.sh`, and four fixed DEBs. The
 consumer verifies hashes, bounded archive expansion, exact paths, the source
 record's false acceptance flags, and embedded-helper parity without executing
 input code. There is no artifact, entrypoint or source override on dispatch.
@@ -49,8 +60,10 @@ strings are execution metadata, not an independent grant. Authority remains
 the reviewed workflow and its root invocation. The installer CI contract must
 pin the distinct `verify-agpc-voice-native-entry.yml` workflow reference.
 
-Fresh mode exercises install/repeat/ABI; upgrade mode additionally seeds the
-fixed predecessor and exercises upgrade/repeat/rollback/repeat. The source
+Fresh mode exercises install/repeat/ABI. Each of the two upgrade modes seeds
+its own fixed predecessor and exercises upgrade/repeat/ABI/rollback/repeat.
+Mode-specific session/receipt ownership and pre-writer checks reject a different
+known predecessor; neither mode accepts an arbitrary version selector. The source
 runner owns process supervision, exact phase ordering, receipts, inactive
 package checks, restoration, and failure holds. A timeout or lost VM remains
 incomplete; it is never converted into passed evidence. Only that run's output
