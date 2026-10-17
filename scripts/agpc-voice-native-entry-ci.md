@@ -1,12 +1,17 @@
 # Canonical-entry native CI preparation
 
-SIP-auth Live workflow preparation: component MR15 is approved and merged.
-Consumer MR92 head `0207e2bda1abf39773a56f2ab020c871975d173b` passed CI28158
-(554 tests), but still needs its existing formal approval and protected-main
-producer. The active public input JSON deliberately remains the prior MR90
-record. This draft must not merge or dispatch until that record is replaced
-with the actual new main/job/original-ZIP identity. The stager rejects the old
-bundle against the new fixed component/package contract; no identity is guessed.
+SIP-auth Live workflow preparation: component MR15 and consumer MR92 are
+approved and merged. MR92 preserves reviewed head
+`0207e2bda1abf39773a56f2ab020c871975d173b` in main merge
+`44b5ad12521fe0164baebe70c0786c8f8af99cc9`. Its main pipeline 28160 passed:
+source-validation job 65856 ran 554 tests and native-entry input producer job
+65857 emitted the original 8,006,620-byte ZIP, SHA256
+`fac8b24d1149cd7e79c526b6b15307e541c4710788e854c47ef7b6a17236adb7`.
+The active public input JSON binds that exact main job and unmodified archive.
+All thirteen payloads match the reviewed source, and the selected Voice DEB
+matches original component main job 65848. This is input/provenance evidence;
+the three native lifecycle jobs have not run for this cohort. PR merge and
+manual workflow execution remain separate subsequent actions.
 
 This separate workflow tests the selected closed-gate installer through its
 canonical shell entry on disposable Ubuntu 24.04 amd64. The historical
