@@ -18,13 +18,13 @@ import zipfile
 import publish_agpc_voice as voice
 
 PREFIX = 'agpc-voice-native-entry-ci/'
-VOICE_COMMIT = 'd3349db4caa44e357650f0e225ce9526727e08a7'
-VOICE_JOB, VOICE_PIPELINE, VOICE_REVIEW = 65655, 28063, 5
-VOICE_FILENAME = 'agpc-voice_0.1.0~office117.20261015.2_all.deb'
-VOICE_BYTES = 48834
+VOICE_COMMIT = '1acb212b6c7d34be994b7f67c23821c0430fcd59'
+VOICE_JOB, VOICE_PIPELINE, VOICE_REVIEW = 65812, 28133, 11
+VOICE_FILENAME = 'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb'
+VOICE_BYTES = 266432
 PACKAGE_SHA256 = {
-    VOICE_FILENAME: '4f3daddb1e6b1290fb2bbc411b75a3ff04f26ffc9eb9f097416db40220a20453',
-    'agpc-voice_0.1.0~candidate.6_all.deb': '674b6d961daa9ce04d39079abb05d0d347f9da27ccf6f7edd97458a569bca0fd',
+    VOICE_FILENAME: '89005f0c53235e7f72370a624a397d4ef4221a52d1a36d23fcb6b129f4c8d15a',
+    'agpc-voice_0.1.0~office117.20261015.2_all.deb': '4f3daddb1e6b1290fb2bbc411b75a3ff04f26ffc9eb9f097416db40220a20453',
     'agpc-freeswitch-core_1.11.3+agpc1_amd64.deb': 'a207b111702e7ae7c8682cffa7468a450b66b4acb69203a8f545edcff25a25e4',
 }
 RUNTIME_NAMES = {'native_voice', 'native_install', 'native_rpc', 'rdp_client',
@@ -74,7 +74,7 @@ def verify_embedded(extracted):
                             'One literal release gate required')
                     declarations[target.id] = node.value.value
     require(declarations.get('INSTALL_CONTRACT_ADMITTED') is False
-            and declarations.get('RELEASE') == 'office117.20261015.2', 'Exact closed source gate required')
+            and declarations.get('RELEASE') == 'office117.20261015.2+l1isolation.2', 'Exact closed source gate required')
 
 
 def validate_manifest(extracted, commit):
