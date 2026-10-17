@@ -15,6 +15,7 @@ import stat
 import time
 
 PACKET = Path('/var/lib/agpc-voice-native-ci')
+MODES = ('fresh', 'upgrade', 'upgrade-l1-isolation')
 FIXED = {
     'GITHUB_ACTIONS': 'true', 'RUNNER_ENVIRONMENT': 'github-hosted',
     'GITHUB_REPOSITORY': 'motebus/download', 'GITHUB_REF': 'refs/heads/main',
@@ -25,7 +26,8 @@ FILES = {'agpc-voice.sh', 'scripts/verify_agpc_voice_native_ci.py',
          'scripts/verify_agpc_voice_native_entry_ci.py'} | {
     'src/' + name + '.py' for name in ('native_voice', 'native_install', 'native_rpc',
                                      'rdp_client', 'browser_install', 'desktop_preferences')
-} | {'packages/' + name for name in ('agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb',
+} | {'packages/' + name for name in ('agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1_all.deb',
+    'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb',
     'agpc-voice_0.1.0~office117.20261015.2_all.deb', 'agpc-freeswitch-core_1.11.3+agpc1_amd64.deb')}
 
 
@@ -50,7 +52,7 @@ def trusted(path, *, directory=False):
 def prepare(packet, mode, commit, manifest_sha256, environment):
     """Internal path injection is for offline tests; main always uses PACKET."""
     require(os.geteuid() == 0, 'Root execution required')
-    require(mode in ('fresh', 'upgrade') and isinstance(commit, str)
+    require(mode in MODES and isinstance(commit, str)
             and re.fullmatch(r'[0-9a-f]{40}', commit) and isinstance(manifest_sha256, str)
             and re.fullmatch(r'[0-9a-f]{64}', manifest_sha256), 'Exact mode/source/manifest required')
     github = {key: environment.get(key) for key in KEYS}
@@ -68,7 +70,7 @@ def prepare(packet, mode, commit, manifest_sha256, environment):
                 'production_admission', 'historical_L1_admission', 'secrets_included', 'host_mutated')),
             'Closed source manifest required')
     records = source.get('files')
-    require(isinstance(records, list) and len(records) == 12 and all(
+    require(isinstance(records, list) and len(records) == 13 and all(
         isinstance(r, dict) and set(r) == {'path', 'bytes', 'sha256'} and isinstance(r['path'], str)
         for r in records) and {r['path'] for r in records} == FILES, 'Exact session bundle required')
     for record in records:
@@ -101,7 +103,7 @@ def prepare(packet, mode, commit, manifest_sha256, environment):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--mode', choices=('fresh', 'upgrade'), required=True)
+    parser.add_argument('--mode', choices=MODES, required=True)
     parser.add_argument('--source-commit', required=True)
     parser.add_argument('--source-manifest-sha256', required=True)
     args = parser.parse_args()

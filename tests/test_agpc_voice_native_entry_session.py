@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import stat
 import sys
 import tempfile
@@ -82,6 +83,43 @@ class NativeEntrySessionTests(unittest.TestCase):
 
     def test_upgrade_mode_has_its_own_session_identity(self):
         self.assertEqual(self.prepare('upgrade')['mode'], 'upgrade')
+
+    def test_isolated_predecessor_upgrade_has_a_distinct_session_identity(self):
+        result = self.prepare('upgrade-l1-isolation')
+        self.assertEqual(result['mode'], 'upgrade-l1-isolation')
+        self.assertEqual(json.loads((self.packet / 'CI-SESSION.json').read_bytes()), result)
+        self.assertEqual(len(self.source['files']), 13)
+
+    def test_unknown_modes_are_rejected_before_reading_the_bundle(self):
+        for mode in (None, True, [], 'rollback', 'upgrade-latest', '../upgrade',
+                     'office117.20261015.2+l1isolation.2'):
+            with self.subTest(mode=mode), patch.object(session, 'trusted') as trusted:
+                with self.assertRaisesRegex(ValueError, 'Exact mode/source/manifest'):
+                    self.prepare(mode)
+                trusted.assert_not_called()
+                self.assertFalse((self.packet / 'CI-SESSION.json').exists())
+
+    def test_workflow_matrix_and_evidence_export_cover_exact_session_modes(self):
+        workflow = (ROOT / '.github/workflows/verify-agpc-voice-native-entry.yml').read_text()
+        matrix = re.findall(r'^\s+mode: \[([^\]]+)\]$', workflow, re.MULTILINE)
+        export = re.findall(r'case "\$TEST_MODE" in ([^\)]+)\)', workflow)
+        self.assertEqual(len(matrix), 1)
+        self.assertEqual(len(export), 1)
+        modes = ('fresh', 'upgrade', 'upgrade-l1-isolation')
+        self.assertEqual(session.MODES, modes)
+        self.assertEqual(tuple(item.strip() for item in matrix[0].split(',')), modes)
+        self.assertEqual(tuple(export[0].split('|')), modes)
+
+    def test_neither_predecessor_may_be_missing_from_the_root_bundle(self):
+        original = copy.deepcopy(self.source)
+        for filename in ('agpc-voice_0.1.0~office117.20261015.2_all.deb',
+                         'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb'):
+            with self.subTest(filename=filename):
+                self.source = copy.deepcopy(original)
+                self.source['files'] = [record for record in self.source['files']
+                                        if record['path'] != 'packages/' + filename]
+                self.save_source()
+                self.reject('Exact session bundle')
 
     def test_old_or_untrusted_workflow_context_is_rejected(self):
         for key, value in [('GITHUB_REF', 'refs/heads/feature'), ('RUNNER_ENVIRONMENT', 'self-hosted'),
