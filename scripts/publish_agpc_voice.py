@@ -55,7 +55,7 @@ def validate_inputs(record):
     installer_revision(record, "agpc.voice-publication-inputs")
     native.require(isinstance(record.get("version"), str)
                    and re.fullmatch(VERSION, record["version"])
-                   and len(record["version"]) <= 80, "invalid Voice version")
+                   and len(record["version"]) <= 96, "invalid Voice version")
     native.require(re.fullmatch(r"[a-f0-9]{40}", record.get("source_commit", "")), "invalid source commit")
     native.require(type(record.get("ci_job")) is int and record["ci_job"] > 0, "main CI job required")
     native.require(re.fullmatch(r"[a-f0-9]{64}", record.get("archive_sha256", "")), "artifact hash required")

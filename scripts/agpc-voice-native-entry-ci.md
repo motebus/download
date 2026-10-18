@@ -1,3 +1,40 @@
+# Current zh-TW continuous 117 native evidence — 2026-10-18
+
+Owner: Cito. The unchanged MR22/main `0aa210b4c85cfa0071df62b0dba8835edf31125f`
+component (job65941) adds Traditional Chinese Taiwan spoken time, with Asia/Taipei
+and continuous announcements until caller hangup preserved.
+
+Canonical native run [39113030565](https://github.com/motebus/download/actions/runs/39113030565)
+used protected workflow main `744397c1ace388e9b7897775ddbc55ac134aa23c`, reviewed consumer
+MR96/main `06175fe3898b3b25ea4774562a89523590e82294` and producer job65952.
+Verified source manifest SHA256:
+`2fdf8d2b9ba1f985eac26e8b0da75bca1cb065304d815d3cd49936285132fa4a`.
+
+All three modes passed: fresh/repeat/ABI; accepted continuous117.1 upgrade/repeat/ABI/
+rollback/repeat; l1isolation.2 upgrade/repeat/ABI/rollback/repeat. Original artifact ZIPs,
+results, phase states and receipts were independently checked. Units remained inactive;
+repeat transactions had no package writes; both upgrades restored their exact predecessor
+and retained FreeSWITCH. These are finite CI observations, not a normal production
+transaction, historical L1 clearance, runtime readiness or telephone acceptance.
+
+The evidence-backed owner admission is MR24/main `588acde13496564580f2314aa740bd5c6f1b4d2f`.
+Final human-reviewed consumer MR97/main `61cad4226536d51160db2bcc86bf0c40b47776b7`
+binds the package pair, canonical installer, source/build records and public disclosure.
+`scripts/agpc-voice-publication.json` must select its actual successful protected-main
+release producer and original ZIP. Normal publication uses the existing signed publisher;
+verify signatures and versioned public bytes before L1 upgrade.
+
+Selected Voice version:
+`0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1`.
+Package SHA256: `9216cb1210083ca6e8fa2a8737451a4d8af120c7e92ff0c627b0b9cab890d4b1`.
+Canonical installer SHA256: `43a9927d76884c6c0072b7d791e999de616c57f1504bb1444613fa4d6a7edb49`.
+
+L1 zh-TW upgrade and audible phone acceptance remain separate. Preserve 123; no L1
+route/service changes or calls occur in this public-source update. 909 activation and
+900 global language selection remain pending.
+
+## Retained previous cohort evidence
+
 # Continuous117 and isolated909 native evidence — 2026-10-18
 
 PR263/main bc42a5bd147f7b6f508659b89661a67fa2103a5f selected approved consumer
