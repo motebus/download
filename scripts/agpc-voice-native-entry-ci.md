@@ -1,3 +1,34 @@
+# Continuous117 and isolated909 native evidence — 2026-10-18
+
+PR263/main bc42a5bd147f7b6f508659b89661a67fa2103a5f selected approved consumer
+MR94/main c4539f337f544c2b9846bcc427258a0ce1297e7a, CI28182/job65924.
+The unchanged MR19/main de92675ecc9396d0e1a8dab378600ef0afed08cc component
+(job65891, 317632 bytes, SHA256
+5e01f2793ac9697937d7c4beb9c23a8a4dd014fcd5e766d2c97016f2ae0031d2)
+was verified against that original native-input archive.
+
+Actual workflow run39098674528 passed fresh/repeat/ABI and two independent
+upgrade/repeat/ABI/rollback/repeat modes from `.2` and `l1isolation.2`.
+The original three evidence ZIPs, CI receipts, process completion, inactive units,
+repeat no-ops and predecessor restoration were independently checked. No normal
+production transaction or phone acceptance is inferred from CI authority.
+
+Owner admission MR21/main4b32e500 and its CI28185 passed. Human-approved consumer
+MR95/main b54ee350e76a189f244411ed1f4ac3a7bc2245d2 / CI28186 / release job65933
+now provides the distinct formal release bundle. Its original ZIP is 7836792
+bytes, SHA256 d4ddf3144522236d7c6dd2ab7e78e376050a91363e23d2b06f459c68f65f6fc5.
+The publication JSON selects that release job, never the native-input job.
+The admitted shell SHA256 is
+4e994dd5351d0e4342a74d2e697dcc96d06a3a5c9df40fb048b1b0f37d7ae392.
+
+This PR binds publication inputs; signing, Pages deployment and public readback
+remain separate subsequent actions. L1 continuous117 and909 activation/phone
+acceptance are pending, owned by Cito. Preserve123. Global900 language and
+zh-TW remain pending. The native workflow topology, permissions and existing
+signing/access controls are unchanged.
+
+## Retained previous native preparation notes
+
 # Canonical-entry native CI preparation
 
 SIP-auth Live workflow preparation: component MR15 and consumer MR92 are
