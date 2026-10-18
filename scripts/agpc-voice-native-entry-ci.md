@@ -1,3 +1,43 @@
+# Current utility services native evidence — 2026-10-18
+
+Owner: Cito. Reviewed component MR25/main `71b746438e8990ae6685b8ca86dd6bd9e0cdc9e9`
+(job65966) adds 104 caller-number readback, 900 global language selection,
+901 transient recording/replay and 222 one callback after authenticated caller hangup.
+Continuous 117 time announcements and independent 909 radio are retained.
+
+Canonical native run [39137785259](https://github.com/motebus/download/actions/runs/39137785259)
+passed fresh/repeat/ABI and both upgrade/repeat/ABI/rollback/repeat modes, from the
+accepted zh-TW and l1isolation.2 predecessors. It used reviewed consumer MR98/main
+`61a1790a82462d7bfc7b995553ed69b3a610ed7f`, CI28204/job65976. Original artifact ZIPs,
+phase states and receipts were independently verified. Source manifest SHA256:
+`fba18c9ca1d504dbd36297c5329a82668a490756aab862d820e6df5162bed96a`.
+Units stayed inactive, repeated transactions made no package writes, and both rollback
+paths restored their exact predecessor and retained FreeSWITCH. This is native installer
+evidence; it does not establish L1 installation, activation or telephone acceptance.
+
+Evidence-backed owner admission is MR27/main `e9576897895d57b48f98f24974494f68d6f04e9b`.
+Final human-reviewed consumer MR99/main `a6dccfb9eff632e342a5b7b9acd47bcc1022ffa9`
+passed CI28208 and release producer job65985. Its unmodified original ZIP is
+7846286 bytes, SHA256 `6a96fa3af3017cd20588ba57f11cc776c7f4c8f56dc337fc655a9abb0a6309b1`.
+The publication JSON selects this release job, separate from the native-input job.
+
+Selected Voice version:
+`0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1`.
+Voice package: 348352 bytes, SHA256
+`394baefe1242a288f822f5df6d90dd5a6c0eac7d71891aa66f66da19b2cb829f`.
+Canonical installer SHA256:
+`32380145a06a6bd1d8a0f8b7c1428431b2b951f281f5f6885917738a9fbff251`.
+The package and runtime helpers match the tested cohort; admission adds fixed public URLs
+and enables the normal install contract after native evidence validation.
+
+This update binds publication inputs. The existing signing workflow, Pages deployment
+and versioned public readback are subsequent operations. L1 currently has owner-accepted
+zh-TW continuous 117, 909, 123 and 456. Utility activation and phone acceptance are pending;
+900 governs built-in prompts, with legacy 123/456 configuration and radio content retained.
+No L1 routes, services or phone calls are operated by this repository update.
+
+## Retained previous cohort evidence
+
 # Current zh-TW continuous 117 native evidence — 2026-10-18
 
 Owner: Cito. The unchanged MR22/main `0aa210b4c85cfa0071df62b0dba8835edf31125f`
