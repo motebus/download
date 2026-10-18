@@ -1,8 +1,8 @@
 {
   "schema": "agpc.voice-native-entry-ci-public-inputs/v1",
-  "source_commit": "06175fe3898b3b25ea4774562a89523590e82294",
-  "ci_job": 65952,
-  "install_review": 96,
-  "archive_bytes": 8042580,
-  "archive_sha256": "15a3d569184672a6c69fbe8bce65f1a7e0501e4a576671139756ba302ed72dd7"
+  "source_commit": "61a1790a82462d7bfc7b995553ed69b3a610ed7f",
+  "ci_job": 65976,
+  "install_review": 98,
+  "archive_bytes": 8052017,
+  "archive_sha256": "64f1e1fb0bf28e08de9a18bd5292443708e314e9af9d9f23f05959e760b1a6ef"
 }

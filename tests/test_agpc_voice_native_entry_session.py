@@ -112,7 +112,7 @@ class NativeEntrySessionTests(unittest.TestCase):
 
     def test_neither_predecessor_may_be_missing_from_the_root_bundle(self):
         original = copy.deepcopy(self.source)
-        for filename in ('agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1_all.deb',
+        for filename in ('agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1_all.deb',
                          'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb'):
             with self.subTest(filename=filename):
                 self.source = copy.deepcopy(original)

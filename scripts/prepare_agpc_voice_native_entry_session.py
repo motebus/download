@@ -26,9 +26,9 @@ FILES = {'agpc-voice.sh', 'scripts/verify_agpc_voice_native_ci.py',
          'scripts/verify_agpc_voice_native_entry_ci.py'} | {
     'src/' + name + '.py' for name in ('native_voice', 'native_install', 'native_rpc',
                                      'rdp_client', 'browser_install', 'desktop_preferences')
-} | {'packages/' + name for name in ('agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1_all.deb',
+} | {'packages/' + name for name in ('agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1_all.deb',
     'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb',
-    'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1_all.deb', 'agpc-freeswitch-core_1.11.3+agpc1_amd64.deb')}
+    'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1_all.deb', 'agpc-freeswitch-core_1.11.3+agpc1_amd64.deb')}
 
 
 def require(condition, message):
