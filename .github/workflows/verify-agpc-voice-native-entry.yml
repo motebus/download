@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # upgrade starts from the accepted zh-TW continuous 117 release; the third job uses .2+l1isolation.2.
+        # upgrade starts from the accepted utilities.1 release; the third job uses .2+l1isolation.2.
         mode: [fresh, upgrade, upgrade-l1-isolation]
     runs-on: ubuntu-24.04
     timeout-minutes: 30

@@ -38,19 +38,19 @@ class NativeEntryInputTests(unittest.TestCase):
         for name in staging.RUNTIME_NAMES:
             self.files['src/' + name + '.py'] = b'raise AssertionError("source must never execute")\n'
         self.files['src/native_voice.py'] = (b'INSTALL_CONTRACT_ADMITTED = False\n'
-            b"RELEASE = 'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1'\nraise AssertionError('must never execute')\n")
+            b"RELEASE = 'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1+callback999.1'\nraise AssertionError('must never execute')\n")
         for name in ('verify_agpc_voice_native_ci.py', 'verify_agpc_voice_native_entry_ci.py'):
             self.files['scripts/' + name] = b'raise AssertionError("harness must never execute")\n'
         self.wrapper()
         self.source = dict(schema='agpc.voice-native-entry-ci-source/v1', installer_commit=self.commit,
-            voice_commit=staging.VOICE_COMMIT, voice_ci_pipeline=28200, voice_ci_job=65966, voice_review=25,
+            voice_commit=staging.VOICE_COMMIT, voice_ci_pipeline=28210, voice_ci_job=65990, voice_review=28,
             **{k: False for k in staging.FALSE_FLAGS})
         self.inputs = dict(schema='agpc.voice-native-entry-ci-public-inputs/v1',
             source_commit=self.commit, ci_job=self.job, install_review=self.review)
         self.api = {}
         for project, job, commit, pipeline, review in (
                 (1341, self.job, self.commit, 73003, self.review),
-                (1348, 65966, staging.VOICE_COMMIT, 28200, 25)):
+                (1348, 65990, staging.VOICE_COMMIT, 28210, 28)):
             self.api[f'projects/{project}/jobs/{job}'] = dict(id=job, status='success', ref='main', tag=False,
                 name='agpc-voice-native-entry-ci-inputs' if project == 1341 else 'voice-source-cohort',
                 commit=dict(id=commit), pipeline=dict(id=pipeline, sha=commit, ref='main'))
@@ -95,7 +95,7 @@ class NativeEntryInputTests(unittest.TestCase):
     def artifact(self, endpoint):
         if endpoint == f'projects/1341/jobs/{self.job}/artifacts':
             return self.archive
-        if endpoint == 'projects/1348/jobs/65966/artifacts/components/agpc-voice/dist/' + staging.VOICE_FILENAME:
+        if endpoint == 'projects/1348/jobs/65990/artifacts/components/agpc-voice/dist/' + staging.VOICE_FILENAME:
             return self.original
         raise AssertionError('Unexpected endpoint')
 
@@ -116,7 +116,7 @@ class NativeEntryInputTests(unittest.TestCase):
         self.assertEqual(len(self.files), 14)
         self.assertEqual(len(self.source['files']), 13)
         self.assertEqual((self.output / 'agpc-voice.sh').stat().st_mode & 0o777, 0o755)
-        for project, review in ((1341, self.review), (1348, 25)):
+        for project, review in ((1341, self.review), (1348, 28)):
             self.get_json.assert_any_call(f'projects/{project}/merge_requests/{review}/approvals')
             self.get_json.assert_any_call(f'projects/{project}/members/all/34')
 
@@ -133,16 +133,16 @@ class NativeEntryInputTests(unittest.TestCase):
         self.assertNotEqual(manifest_sha256, sha((self.output / 'SOURCE.json').read_bytes()))
 
     def test_production_pins(self):
-        self.assertEqual(staging.VOICE_COMMIT, '71b746438e8990ae6685b8ca86dd6bd9e0cdc9e9')
-        self.assertEqual((staging.VOICE_JOB, staging.VOICE_PIPELINE, staging.VOICE_REVIEW), (65966, 28200, 25))
+        self.assertEqual(staging.VOICE_COMMIT, '242a5e3441735e88c23164605487f87444e2c851')
+        self.assertEqual((staging.VOICE_JOB, staging.VOICE_PIPELINE, staging.VOICE_REVIEW), (65990, 28210, 28))
         self.assertEqual(staging.VOICE_FILENAME,
-                         'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1_all.deb')
+                         'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1+callback999.1_all.deb')
         self.assertEqual(staging.VOICE_BYTES, 348352)
         self.assertEqual(staging.PACKAGE_SHA256[staging.VOICE_FILENAME],
-                         '394baefe1242a288f822f5df6d90dd5a6c0eac7d71891aa66f66da19b2cb829f')
+                         'd30efe600ab1cff0f6fe22283b16fb296439c0d5b19c0cc71f3d1e2c9f3c1b70')
         self.assertEqual(len(staging.PACKAGE_SHA256), 4)
-        self.assertEqual(staging.PACKAGE_SHA256['agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1_all.deb'],
-                         '9216cb1210083ca6e8fa2a8737451a4d8af120c7e92ff0c627b0b9cab890d4b1')
+        self.assertEqual(staging.PACKAGE_SHA256['agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1_all.deb'],
+                         '394baefe1242a288f822f5df6d90dd5a6c0eac7d71891aa66f66da19b2cb829f')
         self.assertEqual(staging.PACKAGE_SHA256['agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb'],
                          '89005f0c53235e7f72370a624a397d4ef4221a52d1a36d23fcb6b129f4c8d15a')
         self.assertEqual(staging.PACKAGE_SHA256['agpc-freeswitch-core_1.11.3+agpc1_amd64.deb'],
@@ -165,7 +165,7 @@ class NativeEntryInputTests(unittest.TestCase):
         self.get_bytes.assert_not_called()
 
     def test_actual_reviews_must_be_merged_exact_and_maintainer_approved(self):
-        for project, review in ((1341, self.review), (1348, 25)):
+        for project, review in ((1341, self.review), (1348, 28)):
             prefix = f'projects/{project}/merge_requests/{review}'
             cases = [(prefix, 'state', 'opened'), (prefix, 'merge_commit_sha', 'b' * 40),
                      (prefix + '/approvals', 'approved', False),
@@ -180,8 +180,8 @@ class NativeEntryInputTests(unittest.TestCase):
         for endpoint, key, value in (
             (f'projects/1341/jobs/{self.job}', 'name', 'agpc-voice-native-ci-inputs'),
             (f'projects/1341/jobs/{self.job}', 'ref', 'feature'),
-            ('projects/1348/jobs/65966', 'status', 'running'),
-            ('projects/1348/pipelines/28200', 'status', 'failed')):
+            ('projects/1348/jobs/65990', 'status', 'running'),
+            ('projects/1348/pipelines/28210', 'status', 'failed')):
             with self.subTest(endpoint=endpoint, key=key), patch.dict(self.api[endpoint], {key: value}):
                 self.reject('job|CI|pipeline')
         self.get_bytes.assert_not_called()
@@ -226,15 +226,15 @@ class NativeEntryInputTests(unittest.TestCase):
     def test_previous_closed_runtime_cannot_validate_the_new_cohort(self):
         original = self.files['src/native_voice.py']
         for predecessor in (b'office117.20261015.2', b'office117.20261015.2+l1isolation.2',
-                            b'office117.20261015.2+l1isolation.2+sipauth.1', b'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1'):
+                            b'office117.20261015.2+l1isolation.2+sipauth.1', b'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1', b'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1'):
             with self.subTest(predecessor=predecessor):
                 self.files['src/native_voice.py'] = original.replace(
-                    b'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1', predecessor)
+                    b'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1+callback999.1', predecessor)
                 self.wrapper(); self.refresh()
                 self.reject('closed source gate')
 
     def test_both_predecessor_archives_are_required_and_pinned_after_rehash(self):
-        for filename in ('agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1_all.deb',
+        for filename in ('agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1_all.deb',
                          'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb'):
             name = 'packages/' + filename
             original = self.files[name]
