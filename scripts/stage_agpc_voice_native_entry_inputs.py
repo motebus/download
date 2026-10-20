@@ -18,14 +18,17 @@ import zipfile
 import publish_agpc_voice as voice
 
 PREFIX = 'agpc-voice-native-entry-ci/'
-VOICE_COMMIT = '242a5e3441735e88c23164605487f87444e2c851'
-VOICE_JOB, VOICE_PIPELINE, VOICE_REVIEW = 65990, 28210, 28
-VOICE_FILENAME = 'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1+callback999.1_all.deb'
-VOICE_BYTES = 348352
+# Actual MR33 protected-main original artifact, verified before binding.
+VOICE_COMMIT = 'e1c136b5736f10ff719f4821e6378b0c6671db8a'
+VOICE_REVIEWED_HEAD = '213b90c6480e7af8abb0873013e7e3ef2ea8fe73'
+VOICE_JOB, VOICE_PIPELINE, VOICE_REVIEW = 66033, 28228, 33
+VOICE_FILENAME = 'agpc-voice_0.1.2~servicemap.20261019.1_all.deb'
+VOICE_BYTES = 379072
 PACKAGE_SHA256 = {
-    VOICE_FILENAME: 'd30efe600ab1cff0f6fe22283b16fb296439c0d5b19c0cc71f3d1e2c9f3c1b70',
+    VOICE_FILENAME: 'a475b45872a0b3922d30f50af24db720e47d5e3ba5e5b3bfd40d091359a22645',
     'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1_all.deb': '394baefe1242a288f822f5df6d90dd5a6c0eac7d71891aa66f66da19b2cb829f',
     'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb': '89005f0c53235e7f72370a624a397d4ef4221a52d1a36d23fcb6b129f4c8d15a',
+    'agpc-voice_0.1.0~office117.20261015.2_all.deb': '4f3daddb1e6b1290fb2bbc411b75a3ff04f26ffc9eb9f097416db40220a20453',
     'agpc-freeswitch-core_1.11.3+agpc1_amd64.deb': 'a207b111702e7ae7c8682cffa7468a450b66b4acb69203a8f545edcff25a25e4',
 }
 RUNTIME_NAMES = {'native_voice', 'native_install', 'native_rpc', 'rdp_client',
@@ -38,6 +41,13 @@ FALSE_FLAGS = {'production_gate', 'published', 'native_acceptance',
                'normal_installer_transaction', 'production_admission',
                'historical_L1_admission', 'secrets_included', 'host_mutated'}
 require = voice.native.require
+
+
+def require_component_binding():
+    require(isinstance(VOICE_COMMIT, str) and re.fullmatch(r'[0-9a-f]{40}', VOICE_COMMIT)
+            and type(VOICE_PIPELINE) is int and VOICE_PIPELINE > 0
+            and type(VOICE_JOB) is int and VOICE_JOB > 0 and VOICE_REVIEW == 33,
+            'Service-map protected-main component binding is unresolved')
 
 
 def verify_embedded(extracted):
@@ -75,10 +85,11 @@ def verify_embedded(extracted):
                             'One literal release gate required')
                     declarations[target.id] = node.value.value
     require(declarations.get('INSTALL_CONTRACT_ADMITTED') is False
-            and declarations.get('RELEASE') == 'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1+callback999.1', 'Exact closed source gate required')
+            and declarations.get('RELEASE') == 'servicemap.20261019.1', 'Exact closed source gate required')
 
 
 def validate_manifest(extracted, commit):
+    require_component_binding()
     source = voice.load_json(extracted['SOURCE.json'])
     require(set(source) == {'schema', 'installer_commit', 'voice_commit', 'voice_ci_pipeline',
                             'voice_ci_job', 'voice_review', 'files'} | FALSE_FLAGS
@@ -88,10 +99,10 @@ def validate_manifest(extracted, commit):
                 ('voice_ci_pipeline', VOICE_PIPELINE), ('voice_ci_job', VOICE_JOB), ('voice_review', VOICE_REVIEW)))
             and all(source[key] is False for key in FALSE_FLAGS), 'Native entry source binding mismatch')
     records = source['files']
-    require(isinstance(records, list) and len(records) == 13
+    require(isinstance(records, list) and len(records) == 14
             and all(isinstance(r, dict) and set(r) == {'path', 'bytes', 'sha256'}
                     and isinstance(r['path'], str) for r in records)
-            and {r['path'] for r in records} == FILES - {'SOURCE.json'}, 'Exact thirteen-file inventory required')
+            and {r['path'] for r in records} == FILES - {'SOURCE.json'}, 'Exact fourteen-file inventory required')
     for record in records:
         raw = extracted[record['path']]
         require(type(record['bytes']) is int and record['bytes'] > 0
@@ -107,6 +118,7 @@ def validate_manifest(extracted, commit):
 
 
 def stage(inputs, output, get_json=voice.api_json, get_bytes=voice.api_bytes):
+    require_component_binding()
     require(isinstance(inputs, dict) and set(inputs) == {
         'schema', 'source_commit', 'ci_job', 'install_review', 'archive_bytes', 'archive_sha256'},
         'Exact native entry public inputs required')
@@ -131,6 +143,10 @@ def stage(inputs, output, get_json=voice.api_json, get_bytes=voice.api_bytes):
     require(observations[f'projects/1348/jobs/{VOICE_JOB}']['pipeline']['id'] == VOICE_PIPELINE,
             'Exact reviewed component pipeline required')
     voice.verify_review(VOICE_REVIEW, 1348, VOICE_COMMIT, observed_json)
+    component_review = observations[f'projects/1348/merge_requests/{VOICE_REVIEW}']
+    require(component_review.get('sha') == VOICE_REVIEWED_HEAD
+            and component_review.get('squash_commit_sha') is None,
+            'Exact reviewed MR33 ordinary merge required')
     data = get_bytes(f"projects/1341/jobs/{inputs['ci_job']}/artifacts")
     require(len(data) == inputs['archive_bytes'] and hashlib.sha256(data).hexdigest() == inputs['archive_sha256'],
             'Native entry archive mismatch')
