@@ -1,3 +1,40 @@
+# Service-map canonical native inputs — 2026-10-20
+
+Cito owns coordination; L5 owns Voice source and packaging in
+`codex/codex-agpc/codex-linux/agpc-voice-deb` (project1348).
+This selects the existing reviewed four-mode disposable Noble validation.
+It does not admit or publish the candidate, change host services or prove phone acceptance.
+
+- Component MR33 protected main `e1c136b5736f10ff719f4821e6378b0c6671db8a`,
+  CI28228/job66033; version `0.1.2~servicemap.20261019.1`.
+- Voice DEB: 379072 bytes, SHA256
+  `a475b45872a0b3922d30f50af24db720e47d5e3ba5e5b3bfd40d091359a22645`.
+- Owner installer source MR34 `67a188599272207ca76caa27589ac865c627e55b`
+  retained in normal merge `094249fb4a26ab307df10d7829e941e1c4d7decf`.
+- Approved consumer MR103 retained in ordinary main merge
+  `33a4810d92bf4ff6bbae6965b28833633492b570`; CI28233/job66046 succeeded.
+- Unmodified original producer ZIP: 8117582 bytes, SHA256
+  `f3f5537ae771a3e82b362d7aee734a2fe436080f6b4d5cb2c9fad55657b1a7e0`.
+- Source manifest SHA256:
+  `69933cc2315c0f8b9f5611d50c14e7db90da879ee57c84265ae42c60a1c608cc`.
+
+The unchanged verifier re-read successful non-tag main jobs/pipelines,
+actual review approvals and eligible current membership. All fourteen manifested
+payloads plus SOURCE.json were verified, and selected Voice bytes equal the
+original MR33 main CI artifact. Input code was not executed by that verification.
+
+The modes are `fresh`, `upgrade` (utilities.1), `upgrade-l1-isolation`
+and `upgrade-k1-office` (original Office117.2, exact package SHA256
+`4f3daddb1e6b1290fb2bbc411b75a3ff04f26ffc9eb9f097416db40220a20453`).
+FreeSWITCH remains `1.11.3+agpc1` with SHA256
+`a207b111702e7ae7c8682cffa7468a450b66b4acb69203a8f545edcff25a25e4`.
+Each upgrade independently checks repeat, ABI, rollback and repeat; fresh checks
+install, repeat and ABI. Source admission remains false. No successful native
+run for this cohort is claimed until actual result artifacts are inspected.
+Historical source, failed receipts and earlier release records below are retained.
+
+## Retained previous cohort evidence
+
 # Current utility services native evidence — 2026-10-18
 
 Owner: Cito. Reviewed component MR25/main `71b746438e8990ae6685b8ca86dd6bd9e0cdc9e9`
