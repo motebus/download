@@ -88,7 +88,13 @@ class NativeEntrySessionTests(unittest.TestCase):
         result = self.prepare('upgrade-l1-isolation')
         self.assertEqual(result['mode'], 'upgrade-l1-isolation')
         self.assertEqual(json.loads((self.packet / 'CI-SESSION.json').read_bytes()), result)
-        self.assertEqual(len(self.source['files']), 13)
+        self.assertEqual(len(self.source['files']), 14)
+
+    def test_k1_office_predecessor_has_a_distinct_session_identity(self):
+        result = self.prepare('upgrade-k1-office')
+        self.assertEqual(result['mode'], 'upgrade-k1-office')
+        self.assertEqual(json.loads((self.packet / 'CI-SESSION.json').read_bytes()), result)
+        self.assertIn('packages/agpc-voice_0.1.0~office117.20261015.2_all.deb', session.FILES)
 
     def test_unknown_modes_are_rejected_before_reading_the_bundle(self):
         for mode in (None, True, [], 'rollback', 'upgrade-latest', '../upgrade',
@@ -105,15 +111,16 @@ class NativeEntrySessionTests(unittest.TestCase):
         export = re.findall(r'case "\$TEST_MODE" in ([^\)]+)\)', workflow)
         self.assertEqual(len(matrix), 1)
         self.assertEqual(len(export), 1)
-        modes = ('fresh', 'upgrade', 'upgrade-l1-isolation')
+        modes = ('fresh', 'upgrade', 'upgrade-l1-isolation', 'upgrade-k1-office')
         self.assertEqual(session.MODES, modes)
         self.assertEqual(tuple(item.strip() for item in matrix[0].split(',')), modes)
         self.assertEqual(tuple(export[0].split('|')), modes)
 
-    def test_neither_predecessor_may_be_missing_from_the_root_bundle(self):
+    def test_no_predecessor_may_be_missing_from_the_root_bundle(self):
         original = copy.deepcopy(self.source)
         for filename in ('agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1_all.deb',
-                         'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb'):
+                         'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb',
+                         'agpc-voice_0.1.0~office117.20261015.2_all.deb'):
             with self.subTest(filename=filename):
                 self.source = copy.deepcopy(original)
                 self.source['files'] = [record for record in self.source['files']

@@ -32,31 +32,33 @@ class NativeEntryInputTests(unittest.TestCase):
         # Consumer identities are deliberately synthetic; no new producer has
         # been selected in the active public input record by this patch.
         self.commit, self.job, self.review = 'a' * 40, 73001, 73002
+        self.component = 'c' * 40  # Synthetic component main observation only.
         self.packages = {name: ('synthetic nonexecutable archive ' + name).encode()
                          for name in staging.PACKAGE_SHA256}
         self.files = {'packages/' + name: raw for name, raw in self.packages.items()}
         for name in staging.RUNTIME_NAMES:
             self.files['src/' + name + '.py'] = b'raise AssertionError("source must never execute")\n'
         self.files['src/native_voice.py'] = (b'INSTALL_CONTRACT_ADMITTED = False\n'
-            b"RELEASE = 'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1+callback999.1'\nraise AssertionError('must never execute')\n")
+            b"RELEASE = 'servicemap.20261019.1'\nraise AssertionError('must never execute')\n")
         for name in ('verify_agpc_voice_native_ci.py', 'verify_agpc_voice_native_entry_ci.py'):
             self.files['scripts/' + name] = b'raise AssertionError("harness must never execute")\n'
         self.wrapper()
         self.source = dict(schema='agpc.voice-native-entry-ci-source/v1', installer_commit=self.commit,
-            voice_commit=staging.VOICE_COMMIT, voice_ci_pipeline=28210, voice_ci_job=65990, voice_review=28,
+            voice_commit=self.component, voice_ci_pipeline=900001, voice_ci_job=900002, voice_review=33,
             **{k: False for k in staging.FALSE_FLAGS})
         self.inputs = dict(schema='agpc.voice-native-entry-ci-public-inputs/v1',
             source_commit=self.commit, ci_job=self.job, install_review=self.review)
         self.api = {}
         for project, job, commit, pipeline, review in (
                 (1341, self.job, self.commit, 73003, self.review),
-                (1348, 65990, staging.VOICE_COMMIT, 28210, 28)):
+                (1348, 900002, self.component, 900001, 33)):
             self.api[f'projects/{project}/jobs/{job}'] = dict(id=job, status='success', ref='main', tag=False,
                 name='agpc-voice-native-entry-ci-inputs' if project == 1341 else 'voice-source-cohort',
                 commit=dict(id=commit), pipeline=dict(id=pipeline, sha=commit, ref='main'))
             self.api[f'projects/{project}/pipelines/{pipeline}'] = dict(id=pipeline, status='success', ref='main', sha=commit)
             endpoint = f'projects/{project}/merge_requests/{review}'
-            self.api[endpoint] = dict(state='merged', target_branch='main', merge_commit_sha=commit)
+            self.api[endpoint] = dict(state='merged', target_branch='main', merge_commit_sha=commit,
+                sha=staging.VOICE_REVIEWED_HEAD if project == 1348 else 'd' * 40, squash_commit_sha=None)
             self.api[endpoint + '/approvals'] = dict(approved=True, approved_by=[dict(user=dict(id=34))])
             self.api[f'projects/{project}/members/all/34'] = dict(id=34, access_level=50)
         self.get_json = Mock(side_effect=lambda endpoint: copy.deepcopy(self.api[endpoint]))
@@ -95,12 +97,15 @@ class NativeEntryInputTests(unittest.TestCase):
     def artifact(self, endpoint):
         if endpoint == f'projects/1341/jobs/{self.job}/artifacts':
             return self.archive
-        if endpoint == 'projects/1348/jobs/65990/artifacts/components/agpc-voice/dist/' + staging.VOICE_FILENAME:
+        if endpoint == 'projects/1348/jobs/900002/artifacts/components/agpc-voice/dist/' + staging.VOICE_FILENAME:
             return self.original
         raise AssertionError('Unexpected endpoint')
 
     def stage(self):
-        with patch.object(staging, 'PACKAGE_SHA256', {name: sha(raw) for name, raw in self.packages.items()}), \
+        with patch.object(staging, 'VOICE_COMMIT', self.component), \
+             patch.object(staging, 'VOICE_JOB', 900002), \
+             patch.object(staging, 'VOICE_PIPELINE', 900001), \
+             patch.object(staging, 'PACKAGE_SHA256', {name: sha(raw) for name, raw in self.packages.items()}), \
              patch.object(staging, 'VOICE_BYTES', len(self.packages[staging.VOICE_FILENAME])):
             return staging.stage(self.inputs, self.output, self.get_json, self.get_bytes)
 
@@ -113,10 +118,10 @@ class NativeEntryInputTests(unittest.TestCase):
         self.assertEqual(self.stage(), (self.commit, sha(self.files['SOURCE.json'])))
         self.assertEqual({p.relative_to(self.output).as_posix(): p.read_bytes()
                           for p in self.output.rglob('*') if p.is_file()}, self.files)
-        self.assertEqual(len(self.files), 14)
-        self.assertEqual(len(self.source['files']), 13)
+        self.assertEqual(len(self.files), 15)
+        self.assertEqual(len(self.source['files']), 14)
         self.assertEqual((self.output / 'agpc-voice.sh').stat().st_mode & 0o777, 0o755)
-        for project, review in ((1341, self.review), (1348, 28)):
+        for project, review in ((1341, self.review), (1348, 33)):
             self.get_json.assert_any_call(f'projects/{project}/merge_requests/{review}/approvals')
             self.get_json.assert_any_call(f'projects/{project}/members/all/34')
 
@@ -133,14 +138,14 @@ class NativeEntryInputTests(unittest.TestCase):
         self.assertNotEqual(manifest_sha256, sha((self.output / 'SOURCE.json').read_bytes()))
 
     def test_production_pins(self):
-        self.assertEqual(staging.VOICE_COMMIT, '242a5e3441735e88c23164605487f87444e2c851')
-        self.assertEqual((staging.VOICE_JOB, staging.VOICE_PIPELINE, staging.VOICE_REVIEW), (65990, 28210, 28))
+        self.assertEqual(staging.VOICE_COMMIT, 'e1c136b5736f10ff719f4821e6378b0c6671db8a')
+        self.assertEqual((staging.VOICE_JOB, staging.VOICE_PIPELINE, staging.VOICE_REVIEW), (66033, 28228, 33))
         self.assertEqual(staging.VOICE_FILENAME,
-                         'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1+callback999.1_all.deb')
-        self.assertEqual(staging.VOICE_BYTES, 348352)
+                         'agpc-voice_0.1.2~servicemap.20261019.1_all.deb')
+        self.assertEqual(staging.VOICE_BYTES, 379072)
         self.assertEqual(staging.PACKAGE_SHA256[staging.VOICE_FILENAME],
-                         'd30efe600ab1cff0f6fe22283b16fb296439c0d5b19c0cc71f3d1e2c9f3c1b70')
-        self.assertEqual(len(staging.PACKAGE_SHA256), 4)
+                         'a475b45872a0b3922d30f50af24db720e47d5e3ba5e5b3bfd40d091359a22645')
+        self.assertEqual(len(staging.PACKAGE_SHA256), 5)
         self.assertEqual(staging.PACKAGE_SHA256['agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1_all.deb'],
                          '394baefe1242a288f822f5df6d90dd5a6c0eac7d71891aa66f66da19b2cb829f')
         self.assertEqual(staging.PACKAGE_SHA256['agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb'],
@@ -151,6 +156,23 @@ class NativeEntryInputTests(unittest.TestCase):
     def test_root_session_and_stager_require_the_same_selected_and_predecessor_bundle(self):
         self.assertEqual(session.FILES, staging.FILES - {'SOURCE.json'})
         self.assertNotIn('packages/agpc-voice_0.1.0~candidate.6_all.deb', session.FILES)
+
+    def test_unbound_main_never_contacts_api_or_creates_output(self):
+        with patch.object(staging, 'VOICE_COMMIT', None), self.assertRaisesRegex(ValueError, 'binding is unresolved'):
+            staging.stage(self.inputs, self.output, self.get_json, self.get_bytes)
+        self.get_json.assert_not_called(); self.get_bytes.assert_not_called()
+        self.assertFalse(self.output.exists())
+
+    def test_changed_reviewed_component_head_is_rejected(self):
+        with patch.dict(self.api['projects/1348/merge_requests/33'], sha='e' * 40):
+            self.reject('Exact reviewed MR33')
+        self.get_bytes.assert_not_called()
+
+    def test_mr32_approval_cannot_replace_the_reviewed_service_map_head(self):
+        with patch.dict(self.api['projects/1348/merge_requests/33'],
+                        sha='179468b9b88073bcdaed788ddf7ac0036429ede6'):
+            self.reject('Exact reviewed MR33')
+        self.get_bytes.assert_not_called()
 
     def test_bad_input_types_and_extra_override_never_contact_api(self):
         original = self.inputs
@@ -165,7 +187,7 @@ class NativeEntryInputTests(unittest.TestCase):
         self.get_bytes.assert_not_called()
 
     def test_actual_reviews_must_be_merged_exact_and_maintainer_approved(self):
-        for project, review in ((1341, self.review), (1348, 28)):
+        for project, review in ((1341, self.review), (1348, 33)):
             prefix = f'projects/{project}/merge_requests/{review}'
             cases = [(prefix, 'state', 'opened'), (prefix, 'merge_commit_sha', 'b' * 40),
                      (prefix + '/approvals', 'approved', False),
@@ -180,8 +202,8 @@ class NativeEntryInputTests(unittest.TestCase):
         for endpoint, key, value in (
             (f'projects/1341/jobs/{self.job}', 'name', 'agpc-voice-native-ci-inputs'),
             (f'projects/1341/jobs/{self.job}', 'ref', 'feature'),
-            ('projects/1348/jobs/65990', 'status', 'running'),
-            ('projects/1348/pipelines/28210', 'status', 'failed')):
+            ('projects/1348/jobs/900002', 'status', 'running'),
+            ('projects/1348/pipelines/900001', 'status', 'failed')):
             with self.subTest(endpoint=endpoint, key=key), patch.dict(self.api[endpoint], {key: value}):
                 self.reject('job|CI|pipeline')
         self.get_bytes.assert_not_called()
@@ -229,13 +251,14 @@ class NativeEntryInputTests(unittest.TestCase):
                             b'office117.20261015.2+l1isolation.2+sipauth.1', b'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1', b'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1'):
             with self.subTest(predecessor=predecessor):
                 self.files['src/native_voice.py'] = original.replace(
-                    b'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1+callback999.1', predecessor)
+                    b'servicemap.20261019.1', predecessor)
                 self.wrapper(); self.refresh()
                 self.reject('closed source gate')
 
-    def test_both_predecessor_archives_are_required_and_pinned_after_rehash(self):
+    def test_all_three_predecessor_archives_are_required_and_pinned_after_rehash(self):
         for filename in ('agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1_all.deb',
-                         'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb'):
+                         'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb',
+                         'agpc-voice_0.1.0~office117.20261015.2_all.deb'):
             name = 'packages/' + filename
             original = self.files[name]
             with self.subTest(filename=filename, change='missing'):
