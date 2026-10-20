@@ -1,13 +1,13 @@
 {
-  "archive_bytes": 7847428,
-  "archive_sha256": "45b864d854a4f896fd9c7ceea64d70e55080612085ce3c6f40d6a4e700a826e6",
-  "ci_job": 66028,
+  "archive_bytes": 7853949,
+  "archive_sha256": "c362230ce55b9ea9b254b51f7d504d82d3cac8de6cada200615dfdf38aea6d02",
+  "ci_job": 66058,
   "disclosure_review": {
-    "iid": 102,
+    "iid": 104,
     "project": 1341
   },
-  "install_review": 102,
+  "install_review": 104,
   "schema": "agpc.voice-publication-inputs/v1",
-  "source_commit": "f94bcab3751e9fc5f37a0cfd57c294954a99ca4d",
-  "version": "0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1+callback999.1"
+  "source_commit": "55cc843c09b31b29cb8cc436f38ae606e427fe6f",
+  "version": "0.1.2~servicemap.20261019.1"
 }
