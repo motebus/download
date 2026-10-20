@@ -52,6 +52,7 @@ jobs:
           sudo chmod -R go-w /var/lib/agpc-voice-native-ci
           sudo install -o root -g root -m 0644 scripts/prepare_agpc_voice_native_host.py /var/lib/agpc-voice-native-host-prep/prepare.py
           sudo install -o root -g root -m 0644 scripts/prepare_agpc_voice_native_entry_session.py /var/lib/agpc-voice-native-host-prep/session.py
+          sudo install -o root -g root -m 0644 scripts/collect_agpc_voice_native_process_evidence.py /var/lib/agpc-voice-native-host-prep/collect.py
           sudo /usr/bin/python3 -I -B /var/lib/agpc-voice-native-host-prep/prepare.py | tee "$RUNNER_TEMP/voice-native-entry-host-preparation.jsonl"
       - name: Validate the canonical entry lifecycle in its finite CI session
         env:
@@ -74,7 +75,13 @@ jobs:
           mkdir -m 0700 "$RUNNER_TEMP/voice-native-entry-evidence"
           run_directory="/var/lib/agpc-voice-native-entry-runs/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$TEST_MODE"
           if sudo test -d "$run_directory"; then
+            ci_context=("GITHUB_ACTIONS=$GITHUB_ACTIONS" "RUNNER_ENVIRONMENT=$RUNNER_ENVIRONMENT" "GITHUB_REPOSITORY=$GITHUB_REPOSITORY" "GITHUB_REF=$GITHUB_REF" "GITHUB_WORKFLOW_REF=$GITHUB_WORKFLOW_REF" "GITHUB_RUN_ID=$GITHUB_RUN_ID" "GITHUB_RUN_ATTEMPT=$GITHUB_RUN_ATTEMPT" "GITHUB_SHA=$GITHUB_SHA")
+            # A diagnostic refusal remains visible while original evidence is
+            # still retained. No failed lifecycle is converted into success.
+            diagnostic_exit=0
+            sudo env "${ci_context[@]}" /usr/bin/python3 -I -B /var/lib/agpc-voice-native-host-prep/collect.py --mode "$TEST_MODE" || diagnostic_exit=$?
             sudo tar -C "$run_directory" -cf - . > "$RUNNER_TEMP/voice-native-entry-evidence/$TEST_MODE.tar"
+            exit "$diagnostic_exit"
           fi
       - name: Retain CI evidence without production, historical L1 or phone acceptance
         if: always()
