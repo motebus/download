@@ -12,7 +12,7 @@ AgentSphere = agent-sphere + agent-ultra + agpc-manager + agpc-apps
 
 agent-sphere (RUN)
   sphered · moted · mote-proxy · mote-transportd · mlink · mote-secd
-  agos · model-router · model-llm · mote-mcpd · mote-mcp-ultra · cx-mesh · cx-loop → uchatd
+  agos · model-router · model-llm · mote-mcpd · cx-mesh · cx-loop → uchatd
 agent-ultra (LOCAL SERVICES)
   redixs · comm · obsidian · mote-vault-sync · mote-vault-syncd
 agpc-manager (MANAGE)
@@ -827,9 +827,7 @@ cannot authenticate the changed root script: its recorded digest differs, so
 legacy signed callers reject it before mutation. The historical script remains
 unsuitable for full Agent Computer cleanup.
 
-## CX-Loop catalog staging
-
-## CX-Loop catalog staging
+## Historical CX-Loop catalog staging
 
 The publisher also accepts `agent-computer-apt-overlay/v6` for the next AGPC
 composition: 28 redistributable packages plus the external official Obsidian
@@ -844,3 +842,20 @@ payload review evidence as earlier releases. It rejects missing CX-Loop, old
 Mesh/uchatd floors, gateway ABI drift, direct Loop-to-Redis dependencies, and
 additional mailbox/storage ownership. No locally built binary is silently promoted
 to signed/public status.
+
+
+## Local MCP gateway and S authority
+
+The reviewed native profile requires `mote-mcpd >= 3.3.0-1` and the independent
+`mote-secd >= 1.1.0-1` package. The standalone `mote-mcp-ultra` package is retired;
+its adapters are embedded in the local gateway. Versioned Breaks/Replaces transfer
+file ownership while preserving administrator conffiles. The installer admits
+only reviewed predecessor versions and binds removal to the exact audited gateway
+artifact in the same APT transaction; it never purges the predecessor configuration.
+
+`ultra-mcp` and `ultra-mcp-xx` remain cloud components. Local MCP tools obtain
+a one-use S approval through the consumer socket and bind the request to the
+local OS identity, session, semantic action, resolved resource and input digest.
+Administrators manage `mote-sec-consumer` membership explicitly. Remote M admission
+and SSH/CDP/RDP execution adapters are not provided by this MCP update. Existing
+separate computer interfaces retain their own release acceptance requirements.

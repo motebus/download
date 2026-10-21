@@ -2,19 +2,19 @@
   "schema": "agent-computer-apt-overlay/v7",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.3.0-53",
-    "source_commit": "6812fcc6fa0c3923bb1e55c3e879673999b03309",
+    "tag": "agent-computer-v0.3.0-54",
+    "source_commit": "ee770a6c0111f06b08284d6e0e1b2fb239ade6e8",
     "packages": [
       {
         "name": "agent-sphere",
-        "version": "0.3.0-42",
+        "version": "0.3.0-43",
         "architecture": "all",
-        "asset": "agent-sphere_0.3.0-42_all.deb",
-        "sha256": "f2bdede52944e88aaf7efb38ff290cc11e902b887c062d58ccbbf9747d95c07e",
+        "asset": "agent-sphere_0.3.0-43_all.deb",
+        "sha256": "b8bfec37733049e7454616d467fce45c8fe5633c3245409e16afd05b0de430e8",
         "provenance": {
-          "source_commit": "ec08b3667289f0269856d72b42f1e6a72bbd553a",
+          "source_commit": "722b428697d00d132241d4e2fd734a0c2ccc5e9b",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 35982508802,
+          "main_pipeline_id": 36103847917,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -147,14 +147,14 @@
       },
       {
         "name": "mote-secd",
-        "version": "1.0.0-2",
+        "version": "1.1.0-1",
         "architecture": "amd64",
-        "asset": "mote-secd_1.0.0-2_amd64.deb",
-        "sha256": "043fd2fe86dfe83d17f9ab6e7e82ca96d1423e0697c3b4a0549cbd7f6e4998c2",
+        "asset": "mote-secd_1.1.0-1_amd64.deb",
+        "sha256": "f02689f604c2af7ce7b9e2ca1d710495222b409c89be89366a4304978b6b3ba5",
         "provenance": {
-          "source_commit": "efa70d5f7b8da9461aba733bd2317532a64a248a",
+          "source_commit": "8e23449dc4725e2e8edefee485fe9c3c8d396415",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26072,
+          "main_pipeline_id": 27358,
           "build_status": "success",
           "public_payload_reviewed": true
         }
@@ -203,28 +203,14 @@
       },
       {
         "name": "mote-mcpd",
-        "version": "3.1.0-1",
+        "version": "3.3.0-1",
         "architecture": "amd64",
-        "asset": "mote-mcpd_3.1.0-1_amd64.deb",
-        "sha256": "fae185fc735571c73adee70fb3095851541fce3a7b13b468c41cae32bec44a60",
+        "asset": "mote-mcpd_3.3.0-1_amd64.deb",
+        "sha256": "aa71837f08f2de684df8afbec91bd624762534b0b7c1e9f889dc86e0beb5969d",
         "provenance": {
-          "source_commit": "454726b1a277645dbdfbc20a0741bc51bab1e775",
+          "source_commit": "818beaa5c98d977b104eaac051036a242992bf75",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26690,
-          "build_status": "success",
-          "public_payload_reviewed": true
-        }
-      },
-      {
-        "name": "mote-mcp-ultra",
-        "version": "0.1.0-1",
-        "architecture": "amd64",
-        "asset": "mote-mcp-ultra_0.1.0-1_amd64.deb",
-        "sha256": "ac9dcda941181da26d16a32bc26053f851011213322e5c7af24bc5e13c392c9e",
-        "provenance": {
-          "source_commit": "454726b1a277645dbdfbc20a0741bc51bab1e775",
-          "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26690,
+          "main_pipeline_id": 27351,
           "build_status": "success",
           "public_payload_reviewed": true
         }

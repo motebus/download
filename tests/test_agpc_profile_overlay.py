@@ -56,11 +56,12 @@ def make_bundle(root):
             depends = "uchatd (>= 0.6.0-1)"
         elif name == "uchatd":
             depends = "redis-server (>= 5:6.2), mote-transportd (>= 9.0.0-1)"
-        elif name == "mote-mcp-ultra":
-            depends = "mote-mcpd (>= 3.1.0-1), mote-mcpd (<< 3.2.0)"
+        elif name == "mote-mcpd":
+            depends = "mote-secd (>= 1.1.0-1)"
         else:
             depends = None
-        shutil.copy2(f.make_deb(root / "build", record, depends), bundle)
+        fields = {"Breaks": "mote-mcp-ultra (<< 0.3.0)", "Replaces": "mote-mcp-ultra (<< 0.3.0)"} if name == "mote-mcpd" else None
+        shutil.copy2(f.make_deb(root / "build", record, depends, fields=fields), bundle)
     f.write_config(root, config)
     return config, bundle
 
@@ -69,12 +70,12 @@ class NativeProfileOverlayTests(unittest.TestCase):
     def test_v7_exact_order_core_ownership_and_optional_retention(self):
         config = config_fixture()
         expected = [name for old in p.AGENT_LOOP_REDISTRIBUTABLE for name in
-                    (["agpc-apps"] if old == "agent-apps" else
+                    ([] if old == "mote-mcp-ultra" else ["agpc-apps"] if old == "agent-apps" else
                      [old, "agpc-cdp"] if old == "agpc-manager" else
                      [old, "contextd"] if old == "cx-loop" else [old])]
         self.assertEqual(list(p.canonical_packages(config)), expected)
         self.assertEqual(expected.count("uchatd"), 1)
-        self.assertEqual(p.core_components(config), (*p.AGENT_LOOP_SPHERE_COMPONENTS, "contextd", "uchat", "uchatd"))
+        self.assertEqual(p.core_components(config), (*p.AGENT_SPHERE_COMPONENTS, "cx-loop", "contextd", "uchat", "uchatd"))
         self.assertNotIn("agent-apps", expected)
         self.assertIn("uchat", p.core_components(config))
         self.assertIn("agpc-cdp", expected)
