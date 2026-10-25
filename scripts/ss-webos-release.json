@@ -1,0 +1,18 @@
+{
+  "source_commit": "bcdb5e16d0d098fa42d6251dba31fa43bdeecd75",
+  "source_ref": "main",
+  "pipeline_id": 28293,
+  "job_id": 66137,
+  "pipeline_status": "success",
+  "architecture": "amd64",
+  "version": "2.0.0-16",
+  "tag": "agpc-ss-webos-v2.0.0-16",
+  "package": "ss-webos_2.0.0-16_amd64.deb",
+  "candidate_tag": "candidate-agpc-ss-webos-v2.0.0-16-main-28293",
+  "assets": {
+    "ss-webos_2.0.0-16_amd64.deb": "d0df9fe70f5b9d1d13061929436e221155c033183387e55f9ce0b849f7b75529",
+    "MANIFEST.json": "abaaf92a76fad465e192728119fec2dfd08b70178b3e7eee4fb91b87715e0692",
+    "SHA256SUMS": "6f0c9b3fe8fc7824b9968490686cc318b675567903141543318fef136a5bd031"
+  },
+  "notes": "SS-WebOS 2.0.0-16 for Linux amd64 allows other desktop applications above its fullscreen window. Page loading and recovery preserve minimized state and no longer raise or refocus the window. Explicit user focus actions remain available.\n\nBuilt by successful canonical main pipeline 28293, native job 66137, source bcdb5e16d0d098fa42d6251dba31fa43bdeecd75. The DEB is byte-identical to the candidate accepted by 49 unit tests and nine isolated Xvfb/Openbox checks. Physical GNOME and ARM64 acceptance are not claimed.\n\nMANIFEST.json.asc and SHA256SUMS.asc use the existing public archive key (AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0). Verify the signature and package checksum before installation. This standalone release does not change AGPC installer, APT or cohort pins and does not install or restart applications. On a later upgrade the package preinst stops ss-webosd; existing graphical sessions require deliberate relaunch to use the new code.\n"
+}
