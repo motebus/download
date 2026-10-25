@@ -1,0 +1,31 @@
+name: Publish signed SS-WebOS standalone release
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: native-package-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Validate release admission safeguards
+        run: python3 -m unittest discover -s tests -p test_ss_webos_publication.py -v
+      - name: Publish exact reviewed main-CI package with archive signatures
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_READ_USER: ${{ secrets.AGPC_GITLAB_READ_USER }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: python3 scripts/publish_ss_webos.py
