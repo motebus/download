@@ -11,7 +11,7 @@ jobs:
   media-native:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 45
     environment: release
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -23,6 +23,7 @@ jobs:
           AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
         run: python3 scripts/stage_agpc_voice_native_media.py scripts/agpc-voice-native-media.json voice-native-media
       - name: Install native decoder on the disposable runner
+        timeout-minutes: 35
         run: |
           set -euo pipefail
           sudo apt-get update
