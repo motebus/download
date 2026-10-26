@@ -15,7 +15,7 @@ import stat
 import time
 
 PACKET = Path('/var/lib/agpc-voice-native-ci')
-MODES = ('fresh', 'upgrade', 'upgrade-l1-isolation', 'upgrade-k1-office', 'upgrade-servicemap')
+MODES = ('fresh', 'upgrade', 'upgrade-l1-isolation', 'upgrade-k1-office', 'upgrade-servicemap', 'upgrade-dialplan')
 FIXED = {
     'GITHUB_ACTIONS': 'true', 'RUNNER_ENVIRONMENT': 'github-hosted',
     'GITHUB_REPOSITORY': 'motebus/download', 'GITHUB_REF': 'refs/heads/main',
@@ -26,7 +26,8 @@ FILES = {'agpc-voice.sh', 'scripts/verify_agpc_voice_native_ci.py',
          'scripts/verify_agpc_voice_native_entry_ci.py'} | {
     'src/' + name + '.py' for name in ('native_voice', 'native_install', 'native_rpc',
                                      'rdp_client', 'browser_install', 'desktop_preferences')
-} | {'packages/' + name for name in ('agpc-voice_0.1.3~dialplan.20261026.1_all.deb',
+} | {'packages/' + name for name in ('agpc-voice_0.1.4~dialplan.20261026.2_all.deb',
+    'agpc-voice_0.1.3~dialplan.20261026.1_all.deb',
     'agpc-voice_0.1.2~servicemap.20261019.1_all.deb',
     'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb',
     'agpc-voice_0.1.0~office117.20261015.2_all.deb',
@@ -72,7 +73,7 @@ def prepare(packet, mode, commit, manifest_sha256, environment):
                 'production_admission', 'historical_L1_admission', 'secrets_included', 'host_mutated')),
             'Closed source manifest required')
     records = source.get('files')
-    require(isinstance(records, list) and len(records) == 15 and all(
+    require(isinstance(records, list) and len(records) == 16 and all(
         isinstance(r, dict) and set(r) == {'path', 'bytes', 'sha256'} and isinstance(r['path'], str)
         for r in records) and {r['path'] for r in records} == FILES, 'Exact session bundle required')
     for record in records:
