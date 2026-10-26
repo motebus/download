@@ -1,0 +1,39 @@
+name: Verify Voice media on native Noble
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  media-native:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify original reviewed component media inputs
+        env:
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+        run: python3 scripts/stage_agpc_voice_native_media.py scripts/agpc-voice-native-media.json voice-native-media
+      - name: Install native decoder on the disposable runner
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg python3-yaml python3-websocket
+      - name: Verify AAC, MP3, HLS and process cleanup using actual native decoding
+        run: python3 scripts/verify_agpc_voice_native_media.py voice-native-media voice-native-media-evidence
+      - name: Retain actual decoder evidence and failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agpc-voice-native-media
+          path: voice-native-media-evidence/
+          if-no-files-found: error
+          retention-days: 30

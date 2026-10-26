@@ -1,0 +1,11 @@
+{
+  "schema": "agpc-voice.native-media-public-inputs/v1",
+  "voice_commit": "fabdb7fe59652ecb8b7aa4b86326a9ddd75e3fd6",
+  "voice_job": 66357,
+  "voice_pipeline": 28412,
+  "voice_review": 39,
+  "reviewed_head": "7e4ba46fa357b1a2f7355551a8ecd4e283b1f3fc",
+  "version": "0.1.4~dialplan.20261026.2",
+  "bytes": 393229,
+  "sha256": "36c361cf593320628be5aee1e2399b1a140781a93e8455260ad5b974423a6416"
+}
