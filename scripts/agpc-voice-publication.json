@@ -1,13 +1,13 @@
 {
-  "archive_bytes": 7853949,
-  "archive_sha256": "c362230ce55b9ea9b254b51f7d504d82d3cac8de6cada200615dfdf38aea6d02",
-  "ci_job": 66058,
+  "archive_bytes": 7857085,
+  "archive_sha256": "355b64d2828572e20c30ea21ed583a3779a5a2c102c79db3f892fab278bbcc0f",
+  "ci_job": 66199,
   "disclosure_review": {
-    "iid": 104,
+    "iid": 108,
     "project": 1341
   },
-  "install_review": 104,
+  "install_review": 108,
   "schema": "agpc.voice-publication-inputs/v1",
-  "source_commit": "55cc843c09b31b29cb8cc436f38ae606e427fe6f",
-  "version": "0.1.2~servicemap.20261019.1"
+  "source_commit": "a2b6e71b3e01755c0cbef9add08fe4254d6732a9",
+  "version": "0.1.3~dialplan.20261026.1"
 }
