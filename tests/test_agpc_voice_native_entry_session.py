@@ -88,7 +88,7 @@ class NativeEntrySessionTests(unittest.TestCase):
         result = self.prepare('upgrade-l1-isolation')
         self.assertEqual(result['mode'], 'upgrade-l1-isolation')
         self.assertEqual(json.loads((self.packet / 'CI-SESSION.json').read_bytes()), result)
-        self.assertEqual(len(self.source['files']), 16)
+        self.assertEqual(len(self.source['files']), 17)
 
     def test_k1_office_predecessor_has_a_distinct_session_identity(self):
         result = self.prepare('upgrade-k1-office')
@@ -106,6 +106,11 @@ class NativeEntrySessionTests(unittest.TestCase):
         self.assertEqual(result['mode'], 'upgrade-dialplan')
         self.assertIn('packages/agpc-voice_0.1.3~dialplan.20261026.1_all.deb', session.FILES)
 
+    def test_current_overall_has_its_own_recovery_session(self):
+        result = self.prepare('upgrade-overall')
+        self.assertEqual(result['mode'], 'upgrade-overall')
+        self.assertIn('packages/agpc-voice_0.1.4~dialplan.20261026.2_all.deb', session.FILES)
+
     def test_unknown_modes_are_rejected_before_reading_the_bundle(self):
         for mode in (None, True, [], 'rollback', 'upgrade-latest', '../upgrade',
                      'office117.20261015.2+l1isolation.2'):
@@ -121,7 +126,7 @@ class NativeEntrySessionTests(unittest.TestCase):
         export = re.findall(r'case "\$TEST_MODE" in ([^\)]+)\)', workflow)
         self.assertEqual(len(matrix), 1)
         self.assertEqual(len(export), 1)
-        modes = ('fresh', 'upgrade', 'upgrade-l1-isolation', 'upgrade-k1-office', 'upgrade-servicemap', 'upgrade-dialplan')
+        modes = ('fresh', 'upgrade', 'upgrade-l1-isolation', 'upgrade-k1-office', 'upgrade-servicemap', 'upgrade-dialplan', 'upgrade-overall')
         self.assertEqual(session.MODES, modes)
         self.assertEqual(tuple(item.strip() for item in matrix[0].split(',')), modes)
         self.assertEqual(tuple(export[0].split('|')), modes)
@@ -132,7 +137,8 @@ class NativeEntrySessionTests(unittest.TestCase):
                          'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb',
                          'agpc-voice_0.1.0~office117.20261015.2_all.deb',
                          'agpc-voice_0.1.2~servicemap.20261019.1_all.deb',
-                         'agpc-voice_0.1.3~dialplan.20261026.1_all.deb'):
+                         'agpc-voice_0.1.3~dialplan.20261026.1_all.deb',
+                         'agpc-voice_0.1.4~dialplan.20261026.2_all.deb'):
             with self.subTest(filename=filename):
                 self.source = copy.deepcopy(original)
                 self.source['files'] = [record for record in self.source['files']
