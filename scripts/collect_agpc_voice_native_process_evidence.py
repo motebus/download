@@ -16,7 +16,7 @@ import stat
 PACKET = Path('/var/lib/agpc-voice-native-ci')
 RUNS = Path('/var/lib/agpc-voice-native-entry-runs')
 PROCESSES = Path('/usr/local/lib/agpc-native/package-processes')
-MODES = ('fresh', 'upgrade', 'upgrade-l1-isolation', 'upgrade-k1-office', 'upgrade-servicemap', 'upgrade-dialplan')
+MODES = ('fresh', 'upgrade', 'upgrade-l1-isolation', 'upgrade-k1-office', 'upgrade-servicemap', 'upgrade-dialplan', 'upgrade-overall')
 FIXED = {
     'GITHUB_ACTIONS': 'true', 'RUNNER_ENVIRONMENT': 'github-hosted',
     'GITHUB_REPOSITORY': 'motebus/download', 'GITHUB_REF': 'refs/heads/main',
@@ -98,7 +98,7 @@ def collect(packet, runs, processes, mode, environment, host):
     """Paths are injectable for offline tests only; CLI uses fixed constants."""
     session = json.loads(read(packet / 'CI-SESSION.json'))
     execution = environment['GITHUB_RUN_ID'] + '-' + environment['GITHUB_RUN_ATTEMPT'] + '-' + mode
-    require(re.fullmatch(r'[1-9][0-9]*-[1-9][0-9]*-(?:fresh|upgrade|upgrade-l1-isolation|upgrade-k1-office|upgrade-servicemap|upgrade-dialplan)',
+    require(re.fullmatch(r'[1-9][0-9]*-[1-9][0-9]*-(?:fresh|upgrade|upgrade-l1-isolation|upgrade-k1-office|upgrade-servicemap|upgrade-dialplan|upgrade-overall)',
                          execution), 'Invalid execution path')
     root = trusted(runs / execution, directory=True)
     state = json.loads(read(root / 'admission-state.json'))

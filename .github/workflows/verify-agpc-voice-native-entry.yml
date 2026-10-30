@@ -13,8 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Preserve utilities.1 and L1-isolation predecessors; also restore exact K1 office .2 and service-map and current L1 dialplan packages.
-        mode: [fresh, upgrade, upgrade-l1-isolation, upgrade-k1-office, upgrade-servicemap, upgrade-dialplan]
+        # Verify every admitted predecessor, including the current L1/K1 0.1.4
+        # package; each upgrade restores its exact original package baseline.
+        mode: [fresh, upgrade, upgrade-l1-isolation, upgrade-k1-office, upgrade-servicemap, upgrade-dialplan, upgrade-overall]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: release
@@ -71,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ && "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
-          case "$TEST_MODE" in fresh|upgrade|upgrade-l1-isolation|upgrade-k1-office|upgrade-servicemap|upgrade-dialplan) ;; *) exit 2 ;; esac
+          case "$TEST_MODE" in fresh|upgrade|upgrade-l1-isolation|upgrade-k1-office|upgrade-servicemap|upgrade-dialplan|upgrade-overall) ;; *) exit 2 ;; esac
           mkdir -m 0700 "$RUNNER_TEMP/voice-native-entry-evidence"
           run_directory="/var/lib/agpc-voice-native-entry-runs/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$TEST_MODE"
           if sudo test -d "$run_directory"; then
