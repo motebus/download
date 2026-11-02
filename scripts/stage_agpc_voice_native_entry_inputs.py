@@ -18,24 +18,25 @@ import zipfile
 import publish_agpc_voice as voice
 
 PREFIX = 'agpc-voice-native-entry-ci/'
-# Actual MR43 protected-main original artifact, verified before binding.
-VOICE_COMMIT = '331b4f954ae0b9cb56260bfff0f40ca0e19b084f'
-VOICE_REVIEWED_HEAD = '35e6b072809c031d7854808bf29e289bdfa5aca9'
-VOICE_JOB, VOICE_PIPELINE, VOICE_REVIEW = 66583, 28528, 43
-VOICE_FILENAME = 'agpc-voice_0.1.5~dialplan.20261030.1_all.deb'
-VOICE_BYTES = 430272
+# Actual MR46 protected-main original artifact, verified before binding.
+VOICE_COMMIT = '4d716b6cfb37d172bffeaaa855994b9f948242f9'
+VOICE_REVIEWED_HEAD = 'bfffdda9cc8e9abe9f5a6a214cfcbac688815526'
+VOICE_JOB, VOICE_PIPELINE, VOICE_REVIEW = 66617, 28543, 46
+VOICE_FILENAME = 'agpc-voice_0.1.6~dialplan.20261102.1_all.deb'
+VOICE_BYTES = 563392
 PACKAGE_SHA256 = {
+    'agpc-voice_0.1.5~dialplan.20261030.1_all.deb': 'a74d41ab66f9c47d1a4e19f2957afc415a7df4a9f659a6d17815d7316712290a',
     'agpc-voice_0.1.4~dialplan.20261026.2_all.deb': '8cd1e0745c1d4fa395ad19b3ceb419106c69f261a3d3d740edb7a41b1cc6be3c',
     'agpc-voice_0.1.3~dialplan.20261026.1_all.deb': 'b27a4643e28e78723b6b009230489ecca751a347861304e1cdcd5b6d40239461',
     'agpc-voice_0.1.2~servicemap.20261019.1_all.deb': 'a475b45872a0b3922d30f50af24db720e47d5e3ba5e5b3bfd40d091359a22645',
-    VOICE_FILENAME: 'a74d41ab66f9c47d1a4e19f2957afc415a7df4a9f659a6d17815d7316712290a',
+    VOICE_FILENAME: 'c0471aeefca9e1cdbec69014a2c55ef0982c90d50a2b48f9ee2499fc9e5c0c5d',
     'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1_all.deb': '394baefe1242a288f822f5df6d90dd5a6c0eac7d71891aa66f66da19b2cb829f',
     'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb': '89005f0c53235e7f72370a624a397d4ef4221a52d1a36d23fcb6b129f4c8d15a',
     'agpc-voice_0.1.0~office117.20261015.2_all.deb': '4f3daddb1e6b1290fb2bbc411b75a3ff04f26ffc9eb9f097416db40220a20453',
     'agpc-freeswitch-core_1.11.3+agpc1_amd64.deb': 'a207b111702e7ae7c8682cffa7468a450b66b4acb69203a8f545edcff25a25e4',
 }
 RUNTIME_NAMES = {'native_voice', 'native_install', 'native_rpc', 'rdp_client',
-                 'browser_install', 'desktop_preferences'}
+                 'browser_install', 'desktop_preferences', 'native_voice_dialplan'}
 FILES = {'SOURCE.json', 'agpc-voice.sh', 'scripts/verify_agpc_voice_native_ci.py',
          'scripts/verify_agpc_voice_native_entry_ci.py'} | {
              'src/' + name + '.py' for name in RUNTIME_NAMES
@@ -49,7 +50,7 @@ require = voice.native.require
 def require_component_binding():
     require(isinstance(VOICE_COMMIT, str) and re.fullmatch(r'[0-9a-f]{40}', VOICE_COMMIT)
             and type(VOICE_PIPELINE) is int and VOICE_PIPELINE > 0
-            and type(VOICE_JOB) is int and VOICE_JOB > 0 and VOICE_REVIEW == 43,
+            and type(VOICE_JOB) is int and VOICE_JOB > 0 and VOICE_REVIEW == 46,
             'Dialplan protected-main component binding is unresolved')
 
 
@@ -88,7 +89,7 @@ def verify_embedded(extracted):
                             'One literal release gate required')
                     declarations[target.id] = node.value.value
     require(declarations.get('INSTALL_CONTRACT_ADMITTED') is False
-            and declarations.get('RELEASE') == 'dialplan.20261030.1', 'Exact closed source gate required')
+            and declarations.get('RELEASE') == 'dialplan.20261102.1', 'Exact closed source gate required')
 
 
 def validate_manifest(extracted, commit):
@@ -102,10 +103,10 @@ def validate_manifest(extracted, commit):
                 ('voice_ci_pipeline', VOICE_PIPELINE), ('voice_ci_job', VOICE_JOB), ('voice_review', VOICE_REVIEW)))
             and all(source[key] is False for key in FALSE_FLAGS), 'Native entry source binding mismatch')
     records = source['files']
-    require(isinstance(records, list) and len(records) == 17
+    require(isinstance(records, list) and len(records) == 19
             and all(isinstance(r, dict) and set(r) == {'path', 'bytes', 'sha256'}
                     and isinstance(r['path'], str) for r in records)
-            and {r['path'] for r in records} == FILES - {'SOURCE.json'}, 'Exact seventeen-file inventory required')
+            and {r['path'] for r in records} == FILES - {'SOURCE.json'}, 'Exact nineteen-file inventory required')
     for record in records:
         raw = extracted[record['path']]
         require(type(record['bytes']) is int and record['bytes'] > 0
@@ -149,7 +150,7 @@ def stage(inputs, output, get_json=voice.api_json, get_bytes=voice.api_bytes):
     component_review = observations[f'projects/1348/merge_requests/{VOICE_REVIEW}']
     require(component_review.get('sha') == VOICE_REVIEWED_HEAD
             and component_review.get('squash_commit_sha') is None,
-            'Exact reviewed MR43 ordinary merge required')
+            'Exact reviewed MR46 ordinary merge required')
     data = get_bytes(f"projects/1341/jobs/{inputs['ci_job']}/artifacts")
     require(len(data) == inputs['archive_bytes'] and hashlib.sha256(data).hexdigest() == inputs['archive_sha256'],
             'Native entry archive mismatch')
