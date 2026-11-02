@@ -1,0 +1,50 @@
+name: Verify standard Voice maintenance on native Noble
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  standard-native:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify original reviewed standard dialplan inputs
+        env:
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+        run: python3 scripts/stage_agpc_voice_standard.py scripts/agpc-voice-standard.json voice-standard
+      - name: Prepare isolated native fixture source and service identity
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends --no-upgrade python3-yaml python3-websocket adduser
+          test ! -e /var/lib/agpc-voice-standard-ci
+          ! getent passwd agpc-voice
+          sudo adduser --system --group --no-create-home --home /nonexistent --shell /usr/sbin/nologin agpc-voice
+          sudo install -d -o root -g root -m 0755 /var/lib/agpc-voice-standard-ci
+          sudo cp -R --no-preserve=ownership voice-standard/. /var/lib/agpc-voice-standard-ci/
+          sudo chmod -R go-w /var/lib/agpc-voice-standard-ci
+          mkdir voice-standard-evidence
+          cp voice-standard/SOURCE.json voice-standard-evidence/SOURCE.json
+          cp scripts/agpc-voice-standard.json voice-standard-evidence/producer-inputs.json
+      - name: Observe actual systemd exit receipts and maintenance peer identity
+        run: |
+          set -euo pipefail
+          sudo env GITHUB_ACTIONS=true RUNNER_ENVIRONMENT=github-hosted /usr/bin/python3 -I -B -c "import sys,runpy;sys.path.insert(0,'/var/lib/agpc-voice-standard-ci/src');sys.argv=['/var/lib/agpc-voice-standard-ci/tests/fixtures/standard_native_probe.py','--disposable'];runpy.run_path(sys.argv[0],run_name='__main__')" | tee voice-standard-evidence/RESULT.json
+      - name: Retain original native observations and failure logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agpc-voice-standard-native
+          path: voice-standard-evidence/
+          if-no-files-found: error
+          retention-days: 30
