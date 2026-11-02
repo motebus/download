@@ -113,6 +113,13 @@ def fixture(decoder, context):
         '--property=ExecStopPost='+base+'stop '+str(stage),
         '/usr/bin/python3','-I','-B',str(SCRIPT),'worker','worker',str(stage)])
     state=wait(decoder,unit)
+    if not (state['ActiveState']=='active' and state['SubState']=='exited' and state['ExecMainCode']=='1'
+            and state['ExecMainStatus']=='0' and state['Result']=='success'):
+        # Only this disposable fixture's fixed root-owned log is reported.
+        # The worker receives GitHub execution metadata, no source-read token.
+        log=trusted(stage/'native.log').read_bytes()
+        print(json.dumps(dict(schema='agpc-voice.decoder-native-failure/v1',
+            manager=state,transaction=stage.name,log=log[-65536:].decode(errors='replace'))),file=sys.stderr)
     require(state['ActiveState']=='active' and state['SubState']=='exited' and state['ExecMainCode']=='1'
             and state['ExecMainStatus']=='0' and state['Result']=='success','Decoder worker failed: '+str(stage))
     final=decoder.dependency_status(stage.name)
