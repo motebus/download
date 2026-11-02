@@ -13,9 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Verify every admitted predecessor, including the current L1/K1 0.1.4
+        # Verify every admitted predecessor, including the current K1 0.1.5
         # package; each upgrade restores its exact original package baseline.
-        mode: [fresh, upgrade, upgrade-l1-isolation, upgrade-k1-office, upgrade-servicemap, upgrade-dialplan, upgrade-overall]
+        mode: [fresh, upgrade, upgrade-l1-isolation, upgrade-k1-office, upgrade-servicemap, upgrade-dialplan, upgrade-overall, upgrade-live555]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: release
@@ -72,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$GITHUB_RUN_ID" =~ ^[1-9][0-9]*$ && "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
-          case "$TEST_MODE" in fresh|upgrade|upgrade-l1-isolation|upgrade-k1-office|upgrade-servicemap|upgrade-dialplan|upgrade-overall) ;; *) exit 2 ;; esac
+          case "$TEST_MODE" in fresh|upgrade|upgrade-l1-isolation|upgrade-k1-office|upgrade-servicemap|upgrade-dialplan|upgrade-overall|upgrade-live555) ;; *) exit 2 ;; esac
           mkdir -m 0700 "$RUNNER_TEMP/voice-native-entry-evidence"
           run_directory="/var/lib/agpc-voice-native-entry-runs/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$TEST_MODE"
           if sudo test -d "$run_directory"; then
@@ -92,5 +92,35 @@ jobs:
           path: |
             ${{ runner.temp }}/voice-native-entry-evidence/${{ matrix.mode }}.tar
             ${{ runner.temp }}/voice-native-entry-host-preparation.jsonl
+          if-no-files-found: error
+          retention-days: 30
+      - name: Prepare only the disposable fresh decoder baseline
+        if: matrix.mode == 'fresh'
+        run: |
+          set -euo pipefail
+          sudo install -o root -g root -m 0644 scripts/verify_agpc_voice_decoder_native.py /var/lib/agpc-voice-native-host-prep/decoder.py
+          sudo apt-get --simulate --no-autoremove remove ffmpeg > "$RUNNER_TEMP/decoder-baseline-plan.txt"
+          python3 - "$RUNNER_TEMP/decoder-baseline-plan.txt" <<'PY'
+          import sys
+          from pathlib import Path
+          for row in Path(sys.argv[1]).read_text().splitlines():
+              if row.startswith(('Inst ', 'Purg ')) or row.startswith('Remv ') and row.split()[1] != 'ffmpeg':
+                  raise SystemExit('Disposable baseline would change an unrelated package')
+          PY
+          sudo apt-get -y --no-autoremove remove ffmpeg
+      - name: Exercise the native decoder worker and retained systemd receipts
+        if: matrix.mode == 'fresh'
+        run: |
+          set -euo pipefail
+          ci_context=("GITHUB_ACTIONS=$GITHUB_ACTIONS" "RUNNER_ENVIRONMENT=$RUNNER_ENVIRONMENT" "GITHUB_REPOSITORY=$GITHUB_REPOSITORY" "GITHUB_REF=$GITHUB_REF" "GITHUB_WORKFLOW_REF=$GITHUB_WORKFLOW_REF" "GITHUB_RUN_ID=$GITHUB_RUN_ID" "GITHUB_RUN_ATTEMPT=$GITHUB_RUN_ATTEMPT" "GITHUB_SHA=$GITHUB_SHA")
+          sudo env "${ci_context[@]}" /usr/bin/python3 -I -B /var/lib/agpc-voice-native-host-prep/decoder.py --disposable-fresh | tee "$RUNNER_TEMP/voice-decoder-result.json"
+      - name: Retain decoder worker evidence separately from lifecycle acceptance
+        if: always() && matrix.mode == 'fresh'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agpc-voice-decoder-native
+          path: |
+            ${{ runner.temp }}/voice-decoder-result.json
+            ${{ runner.temp }}/decoder-baseline-plan.txt
           if-no-files-found: error
           retention-days: 30
