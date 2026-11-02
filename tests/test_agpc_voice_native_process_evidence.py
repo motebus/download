@@ -23,7 +23,7 @@ class ProcessEvidenceTests(unittest.TestCase):
             host='native-runner', github=self.github, source_commit='b' * 40,
             source_manifest_sha256=hashlib.sha256(self.source).hexdigest())
         self.state = dict(self.session, execution_id='42-1-fresh',
-            runtime_sha256={str(i): 'c' * 64 for i in range(6)},
+            runtime_sha256={name: 'c' * 64 for name in module.RUNTIME_FILES},
             authorization_sha256='d' * 64, status='held')
         self.binding = {k: self.state[k] for k in module.BINDING}
 
@@ -57,6 +57,15 @@ class ProcessEvidenceTests(unittest.TestCase):
                       {**self.state, 'runtime_sha256': {}}):
             with self.subTest(state=state), self.assertRaises(ValueError):
                 self.validate(state=state)
+
+    def test_missing_replaced_and_invalid_runtime_pins_refused(self):
+        pins = self.state['runtime_sha256']
+        missing = {k: v for k, v in pins.items() if k != 'native_voice_dialplan.py'}
+        replaced = {**missing, 'unrelated.py': 'c' * 64}
+        invalid = {**pins, 'native_voice_dialplan.py': 'not-a-digest'}
+        for runtime in (missing, replaced, invalid):
+            with self.subTest(runtime=runtime), self.assertRaises(ValueError):
+                self.validate(state={**self.state, 'runtime_sha256': runtime})
 
     def observation(self):
         return dict(schema='agpc.package-process-observation/v1',

@@ -27,6 +27,9 @@ BINDING = ('source_commit', 'source_manifest_sha256', 'runtime_sha256', 'github'
 FIELDS = {'schema', 'state', 'phase', 'reason', 'fault_classes', 'pid', 'supervisor',
           'child_domain', 'direct_exit_proof', 'quiescence_proof',
           'finalization_proof', 'returncode', 'tracked', 'test_binding'}
+RUNTIME_FILES = {'native_voice.py', 'native_voice_dialplan.py', 'native_install.py',
+                 'native_rpc.py', 'rdp_client.py', 'browser_install.py',
+                 'desktop_preferences.py'}
 
 
 def require(condition, message):
@@ -80,7 +83,10 @@ def validate_binding(session, state, source_raw, mode, environment, host):
             and state.get('source_commit') == session.get('source_commit'),
             'Different source binding')
     require(all(k in state for k in BINDING)
-            and isinstance(state['runtime_sha256'], dict) and len(state['runtime_sha256']) == 6,
+            and isinstance(state['runtime_sha256'], dict)
+            and set(state['runtime_sha256']) == RUNTIME_FILES
+            and all(isinstance(value, str) and re.fullmatch(r'[0-9a-f]{64}', value)
+                    for value in state['runtime_sha256'].values()),
             'Incomplete process binding')
     return execution, {k: state[k] for k in BINDING}
 
