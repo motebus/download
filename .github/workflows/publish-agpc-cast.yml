@@ -1,0 +1,81 @@
+name: Publish signed Cast development preview
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/publish_agpc_cast.py
+      - scripts/agpc-cast-publication.json
+      - tests/test_agpc_cast_publication.py
+      - .github/workflows/publish-agpc-cast.yml
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.event_name == 'workflow_dispatch' && 'medge-apt-pages' || format('cast-preview-validation-{0}', github.ref) }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Check preservation and exact preview artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m unittest discover -s tests -p test_agpc_cast_publication.py -v
+          python3 scripts/publish_agpc_cast.py validate .
+  build:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Import existing protected archive key
+        env:
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$MEDGE_APT_SIGNING_KEY"
+          printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
+      - name: Sign Cast preview and preserve the deployed site
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: |
+          python3 scripts/publish_agpc_cast.py publish . --site apt-site --evidence "$RUNNER_TEMP/agpc-cast-publication.json"
+          gpgv --keyring ./medge-archive-keyring.gpg apt-site/agpc-cast.sh.asc apt-site/agpc-cast.sh
+          gpgv --keyring ./medge-archive-keyring.gpg apt-site/agpc-cast.source.json.asc apt-site/agpc-cast.source.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agpc-cast-publication-evidence
+          path: ${{ runner.temp }}/agpc-cast-publication.json
+          if-no-files-found: error
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apt-site
+          retention-days: 30
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish Cast installer URLs
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,29 @@
+{
+  "schema": "agpc.cast-preview-publication-inputs/v1",
+  "version": "0.1.0-dev.20261103.7",
+  "deb_version": "0.1.0~dev.20261103.7",
+  "candidate_tag": "agpc-cast-candidate-v0.1.0-dev.20261103.7",
+  "release_channel": "development-preview",
+  "assets": {
+    "README.txt": {
+      "sha256": "9eab51185c12210db1b8295ffe513755ff8abbbdf42eb0529bac39b38ecf0dcf",
+      "bytes": 2014
+    },
+    "VALIDATION.json": {
+      "sha256": "a4977cc24d5ecf8a216260a4ea2fbb54c0de71d2bc7f464271db7c5e7948de50",
+      "bytes": 600
+    },
+    "agpc-cast-source.tar.gz": {
+      "sha256": "42a895aaf4c8de9070c36829df846dea06ca444cb7dc5c1d809dc8b861feebc6",
+      "bytes": 32267
+    },
+    "agpc-cast.deb": {
+      "sha256": "8da772523256e0f907e194fd572dad158826be620f31abb04c554fc624e9972d",
+      "bytes": 17116
+    },
+    "agpc-cast.sh": {
+      "sha256": "b48d0cba2dc2eb3dd8d3d9a40eb974fb0b9a994dd0970f34b90c6d7c1f8e8e3a",
+      "bytes": 32273
+    }
+  }
+}

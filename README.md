@@ -77,6 +77,33 @@ fresh Full and the legacy Apps transition on disposable native Ubuntu CI hosts
 before activating Pages. It preserves existing pool files and unrelated site
 content. No Docker or OCI is used for AGPC validation or publication.
 
+## Cast development preview
+
+[agpc-cast.sh](https://motebus.github.io/download/agpc-cast.sh) provides the
+HA-Cast CLI and numeric `cast menu`. Preview `0.1.0-dev.20261103.7` embeds its
+`agpc-cast.deb` and installs into the desktop user's `~/.local` directory.
+Run it as that user, without sudo, on an existing AGPC Core host.
+
+Download the installer and its [signature](https://motebus.github.io/download/agpc-cast.sh.asc),
+verify with the established MoteBus archive key, then run:
+
+```bash
+bash agpc-cast.sh --dry-run
+bash agpc-cast.sh
+cast --help
+cast menu
+```
+
+The menu uses numbers 1–10 for recording, Live/Pod modes, mixer controls,
+verification and replay; 0 exits or returns to the previous menu. All recording
+parts are retained. Exiting the menu leaves recording active until `cast stop`.
+
+[Signed source record](https://motebus.github.io/download/agpc-cast.source.json)
+and [versioned notes](https://motebus.github.io/download/agpc-cast/0.1.0-dev.20261103.7/README.txt)
+describe the tested scope. This is a development preview: system dpkg installation,
+fresh-host desktop setup, real Meet/SIP/Jujue sessions, listener/SSO integration
+and production acceptance remain incomplete. Publication preserves other downloads.
+
 ## Earlier platform previews
 
 The following notes describe separately published previews. They do not change
