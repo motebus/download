@@ -135,6 +135,9 @@ class NativeEntrySessionTests(unittest.TestCase):
         self.assertEqual(session.MODES, modes)
         self.assertEqual(tuple(item.strip() for item in matrix[0].split(',')), modes)
         self.assertEqual(tuple(export[0].split('|')), modes)
+        self.assertIn('os: [ubuntu-24.04, ubuntu-26.04]', workflow)
+        self.assertIn('name: agpc-voice-canonical-entry-native-${{ matrix.os }}-${{ matrix.mode }}', workflow)
+        self.assertIn('name: agpc-voice-decoder-native-${{ matrix.os }}', workflow)
 
     def test_no_predecessor_may_be_missing_from_the_root_bundle(self):
         original = copy.deepcopy(self.source)

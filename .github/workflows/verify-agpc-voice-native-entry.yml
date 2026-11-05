@@ -1,4 +1,4 @@
-name: Verify Voice canonical entry on native Noble
+name: Verify Voice canonical entry on native Ubuntu
 
 on:
   workflow_dispatch:
@@ -15,8 +15,9 @@ jobs:
       matrix:
         # Verify every admitted predecessor, including the current K1 0.1.5
         # package; each upgrade restores its exact original package baseline.
+        os: [ubuntu-24.04, ubuntu-26.04]
         mode: [fresh, upgrade, upgrade-l1-isolation, upgrade-k1-office, upgrade-servicemap, upgrade-dialplan, upgrade-overall, upgrade-live555]
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     environment: release
     steps:
@@ -29,11 +30,23 @@ jobs:
           AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
           AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
         run: python3 scripts/stage_agpc_voice_native_entry_inputs.py scripts/agpc-voice-native-entry-ci.json voice-native-entry-stage
-      - name: Prepare disposable Noble prerequisites and root-owned bundle
+      - name: Prepare disposable Ubuntu prerequisites and root-owned bundle
+        env:
+          TEST_TARGET: ${{ matrix.os }}
         run: |
           set -euo pipefail
+          /usr/bin/python3 - <<'PYTHON'
+          import os, platform, sys
+          release = platform.freedesktop_os_release()
+          expected = {'ubuntu-24.04': ('24.04', (3, 12)), 'ubuntu-26.04': ('26.04', (3, 14))}[os.environ['TEST_TARGET']]
+          assert release['ID'] == 'ubuntu' and release['VERSION_ID'] == expected[0]
+          assert platform.machine() == 'x86_64' and sys.version_info[:2] == expected[1]
+          PYTHON
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends --no-upgrade python3-yaml python3-websocket adduser init-system-helpers libc6 libssl3t64 libuuid1 libsqlite3-0 libcurl4t64 libpcre2-8-0 libspeex1 libspeexdsp1 libtiff6 libjpeg8 zlib1g libstdc++6
+          if [ "$(. /etc/os-release; printf '%s' "$VERSION_ID")" = 26.04 ]; then
+            sudo apt-get install -y --no-install-recommends --no-upgrade python3-audioop-lts
+          fi
           sudo /usr/bin/python3 -I -B - <<'PY'
           import json, stat
           from pathlib import Path
@@ -88,7 +101,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: agpc-voice-canonical-entry-native-${{ matrix.mode }}
+          name: agpc-voice-canonical-entry-native-${{ matrix.os }}-${{ matrix.mode }}
           path: |
             ${{ runner.temp }}/voice-native-entry-evidence/${{ matrix.mode }}.tar
             ${{ runner.temp }}/voice-native-entry-host-preparation.jsonl
@@ -118,7 +131,7 @@ jobs:
         if: always() && matrix.mode == 'fresh'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: agpc-voice-decoder-native
+          name: agpc-voice-decoder-native-${{ matrix.os }}
           path: |
             ${{ runner.temp }}/voice-decoder-result.json
             ${{ runner.temp }}/decoder-baseline-plan.txt

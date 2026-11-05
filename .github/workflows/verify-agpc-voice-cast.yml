@@ -1,0 +1,95 @@
+name: Verify Voice 777 native duplex audio
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  cast-native:
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            distribution: '24.04'
+            server: pulse
+          - os: ubuntu-26.04
+            distribution: '26.04'
+            server: pulse
+          - os: ubuntu-26.04
+            distribution: '26.04'
+            server: pipewire
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    environment: release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Authenticate the original reviewed main component inputs
+        env:
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+        run: python3 scripts/stage_agpc_voice_cast.py scripts/agpc-voice-cast.json voice-cast
+      - name: Prepare native tools on this disposable runner
+        env:
+          TEST_SERVER: ${{ matrix.server }}
+          TEST_DISTRIBUTION: ${{ matrix.distribution }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, platform
+          release=platform.freedesktop_os_release()
+          assert release['ID']=='ubuntu' and release['VERSION_ID']==os.environ['TEST_DISTRIBUTION']
+          assert platform.machine()=='x86_64' and os.geteuid()!=0
+          PY
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends --no-upgrade python3-yaml python3-websocket pulseaudio-utils
+          if [ "$TEST_DISTRIBUTION" = 26.04 ]; then
+            sudo apt-get install -y --no-install-recommends --no-upgrade python3-audioop-lts
+          fi
+          if [ "$TEST_SERVER" = pipewire ]; then
+            sudo apt-get install -y --no-install-recommends --no-upgrade pipewire pipewire-pulse wireplumber
+          else
+            sudo apt-get install -y --no-install-recommends --no-upgrade pulseaudio
+          fi
+          mkdir voice-cast-evidence
+          cp voice-cast/SOURCE.json voice-cast-evidence/SOURCE.json
+          cp scripts/agpc-voice-cast.json voice-cast-evidence/producer-inputs.json
+          python3 - <<'PY' > voice-cast-evidence/HOST.json
+          import json,os,platform,subprocess
+          packages=['pulseaudio','pulseaudio-utils','pipewire','pipewire-pulse','wireplumber']
+          inventory={}
+          for package in packages:
+              r=subprocess.run(['/usr/bin/dpkg-query','-W','-f=${db:Status-Abbrev} ${Version}',package],capture_output=True,text=True)
+              inventory[package]=r.stdout.strip() if r.returncode==0 else None
+          print(json.dumps({'os':platform.freedesktop_os_release(),'python':platform.python_version(),
+              'machine':platform.machine(),'server':os.environ['TEST_SERVER'],'packages':inventory,
+              'github':{k:os.environ[k] for k in ('GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_SHA','RUNNER_NAME')}}))
+          PY
+      - name: Exercise private synthetic PCM and owned native audio cleanup
+        env:
+          TEST_SERVER: ${{ matrix.server }}
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONNOUSERSITE: '1'
+          PYTHONPATH: voice-cast/src
+        run: |
+          set -euo pipefail
+          case "$TEST_SERVER" in
+            pulse) fixture=cast_native_probe.py ;;
+            pipewire) fixture=cast_pipewire_probe.py ;;
+            *) exit 2 ;;
+          esac
+          python3 -B "voice-cast/tests/fixtures/$fixture" | tee voice-cast-evidence/RESULT.json
+      - name: Retain original observations without phone or host acceptance
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agpc-voice-cast-native-${{ matrix.os }}-${{ matrix.server }}
+          path: voice-cast-evidence/
+          if-no-files-found: error
+          retention-days: 30

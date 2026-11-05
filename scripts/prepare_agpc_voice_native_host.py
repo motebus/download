@@ -494,8 +494,8 @@ def main(argv=None):
     parser.parse_args(argv)
     require(os.geteuid() == 0, 'Root execution required')
     release = platform.freedesktop_os_release()
-    require(release.get('ID') == 'ubuntu' and release.get('VERSION_ID') == '24.04'
-            and platform.machine() == 'x86_64', 'Disposable Ubuntu 24.04 amd64 target required')
+    require(release.get('ID') == 'ubuntu' and release.get('VERSION_ID') in ('24.04', '26.04')
+            and platform.machine() == 'x86_64', 'Disposable Ubuntu 24.04 or 26.04 amd64 target required')
     observe_shared_ancestors()
     return prepare_host()
 

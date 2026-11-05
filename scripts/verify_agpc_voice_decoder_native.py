@@ -42,8 +42,8 @@ def read(path): return json.loads(trusted(path).read_bytes())
 
 def source(context):
     require(os.geteuid()==0 and sys.flags.isolated and platform.machine()=='x86_64', 'Native root isolated Python required')
-    require(platform.freedesktop_os_release().get('VERSION_ID')=='24.04' and
-            platform.freedesktop_os_release().get('ID')=='ubuntu', 'Noble required')
+    require(platform.freedesktop_os_release().get('VERSION_ID') in ('24.04','26.04') and
+            platform.freedesktop_os_release().get('ID')=='ubuntu', 'Ubuntu24 or Ubuntu26 required')
     require(context.get('GITHUB_ACTIONS')=='true' and context.get('RUNNER_ENVIRONMENT')=='github-hosted'
             and context.get('GITHUB_REPOSITORY')=='motebus/download' and context.get('GITHUB_REF')=='refs/heads/main'
             and context.get('GITHUB_WORKFLOW_REF')==WORKFLOW and
@@ -76,7 +76,7 @@ def source(context):
     require(not voice.INSTALL_CONTRACT_ADMITTED and not decoder.DIALPLAN_CONTRACT_ADMITTED,
             'Fixture cannot admit production gates')
     def checked_release(_source=None):
-        voice.require_target()
+        voice.require_ci_target()
         paths=[PACKET/'packages'/voice.filename(p) for p in voice.RELEASES[voice.RELEASE]]
         for artifact,path in zip(voice.RELEASES[voice.RELEASE],paths): voice.validate_artifact(path,artifact)
         voice.verify_installed(voice.RELEASE,paths)
