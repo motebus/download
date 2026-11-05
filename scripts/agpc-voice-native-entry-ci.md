@@ -1,3 +1,26 @@
+## 2026-11-05 Cast runner preparation correction
+
+Entry run 42032276763 passed all eight Ubuntu 24.04 cases. All eight Ubuntu
+26.04 cases stopped before the Voice transaction: image ubuntu26/20261025.179
+reports `/var/log` as root, GID 101, mode 0775, without extended attributes.
+Noble uses GID 102. The helper now binds the exact observed GID to the actual
+supported OS version, preserving ownership, inode, log contents and every
+existing no-follow, attribute, race and protected-payload check. There is no
+CLI or environment override.
+
+Cast run 42032323896 passed both PulseAudio cases. PipeWire stopped at the
+original shared fixture's native Pulse module-directory prerequisite before
+starting an audio graph. Both rows now install native `pulseaudio` on the
+disposable runner. The unchanged PipeWire wrapper launches only its isolated
+PipeWire/WirePlumber policy graph, and its result must identify PipeWire.
+Package installation explicitly refuses removals. Component, DEB, installer
+producer, public publication and K1 state remain unchanged.
+
+All 169 Voice publisher tests pass, including 57 host-preparation tests.
+Corrected entry and Cast native runs are required. The successful media and
+maintenance runs retain their original workflow SHA; their workflows,
+stagers and producer inputs are unchanged by this correction.
+
 # Cast777 native candidate — 2026-11-05
 
 Version `0.1.7~cast777.20261105.1` adds direct two-way SIP call-in on 777 to
