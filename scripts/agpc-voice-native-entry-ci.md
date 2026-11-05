@@ -1,3 +1,36 @@
+# Cast777 native candidate — 2026-11-05
+
+Version `0.1.7~cast777.20261105.1` adds direct two-way SIP call-in on 777 to
+HALA-Cast. The component is owner MR51/main
+`c5de1ae87edc262b0fa804fed920cff6a4c22e7d`, CI28705/job66910. Its original
+604352-byte DEB has SHA256
+`ada9b12d407d377b31d5a10cff1f2c7401aae4d7e4948fd861b6677cb465feac`.
+Owner installer MR52/main `ab72752be5a8fad524f4c40c12dc7a86fdc9df28` binds
+that package to the closed canonical entry. Consumer MR117/main
+`be798d06ec4fc3d3965112e384ade729c69f476b`, CI28709/job66920, supplies the
+verified original 8,553,146-byte native input archive, SHA256
+`73d6df1206161fade940442ccb9339ce6bfdea67b5f890aca9be383e8323a738`.
+Its 19 manifested payloads and canonical embedded runtime match the reviewed
+source; the selected DEB equals the original component artifact. Source manifest
+SHA256: `8945a8860a6fee87da4b1d172f72aeaf459a8e1b17aa7b5d66219eec334a1c2f`.
+
+The native entry workflow evaluates eight paths on each of Ubuntu 24.04 with
+Python 3.12 and Ubuntu 26.04 with Python 3.14. Each upgrade restores its original
+published predecessor; fresh installs remain inactive. Both fresh jobs also
+exercise the native decoder worker. OS-specific artifact names keep the two
+sets of original receipts distinct. The finite CI session remains the only
+candidate authority; production installation and dialplan gates remain closed.
+
+The separate Cast workflow uses a private native audio graph on Ubuntu24 with
+PulseAudio and Ubuntu26 with both PulseAudio and PipeWire. Synthetic PCM checks
+caller-to-program audio, Meet/Jujue return without caller self-loop, producer
+mute/gain synchronization, and exact cleanup of owned modules. It does not use
+physical audio or claim an actual SIP phone call. Media decoding and maintenance
+receipt workflows use the same original component on their existing Ubuntu24
+fixtures. Actual K1/L1 configuration and audible call acceptance remain separate.
+
+## Retained previous evidence
+
 # Service-map canonical native inputs — 2026-10-20
 
 Cito owns coordination; L5 owns Voice source and packaging in

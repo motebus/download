@@ -26,7 +26,7 @@ FILES = {'agpc-voice.sh', 'scripts/verify_agpc_voice_native_ci.py',
          'scripts/verify_agpc_voice_native_entry_ci.py'} | {
     'src/' + name + '.py' for name in ('native_voice', 'native_install', 'native_rpc',
                                      'rdp_client', 'browser_install', 'desktop_preferences', 'native_voice_dialplan')
-} | {'packages/' + name for name in ('agpc-voice_0.1.6~dialplan.20261102.1_all.deb',
+} | {'packages/' + name for name in ('agpc-voice_0.1.7~cast777.20261105.1_all.deb',
     'agpc-voice_0.1.5~dialplan.20261030.1_all.deb',
     'agpc-voice_0.1.4~dialplan.20261026.2_all.deb',
     'agpc-voice_0.1.3~dialplan.20261026.1_all.deb',
@@ -113,8 +113,8 @@ def main():
     parser.add_argument('--source-manifest-sha256', required=True)
     args = parser.parse_args()
     release = platform.freedesktop_os_release()
-    require(release.get('ID') == 'ubuntu' and release.get('VERSION_ID') == '24.04'
-            and platform.machine() == 'x86_64', 'Disposable Noble amd64 required')
+    require(release.get('ID') == 'ubuntu' and release.get('VERSION_ID') in ('24.04', '26.04')
+            and platform.machine() == 'x86_64', 'Disposable Ubuntu 24.04 or 26.04 amd64 required')
     prepare(PACKET, args.mode, args.source_commit, args.source_manifest_sha256, os.environ)
     print(json.dumps(dict(ci_session_created=True, production_admission=False, historical_L1_admission=False)))
 

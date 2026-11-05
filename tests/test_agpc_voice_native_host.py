@@ -942,6 +942,21 @@ class NativeHostCLITests(unittest.TestCase):
         prepare.assert_called_once_with()
         self.assertEqual(order, ['observe', 'prepare'])
 
+    def test_cli_resolute_invokes_same_fixed_host_preparation(self):
+        order = []
+        with patch.object(host.os, 'geteuid', return_value=0), \
+                patch.object(host.platform, 'freedesktop_os_release',
+                             return_value={'ID': 'ubuntu', 'VERSION_ID': '26.04'}), \
+                patch.object(host.platform, 'machine', return_value='x86_64'), \
+                patch.object(host, 'observe_shared_ancestors',
+                             side_effect=lambda: order.append('observe')) as observe, \
+                patch.object(host, 'prepare_host',
+                             side_effect=lambda: order.append('prepare') or {}) as prepare:
+            host.main([])
+        observe.assert_called_once_with()
+        prepare.assert_called_once_with()
+        self.assertEqual(order, ['observe', 'prepare'])
+
     def test_cli_rejects_path_override_before_any_directory_access(self):
         with patch.object(host, 'prepare_directory') as prepare, \
                 patch.object(sys, 'stderr', new=io.StringIO()):
@@ -969,7 +984,7 @@ class NativeHostCLITests(unittest.TestCase):
                     patch.object(host.platform, 'freedesktop_os_release', return_value=release), \
                     patch.object(host.platform, 'machine', return_value=arch), \
                     patch.object(host, 'prepare_directory') as prepare:
-                with self.assertRaisesRegex(host.PreparationError, 'Ubuntu 24.04 amd64'):
+                with self.assertRaisesRegex(host.PreparationError, 'Ubuntu 24.04 or 26.04 amd64'):
                     host.main([])
                 prepare.assert_not_called()
 
