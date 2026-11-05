@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare fixed shared directories and the observed disposable Noble log parent.
+"""Prepare fixed shared directories and the observed disposable Ubuntu log parent.
 
 The reviewed workflow and its root invocation authorize this operation. GitHub
 environment strings do not authorize it. This is not a production-host repair
@@ -23,7 +23,7 @@ PROTECTED_PATHS = (Path('/opt/agpc'), Path('/usr/lib/agpc-voice'),
                    Path('/usr/share/doc/agpc-voice'))
 LOG_PARENT = Path('/var/log')
 LOG_ANCESTORS = (Path('/'), Path('/var'))
-LOG_PARENT_GID = 102  # Exact observed numeric group; no NSS name or ownership change.
+LOG_PARENT_GIDS = {'24.04': 102, '26.04': 101}  # Observed runner GIDs; never change ownership.
 SHARED_ANCESTORS = tuple(Path(name) for name in (
     '/', '/lib', '/lib/systemd', '/lib/systemd/system', '/opt', '/usr',
     '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/doc',
@@ -313,9 +313,11 @@ def prepare_directory(path, *, protected_name='agpc', guard=None, emit=emit_json
             os.close(fd)
 
 
-def prepare_log_parent(*, guard, emit=emit_json):
+def prepare_log_parent(*, distribution, guard, emit=emit_json):
     """Clamp only the fixed observed log parent; never read or modify log contents."""
     require(os.geteuid() == 0, 'Root execution required')
+    require(distribution in LOG_PARENT_GIDS, 'Unsupported disposable log parent distribution')
+    expected_gid = LOG_PARENT_GIDS[distribution]
     parent_fd = leaf_fd = None
     before = None
     changed = attempted = accepted = False
@@ -323,7 +325,7 @@ def prepare_log_parent(*, guard, emit=emit_json):
 
     def parent_ok(info, modes):
         require(stat.S_ISDIR(info.st_mode) and info.st_uid == 0
-                and info.st_gid == LOG_PARENT_GID and stat.S_IMODE(info.st_mode) in modes,
+                and info.st_gid == expected_gid and stat.S_IMODE(info.st_mode) in modes,
                 'Unexpected fixed log parent ownership, type or permissions')
 
     def leaf_ok(info):
@@ -422,9 +424,10 @@ def prepare_log_parent(*, guard, emit=emit_json):
                         os.close(parent_fd)
 
 
-def prepare_host(*, emit=emit_json):
+def prepare_host(*, distribution, emit=emit_json):
     """Prepare only the fixed parent-before-child sequence; never restore loosened modes."""
     require(os.geteuid() == 0, 'Root execution required')
+    require(distribution in LOG_PARENT_GIDS, 'Unsupported disposable log parent distribution')
     snapshots, completed, results = {}, [], []
     active = None
     accepted = False
@@ -465,7 +468,7 @@ def prepare_host(*, emit=emit_json):
             completed.append(path)
             active = None
             guard()
-        results.append(prepare_log_parent(guard=guard, emit=emit))
+        results.append(prepare_log_parent(distribution=distribution, guard=guard, emit=emit))
         completed.append(LOG_PARENT)
         # Earlier directories must still have the exact completed metadata;
         # a later target cannot conceal an ACL or attribute race on its parent.
@@ -497,7 +500,7 @@ def main(argv=None):
     require(release.get('ID') == 'ubuntu' and release.get('VERSION_ID') in ('24.04', '26.04')
             and platform.machine() == 'x86_64', 'Disposable Ubuntu 24.04 or 26.04 amd64 target required')
     observe_shared_ancestors()
-    return prepare_host()
+    return prepare_host(distribution=release['VERSION_ID'])
 
 
 if __name__ == '__main__':

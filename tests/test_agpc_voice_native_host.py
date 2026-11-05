@@ -452,7 +452,7 @@ class NativeFixedHostPreparationTests(unittest.TestCase):
                 stack.enter_context(patch.object(host, name, value))
             for name, function in replacements.items():
                 stack.enter_context(patch.object(host.os, name, side_effect=function))
-            return host.prepare_host(emit=self.logs.append)
+            return host.prepare_host(distribution='24.04', emit=self.logs.append)
 
     def fixture_owner(self, info):
         return owned(info, gid=102 if info.st_ino == self.log_inode else 0)
@@ -646,7 +646,7 @@ class NativeLogParentPreparationTests(unittest.TestCase):
             raise host.PreparationError('Protected package fixture appeared')
         return [str(self.protected)]
 
-    def prepare(self, **overrides):
+    def prepare(self, distribution='24.04', **overrides):
         replacements = dict(geteuid=lambda: 0, open=self.recorded_open,
             stat=lambda *args, **kw: self.fixture_owner(self.stat(*args, **kw)),
             fstat=lambda fd: self.fixture_owner(self.fstat(fd)))
@@ -659,7 +659,7 @@ class NativeLogParentPreparationTests(unittest.TestCase):
             for name in ('read', 'write', 'ftruncate', 'truncate', 'chown', 'getxattr',
                          'setxattr', 'removexattr'):
                 stack.enter_context(patch.object(host.os, name, side_effect=AssertionError(name)))
-            return host.prepare_log_parent(guard=self.guard, emit=self.logs.append)
+            return host.prepare_log_parent(distribution=distribution, guard=self.guard, emit=self.logs.append)
 
     def assert_closed(self):
         for fd in self.fds:
@@ -668,7 +668,7 @@ class NativeLogParentPreparationTests(unittest.TestCase):
     def test_fixed_policy_clamps_only_parent_preserving_group_leaf_and_other_children(self):
         self.assertEqual(host.LOG_PARENT, Path('/var/log'))
         self.assertEqual(host.LOG_ANCESTORS, (Path('/'), Path('/var')))
-        self.assertEqual(host.LOG_PARENT_GID, 102)
+        self.assertEqual(host.LOG_PARENT_GIDS, {'24.04': 102, '26.04': 101})
         sibling = self.parent / 'unrelated.log'
         sibling.write_bytes(b'preserve sibling'); sibling.chmod(0o640)
         before_leaf = self.leaf.stat()
@@ -694,6 +694,35 @@ class NativeLogParentPreparationTests(unittest.TestCase):
         with self.assertRaisesRegex(host.PreparationError, 'root-owned root-group'):
             host.trusted_directory(self.fixture_owner(self.parent.stat()), (0o755,))
         self.assert_closed()
+
+    def test_resolute_preserves_observed_group_and_log_bytes(self):
+        self.owners[self.parent.stat().st_ino] = (0, 101)
+        before_leaf = self.leaf.stat()
+        result = self.prepare(distribution='26.04')
+        self.assertEqual(result['before']['gid'], 101)
+        self.assertEqual(result['after']['gid'], 101)
+        self.assertEqual(result['before']['inode'], result['after']['inode'])
+        self.assertEqual(result['after']['mode'], '0755')
+        self.assertEqual(self.leaf.stat(), before_leaf)
+        self.assertEqual(self.leaf.read_bytes(), b'unchanged synthetic dpkg log')
+        self.assert_closed()
+
+    def test_distribution_group_mismatches_refuse_before_mutation(self):
+        for distribution, gid in (('24.04', 101), ('26.04', 102), ('26.04', 0)):
+            with self.subTest(distribution=distribution, gid=gid):
+                self.owners[self.parent.stat().st_ino] = (0, gid)
+                with patch.object(host.os, 'fchmod') as chmod:
+                    with self.assertRaisesRegex(host.PreparationError, 'log parent ownership'):
+                        self.prepare(distribution=distribution)
+                chmod.assert_not_called()
+        self.assert_closed()
+
+    def test_unknown_distribution_refuses_before_filesystem_access(self):
+        with patch.object(host.os, 'geteuid', return_value=0), patch.object(host.os, 'stat') as observe:
+            for prepare, extra in ((host.prepare_host, {}), (host.prepare_log_parent, {'guard': self.guard})):
+                with self.assertRaisesRegex(host.PreparationError, 'Unsupported disposable'):
+                    prepare(distribution='25.10', **extra)
+            observe.assert_not_called()
 
     def test_wrong_parent_gid_or_mode_refuses_without_mutation(self):
         for gid, mode in ((0, 0o775), (101, 0o775), (102, 0o777), (102, 0o700)):
@@ -936,10 +965,10 @@ class NativeHostCLITests(unittest.TestCase):
                 patch.object(host, 'observe_shared_ancestors',
                              side_effect=lambda: order.append('observe')) as observe, \
                 patch.object(host, 'prepare_host',
-                             side_effect=lambda: order.append('prepare') or {}) as prepare:
+                             side_effect=lambda **kw: order.append('prepare') or {}) as prepare:
             host.main([])
         observe.assert_called_once_with()
-        prepare.assert_called_once_with()
+        prepare.assert_called_once_with(distribution='24.04')
         self.assertEqual(order, ['observe', 'prepare'])
 
     def test_cli_resolute_invokes_same_fixed_host_preparation(self):
@@ -951,10 +980,10 @@ class NativeHostCLITests(unittest.TestCase):
                 patch.object(host, 'observe_shared_ancestors',
                              side_effect=lambda: order.append('observe')) as observe, \
                 patch.object(host, 'prepare_host',
-                             side_effect=lambda: order.append('prepare') or {}) as prepare:
+                             side_effect=lambda **kw: order.append('prepare') or {}) as prepare:
             host.main([])
         observe.assert_called_once_with()
-        prepare.assert_called_once_with()
+        prepare.assert_called_once_with(distribution='26.04')
         self.assertEqual(order, ['observe', 'prepare'])
 
     def test_cli_rejects_path_override_before_any_directory_access(self):

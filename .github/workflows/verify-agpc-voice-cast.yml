@@ -48,14 +48,14 @@ jobs:
           assert platform.machine()=='x86_64' and os.geteuid()!=0
           PY
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends --no-upgrade python3-yaml python3-websocket pulseaudio-utils
+          # Both original fixtures inspect native Pulse modules. The PipeWire
+          # wrapper still launches only its private PipeWire/WirePlumber graph.
+          sudo apt-get install -y --no-install-recommends --no-upgrade --no-remove python3-yaml python3-websocket pulseaudio-utils pulseaudio
           if [ "$TEST_DISTRIBUTION" = 26.04 ]; then
-            sudo apt-get install -y --no-install-recommends --no-upgrade python3-audioop-lts
+            sudo apt-get install -y --no-install-recommends --no-upgrade --no-remove python3-audioop-lts
           fi
           if [ "$TEST_SERVER" = pipewire ]; then
-            sudo apt-get install -y --no-install-recommends --no-upgrade pipewire pipewire-pulse wireplumber
-          else
-            sudo apt-get install -y --no-install-recommends --no-upgrade pulseaudio
+            sudo apt-get install -y --no-install-recommends --no-upgrade --no-remove pipewire pipewire-pulse wireplumber
           fi
           mkdir voice-cast-evidence
           cp voice-cast/SOURCE.json voice-cast-evidence/SOURCE.json
