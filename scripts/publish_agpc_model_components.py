@@ -27,6 +27,7 @@ COMPONENTS = {
     'vmodel': {
         'product': 'agpc-core', 'project': 1336, 'package': 'agpc-vmodel',
         'version': '0.1.0~vmodel.20261106.1', 'tag': 'agpc-vmodel-v0.1.0-vmodel.20261106.1',
+        'public_asset_filename': 'agpc-vmodel_0.1.0.vmodel.20261106.1_amd64.deb',
         'job': 'vmodel-package-native', 'prefix': 'packaging/vmodel/dist/',
         'manifest': 'PUBLICATION-MANIFEST.json', 'schema': 'agpc.core.vmodel-native-package/v1',
         'checks': {'native-package-build-and-readback'},
@@ -34,6 +35,7 @@ COMPONENTS = {
     'model': {
         'product': 'agpc-model', 'project': 1363, 'package': 'model-llm',
         'version': '0.1.0-5~agpcmodel20261106.1', 'tag': 'agpc-model-v0.1.0-5-agpcmodel20261106.1',
+        'public_asset_filename': 'model-llm_0.1.0-5.agpcmodel20261106.1_amd64.deb',
         'job': 'provider-native', 'prefix': 'dist/', 'manifest': 'PROVIDER-MANIFEST.json',
         'schema': 'agpc.model.native-build/v1',
         'checks': {'native-environment', 'source-verification', 'architecture', 'tool-cargo',
@@ -100,6 +102,16 @@ def filename(spec):
     return spec['package'] + '_' + spec['version'] + '_amd64.deb'
 
 
+def public_filename(spec):
+    # GitHub normalizes '~' to '.' even when release asset metadata is patched.
+    # This reviewed label never changes the original archive name or DEB version.
+    expected = filename(spec).replace('~', '.')
+    actual = spec.get('public_asset_filename', '')
+    require(actual == expected and re.fullmatch(r'[A-Za-z0-9_.+-]+\.deb', actual),
+            'unreviewed public asset filename')
+    return actual
+
+
 def source_path(path):
     return (isinstance(path, str) and path and not path.startswith('/')
             and '\\' not in path and '..' not in PurePosixPath(path).parts
@@ -125,7 +137,7 @@ def validate_record(record, component):
             'original archive/manifest pins required')
     require(re.fullmatch(r'[0-9a-f]{64}', record['source_inventory_sha256']) is not None,
             'source inventory pin required')
-    require(set(record['assets']) == {filename(spec), 'MANIFEST.json', 'SHA256SUMS'}
+    require(set(record['assets']) == {public_filename(spec), 'MANIFEST.json', 'SHA256SUMS'}
             and all(exact_pin(value) for value in record['assets'].values()),
             'unexpected public asset inventory')
 
@@ -284,6 +296,7 @@ def public_bundle(raw, deb, record, spec):
     manifest = {
         'schema': 'agpc.component-artifact-preview/v1', 'delivery_product': spec['product'],
         'package': data['package'], 'source_project': spec['project'],
+        'public_asset_filename': public_filename(spec),
         'source_commit': record['source_commit'], 'source_ref': 'main',
         'pipeline_id': record['pipeline_id'], 'job_id': record['job_id'],
         'original_archive': record['archive'], 'producer_manifest': record['producer_manifest'],
@@ -301,7 +314,7 @@ def public_bundle(raw, deb, record, spec):
         manifest['packaging_relation'] = (
             'Original compiled main retained independently; native/vmodel inputs must match packaging main. '
             'CI and packaging metadata can differ and are verified at their respective commits.')
-    files = {filename(spec): deb, 'MANIFEST.json': encoded(manifest)}
+    files = {public_filename(spec): deb, 'MANIFEST.json': encoded(manifest)}
     files['SHA256SUMS'] = ''.join(sha(files[name]) + '  ' + name + '\n' for name in sorted(files)).encode()
     return files
 

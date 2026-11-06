@@ -42,7 +42,10 @@ in that original manifest. A local package cannot be relabelled as CI output.
 
 For each component, the public unsigned bundle contains exactly:
 
-- The original amd64 DEB with its original package filename and bytes.
+- The original amd64 DEB bytes with an explicitly reviewed public asset filename.
+  GitHub normalizes `~` to `.` in asset names. The original archive filename and
+  DEB Version retain `~`; `MANIFEST.json` records `public_asset_filename`
+  separately from the unchanged `package.filename` and `package.version`.
 - `MANIFEST.json`, schema `agpc.component-artifact-preview/v1`, with source and
   producer identifiers, original evidence hashes and false producer admission.
 - `SHA256SUMS`, covering that DEB and manifest.

@@ -1,37 +1,37 @@
 {
   "canonical_project": 1341,
-  "canonical_source_commit": "5bb395d8d885b323d7b0eae5dceac00a07b1e4d7",
+  "canonical_source_commit": "ccde929638faade585a712a5630d67ef570f4a55",
   "exporter": "scripts/export_agpc_public_source.py",
   "full_export_receipt": {
     "bytes": 26652,
-    "sha256": "1bf36fd567993a42e6e1bd871f6efc1160535b56c491c446d25416099e51be00"
+    "sha256": "9efa514b68ca6d05d21dae59891b351ca7dce4b2f5d56559802b05356bb8a050"
   },
   "public_base_commit": "0620ab172023d99d2cd46ad070e8ec692116d4a8",
-  "reviewed_input_commit": "385644d6a6f8d2ca76db983393fbc2a642e6b129",
-  "reviewed_source_pipeline": 28761,
+  "reviewed_input_commit": "ccde929638faade585a712a5630d67ef570f4a55",
+  "reviewed_source_pipeline": 28768,
   "schema": "agpc.public-source-selection/v1",
-  "scope": "reviewed component publisher and actual original-main Model artifact record; no installer or runtime admission",
+  "scope": "reviewed component publisher, explicit GitHub public filename mapping and actual original-main Model artifact record; no installer or runtime admission",
   "selected_files": {
     ".github/workflows/publish-agpc-model-components.yml": {
       "bytes": 1997,
       "sha256": "598aacac7b30694957378be5bd3b269bdd1f8c1f284bdc4685d499feccbb09f2"
     },
     "scripts/agpc-model-component-publication.md": {
-      "bytes": 5198,
-      "sha256": "58b27cb58b875af9c80f1d6a89355a63b775e1e07139846b278fc4c241982871"
+      "bytes": 5438,
+      "sha256": "1b2647e4515d75cf0c91d93d14680ab1ae9a3fc9a78b60b96040843b3e428678"
     },
     "scripts/component-publications/model.json": {
       "bytes": 1192,
-      "sha256": "efbd51673ec5923f05ed5f7d4ae1a45e9c961b4a8b97ddfd9c4a9295a498d3b1"
+      "sha256": "525ea2b94d1e65ecafc639936e5c7602317600945eb7a8bd45f0e174dfb01ef1"
     },
     "scripts/publish_agpc_model_components.py": {
-      "bytes": 31325,
-      "sha256": "d2bb295d6f3ce30f33a3c9682d3c6efe8a3975b8f68f9f90a6418e58d350c0ec"
+      "bytes": 32000,
+      "sha256": "8ebd10b6bd0ea0403be01181209c64ab771e51e1ed636c62b423ee442c61ef5c"
     },
     "tests/test_agpc_model_publication.py": {
-      "bytes": 22782,
-      "sha256": "c647c4a938d08ec4b9033e80e697e74a770e4cfe5593f7dbd9eb41dfdaf29491"
+      "bytes": 24094,
+      "sha256": "4cfd4de0c3fa366ddbaf7fda574203e7ab3919541db30f10ae3d847a195216e6"
     }
   },
-  "selection_policy": "Apply only these selected public source files and this receipt to the existing public tree; retain all unrelated current public files."
+  "selection_policy": "Apply only these selected public source files and this receipt to the existing public tree; retain all unrelated current public files. Source MR124 must pass its original pipeline28768 and merge before public merge or publication."
 }

@@ -5,14 +5,14 @@
   },
   "assets": {
     "MANIFEST.json": {
-      "bytes": 2679,
-      "sha256": "883d12b9ddbe66340f6a0ff97ce311e689da4ea42b20009ec0c895caae46b1f3"
+      "bytes": 2757,
+      "sha256": "4f6bace9ae469916a75abe9f6dc9ef61768e62613e1c599ebfa7a14559eee423"
     },
     "SHA256SUMS": {
       "bytes": 194,
-      "sha256": "0e4c88de203a8c57a0da2787bc286d236ddee722a5dfc7a0b8628cb67e2bfb58"
+      "sha256": "8015e4ca0c2df0c8789ffd96de51550f39b279a6713ddab44218744aea544456"
     },
-    "model-llm_0.1.0-5~agpcmodel20261106.1_amd64.deb": {
+    "model-llm_0.1.0-5.agpcmodel20261106.1_amd64.deb": {
       "bytes": 1710536,
       "sha256": "d3e7e0ca9acfb2d4b8cc57ff622ebde76a119547309957081ff8f8d76a3c791d"
     }

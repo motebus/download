@@ -173,6 +173,26 @@ class PublicationTests(unittest.TestCase):
                 self.assertFalse(any(meta['producer_admission'].values()))
                 self.assertEqual(meta['supported_os'], [])
 
+    def test_public_filename_mapping_preserves_original_package_and_archive(self):
+        for component, fixture in self.fixtures.items():
+            spec = fixture['spec']
+            name = p.public_filename(spec)
+            self.assertNotIn('~', name)
+            self.assertNotEqual(name, p.filename(spec))
+            self.assertEqual(fixture['bundle'][name], fixture['deb'])
+            manifest = json.loads(fixture['bundle']['MANIFEST.json'])
+            self.assertEqual(manifest['public_asset_filename'], name)
+            self.assertEqual(manifest['package']['filename'], p.filename(spec))
+            self.assertEqual(manifest['package']['version'], spec['version'])
+            self.assertEqual(p.archive_files(fixture['archive'], spec)[0], fixture['deb'])
+            record = copy.deepcopy(fixture['record'])
+            record['assets'][p.filename(spec)] = record['assets'].pop(name)
+            with self.assertRaisesRegex(ValueError, 'public asset inventory'):
+                p.validate_record(record, component)
+        for value in ('', '../package.deb', p.filename(self.f['spec']), 'other.deb'):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'public asset filename'):
+                p.public_filename(dict(self.f['spec'], public_asset_filename=value))
+
     def test_consumer_keeps_independent_original_main_build_identity(self):
         self.assertNotEqual(self.f['manifest']['compiled_input']['source_commit'],
                             self.f['record']['source_commit'])
