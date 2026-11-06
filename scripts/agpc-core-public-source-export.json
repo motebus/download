@@ -1,9 +1,9 @@
 {
   "schema": "agpc.core.public-source-export/v1",
   "canonical_source_project_id": 1341,
-  "canonical_source_commit": "1f32bd9133d487c4812eb19a9e1bd4ae2533e9cc",
-  "public_base_commit": "4ec953fe9cc8897f5d8bcd444dba6c7d33ff6332",
-  "scope": "Selective current Apps shared-cohort correction and reviewed original protected-main profile publication record for installer v0.3.0-97 and cohort agent-computer-v0.3.0-87; existing generic Core/Mesh/All publication code and public compatibility are retained. Active root installers, Pages and runtime admission are unchanged.",
+  "canonical_source_commit": "401d99c2f5971a824731cdc6d92e30e4b612c19c",
+  "public_base_commit": "0a27b3c41de5cb6086031fb24907e7c1a913a74a",
+  "scope": "Refresh the original protected-main profile publication proof after the independent Cast admission merge. Core producer, five scripts and the exact36-DEB aggregate composition are unchanged; current public installers, Pages and runtime admission remain unchanged.",
   "files": {
     ".github/workflows/publish-agpc-core-profiles.yml": {
       "sha256": "16919ca065ed9392f574ebae6b02d80bdcad5ddf2bbe7998c1b07923c22ee557",
@@ -350,13 +350,13 @@
       "exact_canonical_bytes": true
     },
     "scripts/agpc-core-profile-publication.json": {
-      "sha256": "7f983e65714756925fff6d738ff253e350606409de722c89ab50d5ead88bb22d",
+      "sha256": "c2d7af97b4c400335fa23a1f2c1e37a5f5ca86f4422906aff668ce20d5b648fb",
       "bytes": 2324,
       "mode": "0o644",
       "canonical_path": null,
       "canonical_sha256": null,
       "exact_canonical_bytes": false,
-      "origin": "Reviewed original protected-main CI artifacts, project 1341 pipeline 28788 job 67237; record prepared outside source checkout after immutable producer completion."
+      "origin": "Reviewed original protected-main CI artifacts, project1341 pipeline28794 job67251; record prepared outside source checkout after immutable producer completion."
     }
   },
   "preserved_public_files": {
@@ -383,7 +383,8 @@
     "scripts/agpc-voice-standard.json": "2ff1d98a77c9ad02135ca72f7114f7692ea647d4924a775b89461fb45d93b6d6",
     "scripts/prepare_agpc_voice_native_entry_session.py": "7f89f4745ed3c9c8bdc43afbdd3ff49dd6f7c8581967f1dfda863efacb920329",
     "scripts/stage_agpc_voice_native_entry_inputs.py": "a89b0d7b765cf036c1553e86c975f040e4b913f591022b20caf2bb560c64c1ff",
-    "tests/test_agpc_voice_native_entry_inputs.py": "e7e240e5c97d929c439e67af1c9d5090dcaa90dde69f175102a4287f4e878dff"
+    "tests/test_agpc_voice_native_entry_inputs.py": "e7e240e5c97d929c439e67af1c9d5090dcaa90dde69f175102a4287f4e878dff",
+    "scripts/agpc-voice-publication.json": "d9cac34e006b1725b8d0f7b53b111dd0aef5c12412c79cae48b0260ea26c4763"
   },
   "public_adaptations": [
     "Retain exact historical v1/v2 aliases and v7 transition package; later formats keep distinct Apps and exact Core inventory.",
@@ -398,13 +399,23 @@
     "Retain the public historical current-root tests. Omit only canonical test_current_root_contracts_accept_rendered_v13_profiles from the exported producer tests because it invokes canonical-only activation tests; retain the new exact Apps root, cohort and migration-hash regression.",
     "Keep the independent intermediate component workflow pinned to its reviewed 21901566 source; the new profile publisher obtains its producer source identity from the original profile record.",
     "The new actual profile record is derived from the original protected-main artifact and is deliberately not claimed as a canonical tracked source blob; no source main write occurred during the publication freeze.",
-    "Preserve all eight independent Cast PR308 files byte-for-byte from public main 4ec953fe9cc8897f5d8bcd444dba6c7d33ff6332, including its original-source pins, closed installation gate tests and native workflow timeout."
+    "Preserve all eight independent Cast PR308 files byte-for-byte from public main 4ec953fe9cc8897f5d8bcd444dba6c7d33ff6332, including its original-source pins, closed installation gate tests and native workflow timeout.",
+    "Refresh only original protected-main proof after independent Cast admission advanced canonical main; five script payloads and the exact36-DEB aggregate record are byte-identical, and the previous original proof is retained explicitly.",
+    "Preserve the independent Voice PR310 publication pointer byte-for-byte from public main0a27b3c41de5cb6086031fb24907e7c1a913a74a; wait for its publication/readback before changing public main again."
   ],
   "release_admitted": false,
   "runtime_ready": false,
   "pages_activated": false,
-  "integrated_public_main": "4ec953fe9cc8897f5d8bcd444dba6c7d33ff6332",
+  "integrated_public_main": "0a27b3c41de5cb6086031fb24907e7c1a913a74a",
   "canonical_source_validation": {
+    "commit": "401d99c2f5971a824731cdc6d92e30e4b612c19c",
+    "pipeline_id": 28794,
+    "job_id": 67251,
+    "status": "success",
+    "ref": "main",
+    "kind": "original-protected-main-profile-producer"
+  },
+  "previous_canonical_source_validation": {
     "commit": "1f32bd9133d487c4812eb19a9e1bd4ae2533e9cc",
     "pipeline_id": 28788,
     "job_id": 67237,
@@ -412,14 +423,22 @@
     "ref": "main",
     "kind": "original-protected-main-profile-producer"
   },
-  "previous_canonical_source_validation": {
-    "commit": "507aec502e6af0df6cf6cb987f9a6415cd228068",
-    "pipeline_id": 28781,
-    "job_id": 67223,
-    "status": "success",
-    "merged_into": "21901566d42471786dbc80ea84698747d3552c9c"
-  },
   "original_profile_proof": {
+    "source_commit": "401d99c2f5971a824731cdc6d92e30e4b612c19c",
+    "pipeline_id": 28794,
+    "job_id": 67251,
+    "archive": {
+      "bytes": 146988,
+      "sha256": "785564f14f11d66dd31cd88e3e0b945862f10a6f18d59f1c1f486882fb8653f2"
+    },
+    "input_sha256": "7c0e2b0a67ca8928b6518abf2f45071e79d6d4d479ef948e08337f4a4b9722cf",
+    "record_sha256": "c2d7af97b4c400335fa23a1f2c1e37a5f5ca86f4422906aff668ce20d5b648fb",
+    "original_current_protected_main": true,
+    "original_ci_rechecked": true,
+    "original_baseline_blobs_rechecked": true
+  },
+  "previous_public_source_export_sha256": "d0520851d9d5495a59d35fffc178ff03040b1552cc9f8960da7ff5c1e5ab6897",
+  "previous_original_profile_proof": {
     "source_commit": "1f32bd9133d487c4812eb19a9e1bd4ae2533e9cc",
     "pipeline_id": 28788,
     "job_id": 67237,
