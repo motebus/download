@@ -1,10 +1,10 @@
 {
   "schema": "agpc.core.pages-activation-source-export/v1",
-  "scope": "Prepare Pages activation of the verified v97 installers and cohort87 using the reviewed canonical activation tree. This receipt records the workflow and documentation change; it does not attest deployment or live AGPC Ready.",
-  "public_base_commit": "71e749024b77a36d085ffff630757882105d7b68",
+  "scope": "Refresh only the reviewed canonical acceptance source after the first activation rejected the new context command in its stale four-command CLI assertion. Original v97/cohort87 artifacts and all installation/runtime gates remain unchanged; every native profile must run again before deployment.",
+  "public_base_commit": "c59187f4c1db916415e27d74e5b7b966fcf7546f",
   "canonical_activation_source": {
     "project_id": 1341,
-    "commit": "ccdbc1fc2b9458856ca7afd2d4df4923213b3470",
+    "commit": "679bb4e9aa7d9a5d920f1fbf36c33729fc8b66d5",
     "role": "Reviewed source tree that activates the existing original profile artifacts and supplies native acceptance."
   },
   "original_producer": {
@@ -53,17 +53,10 @@
   },
   "files": {
     ".github/workflows/publish-agpc-v58-runtime.yml": {
-      "before_sha256": "eb51455ac26d3d98987a9b505ea571a2394ace1046807a266979309aca39f811",
-      "before_bytes": 8645,
-      "sha256": "4e7df47fc17a6ba3ed00ba3a4dc73415484dbcfb0b8ecee8221582ee9f08c589",
+      "before_sha256": "4e7df47fc17a6ba3ed00ba3a4dc73415484dbcfb0b8ecee8221582ee9f08c589",
+      "before_bytes": 8873,
+      "sha256": "569af958c3a28b7a3d618961674d47ca04123d3ebc86141d764e9fee44067757",
       "bytes": 8873,
-      "git_mode": "100644"
-    },
-    "README.md": {
-      "before_sha256": "a09449b4461cab7790e3f3614299204b74f80e4d963c41b5c6a1c619a2ff27b0",
-      "before_bytes": 18258,
-      "sha256": "0edb0c251d4e91099892d34d7dcb03ea1817121c5c767f3a701c0be55fa59e3b",
-      "bytes": 21465,
       "git_mode": "100644"
     }
   },
@@ -92,11 +85,68 @@
     "upgrade-home"
   ],
   "activation_gate": {
-    "state_at_preparation": "not_dispatched",
+    "state_at_preparation": "corrected_source_not_dispatched",
     "requires_all_native_profiles_and_deployment": true,
     "readme_pages_availability_is_conditional": true,
     "pages_activated": false,
     "native_install_accepted": false,
     "runtime_ready": false
+  },
+  "previous_activation": {
+    "public_commit": "c59187f4c1db916415e27d74e5b7b966fcf7546f",
+    "canonical_source_commit": "ccdbc1fc2b9458856ca7afd2d4df4923213b3470",
+    "workflow_run_id": 42229416323,
+    "workflow_run_attempt": 1,
+    "conclusion": "cancelled",
+    "deploy_conclusion": "cancelled",
+    "deployed": false,
+    "native_results": {
+      "standard": "failure",
+      "apps": "failure",
+      "upgrade": "cancelled",
+      "full": "cancelled",
+      "core": "cancelled",
+      "upgrade-home": "cancelled"
+    },
+    "evidence_summary": {
+      "sha256": "3942f9566f2dcfbdd95b015076f53dc9a0162a707e8512644ef7ffbb182421bf",
+      "bytes": 1548
+    },
+    "previous_receipt": {
+      "path": "scripts/agpc-core-pages-activation-source-export.json",
+      "commit": "c59187f4c1db916415e27d74e5b7b966fcf7546f",
+      "sha256": "eb803a6811eb8d4bcfd9b82e4bded95468eedbbaa4926345d65ab6f85f001be5",
+      "bytes": 4278
+    },
+    "reason": "The exact released Mesh CLI exposes context/net/chat/event/run. The previous common verifier required only four commands; standard and apps failed that assertion. The other four profiles were cancelled during installation and have no acceptance result."
+  },
+  "acceptance_correction": {
+    "expected_commands": [
+      "context",
+      "net",
+      "chat",
+      "event",
+      "run"
+    ],
+    "expected_cli_version": "mesh 0.5.0",
+    "strict_exact_command_inventory": true,
+    "unknown_duplicate_and_retired_commands_rejected": true,
+    "remaining_runtime_checks_unchanged": true,
+    "original_release_artifacts_unchanged": true,
+    "requires_new_run_all_six_profiles": true
+  },
+  "preserved_files": {
+    "README.md": {
+      "sha256": "0edb0c251d4e91099892d34d7dcb03ea1817121c5c767f3a701c0be55fa59e3b",
+      "bytes": 21465
+    },
+    "scripts/agpc-core-public-source-export.json": {
+      "sha256": "08bf34475c759534f84cd405957ba9556686dd4bb270c3e2b4619be9d2d2820f",
+      "bytes": 25165
+    },
+    "scripts/agpc-core-profile-publication.json": {
+      "sha256": "c2d7af97b4c400335fa23a1f2c1e37a5f5ca86f4422906aff668ce20d5b648fb",
+      "bytes": 2324
+    }
   }
 }

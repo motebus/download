@@ -13,8 +13,8 @@ permissions:
 env:
   PYTHONDONTWRITEBYTECODE: "1"
   # Producer inputs and native acceptance use the same reviewed activation commit.
-  AGPC_SOURCE_COMMIT: ccdbc1fc2b9458856ca7afd2d4df4923213b3470
-  AGPC_ACCEPTANCE_SOURCE_COMMIT: ccdbc1fc2b9458856ca7afd2d4df4923213b3470
+  AGPC_SOURCE_COMMIT: 679bb4e9aa7d9a5d920f1fbf36c33729fc8b66d5
+  AGPC_ACCEPTANCE_SOURCE_COMMIT: 679bb4e9aa7d9a5d920f1fbf36c33729fc8b66d5
 
 concurrency:
   group: medge-apt-pages
