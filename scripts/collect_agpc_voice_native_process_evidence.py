@@ -140,8 +140,8 @@ def main():
     args = parser.parse_args()
     release = platform.freedesktop_os_release()
     require(os.geteuid() == 0 and release.get('ID') == 'ubuntu'
-            and release.get('VERSION_ID') == '24.04' and platform.machine() == 'x86_64',
-            'Root on disposable Noble amd64 required')
+            and release.get('VERSION_ID') in ('24.04', '26.04') and platform.machine() == 'x86_64',
+            'Root on disposable Ubuntu 24.04 or 26.04 amd64 required')
     result = collect(PACKET, RUNS, PROCESSES, args.mode, os.environ, platform.node())
     print(json.dumps(dict(exported=len(result['observations']), holds_cleared=False)))
 

@@ -1,3 +1,26 @@
+## 2026-11-05 Cast777 revision 2
+
+Revision 2 (`0.1.7~cast777.20261105.2`) is the original MR53 component from
+protected-main f6fe1cc96181f35472cd657cd869bef6d551b319, pipeline28711/job66925.
+Its SHA256 is c61e25e4106bac69942cde853627994bddc14ed66341ef1925037a10f2182c97
+(604352 bytes). The authenticated call socket now handles peer reset/broken
+pipe during hangup without ending the desktop listener; unrelated native audio
+errors and cleanup failures still stop it. All 495 source tests and the local
+private PulseAudio/PipeWire probes passed.
+
+Prior entry run 42034713198 passed its sixteen package lifecycles, but all
+Ubuntu26 jobs failed evidence export because the process collector retained a
+24.04-only check; decoder work was consequently skipped. Bind that fixed-path
+collector to the same exact Ubuntu24/26 amd64 target pair, preserving root,
+source/host/session identity, bounds, holds and failure projections. Twelve
+collector tests cover both targets and unsupported/nonroot refusal.
+
+Cast run 42034738853 exposed the peer-reset shutdown race after successful PCM
+and producer-control measurements. Its failed result remains failure evidence;
+no revision1 result grants revision2 native admission. Re-run all native entry,
+media, maintenance and three-server Cast checks against the new original bytes.
+The normal install and dialplan gates remain closed until those checks pass.
+
 ## 2026-11-05 Cast runner preparation correction
 
 Entry run 42032276763 passed all eight Ubuntu 24.04 cases. All eight Ubuntu

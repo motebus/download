@@ -18,18 +18,18 @@ import zipfile
 import publish_agpc_voice as voice
 
 PREFIX = 'agpc-voice-native-entry-ci/'
-# Actual MR51 protected-main original artifact, verified before binding.
-VOICE_COMMIT = 'c5de1ae87edc262b0fa804fed920cff6a4c22e7d'
-VOICE_REVIEWED_HEAD = '48e7a05f22b31c612e98519d0a8f1c080998fec1'
-VOICE_JOB, VOICE_PIPELINE, VOICE_REVIEW = 66910, 28705, 51
-VOICE_FILENAME = 'agpc-voice_0.1.7~cast777.20261105.1_all.deb'
+# Actual MR53 protected-main original artifact, verified before binding.
+VOICE_COMMIT = 'f6fe1cc96181f35472cd657cd869bef6d551b319'
+VOICE_REVIEWED_HEAD = '55336b5f0129b99e6d9921cfcf824c9eb705e1df'
+VOICE_JOB, VOICE_PIPELINE, VOICE_REVIEW = 66925, 28711, 53
+VOICE_FILENAME = 'agpc-voice_0.1.7~cast777.20261105.2_all.deb'
 VOICE_BYTES = 604352
 PACKAGE_SHA256 = {
     'agpc-voice_0.1.5~dialplan.20261030.1_all.deb': 'a74d41ab66f9c47d1a4e19f2957afc415a7df4a9f659a6d17815d7316712290a',
     'agpc-voice_0.1.4~dialplan.20261026.2_all.deb': '8cd1e0745c1d4fa395ad19b3ceb419106c69f261a3d3d740edb7a41b1cc6be3c',
     'agpc-voice_0.1.3~dialplan.20261026.1_all.deb': 'b27a4643e28e78723b6b009230489ecca751a347861304e1cdcd5b6d40239461',
     'agpc-voice_0.1.2~servicemap.20261019.1_all.deb': 'a475b45872a0b3922d30f50af24db720e47d5e3ba5e5b3bfd40d091359a22645',
-    VOICE_FILENAME: 'ada9b12d407d377b31d5a10cff1f2c7401aae4d7e4948fd861b6677cb465feac',
+    VOICE_FILENAME: 'c61e25e4106bac69942cde853627994bddc14ed66341ef1925037a10f2182c97',
     'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1_all.deb': '394baefe1242a288f822f5df6d90dd5a6c0eac7d71891aa66f66da19b2cb829f',
     'agpc-voice_0.1.0~office117.20261015.2+l1isolation.2_all.deb': '89005f0c53235e7f72370a624a397d4ef4221a52d1a36d23fcb6b129f4c8d15a',
     'agpc-voice_0.1.0~office117.20261015.2_all.deb': '4f3daddb1e6b1290fb2bbc411b75a3ff04f26ffc9eb9f097416db40220a20453',
@@ -50,7 +50,7 @@ require = voice.native.require
 def require_component_binding():
     require(isinstance(VOICE_COMMIT, str) and re.fullmatch(r'[0-9a-f]{40}', VOICE_COMMIT)
             and type(VOICE_PIPELINE) is int and VOICE_PIPELINE > 0
-            and type(VOICE_JOB) is int and VOICE_JOB > 0 and VOICE_REVIEW == 51,
+            and type(VOICE_JOB) is int and VOICE_JOB > 0 and VOICE_REVIEW == 53,
             'Dialplan protected-main component binding is unresolved')
 
 
@@ -89,7 +89,7 @@ def verify_embedded(extracted):
                             'One literal release gate required')
                     declarations[target.id] = node.value.value
     require(declarations.get('INSTALL_CONTRACT_ADMITTED') is False
-            and declarations.get('RELEASE') == 'cast777.20261105.1', 'Exact closed source gate required')
+            and declarations.get('RELEASE') == 'cast777.20261105.2', 'Exact closed source gate required')
 
 
 def validate_manifest(extracted, commit):
@@ -150,7 +150,7 @@ def stage(inputs, output, get_json=voice.api_json, get_bytes=voice.api_bytes):
     component_review = observations[f'projects/1348/merge_requests/{VOICE_REVIEW}']
     require(component_review.get('sha') == VOICE_REVIEWED_HEAD
             and component_review.get('squash_commit_sha') is None,
-            'Exact reviewed MR51 ordinary merge required')
+            'Exact reviewed MR53 ordinary merge required')
     data = get_bytes(f"projects/1341/jobs/{inputs['ci_job']}/artifacts")
     require(len(data) == inputs['archive_bytes'] and hashlib.sha256(data).hexdigest() == inputs['archive_sha256'],
             'Native entry archive mismatch')
