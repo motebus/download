@@ -22,13 +22,13 @@ python3 scripts/publish_agpc_view.py prepare \
 
 Preparation verifies package identity, fixed dependency boundary, scriptless
 control, the eight-file payload, clean exact source provenance and native GTK4
-ELF metadata. It never executes the package binary. The original packaged
+ELF metadata, including GIO for the system browser and the Local/Mode/SSO source modules. Native TLS increases the executable size; payload members have a bounded 4 MiB limit, while JSON and downloadable assets retain the 2 MiB limit. It never executes the package binary. The original packaged
 provenance stays unchanged. The public manifest removes the producer's local
 library-resolution text and adds the source project/commit/pipeline/job IDs.
 It contains no private repository URLs or source archive.
 
 Review the input record and candidate bytes. Stage exactly the three files
-from the candidate directory in the draft `candidate-agpc-view-v0.1.0-2`
+from the candidate directory in the draft `candidate-agpc-view-v0.1.0-3`
 release: the DEB, `MANIFEST.json`, and `SHA256SUMS`. Do not replace an existing
 asset with different bytes. Merge the reviewed record, publisher, tests and
 workflow before dispatch:
@@ -48,7 +48,7 @@ The existing release-environment archive key signs `MANIFEST.json` and
 `SHA256SUMS`; both bind the exact DEB. The trusted fingerprint is
 `AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0`. The signer verifies each generated
 signature before publishing the five immutable assets as
-`agpc-view-v0.1.0-2`. It neither reads nor prints owner credentials.
+`agpc-view-v0.1.0-3`. It neither reads nor prints owner credentials.
 
 After publication, download the release independently, verify both signatures
 with established archive-key trust, check `SHA256SUMS` and manifest identity,
