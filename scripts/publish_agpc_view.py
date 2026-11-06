@@ -16,7 +16,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = "motebus/download"
-VERSION = "0.1.0-3"
+VERSION = "0.1.0-4"
 TAG = "agpc-view-v" + VERSION
 PACKAGE = "agpc-view_" + VERSION + "_amd64.deb"
 ASSETS = {PACKAGE, "MANIFEST.json", "SHA256SUMS"}
@@ -346,7 +346,7 @@ def prepare(args):
               "pipeline_id": pipeline["id"], "job_id": native["id"], "gui_job_id": gui["id"],
               "producer_manifest_sha256": sha(original), "candidate_tag": "candidate-" + TAG,
               "assets": {}, "notes": "Native GTK4 AGPC View " + VERSION + " for amd64, built and GUI-checked by canonical main CI. "
-              "Local opens on computer information and existing Manager prechecks. The read-only Mesh mode requires Account browser SSO at account.ypcloud.com. "
+              "Local is restricted to this computer’s information and existing Manager prechecks; all network observations belong to Mesh. The read-only Mesh mode requires Account browser SSO at account.ypcloud.com. "
               "Teal Local and violet Mesh styles follow light, dark and high-contrast themes. Native checks cover the authentication gate; successful human sign-in remains separate live evidence. "
               "Requires AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. "
               "Run agpc-view as the desktop user. This standalone release does not change Core/All installers, "
