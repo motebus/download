@@ -26,7 +26,7 @@ FILES = {'agpc-voice.sh', 'scripts/verify_agpc_voice_native_ci.py',
          'scripts/verify_agpc_voice_native_entry_ci.py'} | {
     'src/' + name + '.py' for name in ('native_voice', 'native_install', 'native_rpc',
                                      'rdp_client', 'browser_install', 'desktop_preferences', 'native_voice_dialplan')
-} | {'packages/' + name for name in ('agpc-voice_0.1.7~cast777.20261105.2_all.deb',
+} | {'packages/' + name for name in ('agpc-voice_0.1.7~cast777.20261105.3_all.deb',
     'agpc-voice_0.1.5~dialplan.20261030.1_all.deb',
     'agpc-voice_0.1.4~dialplan.20261026.2_all.deb',
     'agpc-voice_0.1.3~dialplan.20261026.1_all.deb',
