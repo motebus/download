@@ -68,6 +68,9 @@ It produces unsigned `agpc-core-profiles/` containing:
 The Core profile remains named `core` in native acceptance. This is a download
 entry rename, not a new profile or runtime identity. Both fresh installs and
 upgrades explicitly select `medge=3.3.0-2` once, alongside the Core composition.
+The Apps entry keeps its existing application roots and Obsidian behavior. Its
+shared Manager and Mesh pins, including the Manager migration guard and artifact
+hash, follow the same new cohort; Apps does not add the Core or View roots.
 
 Renderer tests use the immutable public inputs in
 `tests/fixtures/agpc-core-v96-baseline`, including original file modes and a hash

@@ -1,9 +1,9 @@
 {
   "schema": "agpc.core.public-source-export/v1",
   "canonical_source_project_id": 1341,
-  "canonical_source_commit": "21901566d42471786dbc80ea84698747d3552c9c",
-  "public_base_commit": "0620ab172023d99d2cd46ad070e8ec692116d4a8",
-  "scope": "Generic Core package and Mesh/All producer, signer and exact-cohort validators; no activation or actual future publication inputs.",
+  "canonical_source_commit": "1f32bd9133d487c4812eb19a9e1bd4ae2533e9cc",
+  "public_base_commit": "4ec953fe9cc8897f5d8bcd444dba6c7d33ff6332",
+  "scope": "Selective current Apps shared-cohort correction and reviewed original protected-main profile publication record for installer v0.3.0-97 and cohort agent-computer-v0.3.0-87; existing generic Core/Mesh/All publication code and public compatibility are retained. Active root installers, Pages and runtime admission are unchanged.",
   "files": {
     ".github/workflows/publish-agpc-core-profiles.yml": {
       "sha256": "16919ca065ed9392f574ebae6b02d80bdcad5ddf2bbe7998c1b07923c22ee557",
@@ -30,11 +30,11 @@
       "exact_canonical_bytes": false
     },
     "scripts/agpc-core-profile-publication.md": {
-      "sha256": "def43b5084197c4002ec51ba8f2858cfd523b978aea96ef5da4a9cb1bb3a139a",
-      "bytes": 7752,
+      "sha256": "c849f87bef861afdf9577a0b8e8326eccfb9f89bd46cb206262385fdeeb7181a",
+      "bytes": 7988,
       "mode": "0o664",
       "canonical_path": "scripts/agpc-core-profile-publication.md",
-      "canonical_sha256": "6549a6ce30f21c016ee37dd31995c576308f27965f81de09ea2b47d979dbf738",
+      "canonical_sha256": "a1d72726ffce14f5cbc395d4083f255428d485289750cd480873bd5d7be64fae",
       "exact_canonical_bytes": false
     },
     "scripts/agpc-model-component-publication.md": {
@@ -62,11 +62,11 @@
       "exact_canonical_bytes": false
     },
     "scripts/build_agpc_core_profiles.py": {
-      "sha256": "1aa39be512be970ce70adee50e0398c25221da90d72594c93f041e07ac3436d9",
-      "bytes": 15047,
+      "sha256": "59e032ed9254b8dbfff3a019fb880651385e99416b616658f9357ace1c6be4b5",
+      "bytes": 15514,
       "mode": "0o664",
       "canonical_path": "scripts/build_agpc_core_profiles.py",
-      "canonical_sha256": "1aa39be512be970ce70adee50e0398c25221da90d72594c93f041e07ac3436d9",
+      "canonical_sha256": "59e032ed9254b8dbfff3a019fb880651385e99416b616658f9357ace1c6be4b5",
       "exact_canonical_bytes": true
     },
     "scripts/component-releases/agent-computer-v0.3.0-86.json": {
@@ -334,12 +334,12 @@
       "exact_canonical_bytes": false
     },
     "tests/test_build_agpc_core_profiles.py": {
-      "sha256": "c882bc524987a196b0933d3f15f6d6dfb3b1c59a604ed3a0b5c8c1c4a947912b",
-      "bytes": 10629,
+      "sha256": "56f65507c14dff33e240f567d3fd52e3074600cef27f85ce568e082e1d2aced1",
+      "bytes": 12905,
       "mode": "0o664",
       "canonical_path": "tests/test_build_agpc_core_profiles.py",
-      "canonical_sha256": "c882bc524987a196b0933d3f15f6d6dfb3b1c59a604ed3a0b5c8c1c4a947912b",
-      "exact_canonical_bytes": true
+      "canonical_sha256": "1f27b5d8790749403953a03286b0468909c093cdf50d94f76a450bc65fa35c00",
+      "exact_canonical_bytes": false
     },
     "tests/test_publish_component.py": {
       "sha256": "c713dd52e05b1e4d6b973e26f4dc219126b67258501c8dc6bd9419a71b18d9ae",
@@ -348,6 +348,15 @@
       "canonical_path": "tests/test_publish_component.py",
       "canonical_sha256": "c713dd52e05b1e4d6b973e26f4dc219126b67258501c8dc6bd9419a71b18d9ae",
       "exact_canonical_bytes": true
+    },
+    "scripts/agpc-core-profile-publication.json": {
+      "sha256": "7f983e65714756925fff6d738ff253e350606409de722c89ab50d5ead88bb22d",
+      "bytes": 2324,
+      "mode": "0o644",
+      "canonical_path": null,
+      "canonical_sha256": null,
+      "exact_canonical_bytes": false,
+      "origin": "Reviewed original protected-main CI artifacts, project 1341 pipeline 28788 job 67237; record prepared outside source checkout after immutable producer completion."
     }
   },
   "preserved_public_files": {
@@ -362,7 +371,19 @@
     "scripts/native-pages.json": "6d1488844b863aa53b40cbc5184adfa7352566ce87b6fe4a48f623250eadb7f7",
     "scripts/verify_agpc_profiles.py": "0bc0ccd8fea4982245264cf34a250f51d2c62df94bb88ef796c077409cab8101",
     ".github/workflows/publish-agpc-profiles.yml": "2d9620425d6cc7921ab180f98c5389d24eb8444f77c1d46572be1ff418c443ad",
-    ".github/workflows/publish-agpc-v58-runtime.yml": "eb51455ac26d3d98987a9b505ea571a2394ace1046807a266979309aca39f811"
+    ".github/workflows/publish-agpc-v58-runtime.yml": "eb51455ac26d3d98987a9b505ea571a2394ace1046807a266979309aca39f811",
+    "scripts/component-publications/model.json": "525ea2b94d1e65ecafc639936e5c7602317600945eb7a8bd45f0e174dfb01ef1",
+    "scripts/component-publications/core.json": "28ca068ea505a6098bc56d8bb2ff53af88822d691a18e71ad5a298928d07a81f",
+    "scripts/component-publications/vmodel.json": "73e5482316933a1038565db3fc992024ba0658cfe0d86f7bb5ff9fdd36268434",
+    "scripts/agpc-core-components-public-source-export.json": "1197d30920965d98504bbaf3d440cd2ef159495afa3d5435d990f0f8ac6d8226",
+    ".github/workflows/verify-agpc-voice-cast.yml": "30c9302a9f90eee20e9e414eb57a702879076f4f393651ca88d230ee246478bf",
+    "scripts/agpc-voice-cast.json": "2f439fc59337ee51d9887d898012a87a021186e79ea7e315976a7d779509468e",
+    "scripts/agpc-voice-native-entry-ci.json": "0bc6b9df599e2a4ed73a289cde121834fc3eb5fb366e5269f90b7ad2f7022c04",
+    "scripts/agpc-voice-native-media.json": "a06efb5e427c2fa7341f0b80ede14a0ddfdd83851bda72f1f20127a536f12c04",
+    "scripts/agpc-voice-standard.json": "2ff1d98a77c9ad02135ca72f7114f7692ea647d4924a775b89461fb45d93b6d6",
+    "scripts/prepare_agpc_voice_native_entry_session.py": "7f89f4745ed3c9c8bdc43afbdd3ff49dd6f7c8581967f1dfda863efacb920329",
+    "scripts/stage_agpc_voice_native_entry_inputs.py": "a89b0d7b765cf036c1553e86c975f040e4b913f591022b20caf2bb560c64c1ff",
+    "tests/test_agpc_voice_native_entry_inputs.py": "e7e240e5c97d929c439e67af1c9d5090dcaa90dde69f175102a4287f4e878dff"
   },
   "public_adaptations": [
     "Retain exact historical v1/v2 aliases and v7 transition package; later formats keep distinct Apps and exact Core inventory.",
@@ -372,17 +393,44 @@
     "Do not export canonical private CI/README/activation tests or change active root files, Pages workflows or native acceptance verifier.",
     "Retain the precise original/public filename distinction and actual Model record from public PR303; that independent record is not re-exported by this receipt.",
     "Pin the existing intermediate component publisher to merged canonical source 21901566d42471786dbc80ea84698747d3552c9c; only the source commit changes in that workflow.",
-    "Validate frozen fixture Git index modes and owner executable identity while allowing checkout group-write bits controlled by the CI runner umask."
+    "Validate frozen fixture Git index modes and owner executable identity while allowing checkout group-write bits controlled by the CI runner umask.",
+    "Export the tested Apps Manager/Mesh shared-cohort correction from protected main; keep exact Apps roots and Obsidian behavior, with no Core/View/vModel/iAgent roots added.",
+    "Retain the public historical current-root tests. Omit only canonical test_current_root_contracts_accept_rendered_v13_profiles from the exported producer tests because it invokes canonical-only activation tests; retain the new exact Apps root, cohort and migration-hash regression.",
+    "Keep the independent intermediate component workflow pinned to its reviewed 21901566 source; the new profile publisher obtains its producer source identity from the original profile record.",
+    "The new actual profile record is derived from the original protected-main artifact and is deliberately not claimed as a canonical tracked source blob; no source main write occurred during the publication freeze.",
+    "Preserve all eight independent Cast PR308 files byte-for-byte from public main 4ec953fe9cc8897f5d8bcd444dba6c7d33ff6332, including its original-source pins, closed installation gate tests and native workflow timeout."
   ],
   "release_admitted": false,
   "runtime_ready": false,
   "pages_activated": false,
-  "integrated_public_main": "f75996162ae618986be9888b28d6d0430fc6247b",
+  "integrated_public_main": "4ec953fe9cc8897f5d8bcd444dba6c7d33ff6332",
   "canonical_source_validation": {
+    "commit": "1f32bd9133d487c4812eb19a9e1bd4ae2533e9cc",
+    "pipeline_id": 28788,
+    "job_id": 67237,
+    "status": "success",
+    "ref": "main",
+    "kind": "original-protected-main-profile-producer"
+  },
+  "previous_canonical_source_validation": {
     "commit": "507aec502e6af0df6cf6cb987f9a6415cd228068",
     "pipeline_id": 28781,
     "job_id": 67223,
     "status": "success",
     "merged_into": "21901566d42471786dbc80ea84698747d3552c9c"
+  },
+  "original_profile_proof": {
+    "source_commit": "1f32bd9133d487c4812eb19a9e1bd4ae2533e9cc",
+    "pipeline_id": 28788,
+    "job_id": 67237,
+    "archive": {
+      "bytes": 146987,
+      "sha256": "342e87a087fd1fc33db016f9bf65979188195f95db8d40b0bb09adf35e504750"
+    },
+    "input_sha256": "7c0e2b0a67ca8928b6518abf2f45071e79d6d4d479ef948e08337f4a4b9722cf",
+    "record_sha256": "7f983e65714756925fff6d738ff253e350606409de722c89ab50d5ead88bb22d",
+    "original_current_protected_main": true,
+    "original_ci_rechecked": true,
+    "original_baseline_blobs_rechecked": true
   }
 }

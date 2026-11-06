@@ -84,22 +84,31 @@ def validate_inputs(root, value):
     return baseline, config
 
 
-def render_profile(data, manager_sha):
-    """Modify only reviewed current target pins, retaining historical migration evidence."""
+def render_shared_components(data, manager_sha):
+    """Keep every profile's shared roots aligned with the one signed cohort."""
     text = data.decode()
     for name, old, new in [('agpc-manager', '4.4.0-2', '4.4.0-3'),
-                           ('agpc-view', '0.1.0-1', '0.1.0-4'), ('agpc-mesh', '3.0.0-3', '3.0.0-6')]:
+                           ('agpc-mesh', '3.0.0-3', '3.0.0-6')]:
         text = replace_once(text, f'{name}={old}', f'{name}={new}')
         text = replace_once(text, f'[{name}]={old}', f'[{name}]={new}')
+    text = replace_once(text,
+        "[[ ${installed[agpc-manager]:-} == 4.4.0-2 ]] || fail 'Manager migration requires exact agpc-manager 4.4.0-2'",
+        "[[ ${installed[agpc-manager]:-} == 4.4.0-3 ]] || fail 'Manager migration requires exact agpc-manager 4.4.0-3'")
+    return replace_once(text,
+        '2e2b6f0ee79c1d5c5b9d300fcefba9e21da05acacbfa6fc8093c71c8a6f1e091', manager_sha).encode()
+
+
+def render_profile(data, manager_sha):
+    """Add the Core roots while retaining historical migration evidence."""
+    text = render_shared_components(data, manager_sha).decode()
+    text = replace_once(text, 'agpc-view=0.1.0-1', 'agpc-view=0.1.0-4')
+    text = replace_once(text, '[agpc-view]=0.1.0-1', '[agpc-view]=0.1.0-4')
     for old, new in [
         ('Install native AGPC: agent-sphere,', 'Install native AGPC Core: agpc-core, agent-sphere,'),
         ("required={'agent-sphere'", "required={'agpc-core','agpc-vmodel','iagent','medge','agent-sphere'"),
         ('\npackages=(', f'\npackages=(agpc-core={apt.AGPC_CORE_VERSION} agpc-vmodel={apt.AGPC_VMODEL_VERSION} iagent=1.0.0-1 medge=3.3.0-2 '),
         ('declare -A floor=(', f'declare -A floor=([agpc-core]={apt.AGPC_CORE_VERSION} [agpc-vmodel]={apt.AGPC_VMODEL_VERSION} [iagent]=1.0.0-1 '),
         ('$name == mote-secd ||', '$name == agpc-core || $name == agpc-vmodel || $name == iagent || $name == mote-secd ||'),
-        ("[[ ${installed[agpc-manager]:-} == 4.4.0-2 ]] || fail 'Manager migration requires exact agpc-manager 4.4.0-2'",
-         "[[ ${installed[agpc-manager]:-} == 4.4.0-3 ]] || fail 'Manager migration requires exact agpc-manager 4.4.0-3'"),
-        ('2e2b6f0ee79c1d5c5b9d300fcefba9e21da05acacbfa6fc8093c71c8a6f1e091', manager_sha),
     ]:
         text = replace_once(text, old, new)
     previous_medge = """# Upgrade the existing management backend with its renamed Mesh owner;
@@ -176,7 +185,8 @@ def build(root, inputs, output, source_commit, component_dir):
     files = {name: render_profile((root / name).read_bytes(), approved['agpc-manager']['sha256'])
              for name in ('agpc.sh', 'agpc-all.sh')}
     files['agpc-mesh.sh'] = files['agpc.sh']
-    files['agpc-apps.sh'] = (root / 'agpc-apps.sh').read_bytes()
+    files['agpc-apps.sh'] = render_shared_components((root / 'agpc-apps.sh').read_bytes(),
+                                                    approved['agpc-manager']['sha256'])
     files['uninstall.sh'] = render_uninstaller((root / 'uninstall.sh').read_bytes(), inputs['aggregate_tag'], policies)
     manifest = {'schema': 'agent-sphere-release/v2', 'version': inputs['installer_tag'][1:],
                 'source_commit': source_commit, 'source_ref': 'refs/heads/main',

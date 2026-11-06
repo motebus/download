@@ -102,7 +102,7 @@ class CoreProducerTests(unittest.TestCase):
         self.assertEqual(manifest['native_profile_acceptance'], 'required-before-pages-deploy')
         self.assertFalse((result / 'agpc-core.sh').exists())
         self.assertEqual((result / 'agpc-mesh.sh').read_bytes(), (result / 'agpc.sh').read_bytes())
-        self.assertEqual((result / 'agpc-apps.sh').read_bytes(), (self.baseline / 'agpc-apps.sh').read_bytes())
+        self.assertNotEqual((result / 'agpc-apps.sh').read_bytes(), (self.baseline / 'agpc-apps.sh').read_bytes())
         for name, profile in producer.PROFILES.items():
             source = json.loads((result / name.replace('.sh', '.source.json')).read_text())
             self.assertEqual((source['schema'], source['tag'], source['source_commit'], source['profile']),
@@ -110,6 +110,40 @@ class CoreProducerTests(unittest.TestCase):
             self.assertEqual(source['sha256'], apt.sha256(result / name))
         record = json.loads((result / 'aggregate-component-release.json').read_text())
         publish_component.validate(record, record['tag'])
+
+    def test_apps_selected_roots_exist_in_new_cohort_without_expanding_its_scope(self):
+        result = self.build()
+        text = (result / 'agpc-apps.sh').read_text()
+        old = (self.baseline / 'agpc-apps.sh').read_text()
+        approved = {p['name']: p for p in json.loads(
+            (result / apt.AGENT_COMPUTER_OVERLAY_FILE).read_text())['release']['packages']}
+        def selection(script):
+            block = script[script.index('\npackages=('):script.index('    # Retire the old package name')]
+            # Evaluate only the selected array and its existing-state branch;
+            # never run an installer, network operation or lifecycle hook.
+            return subprocess.check_output(['bash', '-c',
+                'dpkg-query() { printf "not-installed\\n"; }\n'
+                'agpc_profile=apps; cdp_version=0.2.0-2; obsidian=/fixture/obsidian.deb\n'
+                + block + 'fi\nprintf "%s\\n" "${packages[@]}"'], text=True).splitlines()
+        before, after = selection(old), selection(text)
+        pins = dict(item.split('=', 1) for item in after if not item.startswith('/'))
+        self.assertEqual(set(pins), {item.split('=', 1)[0] for item in before if not item.startswith('/')})
+        self.assertFalse({'agpc-core', 'agpc-vmodel', 'iagent', 'agpc-view'} & set(pins))
+        self.assertEqual(after.count('/fixture/obsidian.deb'), 1)
+        self.assertEqual(pins['agpc-apps'], '0.3.0-2')
+        for name, version in pins.items():
+            with self.subTest(package=name):
+                self.assertEqual(version, approved[name]['version'])
+        self.assertEqual(pins['agpc-manager'], '4.4.0-3')
+        self.assertEqual(pins['agpc-mesh'], '3.0.0-6')
+        changed = [(a, b) for a, b in zip(old.splitlines(), text.splitlines()) if a != b]
+        self.assertEqual(len(old.splitlines()), len(text.splitlines()))
+        self.assertEqual(len(changed), 4)
+        self.assertTrue(changed[0][0].startswith('packages=('))
+        self.assertTrue(changed[1][0].startswith('declare -A floor='))
+        self.assertIn('Manager migration requires exact agpc-manager 4.4.0-3', changed[2][1])
+        self.assertIn(approved['agpc-manager']['sha256'], changed[3][1])
+        self.assertIn('Manager artifact changed', changed[3][1])
 
     def test_exact_selection_guards_preserve_owner_cdp_and_historical_mcp(self):
         result = self.build()
