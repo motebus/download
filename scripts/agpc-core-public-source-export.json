@@ -30,12 +30,12 @@
       "exact_canonical_bytes": false
     },
     "scripts/agpc-model-component-publication.md": {
-      "sha256": "efb4e01fac99f5f54d93cb83801d11050079dbdf7a959e5a364df21b80acce22",
-      "bytes": 6001,
+      "sha256": "190495729a99b108cc3a4a05f8830f9d941efdb4fde6360a8ae0e985e5b595c2",
+      "bytes": 6080,
       "mode": "0o664",
       "canonical_path": "scripts/agpc-model-component-publication.md",
       "canonical_sha256": "efb4e01fac99f5f54d93cb83801d11050079dbdf7a959e5a364df21b80acce22",
-      "exact_canonical_bytes": true
+      "exact_canonical_bytes": false
     },
     "scripts/agpc_core_package.py": {
       "sha256": "d5b9012af5ddf2fc5b430338086dc99db4a841c3e44c26c9f0f1f825d039d906",
@@ -361,9 +361,11 @@
     "Preserve public Windows preview .26 support, pin, Windows-only publication and signature/metadata checks.",
     "Preserve historical v5/v6/v7 aggregate tag-to-public-source binding; v8-v13 retain canonical original-source provenance, exact asset inventory and payload hashes.",
     "Use separate historical v7 and canonical v8 publication fixtures; Core renderer fixtures stay fixed at v96/cohort85.",
-    "Do not export canonical private CI/README/activation tests or change active root files, Pages workflows or native acceptance verifier."
+    "Do not export canonical private CI/README/activation tests or change active root files, Pages workflows or native acceptance verifier.",
+    "Retain the precise original/public filename distinction and actual Model record from public PR303; that independent record is not re-exported by this receipt."
   ],
   "release_admitted": false,
   "runtime_ready": false,
-  "pages_activated": false
+  "pages_activated": false,
+  "integrated_public_main": "f75996162ae618986be9888b28d6d0430fc6247b"
 }
