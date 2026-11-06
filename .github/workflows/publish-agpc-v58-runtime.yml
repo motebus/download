@@ -1,4 +1,4 @@
-name: Publish AGPC v96 with View GUI
+name: Publish AGPC v97 Core, Mesh and All
 
 on:
   workflow_dispatch:
@@ -13,8 +13,8 @@ permissions:
 env:
   PYTHONDONTWRITEBYTECODE: "1"
   # Producer inputs and native acceptance use the same reviewed activation commit.
-  AGPC_SOURCE_COMMIT: 343730a1f64aa4492e6dc3e2857b9f1b823c31ff
-  AGPC_ACCEPTANCE_SOURCE_COMMIT: 343730a1f64aa4492e6dc3e2857b9f1b823c31ff
+  AGPC_SOURCE_COMMIT: ccdbc1fc2b9458856ca7afd2d4df4923213b3470
+  AGPC_ACCEPTANCE_SOURCE_COMMIT: ccdbc1fc2b9458856ca7afd2d4df4923213b3470
 
 concurrency:
   group: medge-apt-pages
@@ -73,10 +73,10 @@ jobs:
           root = Path(os.environ['RUNNER_TEMP']) / 'agpc-public-source'
           record = json.loads((root / 'agpc.source.json').read_text())
           cohort = json.loads((root / 'agent-computer-apt-overlay.json').read_text())
-          assert record['schema'] == 'agpc-installer-source/v3' and record['tag'] == 'v0.3.0-96'
-          assert cohort['schema'] == 'agent-computer-apt-overlay/v12'
-          assert cohort['release']['tag'] == 'agent-computer-v0.3.0-85'
-          assert (root / 'agpc-core.sh').read_bytes() == (root / 'agpc.sh').read_bytes()
+          assert record['schema'] == 'agpc-installer-source/v4' and record['tag'] == 'v0.3.0-97'
+          assert cohort['schema'] == 'agent-computer-apt-overlay/v13'
+          assert cohort['release']['tag'] == 'agent-computer-v0.3.0-87'
+          assert (root / 'agpc-mesh.sh').read_bytes() == (root / 'agpc.sh').read_bytes()
           PY_PROFILE
       - name: Import protected archive key
         env:
@@ -85,7 +85,7 @@ jobs:
           set -euo pipefail
           test -n "$MEDGE_APT_SIGNING_KEY"
           printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
-      - name: Preserve deployed site and activate signed v12 View profiles
+      - name: Preserve deployed site and activate signed v13 Core profiles
         working-directory: source
         env:
           GH_TOKEN: ${{ github.token }}
@@ -95,28 +95,32 @@ jobs:
             "$RUNNER_TEMP/agpc-public-source" "$GITHUB_WORKSPACE/apt-site" \
             --evidence "$RUNNER_TEMP/agpc-promotion.json"
           bash "$GITHUB_WORKSPACE/apt-site/agpc.sh" --help
-          bash "$GITHUB_WORKSPACE/apt-site/agpc-core.sh" --help
+          bash "$GITHUB_WORKSPACE/apt-site/agpc-mesh.sh" --help
           bash "$GITHUB_WORKSPACE/apt-site/agpc-all.sh" --help
           bash "$GITHUB_WORKSPACE/apt-site/agpc-apps.sh" --help
       - name: Verify signed runtime entrypoints and APT metadata
         working-directory: source
         run: |
           gpgv --keyring ./medge-archive-keyring.gpg "$GITHUB_WORKSPACE/apt-site/dists/stable/InRelease"
-          for name in agent-computer-apt-overlay.json agpc.sh agpc.source.json agpc-core.sh agpc-core.source.json agpc-all.sh agpc-all.source.json agpc-apps.sh agpc-apps.source.json uninstall.sh; do
+          for name in agent-computer-apt-overlay.json agpc.sh agpc.source.json agpc-mesh.sh agpc-mesh.source.json agpc-all.sh agpc-all.source.json agpc-apps.sh agpc-apps.source.json uninstall.sh; do
             gpgv --keyring ./medge-archive-keyring.gpg \
               "$GITHUB_WORKSPACE/apt-site/$name.asc" "$GITHUB_WORKSPACE/apt-site/$name"
           done
           cmp --silent "$RUNNER_TEMP/agpc-public-source/uninstall.sh" "$GITHUB_WORKSPACE/apt-site/uninstall.sh"
-          cmp --silent "$GITHUB_WORKSPACE/apt-site/agpc-core.sh" "$GITHUB_WORKSPACE/apt-site/agpc.sh"
+          cmp --silent "$GITHUB_WORKSPACE/apt-site/agpc-mesh.sh" "$GITHUB_WORKSPACE/apt-site/agpc.sh"
+          for name in agpc-core.sh agpc-core.source.json agpc-core.sh.asc agpc-core.source.json.asc; do
+            test ! -e "$GITHUB_WORKSPACE/apt-site/$name"
+            test ! -L "$GITHUB_WORKSPACE/apt-site/$name"
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: agpc-v96-native-staged-site
+          name: agpc-v97-native-staged-site
           path: apt-site/
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: agpc-v96-promotion-evidence
+          name: agpc-v97-promotion-evidence
           path: |
             ${{ runner.temp }}/agpc-promotion*.json
             ${{ runner.temp }}/agpc-public-source.json
@@ -163,7 +167,7 @@ jobs:
           git -C source remote remove origin
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: agpc-v96-native-staged-site
+          name: agpc-v97-native-staged-site
           path: apt-site
       - name: Install isolated GTK acceptance dependencies
         run: |
@@ -177,7 +181,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: agpc-v96-native-acceptance-${{ matrix.profile }}
+          name: agpc-v97-native-acceptance-${{ matrix.profile }}
           path: acceptance/
           if-no-files-found: warn
 
@@ -188,6 +192,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Publish signed AGPC v96 native runtime with View GUI
+      - name: Publish signed AGPC v97 Core, Mesh and All
         id: deployment
         uses: actions/deploy-pages@v4

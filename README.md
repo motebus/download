@@ -3,16 +3,28 @@
 AGPC is a native system. Linux installation uses signed DEB packages on
 Ubuntu 24.04 or 26.04 amd64, with systemd, Bash and Python 3.10+.
 
+Published GitHub artifacts: [v97 installers and source records](https://github.com/motebus/download/releases/tag/v0.3.0-97) and the [formal agpc-core DEB release](https://github.com/motebus/download/releases/tag/agpc-core-v0.1.0-core.20261106.1).
+
+The signed Pages URLs and installation commands below are available for `v0.3.0-97` / cohort `87` only after the [activation workflow](https://github.com/motebus/download/actions/workflows/publish-agpc-v58-runtime.yml) passes all six native Ubuntu profiles and deploys this release successfully. Confirm that result before using these links; package publication alone does not establish Pages availability or live AGPC Ready.
+
 | Profile | Download | Includes |
 | --- | --- | --- |
-| Standard | [agpc.sh](https://motebus.github.io/download/agpc.sh) | Agent Sphere, local Agent Ultra, AGPC Manager, CDP client/provider, contextd and Redis-backed uchatd |
-| Full | [agpc-all.sh](https://motebus.github.io/download/agpc-all.sh) | Standard plus agpc-apps |
+| Mesh | [agpc-mesh.sh](https://motebus.github.io/download/agpc-mesh.sh) | Core: the `agpc-core` dependency package, Agent Sphere, local AGPC Ultra, Manager, View GUI, medge, CDP, RUN, Mesh runtime, contextd, Redis-backed uchatd, iAgent and vModel |
+| Standard | [agpc.sh](https://motebus.github.io/download/agpc.sh) | The same Core system; byte-identical to the Mesh entry |
+| Full | [agpc-all.sh](https://motebus.github.io/download/agpc-all.sh) | Core plus `agpc-apps`, without downloading Obsidian |
+| Apps | [agpc-apps.sh](https://motebus.github.io/download/agpc-apps.sh) | Application add-on plus the pinned official Obsidian package |
 
-Standard:
+`agpc-core` is a real Debian dependency package. `agpc-mesh.sh` is its installer
+entry; `agpc-mesh` remains the separate Mesh runtime package. Core and Full
+explicitly select the reviewed medge version alongside the Core composition.
+The Core package itself contains metadata, with its native components supplied
+by the pinned package dependencies.
+
+Mesh/Core:
 
 ```bash
-curl -fL https://motebus.github.io/download/agpc.sh -o agpc.sh
-sudo bash ./agpc.sh
+curl -fL https://motebus.github.io/download/agpc-mesh.sh -o agpc-mesh.sh
+sudo bash ./agpc-mesh.sh
 ```
 
 Full:
@@ -22,25 +34,30 @@ curl -fL https://motebus.github.io/download/agpc-all.sh -o agpc-all.sh
 sudo bash ./agpc-all.sh
 ```
 
-Use `--help` to inspect options. Both entries verify native package selection
-and preserve existing application data. Standard leaves installed apps in place;
-Full upgrades an installed legacy `agent-apps` through its documentation-only
-transition to `agpc-apps`. SQLite is retired from the runtime; an existing
-SQLite-based uChat installation must complete the separate offline migration
-before this installer can proceed.
+Use `--help` to inspect options. The installers verify signed repository metadata, package hashes
+and exact release pins, and preserve existing application data.
+Standard leaves installed apps in place. Full removes the reviewed legacy
+`agent-apps` documentation-only package while retaining its application
+dependencies. Only the separate Apps entry downloads the pinned, unmodified
+official Obsidian DEB. An existing SQLite-based uChat installation must complete
+its separate offline migration before installation can proceed; SQLite is
+retired from the runtime.
 
-`@machine-name` is the default user-to-user Inbox route; it requires no setting or check. `contextd` owns local task context isolation; cloud CoD Server (`codd`) is not
-installed. New S Channel and Agent identity integration remain deferred. Package
-installation does not establish full runtime or cross-machine handoff readiness.
-The historical `agent-sphere-apps.sh` compatibility entry follows Full.
+Run `agpc-view` or `agpc-manager` as your normal desktop user. Installation
+prechecks and package presence do not establish AGPC Ready. SSH trust, RDP,
+desktop/CDP access, registration and configured runtime capabilities need their
+own live verification. The packaged vModel consumer follows the inference
+contract **vModel → MoM (Model over MoteBus) → agpc-model**; Ultra does not relay model inference.
+Installing vModel does not configure model weights or prove live inference, and
+the separate Model Provider preview does not replace the provider pinned in this
+installer cohort.
 
-Both profiles install `agpc-cdp`, which provides the terminal `cdp` client and
-the `cdpd` provider daemon. The client resolves the `moted`-owned `type=mote`
-record and uses the native P channel directly to `cdpd`; CDP traffic does not
-traverse SSH, `mote-proxy`, `moted`, or WSS. Target OS username/password is
-verified by `cdpd` through PAM. S-channel admission is a mutually exclusive
-alternative. A selected desktop user service, an available native Chrome/Edge
-runtime, and live target acceptance remain runtime setup checks.
+Core and Full include the terminal `cdp` client and `cdpd` provider. The client
+resolves the `moted`-owned `type=mote` record and uses the native P channel directly
+to `cdpd`. CDP traffic does not traverse SSH, `mote-proxy`, `moted`, or WSS.
+Target OS credentials are verified by `cdpd` through PAM; S-channel admission is
+a mutually exclusive alternative. The selected desktop user service, an
+available native Chrome/Edge runtime and live target access remain setup checks.
 
 ## Work and context contract
 
@@ -54,28 +71,44 @@ Mesh Box   -> Mesh Inbox   = A2A work
 ```
 
 Redis is the shared internal durable layer for delivery, pending work, ACK and
-recovery. Agents do not access Redis directly. CoD opens the task-scoped
-context sandbox, attaches authorized sources on demand and persists useful
-results; `contextd` is inside native AGPC and CoD Server (`codd`) is cloud-side.
-Messages carry `task + context_ref`, not an entire context. The D Channel carries
-message and control traffic, the O Channel is reserved for logs and billing, and
-the S Channel is reserved for identity, capability, authorization and policy.
-S-channel and Agent identity integration is deferred. SQLite is retired and is
-not a message, queue, approval or recovery store.
+recovery. Agents do not access Redis directly. Messages carry `task + context_ref`,
+not an entire context. The C Channel is the context channel for authorized context
+reference, transfer and resumption; the D Channel carries message and control
+traffic. The O Channel is reserved for logs and billing, and the S Channel for
+identity, capability, authorization and policy.
 
-The component boundary is `uChat -> uchatd` for communication semantics and
-Box/Inbox routing, Redis for durable delivery, CoD/codd for context lifecycle and
-assembly, `contextd` for native isolation, Nbook for durable organizational
-knowledge, and AGPC for native execution. A handoff moves the task and context
-reference through a Mesh Box; the receiving agent claims Inbox work and asks CoD
-for the authorized context.
+`contextd` provides native task context isolation. Cloud CoD Server (`codd`) is
+not installed by this package set. Cross-machine C-channel context transfer,
+Mesh session handoff and resumed execution require their owner interfaces,
+authorization and live acceptance. Package installation and local context tests
+do not establish that cross-machine readiness. S-channel and Agent identity
+integration remain deferred. SQLite is not a message, queue, approval or recovery
+store.
 
-Installer signatures (`.asc`), source records (`agpc.source.json` and
-`agpc-all.source.json`), and `agpc-native-SHA256SUMS` are published beside them.
-The dedicated `publish-agpc-profiles.yml` workflow verifies fresh Standard,
-fresh Full and the legacy Apps transition on disposable native Ubuntu CI hosts
-before activating Pages. It preserves existing pool files and unrelated site
-content. No Docker or OCI is used for AGPC validation or publication.
+The component boundary is `uChat -> uchatd` for communication and Box/Inbox
+routing, Redis for durable delivery, CoD/codd for context lifecycle and assembly,
+`contextd` for native isolation, Nbook for durable organizational knowledge, and
+AGPC for native execution. `@machine-name` is the default user-to-user Inbox
+route. A handoff carries the task and context reference through a Mesh Box; the
+receiving agent claims Inbox work and requests authorized context from CoD.
+Delivery ACK does not mean the requested work completed.
+
+Verify downloads with the established MoteBus archive key and their detached
+signatures. Mesh has an [installer signature](https://motebus.github.io/download/agpc-mesh.sh.asc),
+[exact source record](https://motebus.github.io/download/agpc-mesh.source.json),
+and [source signature](https://motebus.github.io/download/agpc-mesh.source.json.asc).
+Full has an [installer signature](https://motebus.github.io/download/agpc-all.sh.asc),
+[source record](https://motebus.github.io/download/agpc-all.source.json), and
+[source signature](https://motebus.github.io/download/agpc-all.source.json.asc).
+The shared [checksum inventory](https://motebus.github.io/download/agpc-native-SHA256SUMS)
+is also published beside the installers.
+
+Pages activation uses `publish-agpc-v58-runtime.yml`. It binds the original
+installer and package cohort, verifies their signatures, and requires all six
+native Ubuntu profiles—standard, core, full, apps, upgrade and upgrade-home—before
+deployment. These checks preserve existing pool files and unrelated downloads;
+they do not certify every live configured capability. Versioned release assets
+remain immutable. No Docker or OCI is used for this native profile acceptance.
 
 ## Cast development preview
 
@@ -210,6 +243,10 @@ path.
 
 ## Scope and verification
 
+This section records the separate `agpc-native-v0.1.0-preview.20` controller
+preview. The signed DEB profiles above use their own package, publication and
+live acceptance checks.
+
 Linux installation verifies artifact hashes, rejects package removals/downgrades
 and unmanaged executable replacement, and records the result under
 `/usr/local/lib/agpc-native/install.json`. The installed `agpc` command defaults
@@ -231,6 +268,10 @@ normal user. macOS is a controller preview; full native runtime acceptance remai
 [Versioned release](https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.20)
 
 ## Publication maintenance
+
+The maintenance and Linux RDP setup notes below describe that earlier native
+controller preview. For the current DEB profiles, xrdp setup, listener ports,
+firewall access and live desktop login still require installed-host verification.
 
 `scripts/native-pages.json` pins the published native release and all asset and
 runtime hashes. `scripts/publish_native.py` makes a standalone Linux launcher
