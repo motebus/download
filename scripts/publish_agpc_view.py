@@ -16,7 +16,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = "motebus/download"
-VERSION = "0.1.0-1"
+VERSION = "0.1.0-2"
 TAG = "agpc-view-v" + VERSION
 PACKAGE = "agpc-view_" + VERSION + "_amd64.deb"
 ASSETS = {PACKAGE, "MANIFEST.json", "SHA256SUMS"}
@@ -345,6 +345,8 @@ def prepare(args):
               "pipeline_id": pipeline["id"], "job_id": native["id"], "gui_job_id": gui["id"],
               "producer_manifest_sha256": sha(original), "candidate_tag": "candidate-" + TAG,
               "assets": {}, "notes": "Native GTK4 AGPC View " + VERSION + " for amd64, built and GUI-checked by canonical main CI. "
+              "Fixes dark-theme readability with theme-matched text/surfaces, larger type, clearer input hints and borders. "
+              "Native GUI checks cover light, dark and both high-contrast variants. "
               "Requires AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. "
               "Run agpc-view as the desktop user. This standalone release does not change Core/All installers, "
               "enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc "
