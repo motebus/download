@@ -1,0 +1,31 @@
+{
+  "architecture": "amd64",
+  "assets": {
+    "MANIFEST.json": {
+      "bytes": 6924,
+      "sha256": "b0adb62884554c8b08f0eb215cea7bc90a41b4f72720627426f7aaeb3c4f43c1"
+    },
+    "SHA256SUMS": {
+      "bytes": 174,
+      "sha256": "1dcc98f19093a9d34300a983afc47a5e35cc75008bcb421b48dc1c3b677fef87"
+    },
+    "agpc-view_0.1.0-1_amd64.deb": {
+      "bytes": 211316,
+      "sha256": "f80b65a3823e7fa32ae8395df61ab113b4ac964d91615ae2a0e64035407da4d8"
+    }
+  },
+  "candidate_tag": "candidate-agpc-view-v0.1.0-1",
+  "gui_job_id": 66943,
+  "job_id": 66942,
+  "notes": "Native GTK4 AGPC View 0.1.0-1 for amd64, built and GUI-checked by canonical main CI. Requires AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. Run agpc-view as the desktop user. This standalone release does not change Core/All installers, enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc with the established MoteBus archive key before installing.\n",
+  "package": "agpc-view_0.1.0-1_amd64.deb",
+  "pipeline_id": 28718,
+  "pipeline_status": "success",
+  "producer_manifest_sha256": "e6fcf59988aec3d59962daaf581dc251a15a51c6a889d17d7ae122064eb915a7",
+  "schema": "agpc-view.publication-inputs/v1",
+  "source_commit": "fe8e18f88c2f1fc9d87e5a20011875321e030a70",
+  "source_project": 1336,
+  "source_ref": "main",
+  "tag": "agpc-view-v0.1.0-1",
+  "version": "0.1.0-1"
+}
