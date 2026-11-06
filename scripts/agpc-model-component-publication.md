@@ -1,6 +1,6 @@
-# Signed Core Consumer and Model Provider artifact previews
+# Signed Core composition, Consumer and Model Provider artifact previews
 
-`publish-agpc-model-components.yml` publishes two independently reviewed component
+`publish-agpc-model-components.yml` publishes three independently reviewed component
 previews using the established archive signing key. The scope is a source-bound
 DEB download. These assets do not admit an installer cohort, native installation,
 ABI support, live inference, or AGPC Ready. Existing Core/Full installers and APT
@@ -8,10 +8,12 @@ selection are separate releases.
 
 | Component input | Delivery product | Binary package/version | Original producer |
 | --- | --- | --- | --- |
+| `core` | `agpc-core` | `agpc-core`, `0.1.0~core.20261106.1` | Project 1336, `agpc-core-package` |
 | `vmodel` | `agpc-core` | `agpc-vmodel`, `0.1.0~vmodel.20261106.1` | Project 1336, `vmodel-package-native` |
 | `model` | `agpc-model` | `model-llm`, `0.1.0-5~agpcmodel20261106.1` | Project 1363, `provider-native` |
 
-The reviewed public tags are `agpc-vmodel-v0.1.0-vmodel.20261106.1` and
+The reviewed public tags are `agpc-core-v0.1.0-core.20261106.1`,
+`agpc-vmodel-v0.1.0-vmodel.20261106.1` and
 `agpc-model-v0.1.0-5-agpcmodel20261106.1`. Tags are public labels; the DEB versions,
 package identities, installed paths and source ownership retain their original
 values. A new version, source project or producer requires a source review.
@@ -19,11 +21,18 @@ values. A new version, source project or producer requires a source review.
 ## Original evidence and asset contract
 
 Each publication record is an actual generated
-`scripts/component-publications/{vmodel,model}.json` document with schema
+`scripts/component-publications/{core,vmodel,model}.json` document with schema
 `agpc.component-publication/v1`. It binds the exact source commit, successful
 original main pipeline/job, original ZIP byte count/SHA256, producer manifest
 byte count/SHA256, source inventory digest and all three unsigned public assets.
 No empty, template or local-build record is a publication input.
+
+The Core ZIP must contain its original DEB and `CORE-PACKAGE-MANIFEST.json`
+under `packaging/core/dist/`. Its exact tracked source closure and six package
+checks must match the successful original `agpc-core-package` main job. The DEB
+contains only the three reviewed metadata files, no runtime or lifecycle hooks.
+Its dependency cohort and embedded source provenance retain false admission
+claims; the signed preview does not activate the Mesh/All installer cohort.
 
 The Consumer ZIP must contain its DEB, `PUBLICATION-MANIFEST.json`,
 `BUILD-RECEIPT.json` and `PACKAGE-PLAN.json` under `packaging/vmodel/dist/`.
@@ -73,7 +82,7 @@ credentials and local test fixtures are not public assets.
    reviewed final tag using the existing draft-candidate release lifecycle.
    Candidate storage alone does not satisfy any publication gate.
 5. Dispatch the existing `release` environment workflow on the current public
-   main with only `component=vmodel` or `component=model`. The workflow requires
+   main with only `component=core`, `component=vmodel` or `component=model`. The workflow requires
    the committed record, re-downloads original CI artifacts and tracked source,
    compares staged bytes, signs in an isolated keyring, then repeats producer,
    source-main, publisher-main and absent-final-tag checks before creating a

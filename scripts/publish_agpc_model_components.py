@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Sign source-bound component previews using the existing archive release flow."""
 import argparse
+import ast
 import hashlib
 import io
 import json
@@ -23,7 +24,43 @@ LIMIT = 64 * 1024 * 1024
 FLAGS = ('release_admitted', 'native_install_accepted', 'abi_acceptance',
          'runtime_ready', 'signed', 'published')
 # New identities, versions and producer jobs require review, not dispatch input.
+CORE_FLAGS = ('installation_admitted', 'upgrade_acceptance', 'removal_acceptance',
+              'rollback_acceptance', 'release_admitted', 'runtime_ready')
+CORE_SOURCES = {
+    'packaging/core/build.py', 'packaging/core/README', 'packaging/core/SPEC.md',
+    'packaging/core/inputs/published-cohort85.json', 'packaging/core/inputs/agent-sphere.control',
+    'src/core_package_contract.py', 'tests/test_core_package.py', '.gitlab-ci.yml',
+    'scripts/require-native-runner.py', 'components/agpc-manager/build.py',
+    'src/agpc_view_component.py', 'components/agpc-mesh/debian/changelog',
+    'components/agpc-cdp/debian/changelog', 'packaging/run/VERSION', 'packaging/vmodel/input.json',
+}
+CORE_ROOTS = (
+    ('agent-sphere', '0.3.0-43'), ('agpc-manager', '4.4.0-3'), ('agpc-view', '0.1.0-4'),
+    ('agpc-cdp', '0.2.0-2'), ('agpc-run', '0.2.0-4'), ('agpc-mesh', '3.0.0-6'),
+    ('contextd', '0.1.0-27'), ('iagent', '1.0.0-1'), ('agpc-vmodel', '0.1.0~vmodel.20261106.1'),
+)
+CORE_CANDIDATES = {'agpc-manager': 'components/agpc-manager/build.py',
+                   'agpc-view': 'src/agpc_view_component.py',
+                   'agpc-mesh': 'components/agpc-mesh/debian/changelog',
+                   'agpc-vmodel': 'packaging/vmodel/input.json'}
+CORE_FROZEN_PINS = {
+    'packaging/core/inputs/published-cohort85.json': {
+        'bytes': 17893, 'sha256': 'af8865a8a40720c450e29f961aecdd55f600717e873fb0d2f354e2a78277d9b8'},
+    'packaging/core/inputs/agent-sphere.control': {
+        'bytes': 959, 'sha256': '468aef045a3039985994a1528f60617f1320a5aed176fd32f4badc6a93ed7847'},
+}
+CORE_PAYLOAD = {'usr/share/doc/agpc-core/README', 'usr/share/agpc-core/cohort.json',
+                'usr/share/doc/agpc-core/PROVENANCE.json'}
 COMPONENTS = {
+    'core': {
+        'product': 'agpc-core', 'project': 1336, 'package': 'agpc-core',
+        'version': '0.1.0~core.20261106.1', 'tag': 'agpc-core-v0.1.0-core.20261106.1',
+        'public_asset_filename': 'agpc-core_0.1.0.core.20261106.1_amd64.deb',
+        'job': 'agpc-core-package', 'prefix': 'packaging/core/dist/',
+        'manifest': 'CORE-PACKAGE-MANIFEST.json', 'schema': 'agpc.core.package-build/v1',
+        'checks': {'source_binding', 'identity', 'exact_dependencies', 'closed_payload',
+                   'root_ownership_modes', 'no_lifecycle_hooks'},
+    },
     'vmodel': {
         'product': 'agpc-core', 'project': 1336, 'package': 'agpc-vmodel',
         'version': '0.1.0~vmodel.20261106.1', 'tag': 'agpc-vmodel-v0.1.0-vmodel.20261106.1',
@@ -174,7 +211,7 @@ def archive_files(data, spec):
     return result[spec['prefix'] + filename(spec)], result[spec['prefix'] + spec['manifest']]
 
 
-def deb_entries(deb, control=False):
+def deb_entries(deb, control=False, metadata_only=False):
     with tempfile.TemporaryDirectory(prefix='agpc-payload-read-') as directory:
         path = Path(directory) / 'package.deb'
         path.write_bytes(deb)
@@ -190,19 +227,32 @@ def deb_entries(deb, control=False):
                 process.wait()
             process.stdout.close()
     result = {}
+    seen = set()
     with tarfile.open(fileobj=io.BytesIO(raw)) as archive:
         for member in archive.getmembers():
             require(member.uid == member.gid == 0, 'package file owner differs')
             name = member.name.removeprefix('./').rstrip('/')
+            if metadata_only:
+                name = name or '.'
+                require(name not in seen and member.uname in ('', 'root')
+                        and member.gname in ('', 'root'), 'Core duplicate member or owner differs')
+                seen.add(name)
             if name in ('', '.') and member.isdir():
                 require(member.mode == 0o755, 'package directory mode differs')
+                if metadata_only:
+                    result[name] = (None, member.mode)
                 continue
             require(source_path(name), 'unsafe package payload path')
             if member.isdir():
                 require(member.mode == 0o755, 'package directory mode differs')
+                if metadata_only:
+                    result[name] = (None, member.mode)
                 continue
             require(member.isfile() and name not in result and member.size <= LIMIT,
                     'non-regular or duplicate package payload')
+            if metadata_only:
+                require(member.mode == 0o644 and member.size <= 2_000_000,
+                        'Core payload must contain only ordinary metadata')
             result[name] = (archive.extractfile(member).read(), member.mode)
     return result
 
@@ -211,16 +261,165 @@ def deb_payload(deb):
     return {name: data for name, (data, _) in deb_entries(deb).items()}
 
 
+def core_control(cohort):
+    depends = ', '.join(f"{row['name']} ({row['relation']} {row['version']})"
+                        for row in cohort['dependencies'])
+    return (f"Package: agpc-core\nVersion: {cohort['version']}\nArchitecture: amd64\n"
+            "Section: metapackages\nPriority: optional\n"
+            "Maintainer: Codex AGPC <codex@ypcloud.com>\n"
+            f"Depends: {depends}\n"
+            "Description: AGPC Core native dependency cohort\n"
+            " Composes exact native component versions without copying runtimes.\n"
+            " Package installation does not establish admission or AGPC readiness.\n").encode()
+
+
+def validate_core_cohort(cohort, spec):
+    require(set(cohort) == {'schema', 'name', 'version', 'architecture', 'kind', 'installer',
+                           'dependencies', 'inherited_agent_sphere_depends',
+                           'transitive_cohort_admitted', *CORE_FLAGS},
+            'unexpected Core cohort fields')
+    require(cohort['schema'] == 'agpc.core.package-cohort/v1'
+            and cohort['name'] == spec['package'] and cohort['version'] == spec['version']
+            and cohort['architecture'] == 'amd64' and cohort['kind'] == 'dependency-cohort'
+            and cohort['installer'] == 'agpc-mesh.sh'
+            and cohort['transitive_cohort_admitted'] is False
+            and all(cohort[name] is False for name in CORE_FLAGS),
+            'Core cohort identity or admission differs')
+    rows = cohort['dependencies']
+    require(isinstance(rows, list) and len(rows) == len(CORE_ROOTS), 'Core root count differs')
+    for row, (name, version) in zip(rows, CORE_ROOTS):
+        require(isinstance(row, dict) and set(row) == {'name', 'version', 'relation', 'evidence'}
+                and row['name'] == name and row['version'] == version
+                and row['relation'] == ('>=' if name == 'agpc-cdp' else '='),
+                'Core exact dependency differs')
+        evidence = row['evidence']
+        if name in CORE_CANDIDATES:
+            require(evidence == {'kind': 'source-candidate', 'path': CORE_CANDIDATES[name],
+                                 'artifact': None}, 'Core candidate must not claim artifact admission')
+        else:
+            require(isinstance(evidence, dict) and set(evidence) ==
+                    {'kind', 'tag', 'asset', 'sha256', 'source_commit'}
+                    and evidence['kind'] == 'frozen-published-reference'
+                    and evidence['tag'] == 'agent-computer-v0.3.0-85'
+                    and evidence['asset'] == name + '_' + version + '_'
+                        + ('all' if name in ('agent-sphere', 'agpc-run') else 'amd64') + '.deb'
+                    and re.fullmatch(r'[0-9a-f]{64}', evidence['sha256']) is not None
+                    and re.fullmatch(r'[0-9a-f]{40}', evidence['source_commit']) is not None,
+                    'Core frozen dependency evidence differs')
+
+
+def validate_core_producer(data, deb, record, spec):
+    require(set(data) == {'schema', 'source', 'producer', 'package', 'cohort', 'checks',
+                         'payload', *CORE_FLAGS} and data['schema'] == spec['schema'],
+            'unexpected Core producer fields')
+    require(data['producer'] == {'kind': 'gitlab-native-ci', 'job_id': record['job_id'],
+                'pipeline_id': record['pipeline_id'], 'job_name': spec['job'], 'ref': 'main'},
+            'original main Core package producer required')
+    source = data['source']
+    require(set(source) == {'project', 'commit', 'files'} and source['project'] == 1336
+            and source['commit'] == record['source_commit'], 'Core source identity differs')
+    files = source['files']
+    require(isinstance(files, dict) and set(files) == CORE_SOURCES
+            and all(exact_pin(value) for value in files.values())
+            and all(files[path] == expected for path, expected in CORE_FROZEN_PINS.items()),
+            'Core source closure or frozen evidence differs')
+    require(sha(encoded(files)) == record['source_inventory_sha256'], 'Core source inventory differs')
+    require(data['package'] == {'name': spec['package'], 'version': spec['version'],
+                'architecture': 'amd64', 'filename': filename(spec), **pin(deb)},
+            'Core original package identity or bytes differ')
+    require(all(data[name] is False for name in CORE_FLAGS), 'Core preview cannot admit lifecycle/runtime')
+    require(data['checks'] == {name: True for name in spec['checks']}
+            and all(value is True for value in data['checks'].values()), 'Core required checks differ')
+    validate_core_cohort(data['cohort'], spec)
+    controls = deb_entries(deb, control=True, metadata_only=True)
+    require(controls == {'.': (None, 0o755), 'control': (core_control(data['cohort']), 0o644)},
+            'Core control content or inventory differs; no hooks or extra relationships allowed')
+    entries = deb_entries(deb, metadata_only=True)
+    directories = {'.'} | {str(parent) for name in CORE_PAYLOAD for parent in PurePosixPath(name).parents}
+    require(set(entries) == CORE_PAYLOAD | directories
+            and all(entries[name] == (None, 0o755) for name in directories),
+            'Core metadata-only payload inventory differs')
+    payload = {name: entries[name][0] for name in CORE_PAYLOAD}
+    require(data['payload'] == {name: pin(raw) for name, raw in payload.items()},
+            'Core payload pins differ')
+    require(payload['usr/share/agpc-core/cohort.json'] == encoded(data['cohort']),
+            'Core embedded cohort differs')
+    proof = {'schema': 'agpc.core.package-source/v1', 'source': source,
+             **{name: False for name in CORE_FLAGS}}
+    require(payload['usr/share/doc/agpc-core/PROVENANCE.json'] == encoded(proof),
+            'Core embedded provenance differs from original producer')
+    require(pin(payload['usr/share/doc/agpc-core/README']) == files['packaging/core/README'],
+            'Core README differs from captured source')
+    return data
+
+
+def literal_constants(raw):
+    """Inspect source constants without importing or executing producer code."""
+    values = {}
+    for node in ast.parse(raw).body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            try:
+                value = ast.literal_eval(node.value)
+            except (ValueError, TypeError):
+                continue
+            require(node.targets[0].id not in values, 'duplicate source constant')
+            values[node.targets[0].id] = value
+    return values
+
+
+def validate_core_sources(producer, sources):
+    """Correlate original CI cohort bytes with independently retrieved source inputs."""
+    require(set(sources) == CORE_SOURCES
+            and {name: pin(raw) for name, raw in sources.items()} == producer['source']['files'],
+            'Core tracked input closure differs')
+    values = literal_constants(sources['src/core_package_contract.py'])
+    require(values.get('PACKAGE') == 'agpc-core' and values.get('VERSION') == COMPONENTS['core']['version']
+            and values.get('ARCHITECTURE') == 'amd64' and values.get('ROOT_DEPENDENCIES') == CORE_ROOTS
+            and values.get('DEPENDENCY_RELATIONS') == {'agpc-cdp': '>='},
+            'Core tracked dependency contract differs')
+    baseline = json_bytes(sources['packaging/core/inputs/published-cohort85.json'])
+    require(baseline['release']['tag'] == 'agent-computer-v0.3.0-85', 'Core frozen release differs')
+    published = {row['name']: row for row in baseline['release']['packages']}
+    manager = re.search(rb'\nVersion: ([^\n]+)', sources['components/agpc-manager/build.py'])
+    mesh = re.match(rb'agpc-mesh \(([^)]+)\)', sources['components/agpc-mesh/debian/changelog'])
+    vmodel = json_bytes(sources['packaging/vmodel/input.json'])
+    require(manager and manager[1].decode() == dict(CORE_ROOTS)['agpc-manager']
+            and literal_constants(sources['src/agpc_view_component.py']).get('VERSION')
+                == dict(CORE_ROOTS)['agpc-view']
+            and mesh and mesh[1].decode() == dict(CORE_ROOTS)['agpc-mesh']
+            and vmodel['package'] == 'agpc-vmodel' and vmodel['version'] == dict(CORE_ROOTS)['agpc-vmodel']
+            and vmodel['iagent']['version'] == dict(CORE_ROOTS)['iagent']
+            and sources['packaging/run/VERSION'].decode().strip() == dict(CORE_ROOTS)['agpc-run']
+            and sources['components/agpc-cdp/debian/changelog'].startswith(
+                ('agpc-cdp (' + dict(CORE_ROOTS)['agpc-cdp'] + ')').encode()),
+            'Core dependency source versions differ')
+    for row in producer['cohort']['dependencies']:
+        name = row['name']
+        if name in CORE_CANDIDATES:
+            continue
+        original = published[name]
+        require(original['version'] == row['version'] and row['evidence'] == {
+                    'kind': 'frozen-published-reference', 'tag': 'agent-computer-v0.3.0-85',
+                    'asset': original['asset'], 'sha256': original['sha256'],
+                    'source_commit': original['provenance']['source_commit']},
+                'Core frozen dependency source differs')
+    inherited = re.search(rb'^Depends: (.+)$', sources['packaging/core/inputs/agent-sphere.control'], re.M)
+    require(inherited and producer['cohort']['inherited_agent_sphere_depends'] == inherited[1].decode(),
+            'Core inherited dependency evidence differs')
+
+
 def validate_producer(raw, deb, record, spec):
     require(pin(raw) == record['producer_manifest'], 'producer manifest differs')
     data = json_bytes(raw)
+    if spec['package'] == 'agpc-core':
+        return validate_core_producer(data, deb, record, spec)
     require(data['schema'] == spec['schema'] and data['delivery_product'] == spec['product']
             and data['build_kind'] == 'gitlab-native-ci', 'not an original native CI package')
     source = data['source']
     require(source['project'] == spec['project'] and source['commit'] == record['source_commit']
             and source['ref'] == 'main' and source['dirty'] is False, 'producer source mismatch')
-    name_key = 'name' if spec['project'] == 1336 else 'job_name'
-    id_value = int if spec['project'] == 1336 else str
+    name_key = 'name' if spec['package'] == 'agpc-vmodel' else 'job_name'
+    id_value = int if spec['package'] == 'agpc-vmodel' else str
     require(data['producer'] == {'pipeline_id': id_value(record['pipeline_id']), 'job_id': id_value(record['job_id']),
                                  name_key: spec['job']}, 'producer job mismatch')
     files = source['files']
@@ -239,7 +438,7 @@ def validate_producer(raw, deb, record, spec):
     require(all(isinstance(name, str) for name in names) and len(set(names)) == len(names)
             and spec['checks'] <= set(names) and all(type(c.get('exit')) is int and c['exit'] == 0 for c in checks),
             'required producer checks failed or missing')
-    if spec['project'] == 1336:
+    if spec['package'] == 'agpc-vmodel':
         payload = {'usr/bin/vmodel': 0o755,
                    'usr/share/doc/agpc-vmodel/consumer-contract.json': 0o644,
                    'usr/share/doc/agpc-vmodel/provenance.json': 0o644}
@@ -301,13 +500,21 @@ def public_bundle(raw, deb, record, spec):
         'pipeline_id': record['pipeline_id'], 'job_id': record['job_id'],
         'original_archive': record['archive'], 'producer_manifest': record['producer_manifest'],
         'source_inventory_sha256': record['source_inventory_sha256'],
-        'producer_checks': [{'name': c['name'], 'exit': c['exit']} for c in data['checks']],
-        'producer_admission': {name: data[name] for name in FLAGS},
+        'producer_checks': ([{'name': name, 'exit': 0} for name in sorted(data['checks'])]
+                            if spec['package'] == 'agpc-core' else
+                            [{'name': c['name'], 'exit': c['exit']} for c in data['checks']]),
+        'producer_admission': {name: data[name] for name in
+                               (CORE_FLAGS if spec['package'] == 'agpc-core' else FLAGS)},
         'supported_os': [], 'scope': 'source-bound artifact preview; not an installer or AGPC Ready',
     }
-    key = 'compiled_input' if spec['project'] == 1336 else 'source_composition'
+    key = ('cohort' if spec['package'] == 'agpc-core' else
+           'compiled_input' if spec['package'] == 'agpc-vmodel' else 'source_composition')
     manifest[key + '_sha256'] = sha(encoded(data[key]))
-    if spec['project'] == 1336:
+    if spec['package'] == 'agpc-core':
+        manifest['cohort'] = data['cohort']
+        manifest['package_kind'] = 'metadata-only dependency cohort'
+        manifest['transitive_cohort_admitted'] = False
+    if spec['package'] == 'agpc-vmodel':
         manifest['compiled_input'] = compiled_identity(data)
         manifest['compiled_input']['source_project'] = 1336
         manifest['compiled_input']['source_ref'] = 'main'
@@ -339,7 +546,7 @@ def compiled_identity(producer):
 
 
 def verify_packaging_receipts(archive, producer, spec):
-    if spec['project'] != 1336:
+    if spec['package'] != 'agpc-vmodel':
         return
     with zipfile.ZipFile(io.BytesIO(archive)) as inputs:
         receipts = {}
@@ -402,10 +609,14 @@ def fresh_producer(record, spec, get=None):
     deb, raw = archive_files(archive, spec)
     producer = validate_producer(raw, deb, record, spec)
     verify_packaging_receipts(archive, producer, spec)
+    source_blobs = {}
     for path, expected in producer['source']['files'].items():
         blob = get('/repository/files/' + urllib.parse.quote(path, safe='') + '/raw?ref=' + record['source_commit'])
         require(pin(blob) == expected, 'tracked source input differs')
-    if spec['project'] == 1336:
+        source_blobs[path] = blob
+    if spec['package'] == 'agpc-core':
+        validate_core_sources(producer, source_blobs)
+    if spec['package'] == 'agpc-vmodel':
         compiled = compiled_identity(producer)
         native = json_bytes(get('/jobs/' + str(compiled['job_id'])))
         compiled_pipeline = json_bytes(get('/pipelines/' + str(compiled['pipeline_id'])))

@@ -66,6 +66,32 @@ fi
 '''
 
 
+def profile_simulation(overlay, *, full=False):
+    script = FULL_SIMULATION if full else SIMULATION
+    if overlay["schema"] in (publish_apt.AGENT_COMPUTER_ULTRA_SCHEMA, publish_apt.AGENT_COMPUTER_BRIDGE_SCHEMA,
+                             publish_apt.AGENT_COMPUTER_VIEW_SCHEMA, publish_apt.AGENT_COMPUTER_CORE_SCHEMA):
+        script = script.replace("install agent-sphere agent-ultra", "install agent-sphere agpc-ultra")
+    if overlay["schema"] == publish_apt.AGENT_COMPUTER_VIEW_SCHEMA:
+        approved = {p["name"]: p for p in overlay["release"]["packages"]}
+        view = "agpc-view=" + approved["agpc-view"]["version"]
+        if full:
+            # The bridge is an explicit full-only root, never a backend dependency.
+            roots = " " + view + " uchat-bridge=" + approved["uchat-bridge"]["version"]
+            script = script.replace("contextd uchat uchatd agpc-apps\n", "contextd uchat uchatd agpc-apps" + roots + "\n")
+        else:
+            script = script.replace("install agent-sphere\n", "install agent-sphere " + view + "\n")
+    if overlay["schema"] == publish_apt.AGENT_COMPUTER_CORE_SCHEMA:
+        approved = {p["name"]: p for p in overlay["release"]["packages"]}
+        core = "agpc-core=" + approved["agpc-core"]["version"] + " medge=" + approved["medge"]["version"]
+        if full:
+            script = script.replace("contextd uchat uchatd agpc-apps\n",
+                                    "contextd uchat uchatd agpc-apps " + core
+                                    + " uchat-bridge=" + approved["uchat-bridge"]["version"] + "\n")
+        else:
+            script = script.replace("install agent-sphere\n", "install " + core + "\n")
+    return script
+
+
 def validate_plan(output: str, base: dict, overlay: dict, *, full: bool = False) -> dict[str, str]:
     publish_apt.require(not re.search(r"^Remv\s", output, re.MULTILINE), "Agent Sphere APT plan removes packages")
     selected = {}
@@ -79,7 +105,7 @@ def validate_plan(output: str, base: dict, overlay: dict, *, full: bool = False)
     runtime = set(publish_apt.core_components(overlay)) if publish_apt.is_full_overlay(overlay) else RUNTIME_PACKAGES
     if overlay["schema"] == publish_apt.AGENT_COMPUTER_LOOP_SCHEMA:
         runtime |= {"uchatd"}
-    required = set(publish_apt.canonical_packages(overlay)) if full else runtime | {"agent-sphere"}
+    required = set(publish_apt.canonical_packages(overlay)) if full else runtime | {"agent-sphere"} | set(publish_apt.installer_extra_roots(overlay))
     publish_apt.require(required <= set(selected), "Agent Sphere APT plan is missing a required runtime dependency")
     publish_apt.require(set(selected).intersection(approved) == required,
                         "Agent Sphere APT plan selects an application or an extra aggregate component")
@@ -193,7 +219,7 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
         output = publish_apt.run("docker", "run", "--rm", "--pull=always", "--platform", "linux/amd64",
             "--log-driver", "none", "--mount", f"type=bind,src={site.resolve()},dst=/repo,readonly",
             "--mount", f"type=bind,src={(repository / 'scripts').resolve()},dst=/verification,readonly",
-            image, "timeout", "--kill-after=10", "600", "bash", "-ceu", SIMULATION, "bash", version, capture=True)
+            image, "timeout", "--kill-after=10", "600", "bash", "-ceu", profile_simulation(overlay), "bash", version, capture=True)
         selected = validate_plan(output, base, overlay)
         print(f"Ubuntu {version}: signed-index apt install agent-sphere resolves the reviewed core runtime dependencies; "
               f"{len(selected)} total packages including native OS dependencies; no excluded components or removals")
@@ -202,7 +228,7 @@ def validate_signed_index(repository: Path, site: Path, prerequisites: Path | No
                 "--log-driver", "none", "--mount", f"type=bind,src={site.resolve()},dst=/repo,readonly",
                 "--mount", f"type=bind,src={prerequisites.resolve()},dst=/prerequisites,readonly",
                 "--mount", f"type=bind,src={(repository / 'scripts').resolve()},dst=/verification,readonly",
-                image, "timeout", "--kill-after=10", "600", "bash", "-ceu", FULL_SIMULATION, "bash", version,
+                image, "timeout", "--kill-after=10", "600", "bash", "-ceu", profile_simulation(overlay, full=True), "bash", version,
                 overlay["release"]["external_prerequisites"][0]["asset"], capture=True)
             selected = validate_plan(output, base, overlay, full=True)
             validate_installed_cohort(output, overlay)

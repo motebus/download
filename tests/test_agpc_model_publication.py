@@ -20,7 +20,7 @@ class PublicationTests(unittest.TestCase):
     def setUpClass(cls):
         cls.work = tempfile.TemporaryDirectory()
         cls.root = Path(cls.work.name)
-        cls.fixtures = {name: cls.fixture(name) for name in p.COMPONENTS}
+        cls.fixtures = {name: cls.fixture(name) for name in ('vmodel', 'model')}
 
     @classmethod
     def tearDownClass(cls):

@@ -1,0 +1,9 @@
+{
+  "schema": "agpc-installer-source/v3",
+  "repository": "motebus/download",
+  "tag": "v0.3.0-96",
+  "source_commit": "cac8049bac143a866ea89178b4e303f1da8be848",
+  "asset": "agpc-apps.sh",
+  "sha256": "d527ac6e357a5934a7a64d06a7cddc04a0f1d25566bea92e99ac4c8b85d856e7",
+  "profile": "apps"
+}

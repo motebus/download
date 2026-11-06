@@ -1,0 +1,499 @@
+{
+  "schema": "agent-computer-apt-overlay/v12",
+  "release": {
+    "repository": "motebus/download",
+    "tag": "agent-computer-v0.3.0-85",
+    "source_commit": "cac8049bac143a866ea89178b4e303f1da8be848",
+    "packages": [
+      {
+        "name": "agent-sphere",
+        "version": "0.3.0-43",
+        "architecture": "all",
+        "asset": "agent-sphere_0.3.0-43_all.deb",
+        "sha256": "71ec12758777e6c178d6b8a606b538e4a234e2f922de4b79d618a5e754d22487",
+        "provenance": {
+          "source_commit": "2e1faa8648e1180423b93d70ba58fca45e5ec2ea",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27550,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "agpc-ultra",
+        "version": "0.1.0-1",
+        "architecture": "all",
+        "asset": "agpc-ultra_0.1.0-1_all.deb",
+        "sha256": "ae6b118367c038b6607cd9c954d7f1e839ed3584d41d84a5b1ec6b8cf31dddb7",
+        "provenance": {
+          "source_commit": "6e7258ef42fba166a6b4cc1cdfa7a6ead352fdfc",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27615,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "agpc-manager",
+        "version": "4.4.0-2",
+        "architecture": "all",
+        "asset": "agpc-manager_4.4.0-2_all.deb",
+        "sha256": "2e2b6f0ee79c1d5c5b9d300fcefba9e21da05acacbfa6fc8093c71c8a6f1e091",
+        "provenance": {
+          "source_commit": "6db13e62f19c32935fa1f00e31de741aa487026a",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27901,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "agpc-cdp",
+        "version": "0.2.0-2",
+        "architecture": "amd64",
+        "asset": "agpc-cdp_0.2.0-2_amd64.deb",
+        "sha256": "beb24f87f55deb502da6f0f22b247126b779f7ba776983c70b067fba4ceba201",
+        "provenance": {
+          "source_commit": "392a83e391b0ceb83a3404d57d767225df92b6b2",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27573,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "agpc-run",
+        "version": "0.2.0-4",
+        "architecture": "all",
+        "asset": "agpc-run_0.2.0-4_all.deb",
+        "sha256": "f7d7edc68fa4546ec79936afdb8df8d86e6b30e9d2b7b451f917d605e7b319af",
+        "provenance": {
+          "source_commit": "0002d5545257074b053cae47f9229ad1b2664d0d",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27913,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "agpc-apps",
+        "version": "0.3.0-2",
+        "architecture": "all",
+        "asset": "agpc-apps_0.3.0-2_all.deb",
+        "sha256": "93d38d4fa7e0f11b8add9de0b18b781f722af2eac5a1602f397bf08a3ec9eabc",
+        "provenance": {
+          "source_commit": "e8143599afdadab4b4bcd1affb3affa1e5eb3800",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27621,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "sphered",
+        "version": "4.1.0-2",
+        "architecture": "amd64",
+        "asset": "sphered_4.1.0-2_amd64.deb",
+        "sha256": "38667a250b2108a9d93f0743a81892875043ec32b09a61206e33deabe9deeb9a",
+        "provenance": {
+          "source_commit": "31ad2c10db964ebeedde169edf59a169eeb1f941",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26092,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "moted",
+        "version": "3.6.5-1",
+        "architecture": "amd64",
+        "asset": "moted_3.6.5-1_amd64.deb",
+        "sha256": "b3c2615b3964725fbb9a2e7e2f28574e69557eb92b9e985698b25be2377afa97",
+        "provenance": {
+          "source_commit": "4c9f9e3b7d645d96a83d431507574e287ee81a73",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27876,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "mote-proxy",
+        "version": "2.0.8-1",
+        "architecture": "amd64",
+        "asset": "mote-proxy_2.0.8-1_amd64.deb",
+        "sha256": "53a9e1f553348c8207a56e96de461bcb42d4721422a3f54080e954befd19e19b",
+        "provenance": {
+          "source_commit": "4c9f9e3b7d645d96a83d431507574e287ee81a73",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27876,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "mote-transportd",
+        "version": "2.0.0-6",
+        "architecture": "amd64",
+        "asset": "mote-transportd_2.0.0-6_amd64.deb",
+        "sha256": "9c56cade3f014f75876cce126d2ef8c9d5c27a60709ff592ac0e9af9788dd23f",
+        "provenance": {
+          "source_commit": "574994da1cf320a3f3d06c3d222a35a64b10ca64",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26487,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "mlink",
+        "version": "2.1.0-1",
+        "architecture": "amd64",
+        "asset": "mlink_2.1.0-1_amd64.deb",
+        "sha256": "3b0e996d4971b21813fb78806d54e6fd127094987e04d73e842804ea3712cb5d",
+        "provenance": {
+          "source_commit": "f57d52c126dfa9451012913b9a3719b3afb8e9bd",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26471,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "mote-secd",
+        "version": "1.3.0-3",
+        "architecture": "amd64",
+        "asset": "mote-secd_1.3.0-3_amd64.deb",
+        "sha256": "d68d36693f1a269aec33c2a7315f858105b7718db3a2d617eed0ffb6356b0169",
+        "provenance": {
+          "source_commit": "b076b76f4ce41c83eaa50b4d9c6b2ad35008feea",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27912,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "agos",
+        "version": "2.1.0-1",
+        "architecture": "amd64",
+        "asset": "agos_2.1.0-1_amd64.deb",
+        "sha256": "d844937d8d11579b9c3a7cfa18dbdcd08b19c40c93ec22947fafb58d43c6db8e",
+        "provenance": {
+          "source_commit": "46c8b44706d82b786112b8a28bb88db9060b3ee9",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26585,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "model-router",
+        "version": "0.1.0-1",
+        "architecture": "amd64",
+        "asset": "model-router_0.1.0-1_amd64.deb",
+        "sha256": "fd07180fc952a6333e085c4b666683caa7185cd0f1b37da7c07ce694b3ad3b39",
+        "provenance": {
+          "source_commit": "e709c3048940edd3b6b3564691305a5207f523d8",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26492,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "model-llm",
+        "version": "0.1.0-3",
+        "architecture": "amd64",
+        "asset": "model-llm_0.1.0-3_amd64.deb",
+        "sha256": "8f044d0b23325a213b372087c9ef35daf9e9058df4bb7a783a0edc6945bc32ef",
+        "provenance": {
+          "source_commit": "cb579c409e2f0f29b7511976d0fc27d0238c1a1d",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26472,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "mote-mcpd",
+        "version": "3.1.0-1",
+        "architecture": "amd64",
+        "asset": "mote-mcpd_3.1.0-1_amd64.deb",
+        "sha256": "fae185fc735571c73adee70fb3095851541fce3a7b13b468c41cae32bec44a60",
+        "provenance": {
+          "source_commit": "454726b1a277645dbdfbc20a0741bc51bab1e775",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26690,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "mote-mcp-ultra",
+        "version": "0.1.0-1",
+        "architecture": "amd64",
+        "asset": "mote-mcp-ultra_0.1.0-1_amd64.deb",
+        "sha256": "ac9dcda941181da26d16a32bc26053f851011213322e5c7af24bc5e13c392c9e",
+        "provenance": {
+          "source_commit": "454726b1a277645dbdfbc20a0741bc51bab1e775",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26690,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "agpc-mesh",
+        "version": "3.0.0-3",
+        "architecture": "amd64",
+        "asset": "agpc-mesh_3.0.0-3_amd64.deb",
+        "sha256": "b55c657884ef073c4b12827edce4a99318e20e0b7fd61de24edecf8a41a97db6",
+        "provenance": {
+          "source_commit": "0002d5545257074b053cae47f9229ad1b2664d0d",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27913,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "cx-loop",
+        "version": "0.1.0-5",
+        "architecture": "amd64",
+        "asset": "cx-loop_0.1.0-5_amd64.deb",
+        "sha256": "088fc7a912ffcc9e70b53e68a8eddcd8073dfcdc943ce6c9eb051cb81eff9a05",
+        "provenance": {
+          "source_commit": "2e1faa8648e1180423b93d70ba58fca45e5ec2ea",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27550,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "contextd",
+        "version": "0.1.0-27",
+        "architecture": "amd64",
+        "asset": "contextd_0.1.0-27_amd64.deb",
+        "sha256": "259c92ea9b7a34f557d77f91d3fc2060108dcb454405883419acc6ecaaffcbc7",
+        "provenance": {
+          "source_commit": "d98eb40bba912d131f3d83141d262304711df326",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27276,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "redixs",
+        "version": "4.1.0-1",
+        "architecture": "amd64",
+        "asset": "redixs_4.1.0-1_amd64.deb",
+        "sha256": "61d1b98c77ff65ad18829a09215bf75357d1acd4b9a9efa79c6ad1b6dd9c28c7",
+        "provenance": {
+          "source_commit": "4f9b8ec36a760de622868de10731b29687b2103d",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26554,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "comm",
+        "version": "1.0.0-1",
+        "architecture": "amd64",
+        "asset": "comm_1.0.0-1_amd64.deb",
+        "sha256": "ac590c9f4a860768cba2e43f6c4972566beec160991234c4a9d9fdbb6394054e",
+        "provenance": {
+          "source_commit": "16ca9586b989d6160724fdaa5c8230844ea0ab55",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26598,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "mote-vault-sync",
+        "version": "1.1.0-3",
+        "architecture": "amd64",
+        "asset": "mote-vault-sync_1.1.0-3_amd64.deb",
+        "sha256": "df5bc6409921ce288f64b9dee53c7188c5901ff82179d5ffaf21fc98974f19cf",
+        "provenance": {
+          "source_commit": "3d91c9afff2e302dca1b3ec9208e3919569e02f3",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26453,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "mote-vault-syncd",
+        "version": "1.1.0-3",
+        "architecture": "amd64",
+        "asset": "mote-vault-syncd_1.1.0-3_amd64.deb",
+        "sha256": "7377e28aff888f166fff165641a51843476561b1caa305bc50c9ae1ce1d71753",
+        "provenance": {
+          "source_commit": "3d91c9afff2e302dca1b3ec9208e3919569e02f3",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26453,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "medge",
+        "version": "3.3.0-2",
+        "architecture": "amd64",
+        "asset": "medge_3.3.0-2_amd64.deb",
+        "sha256": "0877a5568f677b6ec8e2209d11d21219009cc0733fbec30ab25d5021fcbee4c7",
+        "provenance": {
+          "source_commit": "2e1faa8648e1180423b93d70ba58fca45e5ec2ea",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27550,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "jujue",
+        "version": "0.2.0-1",
+        "architecture": "all",
+        "asset": "jujue_0.2.0-1_all.deb",
+        "sha256": "0f348a78527a2929a512375bfc31ad5a92b75cdd7d702e338598df0552eebea7",
+        "provenance": {
+          "source_commit": "f3d5e2ba3caadc216eb5e18fb2db95710c59fafc",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26578,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "iagent",
+        "version": "1.0.0-1",
+        "architecture": "amd64",
+        "asset": "iagent_1.0.0-1_amd64.deb",
+        "sha256": "b2d4ada088860d0b08c1efec8739721f3f6704f9e2cdb5d17b2d1ecd933b28db",
+        "provenance": {
+          "source_commit": "b8ba6899bd23b548f21571b52913fd9c8e5c4036",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26586,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "ss-webos",
+        "version": "2.0.0-12",
+        "architecture": "amd64",
+        "asset": "ss-webos_2.0.0-12_amd64.deb",
+        "sha256": "42f11638be9f8c8070edf52495f2c666f2967a12da955d72c9c4197fad623aa7",
+        "provenance": {
+          "source_commit": "4df736b629d99778fae77876ca6688618f197274",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26592,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "mdesk",
+        "version": "3.0.0-6",
+        "architecture": "amd64",
+        "asset": "mdesk_3.0.0-6_amd64.deb",
+        "sha256": "a72309fc0d593d5426ca7f3184c45611b397fc51037aa5df48c209c98a683724",
+        "provenance": {
+          "source_commit": "183d727031a4a546ac7fff87a60e3df9afdd1eba",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 26329,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "uchat",
+        "version": "3.2.0-13",
+        "architecture": "amd64",
+        "asset": "uchat_3.2.0-13_amd64.deb",
+        "sha256": "45726cb4fc91545e1ab7c1ebbe511ea5b3c88d035763af6f92777bc3231e480d",
+        "provenance": {
+          "source_commit": "4845f457e909f25f7884e45e74a6d7d8129cc79b",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27660,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "uchatd",
+        "version": "0.6.0-5",
+        "architecture": "amd64",
+        "asset": "uchatd_0.6.0-5_amd64.deb",
+        "sha256": "bfc6ab242d8eba3d2d470aa9016ca260afb9d88f7161dfaa98ded49a422a1cff",
+        "provenance": {
+          "source_commit": "4845f457e909f25f7884e45e74a6d7d8129cc79b",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27660,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "uchat-bridge",
+        "version": "0.1.0-1",
+        "architecture": "amd64",
+        "asset": "uchat-bridge_0.1.0-1_amd64.deb",
+        "sha256": "02315da161be76d793079da092f50c00a9fd6ed98298d964f047592e77f22717",
+        "provenance": {
+          "source_commit": "a209317b9f5309a37f59c067d731220014d269fa",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 27735,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      },
+      {
+        "name": "agpc-view",
+        "version": "0.1.0-1",
+        "architecture": "amd64",
+        "asset": "agpc-view_0.1.0-1_amd64.deb",
+        "sha256": "f80b65a3823e7fa32ae8395df61ab113b4ac964d91615ae2a0e64035407da4d8",
+        "provenance": {
+          "source_commit": "fe8e18f88c2f1fc9d87e5a20011875321e030a70",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 28718,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      }
+    ],
+    "external_prerequisites": [
+      {
+        "name": "obsidian",
+        "version": "1.13.7",
+        "architecture": "amd64",
+        "asset": "obsidian_1.13.7_amd64.deb",
+        "sha256": "17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9ae0",
+        "url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian_1.13.7_amd64.deb",
+        "redistribute": false
+      }
+    ],
+    "retention_packages": [
+      {
+        "name": "mote-chatd",
+        "version": "2.0.0-9",
+        "architecture": "all",
+        "asset": "mote-chatd_2.0.0-9_all.deb",
+        "sha256": "5b1a3c8cba45ea321d9c3ee70962b78f5e203133f7413ae33873a9006ea5b8b7",
+        "provenance": {
+          "source_commit": "cbc020e247edf1d845d5f4ac445de3f20cd16b36",
+          "source_ref": "refs/heads/main",
+          "main_pipeline_id": 35974731134,
+          "build_status": "success",
+          "public_payload_reviewed": true
+        }
+      }
+    ]
+  }
+}

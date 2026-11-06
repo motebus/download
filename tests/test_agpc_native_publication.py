@@ -64,7 +64,7 @@ class ProfilePublicationTests(unittest.TestCase):
 
     def test_completed_signed_cohort_binds_distinct_standard_and_full(self):
         record, files = self.activate()
-        self.assertEqual(set(files),profiles.PROFILE_FILES)
+        self.assertEqual(set(files),profiles.LEGACY_PROFILE_FILES)
         self.assertNotEqual(files['agpc.sh'],files['agpc-all.sh'])
         self.assertEqual(files['agpc-all.sh'],files['agent-sphere-apps.sh'])
         self.assertEqual(record['aggregate_tag'],'agent-computer-v0.3.0-1')
@@ -113,7 +113,7 @@ class ProfilePublicationTests(unittest.TestCase):
         (self.site/'agent-sphere-apps.sh').write_text('old alias')
         files={name:b'old-preview' for name in native.NATIVE_FILES}
         record={'version':'preview','linux_backend_sha256':{'old':'digest'},'files':{}}
-        selected={name:(self.root/name).read_bytes() for name in profiles.PROFILE_FILES}
+        selected={name:(self.root/name).read_bytes() for name in profiles.LEGACY_PROFILE_FILES}
         def sign(root,site,names):
             self.assertIn('agpc-all.sh',names)
             for name in names:(site/(name+'.asc')).write_text('signature fixture')

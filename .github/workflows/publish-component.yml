@@ -10,7 +10,7 @@ permissions:
   contents: read
 env:
   PYTHONDONTWRITEBYTECODE: "1"
-  AGPC_SOURCE_COMMIT: 09d20c60f2c84698ad6bb28243f236a6bf02b7ac
+  AGPC_SOURCE_COMMIT: 21901566d42471786dbc80ea84698747d3552c9c
 concurrency:
   group: native-package-publication
   cancel-in-progress: false

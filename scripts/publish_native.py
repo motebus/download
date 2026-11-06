@@ -21,7 +21,11 @@ REPOSITORY = "motebus/download"
 LIMIT = 64 * 1024 * 1024
 SITE_LIMIT = 1000000000
 NATIVE_FILES = {"agpc", "agpc.sh", "agpc-apps.sh", "agpc.exe", "agpc-arm64.exe", "agpc.source.json", "agpc-native-SHA256SUMS"}
-CHANGED_PATHS = NATIVE_FILES | {name + ".asc" for name in NATIVE_FILES} | {"index.html"}
+RETIRED_PROFILE_FILES = {
+    "agent-sphere-apps.sh", "agent-sphere-apps.sh.asc",
+    "agent-sphere-apps.source.json", "agent-sphere-apps.source.json.asc",
+}
+CHANGED_PATHS = NATIVE_FILES | {name + ".asc" for name in NATIVE_FILES} | RETIRED_PROFILE_FILES | {"index.html"}
 LINUX_BACKEND = {"agpc_linux.py", "codex_health.py", "native_rpc.py", "mcp_catalog.py", "native_install.py", "native_apps.py", "desktop_preferences.py", "rdp_client.py", "browser_cli.py", "browser_install.py", "browser/browser.cjs", "browser/package.json", "browser/package-lock.json"}
 
 
@@ -297,7 +301,7 @@ def overlay(root, site, evidence_path, base=None):
     pins, record, files = assemble(root)
     import agpc_profiles
     names = NATIVE_FILES
-    changed = CHANGED_PATHS
+    changed = CHANGED_PATHS - RETIRED_PROFILE_FILES
     if agpc_profiles.enabled(root):
         profiles, profile_files = agpc_profiles.activated_files(root, site)
         files.update(profile_files)
@@ -310,13 +314,22 @@ def overlay(root, site, evidence_path, base=None):
             f"{digest(data)}  {name}\n" for name, data in sorted(files.items())
             if name != "agpc-native-SHA256SUMS").encode()
         names = set(files)
-        changed = names | {name + ".asc" for name in names} | {"index.html"}
+        changed = names | {name + ".asc" for name in names} | RETIRED_PROFILE_FILES | {"index.html"}
     else:
         require(before.get("agent-sphere-apps.sh") == pins["debian_installer_sha256"], "existing Debian installer differs from reviewed baseline")
+    retired = (set(RETIRED_PROFILE_FILES) - (set(files) | {name + ".asc" for name in files})
+               if agpc_profiles.enabled(root) else set())
+    if agpc_profiles.enabled(root):
+        # Only the obsolete current alias is removed. Versioned assets and pool files stay immutable.
+        inactive = (agpc_profiles.CORE_PROFILE_FILES | agpc_profiles.MESH_PROFILE_FILES) - set(files)
+        retired |= inactive | {name + ".asc" for name in inactive}
+        changed |= retired
+    for name in retired:
+        (site / name).unlink(missing_ok=True)
     for name, data in files.items():
         (site / name).write_bytes(data)
         (site / name).chmod(0o755 if name == "agpc" or name.endswith((".sh", ".exe")) else 0o644)
-    (site / "index.html").write_bytes((root / "scripts/native-index.html").read_bytes())
+    (site / "index.html").write_bytes(agpc_profiles.index_html(root))
     if names == NATIVE_FILES:
         sign_files(root, site)
     else:
@@ -327,7 +340,7 @@ def overlay(root, site, evidence_path, base=None):
               "native": record, "changed_paths": sorted(k for k in after if before.get(k) != after[k]),
               "preserved_files": len(set(before) - changed),
               "preserved_inventory_sha256": digest(json.dumps({k: v for k, v in before.items() if k not in changed}, sort_keys=True).encode()),
-              "published_sha256": {name: after[name] for name in sorted(changed)}}
+              "published_sha256": {name: after[name] for name in sorted(changed) if name in after}}
     evidence_path.write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps({"native": record["version"], "preserved_files": result["preserved_files"], "changed_paths": result["changed_paths"]}, indent=2))
 
