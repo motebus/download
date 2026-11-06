@@ -1,0 +1,30 @@
+{
+  "canonical_project": 1341,
+  "canonical_source_commit": "0722fbf32415811c2451c612487223f1be49119b",
+  "exporter": "scripts/export_agpc_public_source.py",
+  "full_export_receipt": {
+    "bytes": 30382,
+    "sha256": "842d4e4ba9c08d4563094fb0a6f001072a5b0c42372f9f077b1ee020e3d1c895"
+  },
+  "preserved_model_record": {
+    "bytes": 1192,
+    "sha256": "525ea2b94d1e65ecafc639936e5c7602317600945eb7a8bd45f0e174dfb01ef1"
+  },
+  "public_base_commit": "4beaa53d4dc4cb46cbc2df2ecb364d559e533a71",
+  "public_base_pull_request": 306,
+  "reviewed_input_commit": "0722fbf32415811c2451c612487223f1be49119b",
+  "reviewed_source_pipeline": 28782,
+  "schema": "agpc.public-source-selection/v1",
+  "scope": "Actual successful original-main Core and vModel artifact publication records; no installer or runtime admission",
+  "selected_files": {
+    "scripts/component-publications/core.json": {
+      "bytes": 1163,
+      "sha256": "28ca068ea505a6098bc56d8bb2ff53af88822d691a18e71ad5a298928d07a81f"
+    },
+    "scripts/component-publications/vmodel.json": {
+      "bytes": 1181,
+      "sha256": "73e5482316933a1038565db3fc992024ba0658cfe0d86f7bb5ff9fdd36268434"
+    }
+  },
+  "selection_policy": "Apply only these two source-owned records and this receipt. Preserve the shared publisher and all existing public files. Public merge requires canonical MR126 CI and merge, public PR306 merge, and completion of the intermediate86 release freeze."
+}

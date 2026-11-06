@@ -1,0 +1,35 @@
+{
+  "archive": {
+    "bytes": 7094,
+    "sha256": "9b34208574a90730503f4b6542e75589616e10e745b617e8e1502796e5806631"
+  },
+  "assets": {
+    "MANIFEST.json": {
+      "bytes": 5971,
+      "sha256": "baf185fdada0978bf785acf6935abe25ce0ff88bcea02dac48c43f6df3e28f60"
+    },
+    "SHA256SUMS": {
+      "bytes": 188,
+      "sha256": "052e0d14513d621c3726b74d7a38639204dd779c6979f72480dc11a55c209154"
+    },
+    "agpc-core_0.1.0.core.20261106.1_amd64.deb": {
+      "bytes": 3808,
+      "sha256": "c6b46e090baeaa7b42e8a8c5642d8a796d9359ba00f46f2cc2dbc5d5c1eea252"
+    }
+  },
+  "candidate_tag": "candidate-agpc-core-v0.1.0-core.20261106.1",
+  "component": "core",
+  "delivery_product": "agpc-core",
+  "job_id": 67203,
+  "pipeline_id": 28773,
+  "producer_manifest": {
+    "bytes": 7940,
+    "sha256": "25c56bd2bfe94d6552ad763390128da0293e5a3e9dc1af373a9f134880a5b5ca"
+  },
+  "schema": "agpc.component-publication/v1",
+  "source_commit": "bb08d67be55fcefbb7b14347832663d2ade67032",
+  "source_inventory_sha256": "84455df1ee0b84f14b91427c7f71541636416b4d0b911b940ca163a536a48219",
+  "source_project": 1336,
+  "source_ref": "main",
+  "tag": "agpc-core-v0.1.0-core.20261106.1"
+}
