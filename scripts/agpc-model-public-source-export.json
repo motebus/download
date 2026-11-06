@@ -1,0 +1,33 @@
+{
+  "canonical_project": 1341,
+  "canonical_source_commit": "dc27579f44f24beb050885c9fe5068df982c15ea",
+  "exporter": "scripts/export_agpc_public_source.py",
+  "full_export_receipt": {
+    "bytes": 26428,
+    "sha256": "e9ba4c2f31ccd6447e899505147f68a2a916d7e406b69ad2baa137642cc035b0"
+  },
+  "public_base_commit": "42376a91c9228559a499cc93f5c9433764b703f1",
+  "reviewed_input_commit": "dc492f358c9b6a35ff49b3047e3401d1afebc761",
+  "reviewed_source_pipeline": 28744,
+  "schema": "agpc.public-source-selection/v1",
+  "scope": "publisher source only; component artifact records are separate",
+  "selected_files": {
+    ".github/workflows/publish-agpc-model-components.yml": {
+      "bytes": 1997,
+      "sha256": "598aacac7b30694957378be5bd3b269bdd1f8c1f284bdc4685d499feccbb09f2"
+    },
+    "scripts/agpc-model-component-publication.md": {
+      "bytes": 5199,
+      "sha256": "833bd1dad77037cee4e1e8e30e228d8a965b88a558ede467685512578b0148e4"
+    },
+    "scripts/publish_agpc_model_components.py": {
+      "bytes": 31325,
+      "sha256": "d2bb295d6f3ce30f33a3c9682d3c6efe8a3975b8f68f9f90a6418e58d350c0ec"
+    },
+    "tests/test_agpc_model_publication.py": {
+      "bytes": 22782,
+      "sha256": "c647c4a938d08ec4b9033e80e697e74a770e4cfe5593f7dbd9eb41dfdaf29491"
+    }
+  },
+  "selection_policy": "Apply only these selected public source files and this receipt to the existing public tree; retain all unrelated current public files."
+}
