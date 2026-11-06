@@ -1,0 +1,102 @@
+{
+  "schema": "agpc.core.pages-activation-source-export/v1",
+  "scope": "Prepare Pages activation of the verified v97 installers and cohort87 using the reviewed canonical activation tree. This receipt records the workflow and documentation change; it does not attest deployment or live AGPC Ready.",
+  "public_base_commit": "71e749024b77a36d085ffff630757882105d7b68",
+  "canonical_activation_source": {
+    "project_id": 1341,
+    "commit": "ccdbc1fc2b9458856ca7afd2d4df4923213b3470",
+    "role": "Reviewed source tree that activates the existing original profile artifacts and supplies native acceptance."
+  },
+  "original_producer": {
+    "source_project": 1341,
+    "source_commit": "401d99c2f5971a824731cdc6d92e30e4b612c19c",
+    "source_ref": "main",
+    "pipeline_id": 28794,
+    "job_id": 67251,
+    "input_sha256": "7c0e2b0a67ca8928b6518abf2f45071e79d6d4d479ef948e08337f4a4b9722cf",
+    "archive": {
+      "bytes": 146988,
+      "sha256": "785564f14f11d66dd31cd88e3e0b945862f10a6f18d59f1c1f486882fb8653f2"
+    }
+  },
+  "publication_record": {
+    "path": "scripts/agpc-core-profile-publication.json",
+    "sha256": "c2d7af97b4c400335fa23a1f2c1e37a5f5ca86f4422906aff668ce20d5b648fb",
+    "bytes": 2324
+  },
+  "published_release_readback": {
+    "schema": "agpc.mesh-all.original-release-readback/v1",
+    "sha256": "205c9010a8779a5d82a536896c592a835f196be364585498b33009031633f156",
+    "bytes": 20722,
+    "verified_at": "2026-11-06T13:44:40.533328+00:00",
+    "public_publisher_commit": "71e749024b77a36d085ffff630757882105d7b68",
+    "asset_counts": {
+      "agent-computer-v0.3.0-87": 36,
+      "v0.3.0-97": 13
+    },
+    "runs": {
+      "aggregate": 42227062394,
+      "installer": 42227406010
+    },
+    "exact_original_assets_verified": true
+  },
+  "historical_receipt": {
+    "path": "scripts/agpc-core-public-source-export.json",
+    "sha256": "08bf34475c759534f84cd405957ba9556686dd4bb270c3e2b4619be9d2d2820f",
+    "bytes": 25165,
+    "preserved_unchanged": true,
+    "superseded_preservation_entries": [
+      ".github/workflows/publish-agpc-v58-runtime.yml",
+      "README.md"
+    ],
+    "meaning": "Its hashes remain the historical publication export. Only the two entries listed here are superseded by this later activation change; all other historical evidence remains unchanged."
+  },
+  "files": {
+    ".github/workflows/publish-agpc-v58-runtime.yml": {
+      "before_sha256": "eb51455ac26d3d98987a9b505ea571a2394ace1046807a266979309aca39f811",
+      "before_bytes": 8645,
+      "sha256": "4e7df47fc17a6ba3ed00ba3a4dc73415484dbcfb0b8ecee8221582ee9f08c589",
+      "bytes": 8873,
+      "git_mode": "100644"
+    },
+    "README.md": {
+      "before_sha256": "a09449b4461cab7790e3f3614299204b74f80e4d963c41b5c6a1c619a2ff27b0",
+      "before_bytes": 18258,
+      "sha256": "0edb0c251d4e91099892d34d7dcb03ea1817121c5c767f3a701c0be55fa59e3b",
+      "bytes": 21465,
+      "git_mode": "100644"
+    }
+  },
+  "readme_tail": {
+    "starts_at": "## Cast development preview",
+    "original_sha256": "395b5576192bc9ecf27fabc0146d1de7b83651e85fe43d92f751f59f979460ca",
+    "sha256": "69eda5f286e1a55fcf573828ed6447114fd03289560d895f6d6713fcdadc4b49",
+    "context_insertions": [
+      {
+        "after_heading": "## Scope and verification",
+        "text": "This section records the separate `agpc-native-v0.1.0-preview.20` controller\npreview. The signed DEB profiles above use their own package, publication and\nlive acceptance checks.\n\n"
+      },
+      {
+        "after_heading": "## Publication maintenance",
+        "text": "The maintenance and Linux RDP setup notes below describe that earlier native\ncontroller preview. For the current DEB profiles, xrdp setup, listener ports,\nfirewall access and live desktop login still require installed-host verification.\n\n"
+      }
+    ],
+    "original_tail_preserved_after_removing_context_insertions": true
+  },
+  "required_native_profiles": [
+    "standard",
+    "core",
+    "full",
+    "apps",
+    "upgrade",
+    "upgrade-home"
+  ],
+  "activation_gate": {
+    "state_at_preparation": "not_dispatched",
+    "requires_all_native_profiles_and_deployment": true,
+    "readme_pages_availability_is_conditional": true,
+    "pages_activated": false,
+    "native_install_accepted": false,
+    "runtime_ready": false
+  }
+}
