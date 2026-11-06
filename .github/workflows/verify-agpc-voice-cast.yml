@@ -24,7 +24,9 @@ jobs:
             distribution: '26.04'
             server: pipewire
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # Ubuntu archive downloads previously exhausted the job before the probe.
+    # Keep the fixture's own audio and cleanup deadlines unchanged.
+    timeout-minutes: 30
     environment: release
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
