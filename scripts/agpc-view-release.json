@@ -3,29 +3,29 @@
   "assets": {
     "MANIFEST.json": {
       "bytes": 6924,
-      "sha256": "b0adb62884554c8b08f0eb215cea7bc90a41b4f72720627426f7aaeb3c4f43c1"
+      "sha256": "ef726b1fdbf725ba4013893b369c32e22b7c809698c86366fef5f17adfbe9836"
     },
     "SHA256SUMS": {
       "bytes": 174,
-      "sha256": "1dcc98f19093a9d34300a983afc47a5e35cc75008bcb421b48dc1c3b677fef87"
+      "sha256": "377acddf27517bdf31a31095f148fe48bb8583e40a7b6f1d7731bf0af83fe8e7"
     },
-    "agpc-view_0.1.0-1_amd64.deb": {
-      "bytes": 211316,
-      "sha256": "f80b65a3823e7fa32ae8395df61ab113b4ac964d91615ae2a0e64035407da4d8"
+    "agpc-view_0.1.0-2_amd64.deb": {
+      "bytes": 211712,
+      "sha256": "4c85b623d79d056b414c3bfd4fc2debdfc801efaf4b671029952d3ad4c0550c1"
     }
   },
-  "candidate_tag": "candidate-agpc-view-v0.1.0-1",
-  "gui_job_id": 66943,
-  "job_id": 66942,
-  "notes": "Native GTK4 AGPC View 0.1.0-1 for amd64, built and GUI-checked by canonical main CI. Requires AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. Run agpc-view as the desktop user. This standalone release does not change Core/All installers, enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc with the established MoteBus archive key before installing.\n",
-  "package": "agpc-view_0.1.0-1_amd64.deb",
-  "pipeline_id": 28718,
+  "candidate_tag": "candidate-agpc-view-v0.1.0-2",
+  "gui_job_id": 67083,
+  "job_id": 67082,
+  "notes": "Native GTK4 AGPC View 0.1.0-2 for amd64, built and GUI-checked by canonical main CI. Fixes dark-theme readability with theme-matched text/surfaces, larger type, clearer input hints and borders. Native GUI checks cover light, dark and both high-contrast variants. Requires AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. Run agpc-view as the desktop user. This standalone release does not change Core/All installers, enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc with the established MoteBus archive key before installing.\n",
+  "package": "agpc-view_0.1.0-2_amd64.deb",
+  "pipeline_id": 28743,
   "pipeline_status": "success",
-  "producer_manifest_sha256": "e6fcf59988aec3d59962daaf581dc251a15a51c6a889d17d7ae122064eb915a7",
+  "producer_manifest_sha256": "dcb81b0c7bb9b4969548e6599ca307836e8935ba80e2b1e4f8905c647aeee610",
   "schema": "agpc-view.publication-inputs/v1",
-  "source_commit": "fe8e18f88c2f1fc9d87e5a20011875321e030a70",
+  "source_commit": "f9684c2ece5dff98e35f9384395f3b2b2c28dfa8",
   "source_project": 1336,
   "source_ref": "main",
-  "tag": "agpc-view-v0.1.0-1",
-  "version": "0.1.0-1"
+  "tag": "agpc-view-v0.1.0-2",
+  "version": "0.1.0-2"
 }
