@@ -41,12 +41,25 @@ class CoreContractTests(unittest.TestCase):
     def test_frozen_baseline_retains_original_bytes_modes_and_release(self):
         receipt = json.loads((BASELINE / 'FIXTURE.json').read_text())
         self.assertEqual(receipt['source_commit'], '1c4e1876ae560dce78bb4031f386544ad7f247b9')
+        # Git records regular/executable identity; checkout write bits depend on
+        # the runner's umask and are not part of the immutable source mode.
+        entries = subprocess.check_output(
+            ['git', 'ls-files', '--stage', '-z', '--', str(BASELINE.relative_to(ROOT))], cwd=ROOT)
+        modes = {}
+        for entry in entries.split(b'\0'):
+            if entry:
+                metadata, filename = entry.decode().split('\t', 1)
+                mode, _, stage = metadata.split()
+                self.assertEqual(stage, '0')
+                modes[filename] = mode
         for name, record in receipt['files'].items():
             path = BASELINE / name
             with self.subTest(name=name):
+                self.assertTrue(path.is_file() and not path.is_symlink())
                 self.assertEqual(apt.sha256(path), record['sha256'])
                 self.assertEqual(path.stat().st_size, record['bytes'])
-                self.assertEqual(path.stat().st_mode & 0o777, int(record['mode'], 8) & 0o777)
+                self.assertEqual(modes[str(path.relative_to(ROOT))], record['mode'])
+                self.assertEqual(bool(path.stat().st_mode & 0o100), record['mode'] == '100755')
         source = apt.validate_agent_apps_installer(BASELINE)
         config = apt.load_agent_computer_overlay(BASELINE)
         self.assertEqual((source['schema'], source['tag']), ('agpc-installer-source/v3', 'v0.3.0-96'))

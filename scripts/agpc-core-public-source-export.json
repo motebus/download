@@ -1,7 +1,7 @@
 {
   "schema": "agpc.core.public-source-export/v1",
   "canonical_source_project_id": 1341,
-  "canonical_source_commit": "99d80902855e8ac99ee1c92806eb4cef2ffe58b1",
+  "canonical_source_commit": "21901566d42471786dbc80ea84698747d3552c9c",
   "public_base_commit": "0620ab172023d99d2cd46ad070e8ec692116d4a8",
   "scope": "Generic Core package and Mesh/All producer, signer and exact-cohort validators; no activation or actual future publication inputs.",
   "files": {
@@ -21,6 +21,14 @@
       "canonical_sha256": "201df780216fe368d1c75121a01cba64547b47a2a14f2fddb23f44f46d499677",
       "exact_canonical_bytes": true
     },
+    ".github/workflows/publish-component.yml": {
+      "canonical_path": ".github/workflows/publish-component.yml",
+      "sha256": "fb8c9923cf0149aa6dd5118f8cacd5e6e1da44cecdd88516711c748bced9dd41",
+      "bytes": 1782,
+      "mode": "0o664",
+      "canonical_sha256": "d6805a79998d94310a2b3b74b268b645d504e6b3b6ba2b77a45e09cfca499d73",
+      "exact_canonical_bytes": false
+    },
     "scripts/agpc-core-profile-publication.md": {
       "sha256": "def43b5084197c4002ec51ba8f2858cfd523b978aea96ef5da4a9cb1bb3a139a",
       "bytes": 7752,
@@ -34,8 +42,8 @@
       "bytes": 6080,
       "mode": "0o664",
       "canonical_path": "scripts/agpc-model-component-publication.md",
-      "canonical_sha256": "efb4e01fac99f5f54d93cb83801d11050079dbdf7a959e5a364df21b80acce22",
-      "exact_canonical_bytes": false
+      "canonical_sha256": "190495729a99b108cc3a4a05f8830f9d941efdb4fde6360a8ae0e985e5b595c2",
+      "exact_canonical_bytes": true
     },
     "scripts/agpc_core_package.py": {
       "sha256": "d5b9012af5ddf2fc5b430338086dc99db4a841c3e44c26c9f0f1f825d039d906",
@@ -278,11 +286,11 @@
       "exact_canonical_bytes": true
     },
     "tests/test_agpc_core_profiles.py": {
-      "sha256": "7c8ed1d4c0025400d754fb31740a94816500c82c956e327664bd18f9868fc1a0",
-      "bytes": 17917,
+      "sha256": "63cbf411b414a24de15db8af111a79a378679e8f02363d44ac57110835590f94",
+      "bytes": 18662,
       "mode": "0o664",
       "canonical_path": "tests/test_agpc_core_profiles.py",
-      "canonical_sha256": "5d8afac2f97019c8da118ca8d6f179d598ebeb68f09e17608742b84666b0a97c",
+      "canonical_sha256": "ab57c88cdbaff38c116cdfade0df733f17e0ac66800d43b6f5a229dd64d9ecfc",
       "exact_canonical_bytes": false
     },
     "tests/test_agpc_core_publication.py": {
@@ -362,10 +370,19 @@
     "Preserve historical v5/v6/v7 aggregate tag-to-public-source binding; v8-v13 retain canonical original-source provenance, exact asset inventory and payload hashes.",
     "Use separate historical v7 and canonical v8 publication fixtures; Core renderer fixtures stay fixed at v96/cohort85.",
     "Do not export canonical private CI/README/activation tests or change active root files, Pages workflows or native acceptance verifier.",
-    "Retain the precise original/public filename distinction and actual Model record from public PR303; that independent record is not re-exported by this receipt."
+    "Retain the precise original/public filename distinction and actual Model record from public PR303; that independent record is not re-exported by this receipt.",
+    "Pin the existing intermediate component publisher to merged canonical source 21901566d42471786dbc80ea84698747d3552c9c; only the source commit changes in that workflow.",
+    "Validate frozen fixture Git index modes and owner executable identity while allowing checkout group-write bits controlled by the CI runner umask."
   ],
   "release_admitted": false,
   "runtime_ready": false,
   "pages_activated": false,
-  "integrated_public_main": "f75996162ae618986be9888b28d6d0430fc6247b"
+  "integrated_public_main": "f75996162ae618986be9888b28d6d0430fc6247b",
+  "canonical_source_validation": {
+    "commit": "507aec502e6af0df6cf6cb987f9a6415cd228068",
+    "pipeline_id": 28781,
+    "job_id": 67223,
+    "status": "success",
+    "merged_into": "21901566d42471786dbc80ea84698747d3552c9c"
+  }
 }
