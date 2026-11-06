@@ -1,17 +1,17 @@
 {
   "aggregate_tag": "agent-computer-v0.3.0-87",
   "archive": {
-    "bytes": 146987,
-    "sha256": "342e87a087fd1fc33db016f9bf65979188195f95db8d40b0bb09adf35e504750"
+    "bytes": 146988,
+    "sha256": "785564f14f11d66dd31cd88e3e0b945862f10a6f18d59f1c1f486882fb8653f2"
   },
   "assets": {
     "SHA256SUMS": {
       "bytes": 1020,
-      "sha256": "6dddc27c7507e5fcd3f5aee86ed756d90e86cb29013b0c937935bf5c221ff11f"
+      "sha256": "fab9d501e5ee84d5eba1c00d06d9a7c5a9008e1fa4e37cb363986e82c5d779b7"
     },
     "agent-computer-apt-overlay.json": {
       "bytes": 18971,
-      "sha256": "1994c3c380d7712eadba8f3f75839a0f077afef24b962b2919e0fce1d01a4026"
+      "sha256": "7614b1098f003cf26bd46c63578d4869743d895e930b45b71e3b0071e54ed00e"
     },
     "aggregate-component-release.json": {
       "bytes": 7136,
@@ -23,7 +23,7 @@
     },
     "agpc-all.source.json": {
       "bytes": 291,
-      "sha256": "091a678c45576194224936a2567985e3e3c92eeb7310775d23e69ebed79bcd75"
+      "sha256": "a4667e9c7006a96fecded3d3f26594c748de4d41565d0ed9d178dd057029067d"
     },
     "agpc-apps.sh": {
       "bytes": 111884,
@@ -31,7 +31,7 @@
     },
     "agpc-apps.source.json": {
       "bytes": 292,
-      "sha256": "66bdd072e0789f4b4ac678beb8957b5b1aacf1848af20345fc5f225dc4bac40a"
+      "sha256": "33f8027f7a8d2b4f934ec7e92db09c217b7ad1a001ce15994cee6e6b0e981d5c"
     },
     "agpc-mesh.sh": {
       "bytes": 110652,
@@ -39,7 +39,7 @@
     },
     "agpc-mesh.source.json": {
       "bytes": 296,
-      "sha256": "99f6dcd3fefb71da09de604ef93134c962af06e1d1f73e6d975141fc0e19528f"
+      "sha256": "74d7d92b680de9ba3a483a3fefa1b3e2a727bda11dd58285b608b1b47df6ad37"
     },
     "agpc.sh": {
       "bytes": 110652,
@@ -47,11 +47,11 @@
     },
     "agpc.source.json": {
       "bytes": 291,
-      "sha256": "97dfe7110285c4580728ab5165f54209e1bae2b2ffaf95073bff7630dbb9fee8"
+      "sha256": "9d1fa28c107d3c5f16fe4f468d0ba4f087c5455792b015fa82577032277af708"
     },
     "release-manifest.json": {
       "bytes": 4544,
-      "sha256": "868f871e1742429a81568c4c496d5c09575cde48620343a6813dce0dba47f122"
+      "sha256": "246bd672213fb88647671a84cf8746c0f01bc73f79beceb952864206a6b36494"
     },
     "uninstall.sh": {
       "bytes": 41367,
@@ -60,10 +60,10 @@
   },
   "input_sha256": "7c0e2b0a67ca8928b6518abf2f45071e79d6d4d479ef948e08337f4a4b9722cf",
   "installer_tag": "v0.3.0-97",
-  "job_id": 67237,
-  "pipeline_id": 28788,
+  "job_id": 67251,
+  "pipeline_id": 28794,
   "schema": "agpc-core-profile.publication-inputs/v1",
-  "source_commit": "1f32bd9133d487c4812eb19a9e1bd4ae2533e9cc",
+  "source_commit": "401d99c2f5971a824731cdc6d92e30e4b612c19c",
   "source_project": 1341,
   "source_ref": "main"
 }
