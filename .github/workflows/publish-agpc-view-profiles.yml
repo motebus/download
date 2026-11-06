@@ -1,0 +1,62 @@
+name: Publish exact AGPC View Core and All releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Publish the missing immutable release (aggregate first is recommended)
+        required: true
+        type: choice
+        options:
+          - aggregate
+          - installer
+  pull_request:
+    paths:
+      - scripts/publish_agpc_view_profiles.py
+      - scripts/publish_agpc_view.py
+      - scripts/publish_apt.py
+      - scripts/agpc-view-profile-publication.json
+      - scripts/agpc-view-profile-publication.md
+      - tests/test_agpc_view_profile_publication.py
+      - .github/workflows/publish-agpc-view-profiles.yml
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+
+concurrency:
+  group: ${{ github.event_name == 'workflow_dispatch' && 'native-package-publication' || format('view-profile-publication-validation-{0}', github.ref) }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify profile publication admission safeguards
+        run: python3 -m unittest discover -s tests -p test_agpc_view_profile_publication.py -v
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Publish exact protected-main CI assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+          RELEASE_MODE: ${{ inputs.release }}
+        run: python3 scripts/publish_agpc_view_profiles.py publish "$RELEASE_MODE"
