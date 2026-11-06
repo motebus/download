@@ -2,7 +2,7 @@
   "schema": "agpc.core.public-source-export/v1",
   "canonical_source_project_id": 1341,
   "canonical_source_commit": "1f32bd9133d487c4812eb19a9e1bd4ae2533e9cc",
-  "public_base_commit": "728c99e9b84db8bf16f307cd5de5b06acdef6e94",
+  "public_base_commit": "4ec953fe9cc8897f5d8bcd444dba6c7d33ff6332",
   "scope": "Selective current Apps shared-cohort correction and reviewed original protected-main profile publication record for installer v0.3.0-97 and cohort agent-computer-v0.3.0-87; existing generic Core/Mesh/All publication code and public compatibility are retained. Active root installers, Pages and runtime admission are unchanged.",
   "files": {
     ".github/workflows/publish-agpc-core-profiles.yml": {
@@ -375,7 +375,15 @@
     "scripts/component-publications/model.json": "525ea2b94d1e65ecafc639936e5c7602317600945eb7a8bd45f0e174dfb01ef1",
     "scripts/component-publications/core.json": "28ca068ea505a6098bc56d8bb2ff53af88822d691a18e71ad5a298928d07a81f",
     "scripts/component-publications/vmodel.json": "73e5482316933a1038565db3fc992024ba0658cfe0d86f7bb5ff9fdd36268434",
-    "scripts/agpc-core-components-public-source-export.json": "1197d30920965d98504bbaf3d440cd2ef159495afa3d5435d990f0f8ac6d8226"
+    "scripts/agpc-core-components-public-source-export.json": "1197d30920965d98504bbaf3d440cd2ef159495afa3d5435d990f0f8ac6d8226",
+    ".github/workflows/verify-agpc-voice-cast.yml": "30c9302a9f90eee20e9e414eb57a702879076f4f393651ca88d230ee246478bf",
+    "scripts/agpc-voice-cast.json": "2f439fc59337ee51d9887d898012a87a021186e79ea7e315976a7d779509468e",
+    "scripts/agpc-voice-native-entry-ci.json": "0bc6b9df599e2a4ed73a289cde121834fc3eb5fb366e5269f90b7ad2f7022c04",
+    "scripts/agpc-voice-native-media.json": "a06efb5e427c2fa7341f0b80ede14a0ddfdd83851bda72f1f20127a536f12c04",
+    "scripts/agpc-voice-standard.json": "2ff1d98a77c9ad02135ca72f7114f7692ea647d4924a775b89461fb45d93b6d6",
+    "scripts/prepare_agpc_voice_native_entry_session.py": "7f89f4745ed3c9c8bdc43afbdd3ff49dd6f7c8581967f1dfda863efacb920329",
+    "scripts/stage_agpc_voice_native_entry_inputs.py": "a89b0d7b765cf036c1553e86c975f040e4b913f591022b20caf2bb560c64c1ff",
+    "tests/test_agpc_voice_native_entry_inputs.py": "e7e240e5c97d929c439e67af1c9d5090dcaa90dde69f175102a4287f4e878dff"
   },
   "public_adaptations": [
     "Retain exact historical v1/v2 aliases and v7 transition package; later formats keep distinct Apps and exact Core inventory.",
@@ -389,12 +397,13 @@
     "Export the tested Apps Manager/Mesh shared-cohort correction from protected main; keep exact Apps roots and Obsidian behavior, with no Core/View/vModel/iAgent roots added.",
     "Retain the public historical current-root tests. Omit only canonical test_current_root_contracts_accept_rendered_v13_profiles from the exported producer tests because it invokes canonical-only activation tests; retain the new exact Apps root, cohort and migration-hash regression.",
     "Keep the independent intermediate component workflow pinned to its reviewed 21901566 source; the new profile publisher obtains its producer source identity from the original profile record.",
-    "The new actual profile record is derived from the original protected-main artifact and is deliberately not claimed as a canonical tracked source blob; no source main write occurred during the publication freeze."
+    "The new actual profile record is derived from the original protected-main artifact and is deliberately not claimed as a canonical tracked source blob; no source main write occurred during the publication freeze.",
+    "Preserve all eight independent Cast PR308 files byte-for-byte from public main 4ec953fe9cc8897f5d8bcd444dba6c7d33ff6332, including its original-source pins, closed installation gate tests and native workflow timeout."
   ],
   "release_admitted": false,
   "runtime_ready": false,
   "pages_activated": false,
-  "integrated_public_main": "728c99e9b84db8bf16f307cd5de5b06acdef6e94",
+  "integrated_public_main": "4ec953fe9cc8897f5d8bcd444dba6c7d33ff6332",
   "canonical_source_validation": {
     "commit": "1f32bd9133d487c4812eb19a9e1bd4ae2533e9cc",
     "pipeline_id": 28788,
