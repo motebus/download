@@ -171,10 +171,12 @@ def main():
         except subprocess.CalledProcessError:
             installer_diagnostics()
             raise
-        expected = {'agent-sphere', 'agent-ultra', 'agpc-manager', 'contextd', 'uchatd'}
+        expected = {'agent-sphere', 'agent-ultra', 'agpc-manager', 'contextd', 'uchatd', 'mote-mcpd', 'mote-secd'}
         if args.profile != 'standard': expected.add('agpc-apps')
         versions = {name: installed(name) for name in sorted(expected)}
         assert all(versions[name] == approved[name]['version'] for name in expected), versions
+        assert installed('mote-mcp-ultra') is None, 'Retired Ultra bundle must not remain installed'
+        assert installed('mote-bridge-mcp') is None, 'Retired bridge must not remain installed'
         if args.profile == 'standard':
             assert installed('agpc-apps') is None and installed('agent-apps') is None
         else:
