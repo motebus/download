@@ -173,15 +173,15 @@ class BuildAndBundleAdmission(unittest.TestCase):
         self.root = Path(temporary.name)
         self.record = record_for()
 
-    def fixture(self, proof_change=None, extra_control=None, extra_payload=None, binary_mode=0o755):
+    def fixture(self, proof_change=None, extra_control=None, extra_payload=None, binary_mode=0o755, binary_size=64):
         folder = Path(tempfile.mkdtemp(dir=self.root))
         stage = folder / "root"
         stage.mkdir()
-        binary = bytearray(64)
+        binary = bytearray(binary_size)
         binary[:6] = b"\x7fELF\x02\x01"
         struct.pack_into("<H", binary, 16, 3)
         struct.pack_into("<H", binary, 18, 62)
-        needed = ["libc.so.6", "libgcc_s.so.1", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1"]
+        needed = ["libc.so.6", "libgcc_s.so.1", "libgio-2.0.so.0", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1"]
         source = {name: {"sha256": pub.sha(name.encode()), "bytes": len(name)} for name in pub.SOURCE_FILES}
         proof = {
             "schema": "agpc-view.build-provenance/v1", "package": pub.IDENTITY,
@@ -236,7 +236,7 @@ class BuildAndBundleAdmission(unittest.TestCase):
         return {
             "--program-headers": "[Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]",
             "--dynamic": "\n".join("(NEEDED) [" + name + "]" for name in (
-                "libc.so.6", "libgcc_s.so.1", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1")),
+                "libc.so.6", "libgcc_s.so.1", "libgio-2.0.so.0", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1")),
             "--version-info": "GLIBC_2.2.5 GLIBC_2.39",
         }[option]
 
@@ -246,6 +246,11 @@ class BuildAndBundleAdmission(unittest.TestCase):
 
     def test_inert_scriptless_fixture_exercises_archive_validation(self):
         self.validate(*self.fixture())
+
+    def test_larger_native_tls_binary_has_an_explicit_bounded_payload_budget(self):
+        self.validate(*self.fixture(binary_size=pub.LIMIT + 1))
+        with self.assertRaisesRegex(ValueError, "oversized DEB file"):
+            self.validate(*self.fixture(binary_size=pub.PAYLOAD_LIMIT + 1))
 
     def test_added_scripts_payload_and_privileged_modes_are_rejected(self):
         for options in ({"extra_control": "postinst"}, {"extra_control": "triggers"},

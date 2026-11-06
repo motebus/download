@@ -16,12 +16,13 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = "motebus/download"
-VERSION = "0.1.0-2"
+VERSION = "0.1.0-4"
 TAG = "agpc-view-v" + VERSION
 PACKAGE = "agpc-view_" + VERSION + "_amd64.deb"
 ASSETS = {PACKAGE, "MANIFEST.json", "SHA256SUMS"}
 FINGERPRINT = "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0"
 LIMIT = 2 * 1024 * 1024
+PAYLOAD_LIMIT = 4 * 1024 * 1024
 PAYLOAD = {
     "usr/bin/agpc-view", "usr/share/applications/agpc-view.desktop",
     "usr/share/icons/hicolor/scalable/apps/agpc-view.svg",
@@ -32,7 +33,7 @@ SOURCE_FILES = {
     "src/agpc_view_component.py",
     *("components/agpc-view/" + name for name in (
         "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "README.md", "SPEC.md",
-        "src/backend.rs", "src/gtk.rs", "src/main.rs", "assets/agpc-view.desktop",
+        "src/backend.rs", "src/gtk.rs", "src/main.rs", "src/local.rs", "src/mode.rs", "src/sso.rs", "assets/agpc-view.desktop",
         "assets/agpc-view.svg", "assets/style.css", "assets/copyright",
         "assets/THIRD-PARTY-NOTICES.txt", "scripts/build-deb.py", "scripts/test-package.py")),
 }
@@ -185,7 +186,7 @@ def tar_files(package, control=False):
                 if member.isdir():
                     require(name in directories and member.mode == 0o755, "unreviewed package directory")
                 else:
-                    require(member.size <= LIMIT, "oversized DEB file")
+                    require(member.size <= PAYLOAD_LIMIT, "oversized DEB file")
                     files[name] = (archive.extractfile(member).read(), member.mode)
         return files
 
@@ -241,7 +242,7 @@ def validate_build(package, build, record):
     abi = proof["binary"]["abi"]
     require("[Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]" in segments
             and "(RPATH)" not in dynamic and "(RUNPATH)" not in dynamic
-            and needed == ["libc.so.6", "libgcc_s.so.1", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1"]
+            and needed == ["libc.so.6", "libgcc_s.so.1", "libgio-2.0.so.0", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1"]
             and abi["needed"] == needed and abi["format"] == "ELF64" and abi["machine"] == "x86-64"
             and abi["interpreter"] == "/lib64/ld-linux-x86-64.so.2", "unreviewed native ABI")
     floors = [tuple(map(int, version.split("."))) for version in re.findall(r"\bGLIBC_(\d+(?:\.\d+)+)\b", versions)]
@@ -345,8 +346,8 @@ def prepare(args):
               "pipeline_id": pipeline["id"], "job_id": native["id"], "gui_job_id": gui["id"],
               "producer_manifest_sha256": sha(original), "candidate_tag": "candidate-" + TAG,
               "assets": {}, "notes": "Native GTK4 AGPC View " + VERSION + " for amd64, built and GUI-checked by canonical main CI. "
-              "Fixes dark-theme readability with theme-matched text/surfaces, larger type, clearer input hints and borders. "
-              "Native GUI checks cover light, dark and both high-contrast variants. "
+              "Local is restricted to this computer’s information and existing Manager prechecks; all network observations belong to Mesh. The read-only Mesh mode requires Account browser SSO at account.ypcloud.com. "
+              "Teal Local and violet Mesh styles follow light, dark and high-contrast themes. Native checks cover the authentication gate; successful human sign-in remains separate live evidence. "
               "Requires AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. "
               "Run agpc-view as the desktop user. This standalone release does not change Core/All installers, "
               "enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc "

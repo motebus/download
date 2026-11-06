@@ -2,30 +2,30 @@
   "architecture": "amd64",
   "assets": {
     "MANIFEST.json": {
-      "bytes": 6924,
-      "sha256": "ef726b1fdbf725ba4013893b369c32e22b7c809698c86366fef5f17adfbe9836"
+      "bytes": 7492,
+      "sha256": "119444fdcfdbd2e5bc7c16bba16a64a23b7278eb4fb3d85b11b77e231104dad2"
     },
     "SHA256SUMS": {
       "bytes": 174,
-      "sha256": "377acddf27517bdf31a31095f148fe48bb8583e40a7b6f1d7731bf0af83fe8e7"
+      "sha256": "bea75aa5e8d4a0d121d15ffe8eb563a2d2e7e2b2eae1437e16e0786a5b61e14e"
     },
-    "agpc-view_0.1.0-2_amd64.deb": {
-      "bytes": 211712,
-      "sha256": "4c85b623d79d056b414c3bfd4fc2debdfc801efaf4b671029952d3ad4c0550c1"
+    "agpc-view_0.1.0-4_amd64.deb": {
+      "bytes": 1016312,
+      "sha256": "5c6a25499f59bd5549cf2ca4c6e1b5753975092a77c43cdf38fad87c659b86a8"
     }
   },
-  "candidate_tag": "candidate-agpc-view-v0.1.0-2",
-  "gui_job_id": 67083,
-  "job_id": 67082,
-  "notes": "Native GTK4 AGPC View 0.1.0-2 for amd64, built and GUI-checked by canonical main CI. Fixes dark-theme readability with theme-matched text/surfaces, larger type, clearer input hints and borders. Native GUI checks cover light, dark and both high-contrast variants. Requires AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. Run agpc-view as the desktop user. This standalone release does not change Core/All installers, enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc with the established MoteBus archive key before installing.\n",
-  "package": "agpc-view_0.1.0-2_amd64.deb",
-  "pipeline_id": 28743,
+  "candidate_tag": "candidate-agpc-view-v0.1.0-4",
+  "gui_job_id": 67147,
+  "job_id": 67146,
+  "notes": "Native GTK4 AGPC View 0.1.0-4 for amd64, built and GUI-checked by canonical main CI. Local is restricted to this computer\u2019s information and existing Manager prechecks; all network observations belong to Mesh. The read-only Mesh mode requires Account browser SSO at account.ypcloud.com. Teal Local and violet Mesh styles follow light, dark and high-contrast themes. Native checks cover the authentication gate; successful human sign-in remains separate live evidence. Requires AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. Run agpc-view as the desktop user. This standalone release does not change Core/All installers, enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc with the established MoteBus archive key before installing.\n",
+  "package": "agpc-view_0.1.0-4_amd64.deb",
+  "pipeline_id": 28759,
   "pipeline_status": "success",
-  "producer_manifest_sha256": "dcb81b0c7bb9b4969548e6599ca307836e8935ba80e2b1e4f8905c647aeee610",
+  "producer_manifest_sha256": "baf89f4b24c90246552ca33a65bf7d2240fbb1ab297f4d5f84037aa52137219a",
   "schema": "agpc-view.publication-inputs/v1",
-  "source_commit": "f9684c2ece5dff98e35f9384395f3b2b2c28dfa8",
+  "source_commit": "b58231f1895e6f27c300eeb64a55a2998a2becd0",
   "source_project": 1336,
   "source_ref": "main",
-  "tag": "agpc-view-v0.1.0-2",
-  "version": "0.1.0-2"
+  "tag": "agpc-view-v0.1.0-4",
+  "version": "0.1.0-4"
 }
