@@ -69,7 +69,7 @@ credentials and local test fixtures are not public assets.
 4. Stage the three exact unsigned bundle files under `candidate-` plus the
    reviewed final tag using the existing draft-candidate release lifecycle.
    Candidate storage alone does not satisfy any publication gate.
-5. Dispatch the protected `release` environment workflow on the current public
+5. Dispatch the existing `release` environment workflow on the current public
    main with only `component=vmodel` or `component=model`. The workflow requires
    the committed record, re-downloads original CI artifacts and tracked source,
    compares staged bytes, signs in an isolated keyring, then repeats producer,
