@@ -1,0 +1,369 @@
+{
+  "schema": "agpc.core.public-source-export/v1",
+  "canonical_source_project_id": 1341,
+  "canonical_source_commit": "99d80902855e8ac99ee1c92806eb4cef2ffe58b1",
+  "public_base_commit": "0620ab172023d99d2cd46ad070e8ec692116d4a8",
+  "scope": "Generic Core package and Mesh/All producer, signer and exact-cohort validators; no activation or actual future publication inputs.",
+  "files": {
+    ".github/workflows/publish-agpc-core-profiles.yml": {
+      "sha256": "16919ca065ed9392f574ebae6b02d80bdcad5ddf2bbe7998c1b07923c22ee557",
+      "bytes": 2124,
+      "mode": "0o664",
+      "canonical_path": ".github/workflows/publish-agpc-core-profiles.yml",
+      "canonical_sha256": "16919ca065ed9392f574ebae6b02d80bdcad5ddf2bbe7998c1b07923c22ee557",
+      "exact_canonical_bytes": true
+    },
+    ".github/workflows/publish-agpc-model-components.yml": {
+      "sha256": "201df780216fe368d1c75121a01cba64547b47a2a14f2fddb23f44f46d499677",
+      "bytes": 2143,
+      "mode": "0o664",
+      "canonical_path": ".github/workflows/publish-agpc-model-components.yml",
+      "canonical_sha256": "201df780216fe368d1c75121a01cba64547b47a2a14f2fddb23f44f46d499677",
+      "exact_canonical_bytes": true
+    },
+    "scripts/agpc-core-profile-publication.md": {
+      "sha256": "def43b5084197c4002ec51ba8f2858cfd523b978aea96ef5da4a9cb1bb3a139a",
+      "bytes": 7752,
+      "mode": "0o664",
+      "canonical_path": "scripts/agpc-core-profile-publication.md",
+      "canonical_sha256": "6549a6ce30f21c016ee37dd31995c576308f27965f81de09ea2b47d979dbf738",
+      "exact_canonical_bytes": false
+    },
+    "scripts/agpc-model-component-publication.md": {
+      "sha256": "efb4e01fac99f5f54d93cb83801d11050079dbdf7a959e5a364df21b80acce22",
+      "bytes": 6001,
+      "mode": "0o664",
+      "canonical_path": "scripts/agpc-model-component-publication.md",
+      "canonical_sha256": "efb4e01fac99f5f54d93cb83801d11050079dbdf7a959e5a364df21b80acce22",
+      "exact_canonical_bytes": true
+    },
+    "scripts/agpc_core_package.py": {
+      "sha256": "d5b9012af5ddf2fc5b430338086dc99db4a841c3e44c26c9f0f1f825d039d906",
+      "bytes": 5086,
+      "mode": "0o664",
+      "canonical_path": "scripts/agpc_core_package.py",
+      "canonical_sha256": "d5b9012af5ddf2fc5b430338086dc99db4a841c3e44c26c9f0f1f825d039d906",
+      "exact_canonical_bytes": true
+    },
+    "scripts/agpc_profiles.py": {
+      "sha256": "de191bf2a2eda37f41a12d7c9cf68d26fd0c6bce363323d97ad412259998ed50",
+      "bytes": 11039,
+      "mode": "0o664",
+      "canonical_path": "scripts/agpc_profiles.py",
+      "canonical_sha256": "056ab70061bfb3b38fd5fd3096d556e827c3e659cb4f056dac2fedf688017a4c",
+      "exact_canonical_bytes": false
+    },
+    "scripts/build_agpc_core_profiles.py": {
+      "sha256": "1aa39be512be970ce70adee50e0398c25221da90d72594c93f041e07ac3436d9",
+      "bytes": 15047,
+      "mode": "0o664",
+      "canonical_path": "scripts/build_agpc_core_profiles.py",
+      "canonical_sha256": "1aa39be512be970ce70adee50e0398c25221da90d72594c93f041e07ac3436d9",
+      "exact_canonical_bytes": true
+    },
+    "scripts/component-releases/agent-computer-v0.3.0-86.json": {
+      "sha256": "6fc957f443e3b47a1bc8e5779d2645aae74ab95adc3bfe9dd8d16010db68d422",
+      "bytes": 7200,
+      "mode": "0o664",
+      "canonical_path": "scripts/component-releases/agent-computer-v0.3.0-86.json",
+      "canonical_sha256": "6fc957f443e3b47a1bc8e5779d2645aae74ab95adc3bfe9dd8d16010db68d422",
+      "exact_canonical_bytes": true
+    },
+    "scripts/publish_agpc_apt.py": {
+      "sha256": "1932d4d15c0996ac7c7ba0b534a1b83f9b9aa6bb54abef62ed820d2dbfb212a8",
+      "bytes": 6609,
+      "mode": "0o664",
+      "canonical_path": "scripts/publish_agpc_apt.py",
+      "canonical_sha256": "fd4288153a1fe70d77f5df6aaa4928d6ea1eab4dc287ce86bafbfc795a880648",
+      "exact_canonical_bytes": false
+    },
+    "scripts/publish_agpc_core_profiles.py": {
+      "sha256": "ed0d87cef17d2b7e277d213a5de17f71f1672d870cb520c6fafe4aeae4fa8431",
+      "bytes": 18850,
+      "mode": "0o664",
+      "canonical_path": "scripts/publish_agpc_core_profiles.py",
+      "canonical_sha256": "ed0d87cef17d2b7e277d213a5de17f71f1672d870cb520c6fafe4aeae4fa8431",
+      "exact_canonical_bytes": true
+    },
+    "scripts/publish_agpc_model_components.py": {
+      "sha256": "9919009428033ca6e2a550f896e5e782523ab0265093c4ba3f0488560d5583d9",
+      "bytes": 45221,
+      "mode": "0o664",
+      "canonical_path": "scripts/publish_agpc_model_components.py",
+      "canonical_sha256": "9919009428033ca6e2a550f896e5e782523ab0265093c4ba3f0488560d5583d9",
+      "exact_canonical_bytes": true
+    },
+    "scripts/publish_apt.py": {
+      "sha256": "5ea7cabbdbbd898fd11499427c7e875bf8255bc7431270d4850adfe8fab45fd8",
+      "bytes": 127442,
+      "mode": "0o775",
+      "canonical_path": "scripts/publish_apt.py",
+      "canonical_sha256": "8a467daa04d8bce3c4f800e8a496ffa931fa9c24b5b31e24f8a16225a755591f",
+      "exact_canonical_bytes": false
+    },
+    "scripts/publish_component.py": {
+      "sha256": "586377edd41243e7f6c0129485e468c2c915d77ca680f2ca3a10d092a8020589",
+      "bytes": 5144,
+      "mode": "0o664",
+      "canonical_path": "scripts/publish_component.py",
+      "canonical_sha256": "586377edd41243e7f6c0129485e468c2c915d77ca680f2ca3a10d092a8020589",
+      "exact_canonical_bytes": true
+    },
+    "scripts/publish_native.py": {
+      "sha256": "6a14c07c651e72aad11a96c10d9b2961498c1ee0745169284e73169f99137f9c",
+      "bytes": 24695,
+      "mode": "0o664",
+      "canonical_path": "scripts/publish_native.py",
+      "canonical_sha256": "13903413669d2c7f236def8293fdb6b645fcda0737b4e3bf81f9084fcb1fd436",
+      "exact_canonical_bytes": false
+    },
+    "scripts/validate_agent_sphere_apt.py": {
+      "sha256": "34239a99c87a072e301d9f5af8c31867f5259a95b847491cbfa85bd49a202c32",
+      "bytes": 15971,
+      "mode": "0o664",
+      "canonical_path": "scripts/validate_agent_sphere_apt.py",
+      "canonical_sha256": "ea708a393e7d37b99aba7145c0f038489821c7fcbb82246b96ee19f8b33270b1",
+      "exact_canonical_bytes": false
+    },
+    "tests/fixtures/agpc-core-v96-baseline/FIXTURE.json": {
+      "sha256": "f0396fdef45e25e2e8e15437754ffde635f4b80fd302dc790eff41173b522a63",
+      "bytes": 2809,
+      "mode": "0o664",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/FIXTURE.json",
+      "canonical_sha256": "f0396fdef45e25e2e8e15437754ffde635f4b80fd302dc790eff41173b522a63",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/README.md": {
+      "sha256": "0396612f23d8cc90db0e31ba4f9d681eceadbbb72fdfec52e331a70ce47fb2ea",
+      "bytes": 451,
+      "mode": "0o664",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/README.md",
+      "canonical_sha256": "0396612f23d8cc90db0e31ba4f9d681eceadbbb72fdfec52e331a70ce47fb2ea",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agent-computer-apt-overlay.json": {
+      "sha256": "af8865a8a40720c450e29f961aecdd55f600717e873fb0d2f354e2a78277d9b8",
+      "bytes": 17893,
+      "mode": "0o644",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agent-computer-apt-overlay.json",
+      "canonical_sha256": "af8865a8a40720c450e29f961aecdd55f600717e873fb0d2f354e2a78277d9b8",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc-all.sh": {
+      "sha256": "ef38bed502a0e3aab4e68a7ad97c3b680db897db1595bccee38c5044c4cae3a9",
+      "bytes": 110509,
+      "mode": "0o755",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc-all.sh",
+      "canonical_sha256": "ef38bed502a0e3aab4e68a7ad97c3b680db897db1595bccee38c5044c4cae3a9",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc-all.source.json": {
+      "sha256": "645b5b78e3c408768e37f8273ecf61a9e6eeb407c587f884b91ee688f9162630",
+      "bytes": 291,
+      "mode": "0o644",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc-all.source.json",
+      "canonical_sha256": "645b5b78e3c408768e37f8273ecf61a9e6eeb407c587f884b91ee688f9162630",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc-apps.sh": {
+      "sha256": "d527ac6e357a5934a7a64d06a7cddc04a0f1d25566bea92e99ac4c8b85d856e7",
+      "bytes": 111884,
+      "mode": "0o755",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc-apps.sh",
+      "canonical_sha256": "d527ac6e357a5934a7a64d06a7cddc04a0f1d25566bea92e99ac4c8b85d856e7",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc-apps.source.json": {
+      "sha256": "a24646cc2deb3b594cab32b4590af48d1545fb2c7d8493d2c4394106a3219e23",
+      "bytes": 292,
+      "mode": "0o644",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc-apps.source.json",
+      "canonical_sha256": "a24646cc2deb3b594cab32b4590af48d1545fb2c7d8493d2c4394106a3219e23",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc-core.sh": {
+      "sha256": "5462a7893ae1d487bbb90a1c2c2a6b68b44a6f451bdf26c6693073156bfb0073",
+      "bytes": 110505,
+      "mode": "0o755",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc-core.sh",
+      "canonical_sha256": "5462a7893ae1d487bbb90a1c2c2a6b68b44a6f451bdf26c6693073156bfb0073",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc-core.source.json": {
+      "sha256": "9ce4609382cbc8f4c10ffcd040c0b6bfe8d21dd03bff1c40a8f6cdeb76c2b762",
+      "bytes": 296,
+      "mode": "0o644",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc-core.source.json",
+      "canonical_sha256": "9ce4609382cbc8f4c10ffcd040c0b6bfe8d21dd03bff1c40a8f6cdeb76c2b762",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc-unistall.ps1": {
+      "sha256": "a71262be80dae21588da09913371fd4426cde503e126e5193e7a7a8d63c99427",
+      "bytes": 4271,
+      "mode": "0o644",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc-unistall.ps1",
+      "canonical_sha256": "a71262be80dae21588da09913371fd4426cde503e126e5193e7a7a8d63c99427",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc-win-uninstall.ps1": {
+      "sha256": "b378cc7cc12d4ef686eb59747b714ca58c6976650f630f23a801a94361bbd2aa",
+      "bytes": 4673,
+      "mode": "0o644",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc-win-uninstall.ps1",
+      "canonical_sha256": "b378cc7cc12d4ef686eb59747b714ca58c6976650f630f23a801a94361bbd2aa",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc-win.ps1": {
+      "sha256": "d88937e6915ad4262af6694bfefb17443623ba6e4bda8e9614efcb07ca944cf5",
+      "bytes": 15295,
+      "mode": "0o644",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc-win.ps1",
+      "canonical_sha256": "d88937e6915ad4262af6694bfefb17443623ba6e4bda8e9614efcb07ca944cf5",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc.ps1": {
+      "sha256": "55bc0930d8bacbdfe1a3382abecfbc1df9261ff10828fdae20c23fa23cf9f21d",
+      "bytes": 6092,
+      "mode": "0o644",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc.ps1",
+      "canonical_sha256": "55bc0930d8bacbdfe1a3382abecfbc1df9261ff10828fdae20c23fa23cf9f21d",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc.sh": {
+      "sha256": "5462a7893ae1d487bbb90a1c2c2a6b68b44a6f451bdf26c6693073156bfb0073",
+      "bytes": 110505,
+      "mode": "0o755",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc.sh",
+      "canonical_sha256": "5462a7893ae1d487bbb90a1c2c2a6b68b44a6f451bdf26c6693073156bfb0073",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc.source.json": {
+      "sha256": "c8780b26f00b6ccf32b53ea2d4d200a3693f20f76203d6f3ef4242f85bbb0219",
+      "bytes": 291,
+      "mode": "0o644",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc.source.json",
+      "canonical_sha256": "c8780b26f00b6ccf32b53ea2d4d200a3693f20f76203d6f3ef4242f85bbb0219",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/agpc.windows.source.json": {
+      "sha256": "13e349d671662fd108f276c2630eaa6529a30d13bc60d12be579f0f1db5291e0",
+      "bytes": 563,
+      "mode": "0o644",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/agpc.windows.source.json",
+      "canonical_sha256": "13e349d671662fd108f276c2630eaa6529a30d13bc60d12be579f0f1db5291e0",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/scripts/native-index.html": {
+      "sha256": "8b934db4b69ee0d28e01f19f945713aac572b975e5d5b19df0b19ab568c7d461",
+      "bytes": 4848,
+      "mode": "0o644",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/scripts/native-index.html",
+      "canonical_sha256": "8b934db4b69ee0d28e01f19f945713aac572b975e5d5b19df0b19ab568c7d461",
+      "exact_canonical_bytes": true
+    },
+    "tests/fixtures/agpc-core-v96-baseline/uninstall.sh": {
+      "sha256": "d29b932f4002891699bd597bca06a0a26d3d281bb1a7d29a263efd282fffc207",
+      "bytes": 47876,
+      "mode": "0o755",
+      "canonical_path": "tests/fixtures/agpc-core-v96-baseline/uninstall.sh",
+      "canonical_sha256": "d29b932f4002891699bd597bca06a0a26d3d281bb1a7d29a263efd282fffc207",
+      "exact_canonical_bytes": true
+    },
+    "tests/test_agpc_core_profile_publication.py": {
+      "sha256": "ff2ee0b47a994e9fce9cef350c86fd0ce95e34f1bbaf187daca410f87b208235",
+      "bytes": 12171,
+      "mode": "0o664",
+      "canonical_path": "tests/test_agpc_core_profile_publication.py",
+      "canonical_sha256": "ff2ee0b47a994e9fce9cef350c86fd0ce95e34f1bbaf187daca410f87b208235",
+      "exact_canonical_bytes": true
+    },
+    "tests/test_agpc_core_profiles.py": {
+      "sha256": "7c8ed1d4c0025400d754fb31740a94816500c82c956e327664bd18f9868fc1a0",
+      "bytes": 17917,
+      "mode": "0o664",
+      "canonical_path": "tests/test_agpc_core_profiles.py",
+      "canonical_sha256": "5d8afac2f97019c8da118ca8d6f179d598ebeb68f09e17608742b84666b0a97c",
+      "exact_canonical_bytes": false
+    },
+    "tests/test_agpc_core_publication.py": {
+      "sha256": "4101f7807e75a2bad162a4bf8b5330d25f27e8983958bad18cff8d14c9b30908",
+      "bytes": 14975,
+      "mode": "0o664",
+      "canonical_path": "tests/test_agpc_core_publication.py",
+      "canonical_sha256": "4101f7807e75a2bad162a4bf8b5330d25f27e8983958bad18cff8d14c9b30908",
+      "exact_canonical_bytes": true
+    },
+    "tests/test_agpc_model_publication.py": {
+      "sha256": "5344e366abf40df2b5e84180cd52657aae82bde17d26455f6aa2324fc7dcd35c",
+      "bytes": 24101,
+      "mode": "0o664",
+      "canonical_path": "tests/test_agpc_model_publication.py",
+      "canonical_sha256": "5344e366abf40df2b5e84180cd52657aae82bde17d26455f6aa2324fc7dcd35c",
+      "exact_canonical_bytes": true
+    },
+    "tests/test_agpc_native_publication.py": {
+      "sha256": "78005a2eab8c5caa03f7ee0d3cced953c05ed2652cc59e72bf9d60f12d97107b",
+      "bytes": 12208,
+      "mode": "0o664",
+      "canonical_path": "tests/test_agpc_native_publication.py",
+      "canonical_sha256": "c296888b378cf9edf5bcbbcb4c7b0701c78e38d0f697582cd953d512521e900a",
+      "exact_canonical_bytes": false
+    },
+    "tests/test_agpc_native_publication_v8.py": {
+      "sha256": "6b5b67783c11e84ceaebfa765882c45d703f3c1385e3bad2fbcbe9fa6da6cb41",
+      "bytes": 9773,
+      "mode": "0o664",
+      "canonical_path": "tests/test_agpc_native_publication.py",
+      "canonical_sha256": "c296888b378cf9edf5bcbbcb4c7b0701c78e38d0f697582cd953d512521e900a",
+      "exact_canonical_bytes": false
+    },
+    "tests/test_agpc_public_compatibility.py": {
+      "sha256": "4357f4effbdb674db88164062fecd1cb1f50c3efa75bf3a555aa7f659ca026ba",
+      "bytes": 6727,
+      "mode": "0o664",
+      "canonical_path": null,
+      "canonical_sha256": null,
+      "exact_canonical_bytes": false
+    },
+    "tests/test_build_agpc_core_profiles.py": {
+      "sha256": "c882bc524987a196b0933d3f15f6d6dfb3b1c59a604ed3a0b5c8c1c4a947912b",
+      "bytes": 10629,
+      "mode": "0o664",
+      "canonical_path": "tests/test_build_agpc_core_profiles.py",
+      "canonical_sha256": "c882bc524987a196b0933d3f15f6d6dfb3b1c59a604ed3a0b5c8c1c4a947912b",
+      "exact_canonical_bytes": true
+    },
+    "tests/test_publish_component.py": {
+      "sha256": "c713dd52e05b1e4d6b973e26f4dc219126b67258501c8dc6bd9419a71b18d9ae",
+      "bytes": 4217,
+      "mode": "0o664",
+      "canonical_path": "tests/test_publish_component.py",
+      "canonical_sha256": "c713dd52e05b1e4d6b973e26f4dc219126b67258501c8dc6bd9419a71b18d9ae",
+      "exact_canonical_bytes": true
+    }
+  },
+  "preserved_public_files": {
+    "agpc.sh": "593696a89b2cae666f0d972a065ea3dcbe0bc941bff78eae825093e4a9b4ee21",
+    "agpc.source.json": "a78ec49978cf1e2abbe08185ca5798490c16e76cbf65bb2356f1c0a48db3ab2f",
+    "agpc-all.sh": "9ba17af03d00b2c873cd73250c765ae43516e883c389855c4dae841d9ceaa7ac",
+    "agpc-all.source.json": "8c8d639fe589e798508891f7992fc18f5317209c43bd510be94ee1bff61705e2",
+    "agent-sphere-apps.sh": "9ba17af03d00b2c873cd73250c765ae43516e883c389855c4dae841d9ceaa7ac",
+    "agent-sphere-apps.source.json": "8c8d639fe589e798508891f7992fc18f5317209c43bd510be94ee1bff61705e2",
+    "agent-computer-apt-overlay.json": "b03bced65595f0d1a0276dd5a3f5b3d1107ad2211d54b8219a1452876d6fe6d7",
+    "README.md": "a09449b4461cab7790e3f3614299204b74f80e4d963c41b5c6a1c619a2ff27b0",
+    "scripts/native-pages.json": "6d1488844b863aa53b40cbc5184adfa7352566ce87b6fe4a48f623250eadb7f7",
+    "scripts/verify_agpc_profiles.py": "0bc0ccd8fea4982245264cf34a250f51d2c62df94bb88ef796c077409cab8101",
+    ".github/workflows/publish-agpc-profiles.yml": "2d9620425d6cc7921ab180f98c5389d24eb8444f77c1d46572be1ff418c443ad",
+    ".github/workflows/publish-agpc-v58-runtime.yml": "eb51455ac26d3d98987a9b505ea571a2394ace1046807a266979309aca39f811"
+  },
+  "public_adaptations": [
+    "Retain exact historical v1/v2 aliases and v7 transition package; later formats keep distinct Apps and exact Core inventory.",
+    "Preserve public Windows preview .26 support, pin, Windows-only publication and signature/metadata checks.",
+    "Preserve historical v5/v6/v7 aggregate tag-to-public-source binding; v8-v13 retain canonical original-source provenance, exact asset inventory and payload hashes.",
+    "Use separate historical v7 and canonical v8 publication fixtures; Core renderer fixtures stay fixed at v96/cohort85.",
+    "Do not export canonical private CI/README/activation tests or change active root files, Pages workflows or native acceptance verifier."
+  ],
+  "release_admitted": false,
+  "runtime_ready": false,
+  "pages_activated": false
+}

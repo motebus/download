@@ -1,0 +1,1939 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Fixed in the signed script; profile selection also works when piped to bash.
+agpc_profile=full
+agpc_entrypoint=agpc-all.sh
+
+usage() {
+    printf '%s\n' \
+        "Usage: $agpc_entrypoint [--yes] [--user USER] [--help]" \
+        'Install native AGPC: agent-sphere, agpc-ultra, agpc-manager, agpc-cdp, agpc-run, agpc-view, contextd and uchatd.' \
+        'agpc-all.sh additionally installs agpc-apps; existing applications are preserved.' \
+        'Supports Ubuntu 24.04 and 26.04 amd64; creates only missing reviewed APT key/source files.' \
+        'Run as root. Confirm the displayed plan unless --yes is supplied; installation continues in a detached systemd job.'
+}
+fail() { printf '%s\n' "$*" >&2; exit 1; }
+confirmation=()
+agpc_chat_user=${SUDO_USER:-}
+[[ $agpc_chat_user != root ]] || agpc_chat_user=
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --yes) confirmation=(--yes); shift ;;
+        --user) [[ $# -ge 2 && -n $2 ]] || fail '--user requires an existing local login account'; agpc_chat_user=$2; shift 2 ;;
+        --help) usage; exit 0 ;;
+        *) printf 'Unsupported argument: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+if [[ -n $agpc_chat_user ]]; then
+    python3 - "$agpc_chat_user" <<'AGPC_USER' || fail 'Select an existing local login account with --user. No installation was started.'
+import pwd,re,sys
+name=sys.argv[1]
+assert re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}',name)
+p=pwd.getpwnam(name)
+assert 1000<=p.pw_uid<65534 and not p.pw_shell.endswith(('nologin','/false'))
+AGPC_USER
+fi
+[[ $(id -u) == 0 ]] || fail 'Run this installer as root (for example, with sudo).'
+for command in apt-get curl sha256sum dpkg dpkg-deb dpkg-query mktemp chmod realpath stat python3; do
+    command -v "$command" >/dev/null 2>&1 || fail "$command is required. Package installation was not started."
+done
+[[ $(dpkg --print-architecture) == amd64 ]] || fail 'This reviewed release requires amd64.'
+export LC_ALL=C
+
+# BEGIN SIGNED BOOTSTRAP
+# Source after the installer's argument parsing. No action occurs on source.
+# Run platform_check before mutations; run apt_bootstrap only AFTER migration guards.
+agentsphere_platform_check() {
+    [ "${EUID:-$(id -u)}" -eq 0 ] || { printf '%s\n' 'AgentSphere installation requires root.' >&2; return 1; }
+    local tool
+    for tool in apt-get curl sha256sum dpkg dpkg-deb dpkg-query mktemp chmod realpath stat python3 gpg rm; do
+        command -v "$tool" >/dev/null 2>&1 || { printf 'Required command is missing: %s\n' "$tool" >&2; return 1; }
+    done
+    python3 - <<'PY'
+import os,shlex,stat,subprocess,sys
+try:
+    path='/etc/os-release'
+    if os.path.islink(path):
+        assert os.path.realpath(path)=='/usr/lib/os-release'
+        path='/usr/lib/os-release'
+    fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
+    with os.fdopen(fd,'rb') as f:
+        m=os.fstat(f.fileno()); assert stat.S_ISREG(m.st_mode) and m.st_uid==0 and not m.st_mode&0o022 and m.st_size<=16384
+        raw=f.read(16385); assert len(raw)<=16384
+    values={}
+    for line in raw.decode().splitlines():
+        if not line.strip() or line.lstrip().startswith('#'): continue
+        key,sep,value=line.partition('='); assert sep and key not in values
+        words=shlex.split(value); assert len(words)==1
+        values[key]=words[0]
+    assert values.get('ID')=='ubuntu' and values.get('VERSION_ID') in ('24.04','26.04')
+    assert subprocess.check_output(['dpkg','--print-architecture'],text=True).strip()=='amd64'
+except (AssertionError,OSError,UnicodeError,ValueError,subprocess.SubprocessError):
+    sys.exit('Supported platform required: Ubuntu 24.04 or 26.04 amd64, with a readable regular /etc/os-release.')
+PY
+}
+
+_agentsphere_apt_state() {
+    python3 - "$@" <<'PY'
+import hashlib,os,pathlib,stat,subprocess,sys,tempfile
+P=pathlib.Path
+KEY=P('/etc/apt/keyrings/medge-archive-keyring.gpg')
+SOURCE=P('/etc/apt/sources.list.d/medge.sources')
+SHA='756fc2632c307509b8e5ece665ced7f4d1a58636ac935aefc1e017f7dcfcbfbd'
+FPR='AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0'
+TEXT=b'Types: deb\nURIs: https://motebus.github.io/download\nSuites: stable\nComponents: main\nArchitectures: amd64\nSigned-By: /etc/apt/keyrings/medge-archive-keyring.gpg\n'
+def directory(path,missing=False):
+    try:m=path.lstat()
+    except FileNotFoundError:
+        if missing:return False
+        raise ValueError('required APT directory is missing')
+    if not stat.S_ISDIR(m.st_mode) or m.st_uid!=0 or m.st_mode&0o022:raise ValueError('APT directory is not trusted')
+    return True
+def read(path):
+    try:fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
+    except FileNotFoundError:
+        if path.is_symlink():raise ValueError('APT destination is a symlink')
+        return None
+    with os.fdopen(fd,'rb') as f:
+        m=os.fstat(f.fileno())
+        if not stat.S_ISREG(m.st_mode) or m.st_uid!=0 or m.st_mode&0o022 or m.st_size>1048576:raise ValueError('APT file is not a bounded trusted regular file')
+        b=f.read(1048577)
+        if len(b)>1048576:raise ValueError('APT file exceeds bound')
+        return b
+
+def inspect():
+    directory(P('/etc'));directory(P('/etc/apt'))
+    directory(KEY.parent,True);directory(SOURCE.parent,True)
+    key=read(KEY);source=read(SOURCE)
+    if key is not None and hashlib.sha256(key).hexdigest()!=SHA:raise ValueError('existing MoteBus archive key differs; preserved without replacement')
+    if source is not None and source!=TEXT:raise ValueError('existing MoteBus APT source differs; preserved without replacement')
+    candidates=[P('/etc/apt/sources.list')]
+    if SOURCE.parent.exists():candidates+=list(SOURCE.parent.glob('*.list'))+list(SOURCE.parent.glob('*.sources'))
+    for path in candidates:
+        if path==SOURCE:continue
+        b=read(path)
+        if b is not None and any(b'motebus.github.io/download' in line.lower() for line in b.splitlines() if not line.lstrip().startswith(b'#')):
+            raise ValueError('another MoteBus APT source is present; ambiguous setup preserved')
+    return key,source
+
+def publish(path,data):
+    if not directory(path.parent,True):path.parent.mkdir(mode=0o755)
+    directory(path.parent)
+    fd,name=tempfile.mkstemp(prefix='.agentsphere-',dir=path.parent)
+    try:
+        with os.fdopen(fd,'wb') as f:
+            os.fchmod(f.fileno(),0o644);f.write(data);f.flush();os.fsync(f.fileno())
+        os.link(name,path) # atomic create-only; never overwrite a concurrent file
+        d=os.open(path.parent,os.O_RDONLY|os.O_DIRECTORY)
+        try:os.fsync(d)
+        finally:os.close(d)
+    finally:os.unlink(name)
+try:
+    key,source=inspect()
+    if sys.argv[1]=='check':
+        print('complete' if key is not None and source is not None else 'source-only' if key is not None else 'key-needed')
+    elif sys.argv[1]=='install':
+        candidate=P(sys.argv[2]).read_bytes()
+        if len(candidate)>131072 or hashlib.sha256(candidate).hexdigest()!=SHA:raise ValueError('downloaded archive key digest mismatch')
+        gnupg=P(sys.argv[3])/'gnupg';gnupg.mkdir(mode=0o700)
+        result=subprocess.run(['gpg','--batch','--no-options','--no-default-keyring','--homedir',str(gnupg),'--with-colons','--show-keys',sys.argv[2]],capture_output=True,text=True,timeout=15)
+        if result.returncode:raise ValueError('archive key fingerprint inspection failed')
+        fingerprints=[];pending=False
+        for line in result.stdout.splitlines():
+            fields=line.split(':')
+            if fields[0]=='pub':pending=True
+            elif fields[0]=='fpr' and pending:fingerprints.append(fields[9]);pending=False
+        if fingerprints!=[FPR]:raise ValueError('archive key fingerprint mismatch')
+        key,source=inspect() # detect concurrent changes before any publication
+        if key is None:publish(KEY,candidate)
+        if source is None:publish(SOURCE,TEXT)
+        print('Signed MoteBus APT source configured; existing configuration preserved.')
+    else:raise ValueError('invalid internal bootstrap action')
+except (OSError,ValueError,subprocess.SubprocessError) as e:
+    sys.exit('AgentSphere APT bootstrap refused: '+str(e))
+PY
+}
+
+agentsphere_apt_bootstrap() (
+    agentsphere_platform_check || exit
+    local state temp key
+    state=$(_agentsphere_apt_state check) || exit
+    [ "$state" != complete ] || return 0
+    temp=$(mktemp -d /var/tmp/agentsphere-bootstrap.XXXXXXXX) || exit
+    chmod 0700 "$temp" || exit
+    trap 'rm -rf -- "$temp"' EXIT
+    if [ "$state" = source-only ]; then
+        key=/etc/apt/keyrings/medge-archive-keyring.gpg
+    else
+        key=$temp/key.gpg
+        curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --max-time 60 --max-filesize 131072 --output "$key" https://motebus.github.io/download/medge-archive-keyring.gpg || exit
+    fi
+    _agentsphere_apt_state install "$key" "$temp"
+)
+
+# END SIGNED BOOTSTRAP
+
+# BEGIN DETACHED INSTALL SUPPORT
+write_ssh_readiness_helper() {
+    cat <<'AGPC_SSH_READINESS_PY'
+#!/usr/bin/python3
+"""Validate and activate Ubuntu SSH without modifying its owner configuration."""
+import base64
+import binascii
+import json
+import os
+import re
+import selectors
+import socket
+import stat
+import subprocess
+import sys
+import tempfile
+import time
+
+
+class Refused(Exception):
+    pass
+
+
+SSH_DIRECTORY = "/etc/ssh"
+PROBE_DIRECTORY = "/run"
+ED25519_PUBLIC_PREFIX = b"\x00\x00\x00\x0bssh-ed25519\x00\x00\x00\x20"
+
+
+def command(args, timeout=30):
+    return subprocess.run(args, stdin=subprocess.DEVNULL, capture_output=True,
+                          text=True, timeout=timeout, env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"})
+
+
+def unit(name):
+    result = command(["/usr/bin/systemctl", "show", name,
+                      "--property=LoadState,ActiveState,SubState,UnitFileState"])
+    if result.returncode:
+        raise Refused("systemd-unit-inspection-failed")
+    fields = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
+    expected = {"LoadState", "ActiveState", "SubState", "UnitFileState"}
+    if set(fields) != expected or any(not value.replace("-", "").isalnum() for value in fields.values() if value):
+        raise Refused("systemd-unit-state-invalid")
+    return fields
+
+
+def trusted_runtime_directory():
+    # sshd -t needs its privilege-separation directory on fresh Ubuntu installs.
+    # Create only this missing directory; never follow a link or repair ownership.
+    root = os.lstat("/run")
+    if not stat.S_ISDIR(root.st_mode) or root.st_uid != 0 or root.st_mode & 0o022:
+        raise Refused("ssh-runtime-parent-untrusted")
+    try:
+        previous = os.umask(0o022)
+        try:
+            os.mkdir("/run/sshd", 0o755)
+        finally:
+            os.umask(previous)
+    except FileExistsError:
+        pass
+    metadata = os.lstat("/run/sshd")
+    if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_mode & 0o022:
+        raise Refused("ssh-runtime-directory-untrusted")
+
+
+def host_key_metadata(path, private=False):
+    try:
+        metadata = os.lstat(path)
+    except FileNotFoundError:
+        return None
+    forbidden = 0o077 if private else 0o022
+    if (not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != 0 or
+            metadata.st_mode & forbidden or metadata.st_nlink != 1):
+        raise Refused("ssh-host-key-file-untrusted")
+    return metadata
+
+
+def ensure_ed25519_host_key():
+    # Only OpenSSH creates private key material. This helper inspects private
+    # file metadata, never opens its contents, and reads only the public file.
+    for path in (os.path.dirname(SSH_DIRECTORY), SSH_DIRECTORY):
+        metadata = os.lstat(path)
+        if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_mode & 0o022:
+            raise Refused("ssh-host-key-directory-untrusted")
+    private = os.path.join(SSH_DIRECTORY, "ssh_host_ed25519_key")
+    public = private + ".pub"
+    private_metadata = host_key_metadata(private, private=True)
+    public_metadata = host_key_metadata(public)
+    if private_metadata is None and public_metadata is None:
+        # -A creates missing standard host keys and does not rotate existing
+        # keys. Refuse a partial pair rather than replacing an owner's identity.
+        if command(["/usr/bin/ssh-keygen", "-A"]).returncode:
+            raise Refused("ssh-host-key-generation-failed")
+        private_metadata = host_key_metadata(private, private=True)
+        public_metadata = host_key_metadata(public)
+    if private_metadata is None or public_metadata is None:
+        raise Refused("ssh-ed25519-host-key-pair-incomplete")
+    descriptor = os.open(public, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK)
+    with os.fdopen(descriptor, "rb") as stream:
+        opened = os.fstat(stream.fileno())
+        if (opened.st_dev, opened.st_ino, opened.st_mode, opened.st_uid, opened.st_nlink) != (
+                public_metadata.st_dev, public_metadata.st_ino, public_metadata.st_mode,
+                public_metadata.st_uid, public_metadata.st_nlink):
+            raise Refused("ssh-host-key-file-changed")
+        data = stream.read(4097)
+    try:
+        lines = data.decode("ascii").strip().splitlines()
+        fields = lines[0].split() if len(lines) == 1 else []
+        if len(data) > 4096 or len(fields) < 2 or fields[0] != "ssh-ed25519":
+            raise ValueError()
+        wire = base64.b64decode(fields[1], validate=True)
+        if len(wire) != len(ED25519_PUBLIC_PREFIX) + 32 or not wire.startswith(ED25519_PUBLIC_PREFIX):
+            raise ValueError()
+        if base64.b64encode(wire).decode("ascii") != fields[1]:
+            raise ValueError()
+    except (UnicodeError, ValueError, binascii.Error):
+        raise Refused("ssh-ed25519-host-public-key-invalid") from None
+    return fields[1]
+
+
+def verified_key_exchange(args):
+    # Ordinary stderr can contain peer-supplied multiline diagnostics. The
+    # caller suppresses them and forces only this local OpenSSH source/function
+    # record, emitted after signature verification. Bind it to this process.
+    process = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.PIPE, start_new_session=True,
+                               env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"})
+    try:
+        marker = re.compile(rb"debug1: kex\.c:kex_input_newkeys\(\):[0-9]+ \((?:bin=(?:/usr/bin/)?ssh, )?pid=" +
+                            str(process.pid).encode("ascii") + rb"\): SSH2_MSG_NEWKEYS received")
+        deadline, received, pending = time.monotonic() + 5, 0, b""
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stderr, selectors.EVENT_READ)
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not selector.select(remaining):
+                    return False
+                data = os.read(process.stderr.fileno(), 4096)
+                if not data:
+                    return False
+                received += len(data)
+                if received > 65536:
+                    return False
+                pending += data
+                while b"\n" in pending:
+                    line, pending = pending.split(b"\n", 1)
+                    if marker.fullmatch(line.rstrip(b"\r")):
+                        return True
+    finally:
+        try:
+            if process.poll() is None:
+                process.kill()
+            process.wait(timeout=1)
+        finally:
+            process.stderr.close()
+
+
+def pinned_host_key_ready(public_key):
+    # The pinned value comes only from the validated local public key file.
+    # This is a host-proof probe: no user credentials, session or command.
+    with tempfile.TemporaryDirectory(prefix="agpc-ssh-probe.", dir=PROBE_DIRECTORY) as directory:
+        known_hosts = os.path.join(directory, "known_hosts")
+        descriptor = os.open(known_hosts, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
+        with os.fdopen(descriptor, "w", encoding="ascii") as stream:
+            stream.write("127.0.0.1 ssh-ed25519 " + public_key + "\n")
+        options = (
+            "StrictHostKeyChecking=yes", "UserKnownHostsFile=" + known_hosts,
+            "GlobalKnownHostsFile=/dev/null", "HostKeyAlgorithms=ssh-ed25519",
+            "UpdateHostKeys=no", "VerifyHostKeyDNS=no", "CanonicalizeHostname=no",
+            "BatchMode=yes", "IdentityFile=none", "IdentityAgent=none", "IdentitiesOnly=yes",
+            "PubkeyAuthentication=no", "PasswordAuthentication=no", "KbdInteractiveAuthentication=no",
+            "GSSAPIAuthentication=no", "HostbasedAuthentication=no", "PreferredAuthentications=none",
+            "NumberOfPasswordPrompts=0", "ConnectionAttempts=1", "ConnectTimeout=2",
+            "ClearAllForwardings=yes", "ForwardAgent=no", "ForwardX11=no", "PermitLocalCommand=no",
+            "ControlMaster=no", "ControlPath=none", "ControlPersist=no", "ProxyCommand=none", "ProxyJump=none",
+            "LogVerbose=kex.c:kex_input_newkeys():*",
+        )
+        # -q overrides -vv's ordinary output; LogVerbose forces only the local
+        # proof record. Peers cannot inject a fake marker through debug/errors.
+        args = ["/usr/bin/ssh", "-F", "/dev/null", "-vv", "-q", "-N", "-T"]
+        for option in options:
+            args.extend(["-o", option])
+        args.extend(["-l", "agpc-hostkey-probe", "-p", "22", "127.0.0.1"])
+        return verified_key_exchange(args)
+
+
+def banner_ready():
+    # This is the existing MoteD host handoff target, not a MoteC reachability test.
+    try:
+        with socket.create_connection(("127.0.0.1", 22), timeout=2) as stream:
+            deadline = time.monotonic() + 2
+            data = bytearray()
+            while len(data) < 255:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                stream.settimeout(remaining)
+                part = stream.recv(1)
+                if not part:
+                    break
+                data.extend(part)
+                if part == b"\n":
+                    return bytes(data).startswith((b"SSH-2.0-", b"SSH-1.99-"))
+    except (OSError, TimeoutError):
+        pass
+    return False
+
+
+def ensure_ssh_ready():
+    result = {"schema": "agpc.ssh-readiness/v1", "package_installed": False,
+              "ssh_host_key_ready": False,
+              "configuration_valid": False, "activation_unit": None,
+              "boot_enabled": False, "loopback_ssh_ready": False,
+              "mote_reachability": "not-tested", "full_runtime_ready": False,
+              "units": {}, "error": None}
+    try:
+        if os.geteuid() != 0:
+            raise Refused("root-required")
+        package = command(["/usr/bin/dpkg-query", "-W", "-f=${Status}", "openssh-server"])
+        if package.returncode or package.stdout != "install ok installed":
+            raise Refused("openssh-server-not-configured")
+        result["package_installed"] = True
+        public_key = ensure_ed25519_host_key()
+        trusted_runtime_directory()
+        if command(["/usr/sbin/sshd", "-t"]).returncode:
+            raise Refused("sshd-configuration-invalid")
+        result["configuration_valid"] = True
+        service, listener = unit("ssh.service"), unit("ssh.socket")
+        result["units"] = {"ssh.service": service, "ssh.socket": listener}
+        if service["LoadState"] != "loaded" or service["UnitFileState"] in {"masked", "masked-runtime"}:
+            raise Refused("ssh-service-masked-or-unavailable")
+        active = {"active", "activating", "reloading"}
+        enabled = {"enabled", "enabled-runtime"}
+        socket_selected = listener["LoadState"] == "loaded" and listener["UnitFileState"] not in {"masked", "masked-runtime"} and (
+            listener["UnitFileState"] in enabled or listener["ActiveState"] in active)
+        selected = "ssh.socket" if socket_selected else "ssh.service"
+        result["activation_unit"] = selected
+        state = listener if socket_selected else service
+        # Preserve the existing socket/service choice. No restart, stop, unmask,
+        # authentication edits, listen changes or firewall edits.
+        if state["UnitFileState"] != "enabled":
+            if command(["/usr/bin/systemctl", "enable", selected]).returncode:
+                raise Refused("ssh-enable-failed")
+        # An enabled socket may currently be stopped while its already-running
+        # service owns port 22. Preserve that live listener instead of starting
+        # a second socket on the occupied address; socket boot intent remains.
+        if state["ActiveState"] not in active and not (socket_selected and service["ActiveState"] in active):
+            if command(["/usr/bin/systemctl", "start", selected]).returncode:
+                raise Refused("ssh-start-failed")
+        for _ in range(10):
+            if banner_ready():
+                result["loopback_ssh_ready"] = True
+                break
+            time.sleep(0.5)
+        result["units"] = {name: unit(name) for name in ("ssh.service", "ssh.socket")}
+        final = result["units"][selected]
+        result["boot_enabled"] = final["UnitFileState"] == "enabled"
+        current_listener_active = final["ActiveState"] == "active" or (
+            socket_selected and result["units"]["ssh.service"]["ActiveState"] == "active")
+        if not result["boot_enabled"] or not current_listener_active:
+            raise Refused("ssh-activation-not-ready")
+        if not result["loopback_ssh_ready"]:
+            raise Refused("loopback-ssh-banner-unavailable")
+        if not pinned_host_key_ready(public_key):
+            raise Refused("loopback-ssh-host-key-unverified")
+        result["ssh_host_key_ready"] = True
+    except Refused as error:
+        result["error"] = str(error)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        # Never include command output or owner configuration in the report.
+        result["error"] = "ssh-verification-unavailable"
+    return result
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] != ["--ensure"]:
+        sys.exit("Usage: ssh-readiness.py --ensure")
+    report = ensure_ssh_ready()
+    print(json.dumps(report, sort_keys=True))
+    sys.exit(0 if report["error"] is None else 1)
+AGPC_SSH_READINESS_PY
+}
+
+# Embedded verbatim in agpc.sh; defining these functions performs no mutation.
+agentsphere_job_platform_check() {
+    command -v systemd-run >/dev/null && command -v systemctl >/dev/null || return 1
+    python3 - <<'JOB_PLATFORM'
+import os, stat, sys
+try:
+    for path in ('/', '/var', '/var/lib', '/run', '/run/systemd/system'):
+        value=os.lstat(path)
+        assert stat.S_ISDIR(value.st_mode) and value.st_uid==0 and not value.st_mode&0o022
+except (AssertionError, OSError):
+    sys.exit('Detached installation requires running systemd and trusted root-owned directories.')
+JOB_PLATFORM
+}
+
+agentsphere_run_detached() {
+    local stage worker_guard worker_transition unit result code count state argument
+    stage=$job_stage
+    [[ $stage =~ ^/var/lib/agpc-install\.[A-Za-z0-9]{8}$ ]] || return 1
+    python3 - "$stage" <<'AGPC_STAGE' || return
+import os,stat,sys
+m=os.lstat(sys.argv[1])
+assert stat.S_ISDIR(m.st_mode) and m.st_uid==0 and m.st_gid==0 and stat.S_IMODE(m.st_mode)==0o700
+assert not os.listdir(sys.argv[1])
+AGPC_STAGE
+    worker_guard=$stage/guard
+    worker_transition=
+    # The existing temporary inputs are root-owned; copy into the durable root
+    # stage so caller exit/cleanup cannot remove inputs from the detached job.
+    cp -- "$guard" "$worker_guard" || return
+    if [[ -n ${retirement_bridge:-} ]]; then
+        worker_transition=$stage/mote-chatd_2.0.0-9_all.deb
+        cp -- "$retirement_bridge" "$worker_transition" || return
+        chmod 0600 "$worker_transition" || return
+    fi
+    chmod 0700 "$worker_guard" || return
+    write_ssh_readiness_helper > "$stage/ssh-readiness.py" || return
+    {
+        printf '%s\n' '#!/bin/bash' 'set -euo pipefail' 'umask 077' 'export LC_ALL=C' 'export PATH=/usr/sbin:/usr/bin:/sbin:/bin'
+        printf 'stage=%q\n' "$stage"
+        printf 'guard=%q\n' "$worker_guard"
+        printf 'agpc_chat_user=%q\n' "${agpc_chat_user:-}"
+        printf 'agpc_profile=%q\n' "$agpc_profile"
+        printf 'uchat_state=%q\n' "$uchat_state"
+        printf 'cdp_version=%q\n' "$cdp_version"
+        printf 'retirement_bridge=%q\n' "$worker_transition"
+        printf 'packages=('
+        for argument in "${packages[@]}"; do
+            printf '%q ' "$argument"
+        done
+        printf ')\n'
+        cat <<'AGPC_WORKER'
+phase=inputs
+finish() {
+    code=$?
+    trap - EXIT
+    python3 - "$stage" "$code" "$phase" "$cdp_version" <<'AGPC_RESULT' || { [[ $code != 0 ]] || code=1; }
+import json, os, stat, sys
+stage, code, phase, cdp_version=sys.argv[1:]
+def load_optional(name, fallback):
+    path=stage+'/'+name
+    try:
+        fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
+        with os.fdopen(fd) as file:
+            metadata=os.fstat(file.fileno())
+            if (not stat.S_ISREG(metadata.st_mode) or metadata.st_uid!=0 or
+                    metadata.st_gid!=0 or metadata.st_nlink!=1 or
+                    metadata.st_mode&0o077 or metadata.st_size>65536):
+                return fallback
+            return json.load(file)
+    except (OSError,ValueError,TypeError):
+        return fallback
+body={'schema':'agpc.detached-install-result/v1','exit_code':int(code),'phase':phase,
+      'packages_verified':phase in ('uchat','ssh','agpc-ready','complete'),
+      'ssh_ready':phase in ('agpc-ready','complete'),
+      'mote_reachability':'not-tested','full_runtime_ready':False,
+      'retained_owner_cdp':cdp_version if cdp_version!='0.2.0-2' else None,
+      'retained_owner_cdp_verified':False,
+      'agpc_ready':load_optional('agpc-ready-summary.json',{'state':'not-run'}),
+      'feedback':load_optional('agpc-ready-feedback.json',{
+          'destination':'@codex-medge-dev','state':'not-attempted','accepted':False})}
+path=stage+'/result.json.tmp'
+fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+with os.fdopen(fd,'w') as file:
+    json.dump(body,file,sort_keys=True);file.write('\n');file.flush();os.fsync(file.fileno())
+os.rename(path,stage+'/result.json')
+fd=os.open(stage,os.O_RDONLY|os.O_DIRECTORY)
+try:os.fsync(fd)
+finally:os.close(fd)
+AGPC_RESULT
+    exit "$code"
+}
+trap finish EXIT
+sha256sum --check --status "$stage/inputs.sha256"
+if [[ -n $retirement_bridge ]]; then
+    phase=chatd-retirement
+    dpkg --unpack "$retirement_bridge"
+    dpkg --configure mote-chatd
+fi
+phase=apt
+apt-get -o "DPkg::Pre-Install-Pkgs::=$guard" \
+    -o "DPkg::Tools::Options::$guard::Version=3" \
+    -o "DPkg::Tools::Options::$guard::InfoFD=0" \
+    -o 'Dpkg::Options::=--force-confold' --yes install "${packages[@]}" </dev/null
+phase=package-verification
+apt-get check
+dpkg --audit > "$stage/dpkg-audit.txt"
+test ! -s "$stage/dpkg-audit.txt"
+python3 - "$agpc_profile" "${packages[@]}" > "$stage/packages.json" <<'AGPC_PACKAGES'
+import json,subprocess,sys
+records=[]
+profile=sys.argv[1]
+required={'agent-sphere','agpc-ultra','agpc-manager','agpc-cdp','agpc-run','agpc-view','contextd','agpc-mesh','uchat','uchatd'}
+if profile=='full':required.update(('agpc-apps','uchat-bridge'))
+elif profile!='standard':sys.exit('Unknown AGPC install profile')
+selected=set()
+for argument in sys.argv[2:]:
+    if not argument.startswith(tuple(name+'=' for name in required|{'agent-apps'})):continue
+    name, version=argument.split('=',1)
+    fields=subprocess.check_output(['dpkg-query','-W','-f=${Version}\n${Status}',name],text=True).splitlines()
+    if fields!=[version,'install ok installed']:sys.exit('Expected AGPC entry package is not fully configured: '+name)
+    records.append({'name':name,'version':version,'configured':True,
+                    'provenance':'retained-owner-build' if name=='agpc-cdp' and version!='0.2.0-2' else 'release-selection'})
+    assert name not in selected
+    selected.add(name)
+assert required.issubset(selected)
+print(json.dumps({'schema':'agpc.installed-entries/v1','profile':profile,'packages':records,'full_runtime_ready':False},sort_keys=True))
+AGPC_PACKAGES
+phase=uchat
+# Package version alone does not prove that the Redis namespace is ready.
+# Stop the daemon for a consistent check. If check-store fails, init-store is
+# the fail-closed authority: it refuses any prior identity or nonempty namespace.
+systemctl stop uchatd.service
+systemctl reset-failed uchatd.service || true
+systemctl start uchatd-redis.service
+install -d -m 0700 -o uchatd -g uchat /var/lib/uchatd
+install -d -m 0755 -o uchatd -g uchat /run/uchatd
+# Resolve the moved Mesh config before any store check or initialization.
+python3 - <<'UCHAT_MESH_PATH_MIGRATION'
+import json,os,stat,subprocess,tempfile,uuid
+from pathlib import Path
+ROOT_UID=0
+
+def protected(path):
+    m=path.lstat()
+    if not stat.S_ISREG(m.st_mode) or m.st_uid!=ROOT_UID or m.st_nlink!=1 or m.st_mode&0o022 or m.st_size>1048576:
+        raise ValueError('Unsafe Chat migration file')
+    return m
+
+def validate(path):
+    for operation in ('check-config','check-store'):
+        subprocess.run(['/usr/sbin/runuser','-u','uchatd','--','/usr/sbin/uchatd',operation,'--config',str(path)],check=True)
+
+def migrate(root=Path('/')):
+    config=root/'etc/uchatd/uchatd.json'
+    parent=config.parent.lstat()
+    if not stat.S_ISDIR(parent.st_mode) or parent.st_uid!=ROOT_UID or parent.st_mode&0o022:
+        raise ValueError('Unsafe Chat configuration directory')
+    metadata=protected(config);before=config.read_bytes();value=json.loads(before)
+    old='/etc/cx-mesh/network.json';new='/etc/agpc-mesh/network.json'
+    if value.get('mesh_config')!=old:return False
+    if os.path.lexists(root/old.lstrip('/')):raise ValueError('Legacy Mesh path still exists; owner review required')
+    destination=root/new.lstrip('/')
+    dm=destination.parent.lstat()
+    if not stat.S_ISDIR(dm.st_mode) or dm.st_uid!=ROOT_UID or dm.st_mode&0o022:raise ValueError('Unsafe Mesh directory')
+    protected(destination)
+    expected=dict(value);expected['mesh_config']=new
+    encoded=json.dumps(old).encode()
+    if before.count(encoded)!=1:raise ValueError('Ambiguous legacy Mesh reference')
+    after=before.replace(encoded,json.dumps(new).encode())
+    if json.loads(after)!=expected:raise ValueError('Unexpected Chat configuration change')
+    fd,name=tempfile.mkstemp(prefix='.mesh-path-check-',dir=config.parent)
+    staged=Path(name)
+    try:
+        with os.fdopen(fd,'wb') as f:
+            f.write(after);f.flush();os.fchown(f.fileno(),metadata.st_uid,metadata.st_gid)
+            os.fchmod(f.fileno(),stat.S_IMODE(metadata.st_mode));os.fsync(f.fileno())
+        validate(staged)
+        current=protected(config)
+        if (current.st_ino,current.st_mtime_ns,current.st_ctime_ns)!=(metadata.st_ino,metadata.st_mtime_ns,metadata.st_ctime_ns) or config.read_bytes()!=before:
+            raise ValueError('Chat configuration changed during validation')
+        backup=config.parent/('uchatd.before-mesh-rename-'+str(uuid.uuid4())+'.json')
+        fd=os.open(backup,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+        with os.fdopen(fd,'wb') as f:f.write(before);f.flush();os.fsync(f.fileno())
+        os.replace(staged,config)
+        fd=os.open(config.parent,os.O_RDONLY|os.O_DIRECTORY)
+        try:os.fsync(fd)
+        finally:os.close(fd)
+        print('Migrated existing Chat Mesh reference; Inbox store and other owner settings preserved')
+        return True
+    finally:
+        if staged.exists():staged.unlink()
+
+migrate()
+UCHAT_MESH_PATH_MIGRATION
+if ! runuser -u uchatd -- /usr/sbin/uchatd check-store --config /etc/uchatd/uchatd.json; then
+    runuser -u uchatd -- /usr/sbin/uchatd init-store --config /etc/uchatd/uchatd.json
+    runuser -u uchatd -- /usr/sbin/uchatd check-store --config /etc/uchatd/uchatd.json
+fi
+systemctl start uchatd.service
+if [[ -n $agpc_chat_user ]]; then
+    /usr/libexec/uchat/setup-default.py --user "$agpc_chat_user" > "$stage/uchat.json"
+fi
+phase=ssh
+if python3 "$stage/ssh-readiness.py" --ensure > "$stage/ssh.json"; then
+    :
+else
+    code=$?
+    cat "$stage/ssh.json"
+    exit "$code"
+fi
+phase=agpc-ready
+python3 - "$stage" "$agpc_chat_user" "$agpc_profile" <<'AGPC_READY'
+import json,os,stat,subprocess,sys,tempfile
+stage,user,profile=sys.argv[1:]
+destination='@codex-medge-dev'
+
+def write(name,value):
+    fd,path=tempfile.mkstemp(prefix='.'+name+'.',dir=stage)
+    try:
+        with os.fdopen(fd,'w') as file:
+            json.dump(value,file,sort_keys=True,separators=(',',':'))
+            file.write('\n');file.flush();os.fsync(file.fileno())
+        os.chmod(path,0o600)
+        os.replace(path,os.path.join(stage,name))
+    finally:
+        try:os.unlink(path)
+        except FileNotFoundError:pass
+
+summary={'state':'not-run','scope':'local-precheck','live_verified':False}
+feedback={'destination':destination,'state':'not-attempted','accepted':False}
+if not user:
+    summary['reason']='desktop-user-not-selected'
+    feedback['reason']='desktop-user-not-selected'
+    write('agpc-ready-summary.json',summary)
+    write('agpc-ready-feedback.json',feedback)
+    raise SystemExit(0)
+
+command=['/usr/sbin/runuser','-u',user,'--','/usr/bin/agpc-manager','ready','--json']
+try:
+    checked=subprocess.run(command,stdin=subprocess.DEVNULL,capture_output=True,text=True,timeout=45,check=False)
+except (OSError,subprocess.TimeoutExpired):
+    summary['state']='failed';summary['reason']='local-precheck-unavailable'
+    feedback['reason']='local-precheck-unavailable'
+    write('agpc-ready-summary.json',summary)
+    write('agpc-ready-feedback.json',feedback)
+    raise SystemExit(0)
+try:
+    report=json.loads(checked.stdout)
+    if (not isinstance(report,dict) or report.get('scope')!='local-precheck' or
+            report.get('live_verified') is not False or
+            report.get('state') not in ('not-ready','ready-with-gates') or
+            not isinstance(report.get('checks'),list)):
+        raise ValueError
+except (ValueError,TypeError):
+    summary['state']='failed';summary['reason']='invalid-local-precheck-result'
+    feedback['reason']='invalid-local-precheck-result'
+    write('agpc-ready-summary.json',summary)
+    write('agpc-ready-feedback.json',feedback)
+    raise SystemExit(0)
+summary={'state':report['state'],'scope':'local-precheck','live_verified':False,
+         'check_count':len(report['checks']),'command_exit_code':checked.returncode}
+write('agpc-ready.json',report)
+write('agpc-ready-summary.json',summary)
+message=('AGPC readiness feedback v1\n'
+         f"machine: {report.get('machine','unknown')}\nprofile: {profile}\n"
+         f"state: {report['state']}\nscope: local-precheck\n"
+         'Full live AGPC readiness is required. Inspect this host through its admitted .mote route, '
+         'verify every gate, then use the evidence to improve the next signed agpc-all.sh cohort.\n'
+         'report: '+json.dumps(report,sort_keys=True,separators=(',',':')))
+try:
+    sent=subprocess.run(['/usr/sbin/runuser','-u',user,'--','/usr/bin/uchat','--json','send',destination,message],
+                        stdin=subprocess.DEVNULL,capture_output=True,text=True,timeout=45,check=False)
+    accepted=False
+    if sent.returncode==0:
+        response=json.loads(sent.stdout)
+        accepted=isinstance(response,dict) and response.get('ok') is True
+    feedback.update(state='accepted' if accepted else 'failed',accepted=accepted)
+    if not accepted:feedback['reason']='uchat-send-not-accepted'
+except (OSError,subprocess.TimeoutExpired,ValueError,TypeError):
+    feedback.update(state='failed',reason='uchat-send-unavailable')
+write('agpc-ready-feedback.json',feedback)
+AGPC_READY
+phase=complete
+AGPC_WORKER
+    } > "$stage/worker" || return
+    chmod 0600 "$stage/worker" "$stage/ssh-readiness.py" || return
+    if [[ -n $worker_transition ]]; then
+        sha256sum "$stage/guard" "$stage/worker" "$stage/ssh-readiness.py" "$worker_transition" > "$stage/inputs.sha256" || return
+    else
+        sha256sum "$stage/guard" "$stage/worker" "$stage/ssh-readiness.py" > "$stage/inputs.sha256" || return
+    fi
+    chmod 0600 "$stage/inputs.sha256" || return
+    unit=agpc-install-${stage##*.}
+    printf 'Installation job: %s\nLog: %s/install.log\nResult: %s/result.json\n' "$unit" "$stage" "$stage"
+    # No PTY/session binding: systemd owns the worker independently of this SSH
+    # caller. The caller never removes its durable stage or stops its unit.
+    systemd-run --quiet --no-block --unit="$unit" --service-type=exec \
+        --property=UMask=0077 --property="StandardOutput=append:$stage/install.log" \
+        --property=StandardError=inherit -- /bin/bash "$stage/worker" || return
+    trap 'printf "Installation continues independently; inspect %s/result.json and %s/install.log.\n" "$stage" "$stage" >&2; exit 130' INT TERM HUP
+    for ((count=0; count<3600; count++)); do
+        if [[ -f $stage/result.json && ! -L $stage/result.json ]]; then
+            code=$(python3 - "$stage/result.json" <<'AGPC_OBSERVE'
+import json,os,stat,sys
+fd=os.open(sys.argv[1],os.O_RDONLY|os.O_NOFOLLOW)
+with os.fdopen(fd) as file:
+    st=os.fstat(file.fileno());assert stat.S_ISREG(st.st_mode) and st.st_uid==0 and st.st_gid==0 and st.st_nlink==1 and not st.st_mode&0o077 and st.st_size<=4096
+    result=json.load(file)
+assert result['schema']=='agpc.detached-install-result/v1' and type(result['exit_code']) is int and 0<=result['exit_code']<=255
+print(result['exit_code'])
+AGPC_OBSERVE
+            ) || return
+            trap - INT TERM HUP
+            if [[ $code != 0 ]]; then
+                printf 'Installation job failed (exit %s); retained log: %s/install.log\n' "$code" "$stage" >&2
+                tail -n 8 "$stage/install.log" >&2
+            fi
+            return "$code"
+        fi
+        state=$(systemctl show "$unit" --property=ActiveState --value) || state=unknown
+        if ((count>2)) && [[ $state == failed || $state == inactive || $state == unknown || -z $state ]]; then
+            trap - INT TERM HUP
+            printf 'Installation result is unavailable; inspect %s/install.log and systemd unit %s.\n' "$stage" "$unit" >&2
+            return 1
+        fi
+        sleep 1
+    done
+    trap - INT TERM HUP
+    printf 'Installation is still running; inspect %s/result.json. The worker was not interrupted.\n' "$stage" >&2
+    return 1
+}
+# END DETACHED INSTALL SUPPORT
+
+agentsphere_platform_check || fail 'Platform preflight failed. No package or source change was started.'
+agentsphere_job_platform_check || fail 'Detached installation preflight failed. No package or source change was started.'
+# Create the durable directory before ownership snapshots: the reviewed CX6
+# guard fingerprints /var/lib and must not be invalidated by our own staging.
+job_stage=$(mktemp -d /var/lib/agpc-install.XXXXXXXX)
+chmod 0700 "$job_stage"
+trap 'rmdir -- "$job_stage" 2>/dev/null || true' EXIT
+
+# One classifier is used before downloads and again under APT's lock.
+# It reads package metadata and hook bytes, never topology values.
+# Standard AGPC uses native packages; do not add a container runtime to this transaction.
+agentsphere_container_runtime_package() {
+    case "${1%%:*}" in
+        docker|docker[.+-]*|moby|moby-*|podman|podman-*|containerd|containerd[.-]*|runc|crun|buildah|nerdctl|cri-o|cri-o-*|lxc|lxc-*|lxd|lxd-*|incus|incus-*|systemd-container) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+classify_legacy_chatd() {
+    local record query_status state version line path digest flag extra
+    local protected=0 normal=0 other=0 identity hook expected actual protected_digest protected_flag
+    local target=/etc/mote/mote-chatd/mote-chatd-mchat.env
+    legacy_error() {
+        printf '%s\n' "$1" 'Inspect mote-chatd Status, Version, Architecture and Conffiles with dpkg-query; do not print topology values or force package removal.' >&2
+        return 1
+    }
+    if record=$(dpkg-query -W -f='${db:Status-Status}\n${Version}\n${Conffiles}\n' mote-chatd 2>/dev/null); then
+        # DPKG may retain a relationship-only entry for an absent package.
+        # Admit only its exact empty Version/Architecture/Conffiles identity.
+        if [[ $record == not-installed ]]; then
+            identity=$(dpkg-query -W -f='${Architecture}\n${Status}' mote-chatd 2>/dev/null) || return 1
+            [[ $identity == $'\nunknown ok not-installed' ]] || { legacy_error 'Unreviewed empty legacy package record.'; return 1; }
+            printf 'absent\n'; return 0
+        fi
+        local -a lines
+        mapfile -t lines <<< "$record"
+        [[ ${#lines[@]} -ge 2 ]] || { legacy_error 'Cannot classify legacy mote-chatd ownership.'; return 1; }
+        state=${lines[0]}; version=${lines[1]}
+        case "$state" in installed|config-files|unpacked) ;; *) legacy_error 'Unsupported legacy mote-chatd DPKG state; repair the incomplete transaction first.'; return 1 ;; esac
+        case "$version" in 2.0.0-4|2.0.0-6|2.0.0-7|2.0.0-8|2.0.0-9) ;; *)
+            legacy_error 'Unsupported legacy mote-chatd version.'; return 1 ;;
+        esac
+        for line in "${lines[@]:2}"; do
+            [[ -n ${line//[[:space:]]/} ]] || continue
+            read -r path digest flag extra <<< "$line"
+            [[ $digest =~ ^[0-9a-f]{32}$ && -z $extra && ( -z $flag || $flag == obsolete ) ]] \
+                || { legacy_error 'Malformed legacy mote-chatd conffile record.'; return 1; }
+            case "$path" in
+                "$target") protected=$((protected + 1)); protected_digest=$digest; protected_flag=${flag:-} ;;
+                /etc/mote/mote-chatd/mote-chatd-deb.env) normal=$((normal + 1)) ;;
+                *) other=$((other + 1)) ;;
+            esac
+        done
+        [[ $(stat -c '%F' -- "$target" 2>/dev/null) == 'regular file' ]] \
+            || { legacy_error 'Existing legacy topology is missing or not a regular file; owner repair is required.'; return 1; }
+        local target_access target_uid target_mode
+        target_access=$(stat -c '%u:%a' -- "$target") || { legacy_error 'Cannot inspect topology access metadata.'; return 1; }
+        target_uid=${target_access%%:*}; target_mode=${target_access#*:}
+        [[ $target_uid == 0 && $target_mode =~ ^[0-7]{3,4}$ ]] && (( (8#$target_mode & 0022) == 0 )) \
+            || { legacy_error 'Existing topology must be root-owned and not writable by group or others.'; return 1; }
+        if [[ $version == 2.0.0-7 ]]; then
+            [[ $state == config-files && $protected == 1 && $normal == 0 && $other == 0 && \
+               $protected_digest == a9193a2d1b53fc3a4edf56cbc0c2d558 && $protected_flag == obsolete ]] \
+                || { legacy_error 'Residual 2.0.0-7 retirement ownership is malformed.'; return 1; }
+            identity=$(dpkg-query -W -f='${Architecture}\n${Status}' mote-chatd 2>/dev/null) \
+                || { legacy_error 'Cannot inspect residual 2.0.0-7 identity.'; return 1; }
+            [[ $identity == $'all\ndeinstall ok config-files' ]] \
+                || { legacy_error 'Residual 2.0.0-7 has an unsupported DPKG identity.'; return 1; }
+            path=/var/lib/dpkg/info/mote-chatd.postrm
+            [[ $(stat -c '%u:%g:%a:%F' -- "$path" 2>/dev/null) == '0:0:755:regular file' ]] \
+                || { legacy_error 'Residual 2.0.0-7 postrm has unsupported ownership, mode or file type.'; return 1; }
+            actual=$(sha256sum "$path") || { legacy_error 'Cannot inspect residual 2.0.0-7 postrm.'; return 1; }
+            [[ ${actual%% *} == 977b560177c7afd78adb5277026a9dbb5dc4ebdad5afdc53f4b1e23dc490511d ]] \
+                || { legacy_error 'Residual 2.0.0-7 postrm differs from the reviewed retirement package.'; return 1; }
+            printf 'retired-config\n'
+            return 0
+        fi
+        if [[ $version == 2.0.0-8 || $version == 2.0.0-9 ]]; then
+            [[ $protected == 1 && $normal == 0 && $other == 0 ]] \
+                || { legacy_error 'Retirement bridge ownership is malformed.'; return 1; }
+            identity=$(dpkg-query -W -f='${Architecture}\n${Status}' mote-chatd 2>/dev/null) \
+                || { legacy_error 'Cannot inspect retirement bridge identity.'; return 1; }
+            case "$state:$identity" in
+                $'installed:all\ninstall ok installed'|$'config-files:all\ndeinstall ok config-files'|$'unpacked:all\ninstall ok unpacked') ;;
+                *) legacy_error 'Retirement bridge has an unsupported DPKG identity.'; return 1 ;;
+            esac
+            if [[ $state == installed || $state == unpacked ]]; then
+                for hook in preinst prerm postrm; do
+                    case "$version:$hook" in
+                        2.0.0-8:preinst) expected=b5f6130b284e010ebe8bc9fd07637b4e24d9bbc4bc1c5c9a58a21b8de8c006eb ;;
+                        2.0.0-8:prerm) expected=75d1e13eb0e81354500e83297cf8122a28ab73be609b490c4f10c71515ef99b3 ;;
+                        2.0.0-9:preinst) expected=f3445a370e61b6a326aab12ac958c40e7c20888bd9296ae7f22d8552e708cd4f ;;
+                        2.0.0-9:prerm) expected=59d2c559a7261ddeb4664e2790b89e56a599c83ce8b76849b1e0420edd6f2e87 ;;
+                        *:postrm) expected=977b560177c7afd78adb5277026a9dbb5dc4ebdad5afdc53f4b1e23dc490511d ;;
+                    esac
+                    path=/var/lib/dpkg/info/mote-chatd.$hook
+                    [[ $(stat -c '%u:%g:%a:%F' -- "$path" 2>/dev/null) == '0:0:755:regular file' ]] \
+                        || { legacy_error "Retirement $hook has unsupported ownership, mode or file type."; return 1; }
+                    actual=$(sha256sum "$path") || { legacy_error "Cannot inspect retirement $hook."; return 1; }
+                    [[ ${actual%% *} == "$expected" ]] \
+                        || { legacy_error "Retirement $hook differs from the reviewed bridge."; return 1; }
+                done
+                printf 'retirement:%s\n' "$state"
+            else
+                printf 'retired-config\n'
+            fi
+            return 0
+        fi
+        if [[ $protected == 1 ]]; then
+            [[ $state != unpacked ]] || { legacy_error 'Only the reviewed retirement bridge may be recovered from an unpacked state.'; return 1; }
+            printf 'retention:%s\n' "$state"
+            return 0
+        fi
+        [[ $protected == 0 && $normal == 1 && $other == 0 && $version == 2.0.0-4 ]] \
+            || { legacy_error 'Legacy ownership does not match a supported retention or ordinary 2.0.0-4 migration.'; return 1; }
+        identity=$(dpkg-query -W -f='${Architecture}\n${Status}' mote-chatd 2>/dev/null) \
+            || { legacy_error 'Cannot inspect legacy package identity.'; return 1; }
+        case "$identity" in
+            $'amd64\ninstall ok installed'|$'amd64\ndeinstall ok config-files') ;;
+            *) legacy_error 'Ordinary migration requires the reviewed amd64 package in a complete DPKG state.'; return 1 ;;
+        esac
+        # The ordinary release never owns the locked file. Its removal hooks
+        # are pinned so custom or unknown cleanup logic cannot enter this path.
+        for hook in postrm prerm; do
+            [[ $hook != prerm || $state == installed ]] || continue
+            case "$hook" in
+                postrm) expected=cad515185035337dd03da926ff380a1cf5a47fd074b6ff7f8525f7d7d1384196 ;;
+                prerm) expected=a583a5e196cab7845800d8bade6cca1b1e86db9d077e2749d24ce7ad3b224085 ;;
+            esac
+            path=/var/lib/dpkg/info/mote-chatd.$hook
+            [[ $(stat -c '%u:%g:%a:%F' -- "$path" 2>/dev/null) == '0:0:755:regular file' ]] \
+                || { legacy_error "Legacy $hook has unsupported ownership, mode or file type."; return 1; }
+            actual=$(sha256sum "$path") || { legacy_error "Cannot inspect legacy $hook."; return 1; }
+            [[ ${actual%% *} == "$expected" ]] \
+                || { legacy_error "Legacy $hook differs from the reviewed 2.0.0-4 release."; return 1; }
+        done
+        printf 'ordinary:%s\n' "$state"
+    else
+        query_status=$?
+        [[ $query_status == 1 && -z $record ]] \
+            || { legacy_error 'Cannot inspect legacy mote-chatd ownership.'; return 1; }
+        printf 'absent\n'
+    fi
+}
+# The old removal hook deletes its managed Codex entry. Validate its exact
+# normal ownership and stock table before downloads, then recheck under lock.
+classify_legacy_mcp() {
+python3 - <<'MCP_PREFLIGHT'
+import hashlib
+import json
+import os
+from pathlib import Path
+import stat
+import subprocess
+import sys
+import tomllib
+
+NORMAL = '/etc/mote/mote-bridge-mcp/mote-bridge-mcp-deb.env'
+IDENTITY = '/etc/mote/mote-bridge-mcp/mote-bridge-mcp-mchat.env'
+CONFIG = '/etc/codex/config.toml'
+INFO = '/var/lib/dpkg/info/mote-bridge-mcp.'
+STOCK = {'command': '/usr/bin/mote', 'args': ['mcp', 'serve'],
+         'enabled': True, 'default_tools_approval_mode': 'auto'}
+
+
+def checked(path, digest=None, mode=None, optional=False):
+    try:
+        metadata = os.lstat(path)
+    except FileNotFoundError:
+        if optional:
+            return None
+        raise ValueError('required migration file is missing: ' + path)
+    if (not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != 0 or
+            metadata.st_mode & 0o022 or
+            (mode is not None and metadata.st_gid != 0) or
+            (mode is not None and stat.S_IMODE(metadata.st_mode) != mode)):
+        raise ValueError('unsafe migration file metadata: ' + path)
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NOATIME)
+    try:
+        before = os.fstat(fd)
+        if metadata != before:
+            raise ValueError('migration file changed during inspection: ' + path)
+        with os.fdopen(fd, 'rb', closefd=False) as stream:
+            data = stream.read()
+        after = os.fstat(fd)
+        if before != after:
+            raise ValueError('migration file changed during inspection: ' + path)
+    finally:
+        os.close(fd)
+    sha = hashlib.sha256(data).hexdigest()
+    if digest is not None and sha != digest:
+        raise ValueError('unreviewed migration file: ' + path)
+    identity = (sha, after.st_ino, after.st_mtime_ns, after.st_ctime_ns,
+                after.st_mode, after.st_uid, after.st_gid, after.st_nlink)
+    return data, identity
+
+
+def classify():
+    result = subprocess.run(['dpkg-query', '-W', '-f=${Version}\n${Architecture}\n${Status}\n${Conffiles}',
+                             'mote-bridge-mcp'], capture_output=True, text=True)
+    if (result.returncode == 1 and not result.stdout) or (result.returncode == 0 and result.stdout == '\n\nunknown ok not-installed\n'):
+        return 'absent'
+    if result.returncode:
+        raise ValueError('cannot inspect legacy MCP package metadata')
+    lines = result.stdout.splitlines()
+    if len(lines) != 4 or lines[:2] != ['3.0.0-2', 'amd64']:
+        raise ValueError('legacy MCP package version, architecture or conffiles are unreviewed')
+    state = {'install ok installed': 'installed', 'deinstall ok config-files': 'config-files'}.get(lines[2])
+    if state is None:
+        raise ValueError('legacy MCP package needs a completed DPKG state')
+    conffile = lines[3].split()
+    expected = [NORMAL, '7582d273536ba7102097a3c090f916d0']
+    if conffile != expected:
+        if state != 'config-files' or conffile != expected + ['obsolete']:
+            raise ValueError('legacy MCP conffile ownership differs from the normal release')
+        owner = subprocess.run(['dpkg-query', '-S', NORMAL], capture_output=True, text=True)
+        successor = subprocess.run(['dpkg-query', '-W', '-f=${Version}|${Architecture}|${Status}',
+                                    'mote-mcpd'], capture_output=True, text=True)
+        if (owner.returncode or owner.stdout.strip() != 'mote-mcpd: ' + NORMAL or
+                successor.returncode or successor.stdout not in (
+                    '3.0.0-3|amd64|install ok installed',
+                    '3.1.0-1|amd64|install ok installed',
+                    '3.1.0-1|amd64|deinstall ok config-files')):
+            raise ValueError('obsolete legacy MCP conffile lacks its exact installed successor owner')
+        needs_baseline = successor.stdout == '3.1.0-1|amd64|deinstall ok config-files'
+    else:
+        needs_baseline = False
+    # No old postrm exists in the reviewed release, including residual records.
+    for hook in ('preinst', 'postrm'):
+        if os.path.lexists(INFO + hook):
+            raise ValueError('unreviewed legacy MCP ' + hook)
+    evidence = {}
+    for path, sha in (() if state != 'installed' else (
+        (INFO + 'prerm', 'ab66dbe928eb706c0275dc1431f6350a24a55c13d77b6e34a3d4d7651f5aecac'),
+        ('/usr/libexec/mote/install-codex-mcp', '6147acb2dc6dfebb44f0d4a9c3b9df2b3c8ec079172038a9dd663b3280624f85'))):
+        evidence[path] = checked(path, digest=sha, mode=0o755)[1]
+    evidence[IDENTITY] = checked(IDENTITY)[1]
+    config = checked(CONFIG, optional=True)
+    if config is not None:
+        try:
+            document = tomllib.loads(config[0].decode('utf-8'))
+        except (UnicodeError, tomllib.TOMLDecodeError):
+            raise ValueError('system Codex configuration is not valid TOML') from None
+        servers = document.get('mcp_servers', {})
+        if not isinstance(servers, dict):
+            raise ValueError('system Codex MCP configuration is malformed')
+        for name in ('mote-bridge-mcp', 'mote-mcpd'):
+            if name in servers and (not isinstance(servers[name], dict) or servers[name] != STOCK or
+                    type(servers[name].get('enabled')) is not bool):
+                raise ValueError('customized system MCP entry requires a reviewed migration: ' + name)
+        evidence[CONFIG] = config[1]
+    else:
+        evidence[CONFIG] = None
+    prefix = 'baseline:' if needs_baseline else ''
+    return prefix + state + ':' + hashlib.sha256(json.dumps(evidence, sort_keys=True).encode()).hexdigest()
+
+
+if __name__ == '__main__':
+    try:
+        print(classify())
+    except (OSError, ValueError) as error:
+        print('Legacy MCP preflight refused: ' + str(error) +
+              '. Inspect package metadata and managed system entry; do not print identity values or force removal.', file=sys.stderr)
+        sys.exit(1)
+MCP_PREFLIGHT
+}
+
+classify_legacy_cx() {
+python3 - <<'CX_PREFLIGHT'
+import hashlib,json,os,pwd,stat,subprocess,sys,tomllib
+from pathlib import Path
+
+REVIEWED = {('cx-node', '0.3.3-1'): {'prerm': '6f8bd5bdd9cd01e2ac11e5eccd3806ec8cf0550702b219ad2fb34f96eb650cd4', 'postrm': '70a40e034e0dbed5e29954a848a85541eb648907096da632d4943ce91fbd8cdc'}, ('cx-agent', '0.3.4-2'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('cx-agent', '0.3.4-3'): {'prerm': '145f52a16184feb342a77090805af0dabab4230b6e030d8f83349484e9868fdd', 'postrm': '02532aa278b2fc419fb9d0404fd03d59b9577f6471343b80cc763965667464a6'}, ('codex-mesh', '1.0.0-1'): {'prerm': None, 'postrm': None}, ('codex-mesh', '1.0.0-2'): {'prerm': None, 'postrm': None}, ('cx-node', '0.3.3-4'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.3-6'): {'prerm': '5a07af360b9e229fad483ba3ada220d81636f0a145ad38550542f9324432dfc3', 'postrm': 'fc2ae1c462331eeb4c7a93eee8b27012120ca620baf6d91dd4b2e714b39c2f99'}, ('cx-node', '0.3.4-1~local20260909'): {'prerm': '2721920390b04cef164a34b5347a36a8794c3bb443462224ed83fbd440453cba', 'postrm': 'f6f8be756d1d6b62dd906b7587e55f15cf060073c0e0cbf46d4bb31840640087'}}
+MESH_FILES = {'/etc/codex/skills/codex-mesh/SKILL.md':'382087d284fed820b9a96a0ad4c4fd8c',
+              '/etc/mote/codex-mesh/config.json':'f60b18dbe124af2bec9eb264cd6598af'}
+CX_MESH_SUCCESSORS = {
+    ('1.1.0-1', 'amd64', 'install ok installed'),
+    ('1.2.0-1', 'amd64', 'install ok installed'),
+    ('2.0.0-1', 'amd64', 'install ok installed'),
+    ('2.0.0-2', 'amd64', 'install ok installed'),
+    ('2.1.0-1', 'amd64', 'install ok installed'),
+    ('2.1.0-2', 'amd64', 'install ok installed'),
+    ('2.1.0-3', 'amd64', 'install ok installed'),
+}
+RENAMED_CX_MESH_SUCCESSORS = {
+    ('2.0.0-1', 'amd64', 'install ok installed'),
+    ('2.0.0-2', 'amd64', 'install ok installed'),
+    ('2.1.0-1', 'amd64', 'install ok installed'),
+    ('2.1.0-2', 'amd64', 'install ok installed'),
+    ('2.1.0-3', 'amd64', 'install ok installed'),
+}
+# cx-mesh 2.0.0-2 deliberately retires the obsolete Codex Mesh extension
+# files. Bind its complete DPKG payload before allowing the residual owner
+# package to be forgotten.
+CX_MESH_2002_INFO = {
+    '/var/lib/dpkg/info/cx-mesh.conffiles': ('7c904958362944a95ffdbe4eb6653377884626781a0464789495ec124191bc2b',0o644),
+    '/var/lib/dpkg/info/cx-mesh.list': ('96638772246e7dba81e60b7f643f36e3ff2f7bd70e6cdb7aac507fb75949400b',0o644),
+    '/var/lib/dpkg/info/cx-mesh.md5sums': ('a7d13482f1286499141c94fea3c1f400326fc0c1e47b335445bdeb651d6951f0',0o644),
+    '/var/lib/dpkg/info/cx-mesh.preinst': ('16c8412e67154b7abf111f83ff2f21ca94e41919f60a3df4677d25a6e962ccff',0o755),
+    '/var/lib/dpkg/info/cx-mesh.postinst': ('f87e91fba3d57f4ed2548646f374ae63de50e3a33e6b1a93c4a4977703e37f49',0o755),
+    '/var/lib/dpkg/info/cx-mesh.prerm': ('dcbc3d89b484ef2548c496cdaf532a1a69bcba8c2aa1de74dd4debcb7a3005d7',0o755),
+    '/var/lib/dpkg/info/cx-mesh.postrm': ('4932afd86c8916e16152aa75e0ed0bc4d8ffc0bdc9e8d6bcc541875b4b849cf5',0o755),
+}
+
+# cx-mesh 2.1.0-1 keeps the reviewed retirement hooks and adds /usr/bin/mesh.
+# It intentionally ships no md5sums control member, so bind that absence too.
+CX_MESH_2101_INFO = {
+    '/var/lib/dpkg/info/cx-mesh.conffiles': ('7c904958362944a95ffdbe4eb6653377884626781a0464789495ec124191bc2b',0o644),
+    '/var/lib/dpkg/info/cx-mesh.list': ('890c15e0ee6bccad7aaad59c079323d1229d2c58464ba7a0a722b90b463b77eb',0o644),
+    '/var/lib/dpkg/info/cx-mesh.preinst': ('16c8412e67154b7abf111f83ff2f21ca94e41919f60a3df4677d25a6e962ccff',0o755),
+    '/var/lib/dpkg/info/cx-mesh.postinst': ('f87e91fba3d57f4ed2548646f374ae63de50e3a33e6b1a93c4a4977703e37f49',0o755),
+    '/var/lib/dpkg/info/cx-mesh.prerm': ('dcbc3d89b484ef2548c496cdaf532a1a69bcba8c2aa1de74dd4debcb7a3005d7',0o755),
+    '/var/lib/dpkg/info/cx-mesh.postrm': ('4932afd86c8916e16152aa75e0ed0bc4d8ffc0bdc9e8d6bcc541875b4b849cf5',0o755),
+}
+
+# 2.1.0-2 adds Mesh Box docs; 2.1.0-3 corrects their mode only.
+# Both retain exactly the same lifecycle hooks, conffiles and payload paths.
+CX_MESH_2102_INFO = {
+    '/var/lib/dpkg/info/cx-mesh.conffiles': ('7c904958362944a95ffdbe4eb6653377884626781a0464789495ec124191bc2b',0o644),
+    '/var/lib/dpkg/info/cx-mesh.list': ('64b70b77b90ba5e60c4274fa909703725183d7779deb78a4b286caece273f55a',0o644),
+    '/var/lib/dpkg/info/cx-mesh.preinst': ('16c8412e67154b7abf111f83ff2f21ca94e41919f60a3df4677d25a6e962ccff',0o755),
+    '/var/lib/dpkg/info/cx-mesh.postinst': ('f87e91fba3d57f4ed2548646f374ae63de50e3a33e6b1a93c4a4977703e37f49',0o755),
+    '/var/lib/dpkg/info/cx-mesh.prerm': ('dcbc3d89b484ef2548c496cdaf532a1a69bcba8c2aa1de74dd4debcb7a3005d7',0o755),
+    '/var/lib/dpkg/info/cx-mesh.postrm': ('4932afd86c8916e16152aa75e0ed0bc4d8ffc0bdc9e8d6bcc541875b4b849cf5',0o755),
+}
+
+def checked(path, digest=None, mode=None, optional=False, limit=1048576, uid=0):
+    try: before=os.lstat(path)
+    except FileNotFoundError:
+        if optional:return None
+        raise ValueError('required CX migration file missing: '+path)
+    if not stat.S_ISREG(before.st_mode) or before.st_uid!=uid or before.st_mode&0o022 or before.st_size>limit:
+        raise ValueError('unsafe CX migration file metadata: '+path)
+    if mode is not None and (stat.S_IMODE(before.st_mode)!=mode or before.st_gid!=0):
+        raise ValueError('unreviewed CX removal hook metadata')
+    fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NOATIME)
+    try:
+        if os.fstat(fd)!=before:raise ValueError('CX migration file changed during inspection')
+        with os.fdopen(fd,'rb',closefd=False) as stream:data=stream.read(limit+1)
+        after=os.fstat(fd)
+        if len(data)>limit or before!=after:raise ValueError('CX migration file changed during inspection')
+    finally:os.close(fd)
+    sha=hashlib.sha256(data).hexdigest()
+    if digest is not None and sha not in (digest if isinstance(digest,tuple) else (digest,)):raise ValueError('unreviewed CX removal hook: '+path)
+    return [sha,after.st_ino,after.st_mtime_ns,after.st_ctime_ns,after.st_mode,after.st_uid,after.st_gid,after.st_nlink]
+
+def query(name):
+    result=subprocess.run(['dpkg-query','-W','-f=${Version}\n${Architecture}\n${Status}\n${Conffiles}',name],capture_output=True,text=True)
+    if (result.returncode==1 and not result.stdout) or (result.returncode==0 and result.stdout=='\n\nunknown ok not-installed\n'):return None
+    if result.returncode:raise ValueError('cannot inspect CX predecessor package')
+    return result.stdout
+
+def unit_policy():
+    found={}
+    for base in ('/etc/systemd/system','/run/systemd/system'):
+        for unit in ('cx-node.service','cx-agent.service'):
+            path=Path(base)/unit
+            if os.path.lexists(path):
+                meta=path.lstat()
+                if not path.is_symlink() or os.readlink(path)!='/dev/null' or meta.st_uid!=0:
+                    raise ValueError('custom predecessor unit override requires owner review: '+str(path))
+                found[str(path)]=[meta.st_ino,meta.st_mtime_ns,meta.st_ctime_ns,meta.st_mode,meta.st_uid,meta.st_gid]
+            drop=Path(str(path)+'.d')
+            if os.path.lexists(drop):
+                meta=drop.lstat()
+                if not stat.S_ISDIR(meta.st_mode) or meta.st_uid!=0 or meta.st_mode&0o022 or any(drop.iterdir()):
+                    raise ValueError('custom predecessor unit drop-in requires owner review: '+str(drop))
+                found[str(drop)]=[meta.st_ino,meta.st_mtime_ns,meta.st_ctime_ns,meta.st_mode,meta.st_uid,meta.st_gid]
+    return found
+
+# Only the genuine native old4 state is newly admitted. The old prerm invokes
+# /usr/bin/cx, and DPKG removes its recorded .list, so bind both as well as hooks.
+CX4_INSTALLED = {
+    '/var/lib/dpkg/info/cx-node.list': ('000ac3041e1c83ad39706c55bf0e54d238ff8884667c45a777324cb7f29501af',0o644),
+    '/var/lib/dpkg/info/cx-node.md5sums': ('6801c59d6faad1b6395446d2bc99acc9adfb368162d68fa25cf0f47ed8ebd104',0o644),
+    '/var/lib/dpkg/info/cx-node.preinst': ('a23e97567e7055e177696fb8f630227fce9e719fe9b4139c48e31eb134b543b8',0o755),
+    '/var/lib/dpkg/info/cx-node.postinst': ('9541131b3d13f23d17877dabcfb04b8cb5671a906180c223c1281cf013bfbd1f',0o755),
+    '/usr/bin/cx': ('a1f6b6df70fee6ecc91810c9a16cede69fdc1484f392128a085be08221dc350e',0o755),
+}
+CX4_RESIDUAL_LIST = '9b1929abc85d2fe7261cc539a6705afdd34214ffddc18e994df2179222d9a30a'
+
+def cx4_state(state, files):
+    for suffix in ('conffiles','triggers'):
+        if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):
+            raise ValueError('unreviewed old4 ownership or triggers')
+    if state=='install ok installed':
+        checks=CX4_INSTALLED
+        expected_owner='cx-node: /usr/bin/cx'
+        # This receipt excludes the native recursive legacy-state copy/chown.
+        receipt='/var/lib/cx-node/state/runtime-migration.json'
+        try: owner_uid=pwd.getpwnam('cx-node').pw_uid
+        except KeyError: raise ValueError('old4 service account is missing')
+        files[receipt]=checked(receipt,uid=owner_uid)
+        if files[receipt][-1]!=1:raise ValueError('unsafe old4 migration receipt link count')
+    else:
+        successor=query('cx-mesh')
+        if successor is None or tuple(successor.splitlines()[:3]) not in CX_MESH_SUCCESSORS:
+            raise ValueError('old4 residual requires exact installed CX-Mesh successor')
+        for suffix in ('preinst','postinst','prerm','md5sums'):
+            if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):
+                raise ValueError('unexpected old4 residual payload or hook')
+        checks={'/var/lib/dpkg/info/cx-node.list':(CX4_RESIDUAL_LIST,0o644)}
+        expected_owner='cx-mesh: /usr/bin/cx'
+    for path,(digest,mode) in checks.items():
+        files[path]=checked(path,digest=digest,mode=mode,limit=2097152 if path=='/usr/bin/cx' else 1048576)
+        if files[path][-1]!=1:raise ValueError('unsafe old4 file link count')
+    owner=subprocess.run(['dpkg-query','-S','/usr/bin/cx'],capture_output=True,text=True)
+    if owner.returncode or owner.stdout.strip()!=expected_owner:
+        raise ValueError('old4 drain command lacks sole expected package ownership')
+    diverted=subprocess.run(['dpkg-divert','--list','/usr/bin/cx'],capture_output=True,text=True)
+    if diverted.returncode or diverted.stdout.strip():raise ValueError('old4 drain command is diverted')
+
+# Genuine 0.3.3-1 ownership from the historical conffile lineage.
+CX1_OBSOLETE_INSTALLED = {
+    '/var/lib/dpkg/info/cx-node.list': ('0178622bfe5c09ad7b864bbdfdb9a592f6c2201dadc0bebf359d55b21037cc38',0o644),
+    '/var/lib/dpkg/info/cx-node.md5sums': ('42ae44216aac9ae8d4b5d653470c53a3bde196ff7f9b5a406e2f8918826a015b',0o644),
+    '/var/lib/dpkg/info/cx-node.preinst': ('a23e97567e7055e177696fb8f630227fce9e719fe9b4139c48e31eb134b543b8',0o755),
+    '/var/lib/dpkg/info/cx-node.postinst': ('11b322817cad828999351f3948bc8d3992c8fff8367b03041bde9a75726d2885',0o755),
+    '/usr/bin/cx': ('589afb2e339e01ad22775af93360e966265ba8ea0977fc761ef981027f803f6e',0o755),
+}
+
+CX6_OBSOLETE_ROW = ['/etc/cx-node/cx-node.toml','d137b03f7f14c9c1369d3e85a9062130','obsolete']
+CX6_OBSOLETE_INSTALLED = {
+    '/var/lib/dpkg/info/cx-node.list': ('8aa5dbd95406f5ef29cb1cb11c9fe7048d2c4dec84b73d8f118094869ac15e0d',0o644),
+    '/var/lib/dpkg/info/cx-node.md5sums': ('4a25baab18944de75e7514c27a4d73bc1ce2216752df3f967b4b541ffa57eb6a',0o644),
+    '/var/lib/dpkg/info/cx-node.preinst': ('a23e97567e7055e177696fb8f630227fce9e719fe9b4139c48e31eb134b543b8',0o755),
+    '/var/lib/dpkg/info/cx-node.postinst': ('9541131b3d13f23d17877dabcfb04b8cb5671a906180c223c1281cf013bfbd1f',0o755),
+    '/usr/bin/cx': ('493c5faa394c13b0641b936c9e3c02f9d39c0e4e52eb1b52f027240e2383fa9d',0o755),
+}
+CX6_OBSOLETE_RESIDUAL_LIST = 'e6c9f3a963553f457f2e0da73074a433dc673cf0a158020a74b6caf5b12bd154'
+# Native DPKG omits directories already owned by the installed base system.
+CX6_CONFFILE_ONLY_RESIDUAL_LIST = 'a23ac038fce0108c1af26c8542cc7b2445fbd76c1da22b5fb725dd0cbcca9600'
+# Native Ubuntu 24.04 keeps the historical systemd directories in its rc list.
+CX6_SYSTEMD_RESIDUAL_LIST = 'cb24b4cf3cca16cc983f9e5a03024b511ab37d6d1fe598bc47e7e81f670ada37'
+CX6_RESIDUAL_LISTS = (CX6_OBSOLETE_RESIDUAL_LIST,CX6_CONFFILE_ONLY_RESIDUAL_LIST,CX6_SYSTEMD_RESIDUAL_LIST)
+
+def sole_owner(path, expected):
+    owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
+    if owner.returncode or owner.stdout.strip()!=expected+': '+path:
+        raise ValueError('obsolete CX migration file lacks sole expected package ownership: '+path)
+    diverted=subprocess.run(['dpkg-divert','--list',path],capture_output=True,text=True)
+    if diverted.returncode or diverted.stdout.strip():raise ValueError('obsolete CX migration file is diverted: '+path)
+
+def cx6_drain_state(files, owner_uid):
+    # The genuine old prerm runs cx drain as root. Only its established state
+    # root is admitted; never let owner TOML redirect a privileged file write.
+    config=CX6_OBSOLETE_ROW[0]
+    fd=os.open(config,os.O_RDONLY|os.O_NOFOLLOW|os.O_NOATIME)
+    try:
+        before=os.fstat(fd)
+        with os.fdopen(fd,'rb',closefd=False) as stream:data=stream.read(1048577)
+        after=os.fstat(fd)
+    finally:os.close(fd)
+    identity=[hashlib.sha256(data).hexdigest(),after.st_ino,after.st_mtime_ns,after.st_ctime_ns,after.st_mode,after.st_uid,after.st_gid,after.st_nlink]
+    if len(data)>1048576 or before!=after or identity!=files[config]:raise ValueError('obsolete CX config changed during state inspection')
+    try:document=tomllib.loads(data.decode('utf-8'))
+    except (UnicodeError,tomllib.TOMLDecodeError):raise ValueError('obsolete CX configuration is not valid TOML') from None
+    if not isinstance(document.get('state'),dict) or document['state'].get('path')!='/var/lib/cx-node':
+        raise ValueError('obsolete CX drain requires the reviewed state directory')
+    for path in ('/','/var','/var/lib','/var/lib/cx-node','/var/lib/cx-node/state'):
+        meta=os.lstat(path)
+        allowed=(0,owner_uid) if path.startswith('/var/lib/cx-node') else (0,)
+        if not stat.S_ISDIR(meta.st_mode) or meta.st_uid not in allowed or meta.st_mode&0o022:
+            raise ValueError('unsafe obsolete CX state directory: '+path)
+        files[path]=[meta.st_dev,meta.st_ino,meta.st_mtime_ns,meta.st_ctime_ns,meta.st_mode,meta.st_uid,meta.st_gid,meta.st_nlink]
+    marker='/var/lib/cx-node/state/draining'
+    if os.path.lexists(marker):
+        meta=os.lstat(marker)
+        if meta.st_uid not in (0,owner_uid):raise ValueError('unsafe obsolete CX drain marker owner')
+        files[marker]=checked(marker,uid=meta.st_uid)
+        if files[marker][-1]!=1:raise ValueError('unsafe obsolete CX drain marker link count')
+    else:files[marker]=None
+
+def current_cx_paths():
+    successor=query('cx-mesh')
+    if successor is None or tuple(successor.splitlines()[:3]) not in RENAMED_CX_MESH_SUCCESSORS:
+        return False
+    for path in ('/etc/cx-node','/var/lib/cx-node','/usr/bin/cx-node','/usr/bin/cx-agent'):
+        if os.path.lexists(path):raise ValueError('retired CX path remains: '+path)
+    try:
+        pwd.getpwnam('cx-node')
+    except KeyError:pass
+    else:raise ValueError('retired CX account remains')
+    try:account=pwd.getpwnam('cx-mesh')
+    except KeyError:raise ValueError('CX-Mesh account is missing')
+    if account.pw_uid==0 or account.pw_dir!='/var/lib/cx-mesh':raise ValueError('invalid CX-Mesh service account')
+    return True
+
+def cx6_obsolete_state(state, rows, files, version="0.3.3-6"):
+    if version not in ("0.3.3-1", "0.3.3-6"):raise ValueError("unreviewed obsolete CX version")
+    if rows!=[CX6_OBSOLETE_ROW]:raise ValueError('unreviewed CX predecessor conffile ownership')
+    # Actual 0.3.1-4 -> 0.3.3-1 -> 0.3.3-6 DPKG history leaves no
+    # .conffiles file. Its obsolete TOML remains in both installed and rc lists.
+    for suffix in ('conffiles','triggers'):
+        if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):raise ValueError('unexpected obsolete CX ownership or triggers')
+    renamed=state=='deinstall ok config-files' and current_cx_paths()
+    config_root='/etc/cx-mesh' if renamed else '/etc/cx-node'
+    config_path=config_root+('/cx-mesh.toml' if renamed else '/cx-node.toml')
+    identity_path=config_root+('/cx-mesh-mchat.env' if renamed else '/cx-node-mchat.env')
+    for path in ('/etc',config_root):
+        meta=os.lstat(path)
+        if not stat.S_ISDIR(meta.st_mode) or meta.st_uid!=0 or meta.st_mode&0o022:
+            raise ValueError('unsafe obsolete CX configuration directory: '+path)
+        files[path]=[meta.st_dev,meta.st_ino,meta.st_mtime_ns,meta.st_ctime_ns,meta.st_mode,meta.st_uid,meta.st_gid,meta.st_nlink]
+    for path in (config_path,identity_path):
+        files[path]=checked(path)
+        if files[path][-1]!=1:raise ValueError('unsafe obsolete CX owner file link count')
+    sole_owner(CX6_OBSOLETE_ROW[0],'cx-node') # Residual predecessor retains the actual conffile ownership.
+    if state=='install ok installed':
+        checks=CX1_OBSOLETE_INSTALLED if version=="0.3.3-1" else CX6_OBSOLETE_INSTALLED
+        expected_owner='cx-node'
+        try:owner_uid=pwd.getpwnam('cx-node').pw_uid
+        except KeyError:raise ValueError('obsolete CX service account is missing')
+        cx6_drain_state(files,owner_uid)
+        receipt='/var/lib/cx-node/state/runtime-migration.json'
+        files[receipt]=checked(receipt,uid=owner_uid)
+        if files[receipt][-1]!=1:raise ValueError('unsafe obsolete CX migration receipt link count')
+    else:
+        successor=query('cx-mesh')
+        if successor is None or tuple(successor.splitlines()[:3]) not in CX_MESH_SUCCESSORS:
+            raise ValueError('obsolete CX residual requires exact installed CX-Mesh successor')
+        for suffix in ('preinst','postinst','prerm','md5sums'):
+            if os.path.lexists('/var/lib/dpkg/info/cx-node.'+suffix):raise ValueError('unexpected obsolete CX residual payload or hook')
+        checks={'/var/lib/dpkg/info/cx-node.list':(CX6_RESIDUAL_LISTS,0o644)}
+        expected_owner='cx-mesh'
+    for path,(digest,mode) in checks.items():
+        files[path]=checked(path,digest=digest,mode=mode,limit=2097152 if path=='/usr/bin/cx' else 1048576)
+        if files[path][-1]!=1:raise ValueError('unsafe obsolete CX migration file link count')
+    sole_owner('/usr/bin/cx',expected_owner)
+
+def classify():
+    records={name:query(name) for name in ('cx-node','cx-agent','codex-mesh')}
+    if all(record is None for record in records.values()):return 'absent'
+    files={};installed={name:'-' for name in records}
+    for name,record in records.items():
+        if record is None:continue
+        lines=record.splitlines()
+        if len(lines)<3:raise ValueError('malformed CX predecessor record')
+        version,arch,state=lines[:3]
+        if (name,version) not in REVIEWED or arch!='amd64' or state not in ('install ok installed','deinstall ok config-files'):
+            raise ValueError('unsupported CX predecessor version, architecture or DPKG state')
+        hooks=REVIEWED[(name,version)]
+        rows=[line.split() for line in lines[3:] if line.strip()]
+        cx6_obsolete=name=='cx-node' and version in ('0.3.3-1','0.3.3-6') and bool(rows)
+        if (name,version)==('cx-node','0.3.3-1') and not cx6_obsolete:raise ValueError('old1 requires reviewed obsolete conffile ownership')
+        if cx6_obsolete:cx6_obsolete_state(state,rows,files,version)
+        elif name!='codex-mesh' and rows:raise ValueError('unreviewed CX predecessor conffile ownership')
+        if (name,version)==('cx-node','0.3.3-4'):cx4_state(state,files)
+        if name=='codex-mesh':
+            wanted=sorted([[path,digest] for path,digest in MESH_FILES.items()])
+            if state=='deinstall ok config-files' and sorted(rows)==[row+['obsolete'] for row in wanted]:
+                successor=query('cx-mesh')
+                if successor is None or tuple(successor.splitlines()[:3]) not in CX_MESH_SUCCESSORS:
+                    raise ValueError('residual Mesh conffiles require exact installed successor')
+                successor_state=tuple(successor.splitlines()[:3])
+                if successor_state in {
+                    ('2.0.0-2','amd64','install ok installed'),
+                    ('2.1.0-1','amd64','install ok installed'),
+                    ('2.1.0-2','amd64','install ok installed'),
+                    ('2.1.0-3','amd64','install ok installed'),
+                }:
+                    for path in MESH_FILES:
+                        if os.path.lexists(path):raise ValueError('retired Mesh extension file remains: '+path)
+                        owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
+                        if owner.returncode!=1 or owner.stdout:raise ValueError('retired Mesh extension path has unexpected package ownership')
+                        files[path]=None
+                    info={'2.0.0-2':CX_MESH_2002_INFO,'2.1.0-1':CX_MESH_2101_INFO,'2.1.0-2':CX_MESH_2102_INFO,'2.1.0-3':CX_MESH_2102_INFO}[successor_state[0]]
+                    md5sums='/var/lib/dpkg/info/cx-mesh.md5sums'
+                    if successor_state[0] in ('2.1.0-1','2.1.0-2','2.1.0-3') and os.path.lexists(md5sums):
+                        files[md5sums]=checked(md5sums,digest=(CX_MESH_2002_INFO[md5sums][0],'01f6f02354b22a198ec82395d2fbffd4404b145a1ec1eafc4493f5b853567e73'),mode=0o644)
+                        if files[md5sums][-1]!=1:raise ValueError('unsafe CX-Mesh successor metadata link count')
+                    elif successor_state[0] in ('2.1.0-1','2.1.0-2','2.1.0-3'):files[md5sums]=None
+                    for path,(digest,mode) in info.items():
+                        files[path]=checked(path,digest=digest,mode=mode)
+                        if files[path][-1]!=1:raise ValueError('unsafe CX-Mesh successor metadata link count')
+                else:
+                    for path in MESH_FILES:
+                        owner=subprocess.run(['dpkg-query','-S',path],capture_output=True,text=True)
+                        if owner.returncode or owner.stdout.strip()!='cx-mesh: '+path:raise ValueError('residual Mesh conffile lacks sole successor ownership')
+                        files[path]=checked(path)
+            elif sorted(rows)!=wanted:raise ValueError('unreviewed Mesh conffile ownership')
+            else:
+                for path in MESH_FILES:files[path]=checked(path)
+            for hook in ('preinst','postinst','prerm','postrm'):
+                if os.path.lexists('/var/lib/dpkg/info/'+name+'.'+hook):raise ValueError('unexpected Mesh cleanup hook')
+        else:
+            for hook in ('prerm','postrm'):
+                if hook=='prerm' and state!='install ok installed':continue
+                path='/var/lib/dpkg/info/'+name+'.'+hook
+                files[path]=checked(path,digest=hooks[hook],mode=0o755)
+                if (version=='0.3.3-4' or cx6_obsolete) and files[path][-1]!=1:raise ValueError('unsafe CX removal hook link count')
+        if state=='install ok installed':installed[name]=version
+    files.update(unit_policy())
+    if current_cx_paths():
+        config='/etc/cx-mesh/cx-mesh.toml';identity='/etc/cx-mesh/cx-mesh-mchat.env'
+    else:
+        config='/etc/cx-node/cx-node.toml';identity='/etc/cx-node/cx-node-mchat.env'
+    if os.path.lexists(config):
+        files[config]=checked(config);files[identity]=checked(identity)
+    elif os.path.lexists(identity):files[identity]=checked(identity)
+    mesh_identity='/etc/mote/codex-mesh/codex-mesh-mchat.env'
+    if os.path.lexists(mesh_identity):files[mesh_identity]=checked(mesh_identity)
+    fingerprint=hashlib.sha256(json.dumps({'records':records,'files':files},sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    return ','.join(name+'='+version for name,version in installed.items())+';sha256:'+fingerprint
+
+if __name__=='__main__':
+    try:print(classify())
+    except (OSError,ValueError) as error:
+        print('CX-Mesh migration preflight refused: '+str(error)+'. Inspect nonsecret package/unit metadata; do not force removal.',file=sys.stderr)
+        sys.exit(1)
+CX_PREFLIGHT
+}
+
+# The released frontend owns no service, configuration or cleanup hooks.
+# Pin the removal file list as well as its clean executable/shortcut state.
+classify_legacy_manager() {
+python3 - <<'MANAGER_PREFLIGHT'
+import hashlib
+import json
+import os
+import stat
+import subprocess
+import sys
+
+MANAGER_PACKAGE = 'sphere-manager'
+INFO = '/var/lib/dpkg/info/sphere-manager.'
+FILES = {
+    '/usr/bin/sphere-manager': (0o755, '85bb3fb568b30fbbcdbae1ddc04ace65e9a3c64e27577b56b6d147d59b2d5b42'),
+    INFO + 'md5sums': (0o644, '92be0d236d0be35a9946b0be1e15d762d47758de3af305512be1ab38aa73a8b2'),
+    INFO + 'list': (0o644, 'b5eb1da26b13044d1ce3bd261f0eae797b44c94b2f74f175e406019b6b2564f5'),
+}
+
+
+def identity(value):
+    return (value.st_dev, value.st_ino, value.st_size, value.st_mode,
+            value.st_uid, value.st_gid, value.st_nlink,
+            value.st_mtime_ns, value.st_ctime_ns)
+
+
+def checked(path, mode, expected):
+    before = os.lstat(path)
+    if (not stat.S_ISREG(before.st_mode) or before.st_uid != 0 or before.st_gid != 0
+            or stat.S_IMODE(before.st_mode) != mode or before.st_nlink != 1 or before.st_size > 1048576):
+        raise ValueError('unsafe legacy Manager file metadata: ' + path)
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NOATIME)
+    try:
+        if identity(before) != identity(os.fstat(fd)):
+            raise ValueError('legacy Manager file changed during inspection: ' + path)
+        with os.fdopen(fd, 'rb', closefd=False) as stream:
+            data = stream.read(1048577)
+        if len(data) > 1048576:
+            raise ValueError('legacy Manager file exceeds the inspection limit: ' + path)
+        digest = hashlib.sha256(data).hexdigest()
+        if identity(before) != identity(os.fstat(fd)):
+            raise ValueError('legacy Manager file changed during inspection: ' + path)
+    finally:
+        os.close(fd)
+    if digest != expected:
+        raise ValueError('legacy Manager file differs from the reviewed release: ' + path)
+    return (digest, identity(before))
+
+
+def sole_owner(path):
+    result = subprocess.run(['dpkg-query', '-S', path], capture_output=True, text=True)
+    if result.returncode or result.stdout != MANAGER_PACKAGE + ': ' + path + '\n':
+        raise ValueError('legacy Manager lacks sole package ownership: ' + path)
+
+
+def classify():
+    result = subprocess.run(['dpkg-query', '-W', '-f=${Version}|${Architecture}|${Status}|${Conffiles}',
+                             MANAGER_PACKAGE], capture_output=True, text=True)
+    if ((result.returncode == 1 and not result.stdout) or
+            (result.returncode == 0 and result.stdout == '||unknown ok not-installed|')):
+        return 'absent'
+    if result.returncode or result.stdout != '3.1.0-1|amd64|install ok installed|':
+        raise ValueError('legacy Manager requires the reviewed 3.1.0-1 amd64 installed state without conffiles')
+    for name in ('preinst', 'postinst', 'prerm', 'postrm', 'conffiles'):
+        if os.path.lexists(INFO + name):
+            raise ValueError('legacy Manager has unexpected configuration or lifecycle hooks')
+    for directory in ('/etc/systemd/system', '/run/systemd/system', '/usr/lib/systemd/system', '/lib/systemd/system'):
+        for suffix in ('.service', '.service.d'):
+            if os.path.lexists(directory + '/sphere-manager' + suffix):
+                raise ValueError('legacy Manager has an unsupported service or override')
+    files = {path: checked(path, mode, digest) for path, (mode, digest) in FILES.items()}
+    sole_owner('/usr/bin/sphere-manager')
+    path = '/usr/bin/sphere'
+    before = os.lstat(path)
+    if (not stat.S_ISLNK(before.st_mode) or before.st_uid != 0 or before.st_gid != 0
+            or os.readlink(path) != 'sphere-manager'):
+        raise ValueError('legacy Manager shortcut differs from the reviewed release')
+    if identity(before) != identity(os.lstat(path)):
+        raise ValueError('legacy Manager shortcut changed during inspection')
+    sole_owner(path)
+    files[path] = ('sphere-manager', identity(before))
+    digest = hashlib.sha256(json.dumps({'record': result.stdout, 'files': files},
+                                      sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    return 'installed:sha256:' + digest
+
+
+if __name__ == '__main__':
+    try:
+        print(classify())
+    except (OSError, ValueError) as error:
+        print('AGPC Manager migration preflight refused: ' + str(error) +
+              '. Inspect nonsecret package/file metadata; do not force removal.', file=sys.stderr)
+        sys.exit(1)
+MANAGER_PREFLIGHT
+}
+
+# SQLite Inbox files are retired cache. Classify only the installed package so
+# the worker can initialize Redis after an old cache-only release is replaced.
+classify_legacy_uchat() {
+    local record result
+    local -a fields
+    if record=$(dpkg-query -W -f='${Status}\n${Version}\n' uchatd 2>/dev/null); then
+        mapfile -t fields <<< "$record"
+        if [[ ${#fields[@]} == 2 && ${fields[0]} == 'install ok installed' ]]; then
+            if dpkg --compare-versions "${fields[1]}" ge 0.5.0-1; then
+                printf 'redis:%s\n' "${fields[1]}"
+            else
+                printf 'sqlite-cache:%s\n' "${fields[1]}"
+            fi
+            return 0
+        fi
+    else
+        result=$?
+        [[ $result == 1 ]] || { printf '%s\n' 'Cannot inspect uchatd package state.' >&2; return 1; }
+        printf '%s\n' absent
+        return 0
+    fi
+    printf '%s\n' 'Existing uchatd package state is incomplete or malformed; repair DPKG before installing this AGPC release.' >&2
+    return 1
+}
+
+# Native rename admits individually reviewed public runtimes by exact metadata.
+# No intermediate full installation or forced downgrade is required.
+classify_mesh_rename() {
+python3 - <<'MESH_RENAME_PREFLIGHT'
+import hashlib,json,os,pwd,grp,stat,subprocess,sys
+from pathlib import Path
+HOOKS = {'preinst': '16c8412e67154b7abf111f83ff2f21ca94e41919f60a3df4677d25a6e962ccff', 'postinst': 'f87e91fba3d57f4ed2548646f374ae63de50e3a33e6b1a93c4a4977703e37f49', 'prerm': 'dcbc3d89b484ef2548c496cdaf532a1a69bcba8c2aa1de74dd4debcb7a3005d7', 'postrm': '4932afd86c8916e16152aa75e0ed0bc4d8ffc0bdc9e8d6bcc541875b4b849cf5', 'conffiles': '7c904958362944a95ffdbe4eb6653377884626781a0464789495ec124191bc2b'}
+LIST_DIGESTS = {'2.1.0-1': '890c15e0ee6bccad7aaad59c079323d1229d2c58464ba7a0a722b90b463b77eb', '2.2.0-1': 'e1c24e8e7f5246a22a159dd336d161519a61960bd1b11280b786dd466893a847'}
+
+def query(name):
+    p=subprocess.run(['dpkg-query','-W','-f=${Status}|${Version}|${Architecture}',name],capture_output=True,text=True)
+    if p.returncode==1:return None
+    if p.returncode:raise ValueError('cannot inspect package '+name)
+    fields=p.stdout.split('|')
+    if len(fields)!=3:raise ValueError('malformed package record '+name)
+    return fields
+
+def checked(path, expected=None):
+    s=os.lstat(path)
+    if not stat.S_ISREG(s.st_mode) or s.st_nlink!=1 or s.st_uid!=0 or s.st_mode & 0o022:
+        raise ValueError('unsafe migration file '+path)
+    if s.st_size>1048576:raise ValueError('oversized migration file '+path)
+    fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+    with os.fdopen(fd,'rb') as f:
+        opened=os.fstat(f.fileno())
+        if (s.st_dev,s.st_ino)!=(opened.st_dev,opened.st_ino):raise ValueError('migration file changed')
+        digest=hashlib.sha256(f.read(1048577)).hexdigest()
+    if expected is not None and digest!=expected:raise ValueError('unreviewed migration file '+path)
+    return [s.st_dev,s.st_ino,s.st_mode,s.st_uid,s.st_gid,s.st_size,digest]
+
+def classify():
+    records={n:query(n) for n in ('cx-node','cx-agent','cx-pivot','cx-adapter','agent-exec','codex-mesh','cx-mesh','agpc-mesh')}
+    for name,r in records.items():
+        if name in ('cx-mesh','agpc-mesh') or r is None:continue
+        if r[0] not in ('deinstall ok config-files','unknown ok not-installed'):
+            raise ValueError('first complete the v0.3.0-75 consolidation of '+name)
+    old,new=records['cx-mesh'],records['agpc-mesh']
+    if old is None or old[0] in ('deinstall ok config-files','unknown ok not-installed'):
+        if os.path.lexists('/etc/cx-mesh') or os.path.lexists('/var/lib/cx-mesh'):
+            raise ValueError('unowned legacy Mesh paths need owner review')
+        return 'current' if new and new[0]=='install ok installed' else 'absent'
+    if old[0]!='install ok installed' or old[1] not in LIST_DIGESTS or old[2]!='amd64':
+        raise ValueError('unsupported legacy Mesh state; reviewed installed amd64 versions are 2.1.0-1 and 2.2.0-1')
+    if new and new[0] not in ('deinstall ok config-files','unknown ok not-installed'):
+        raise ValueError('both runtime package names are present')
+    files={}
+    for hook,digest in HOOKS.items():
+        path='/var/lib/dpkg/info/cx-mesh.'+hook
+        files[path]=checked(path,digest)
+    path='/var/lib/dpkg/info/cx-mesh.list'
+    files[path]=checked(path,LIST_DIGESTS[old[1]])
+    account=pwd.getpwnam('cx-mesh');group=grp.getgrnam('cx-mesh')
+    if account.pw_uid==0 or group.gr_gid==0 or account.pw_gid!=group.gr_gid or account.pw_dir!='/var/lib/cx-mesh':
+        raise ValueError('unsupported service account ownership')
+    for lookup in (pwd.getpwnam,grp.getgrnam):
+        try:lookup('agpc-mesh')
+        except KeyError:pass
+        else:raise ValueError('destination service account already exists')
+    for base in ('/etc/systemd/system','/run/systemd/system'):
+        for unit in ('cx-mesh.service','agpc-mesh.service','cx-agent.service'):
+            path=Path(base)/unit
+            if os.path.lexists(path):
+                if not path.is_symlink() or os.readlink(path)!='/dev/null':raise ValueError('custom service unit requires owner migration')
+                files[str(path)]=os.readlink(path)
+            drop=Path(str(path)+'.d')
+            if os.path.lexists(drop) and (drop.is_symlink() or not drop.is_dir() or any(drop.iterdir())):
+                raise ValueError('service overrides require owner migration')
+    for before,after in (('/etc/cx-mesh','/etc/agpc-mesh'),('/var/lib/cx-mesh','/var/lib/agpc-mesh'),('/var/log/cx-mesh','/var/log/agpc-mesh')):
+        oldpath,newpath=Path(before),Path(after)
+        if newpath.is_symlink() or (newpath.exists() and not newpath.is_dir()):raise ValueError('unsafe migration destination')
+        if not oldpath.exists():continue
+        if oldpath.is_symlink() or not oldpath.is_dir():raise ValueError('unsafe legacy directory')
+        for entry in oldpath.iterdir():
+            destname={'cx-mesh.toml':'agpc-mesh.toml','cx-mesh-mchat.env':'agpc-mesh-mchat.env'}.get(entry.name,entry.name) if before=='/etc/cx-mesh' else entry.name
+            if os.path.lexists(newpath/destname):raise ValueError('migration destination collision')
+            if entry.is_symlink():raise ValueError('legacy migration entry is a symlink')
+            if before=='/etc/cx-mesh' and entry.is_file():files[str(entry)]=checked(str(entry))
+    fingerprint=hashlib.sha256(json.dumps({'records':records,'files':files,'uid':account.pw_uid,'gid':group.gr_gid},sort_keys=True).encode()).hexdigest()
+    return 'installed:'+old[1]+':sha256:'+fingerprint
+
+try:print(classify())
+except (OSError,ValueError,KeyError) as error:
+    print('AGPC-Mesh rename preflight refused: '+str(error),file=sys.stderr)
+    sys.exit(1)
+MESH_RENAME_PREFLIGHT
+}
+
+# Preserve an already configured newer owner CDP build without installing it.
+# This is not admission of that build into the signed runtime cohort.
+select_cdp_version() {
+    local record code status version architecture
+    if record=$(dpkg-query -W -f='${Status}|${Version}|${Architecture}' agpc-cdp 2>/dev/null); then
+        IFS='|' read -r status version architecture <<< "$record"
+        if [[ $status == 'deinstall ok config-files' || $status == 'unknown ok not-installed' ]]; then
+            printf '%s\n' 0.2.0-2; return
+        fi
+        [[ $status == 'install ok installed' && $architecture == amd64 && $version =~ ^[0-9][a-zA-Z0-9.+:~_-]*$ ]] || { printf '%s\n' 'Existing CDP package is incomplete or unsupported; repair DPKG first.' >&2; return 1; }
+        if dpkg --compare-versions "$version" gt 0.2.0-2; then
+            printf '%s\n' "$version"; return
+        fi
+    else
+        code=$?; [[ $code == 1 ]] || return "$code"
+    fi
+    printf '%s\n' 0.2.0-2
+}
+
+uchat_state=$(classify_legacy_uchat) || fail 'uChat package preflight failed. No download or package change was started.'
+legacy_state=$(classify_legacy_chatd) || fail 'Legacy preflight failed. No download or package change was started.'
+mcp_state=$(classify_legacy_mcp) || fail 'MCP preflight failed. No download or package change was started.'
+cx_state=$(classify_mesh_rename) || fail 'CX preflight failed. No download or package change was started.'
+manager_state=$(classify_legacy_manager) || fail 'Manager preflight failed. No download or package change was started.'
+cdp_version=$(select_cdp_version) || fail 'CDP preflight failed. No package change was started.'
+if [[ $cdp_version != 0.2.0-2 ]]; then
+    printf 'Keeping existing agpc-cdp %s unchanged; owner build, not verified by this release.\n' "$cdp_version"
+fi
+
+agentsphere_apt_bootstrap || fail 'Signed APT bootstrap failed. Package installation was not started.'
+
+umask 077
+temporary=$(mktemp -d /var/tmp/agpc-all.XXXXXXXX)
+trap 'rm -rf -- "$temporary"; rmdir -- "$job_stage" 2>/dev/null || true' EXIT
+chmod 0755 "$temporary"
+retirement_bridge=
+transaction_legacy_state=$legacy_state
+if [[ $legacy_state == retention:installed || $legacy_state == retirement:unpacked ]]; then
+    retirement_bridge=$temporary/mote-chatd_2.0.0-9_all.deb
+    curl --fail --location --proto '=https' --proto-redir '=https' --retry 2 \
+        --output "$retirement_bridge" \
+        https://motebus.github.io/download/pool/main/m/mote-chatd/mote-chatd_2.0.0-9_all.deb
+    printf '%s  %s\n' 5b1a3c8cba45ea321d9c3ee70962b78f5e203133f7413ae33873a9006ea5b8b7 "$retirement_bridge" | sha256sum --check --status \
+        || fail 'mote-chatd retirement bridge checksum mismatch. Package installation was not started.'
+    [[ $(dpkg-deb -f "$retirement_bridge" Package) == mote-chatd && \
+       $(dpkg-deb -f "$retirement_bridge" Version) == 2.0.0-9 && \
+       $(dpkg-deb -f "$retirement_bridge" Architecture) == all ]] \
+        || fail 'mote-chatd retirement bridge metadata mismatch. Package installation was not started.'
+    chmod 0644 "$retirement_bridge"
+    transaction_legacy_state=retirement:installed
+fi
+packages=(mote-proxy=2.0.8-1 moted=3.6.5-1 mote-secd=1.3.0-3 agent-sphere=0.3.0-43 agpc-ultra=0.1.0-1 agpc-manager=4.4.0-2 "agpc-cdp=$cdp_version" agpc-run=0.2.0-4 agpc-view=0.1.0-1 contextd=0.1.0-27 agpc-mesh=3.0.0-3 uchat=3.2.0-13 uchatd=0.6.0-5)
+# Upgrade the existing management backend with its renamed Mesh owner;
+# fresh profiles retain their existing package selection.
+if [[ $(dpkg-query -W -f='${db:Status-Status}' medge 2>/dev/null || true) == installed ]]; then
+    packages+=(medge=3.3.0-2)
+fi
+legacy_apps_version=-
+if [[ $agpc_profile == full ]]; then
+    packages+=(agpc-apps=0.3.0-2 uchat-bridge=0.1.0-1)
+    # Retire the old package name. Only the reviewed documentation-only
+    # transitions may be removed; their application dependencies remain.
+    if old_apps=$(dpkg-query -W -f='${Status}|${Version}' agent-apps 2>/dev/null); then
+        case "$old_apps" in
+            'install ok installed|0.3.0-1') legacy_apps_version=0.3.0-1 ;;
+            'install ok installed|0.3.0-2') legacy_apps_version=0.3.0-2 ;;
+            *) fail 'Existing agent-apps is not a reviewed retirement candidate; no package change was started.' ;;
+        esac
+        packages+=(agent-apps-)
+    else
+        [[ $? == 1 ]] || fail 'Cannot inspect the retired agent-apps package.'
+    fi
+fi
+# mote-chatd is retired. Remove either the old runtime or its former
+# documentation-only retention record while selecting native uchatd.
+case "$legacy_state" in
+    ordinary:installed|retention:installed|retirement:installed|retirement:unpacked) packages+=(mote-chatd-) ;;
+esac
+
+# APT protocol v3 is checked again under APT's lock before any DPKG action.
+{
+printf '%s\n' '#!/bin/bash' 'set -euo pipefail'
+declare -f select_cdp_version classify_mesh_rename agentsphere_container_runtime_package classify_legacy_chatd classify_legacy_mcp classify_legacy_cx classify_legacy_manager classify_legacy_uchat
+printf 'expected_uchat_state=%q\n' "$uchat_state"
+printf 'agpc_profile=%q\n' "$agpc_profile"
+printf 'expected_legacy_state=%q\n' "$transaction_legacy_state"
+printf 'expected_mcp_state=%q\n' "$mcp_state"
+printf 'expected_cdp_version=%q\n' "$cdp_version"
+printf 'expected_cx_state=%q\n' "$cx_state"
+printf 'expected_manager_state=%q\n' "$manager_state"
+printf 'expected_legacy_apps_version=%q\n' "$legacy_apps_version"
+cat <<'GUARD'
+fail() { printf 'Agent Computer transaction refused: %s\n' "$*" >&2; exit 1; }
+uchat_state=$(classify_legacy_uchat) || fail 'uChat package state is invalid at transaction time'
+[[ $uchat_state == "$expected_uchat_state" ]] || fail 'uChat state changed after preflight'
+legacy_state=$(classify_legacy_chatd) || fail 'legacy ownership is unsupported at transaction time'
+[[ $legacy_state == "$expected_legacy_state" ]] || fail 'legacy ownership changed after preflight'
+mcp_state=$(classify_legacy_mcp) || fail 'legacy MCP state is unsupported at transaction time'
+[[ $mcp_state == "$expected_mcp_state" ]] || fail 'legacy MCP state changed after preflight'
+cx_state=$(classify_mesh_rename) || fail 'legacy CX state is unsupported at transaction time'
+[[ $cx_state == "$expected_cx_state" ]] || fail 'legacy CX state changed after preflight'
+manager_state=$(classify_legacy_manager) || fail 'legacy Manager state is unsupported at transaction time'
+[[ $manager_state == "$expected_manager_state" ]] || fail 'legacy Manager state changed after preflight'
+[[ $(select_cdp_version) == "$expected_cdp_version" ]] || fail 'CDP state changed after preflight'
+[[ ${APT_HOOK_INFO_FD:-} == 0 ]] || fail 'APT action protocol is unavailable'
+IFS= read -r header || fail 'empty action protocol'
+[[ $header == 'VERSION 3' ]] || fail 'APT action protocol version 3 is required'
+config_end=false
+while IFS= read -r line; do
+    if [[ -z $line ]]; then config_end=true; break; fi
+    [[ $line == *=* ]] || fail 'malformed APT configuration record'
+done
+$config_end || fail 'incomplete APT action protocol'
+declare -A removed=() installed=() configured=() artifacts=()
+public_cx_migration=false
+declare -A replacement=([mote-sync]=mote-vault-sync [mote-syncd]=mote-vault-syncd [model-node]=model-llm [agent-ultra]=agpc-ultra)
+declare -A reviewed_old=([mote-sync]=1.1.0-2 [mote-syncd]=1.1.0-2 [model-node]=0.1.0-2 [agent-ultra]=0.1.0-3)
+if [[ $expected_legacy_apps_version != - ]]; then
+    current_apps=$(dpkg-query -W -f='${db:Status-Status}|${Version}' agent-apps 2>/dev/null) || fail 'retired agent-apps changed after preflight'
+    [[ $current_apps == "installed|$expected_legacy_apps_version" ]] || fail 'retired agent-apps changed after preflight'
+    replacement[agent-apps]=agpc-apps
+    reviewed_old[agent-apps]=$expected_legacy_apps_version
+fi
+if [[ $legacy_state != absent ]]; then
+    replacement[mote-chatd]=uchatd
+fi
+if [[ $mcp_state == installed:* ]]; then
+    replacement[mote-bridge-mcp]=mote-mcpd
+    reviewed_old[mote-bridge-mcp]=3.0.0-2
+fi
+if [[ $manager_state == installed:sha256:* ]]; then
+    replacement[sphere-manager]=agpc-manager
+    reviewed_old[sphere-manager]=3.1.0-1
+fi
+if [[ $cx_state == installed:2.1.0-1:sha256:* || $cx_state == installed:2.2.0-1:sha256:* ]]; then
+    replacement[cx-mesh]=agpc-mesh
+    mesh_version=${cx_state#installed:}; reviewed_old[cx-mesh]=${mesh_version%%:*}
+fi
+IFS=, read -r -a cx_predecessors <<< "${cx_state%%;*}"
+for entry in "${cx_predecessors[@]}"; do
+    name=${entry%%=*}; version=${entry#*=}
+    case "$name" in cx-node|cx-agent|codex-mesh)
+        if [[ $version != - ]]; then replacement[$name]=cx-mesh; reviewed_old[$name]=$version; fi ;;
+    esac
+done
+declare -A floor=([agent-sphere]=0.3.0-43 [agpc-ultra]=0.1.0-1 [agpc-manager]=4.4.0-2 [agpc-cdp]=0.2.0-2 [agpc-run]=0.2.0-4 [agpc-view]=0.1.0-1 [agpc-apps]=0.3.0-2 [contextd]=0.1.0-27 [moted]=3.6.5-1 [mote-proxy]=2.0.8-1 [mote-secd]=1.3.0-3 [medge]=3.3.0-2 [mlink]=2.1.0-1 [mote-transportd]=2.0.0-6 [mote-chatd]=2.0.0-6 [agos]=2.1.0-1 [agpc-mesh]=3.0.0-3 [mote-mcpd]=3.1.0-1 [mote-mcp-ultra]=0.1.0-1 [cx-loop]=0.1.0-5 [model-router]=0.1.0-1 [model-llm]=0.1.0-3 [mote-vault-sync]=1.1.0-3 [mote-vault-syncd]=1.1.0-3 [uchat]=3.2.0-13 [uchatd]=0.6.0-5 [uchat-bridge]=0.1.0-1)
+while IFS= read -r line; do
+    read -r -a fields <<< "$line"
+    [[ ${#fields[@]} == 9 ]] || fail 'malformed package action'
+    name=${fields[0]}; old=${fields[1]}; direction=${fields[4]}
+    [[ $name != agpc-cdp || $expected_cdp_version == 0.2.0-2 ]] || fail 'retained owner CDP build must not be modified'
+    new=${fields[5]}; action=${fields[8]}
+    [[ $name =~ ^[a-z0-9][a-z0-9+.-]*$ ]] || fail 'invalid package name'
+    [[ $direction == '<' || $direction == '=' || $direction == '>' ]] || fail 'invalid version action'
+    if [[ $action == '**REMOVE**' ]]; then
+        case "$name" in cx-node|cx-agent|codex-mesh) public_cx_migration=true ;; esac
+        if [[ $name == mote-chatd ]]; then
+            [[ $new == - && -z ${removed[$name]:-} &&
+               (($legacy_state == ordinary:installed && $old == 2.0.0-4) ||
+               ($legacy_state == retention:* &&
+                ($old == 2.0.0-4 || $old == 2.0.0-6)) ||
+               ($legacy_state == retired-config && $old == 2.0.0-7) ||
+               ($legacy_state == retirement:installed && ($old == 2.0.0-8 || $old == 2.0.0-9))) ]] || fail 'removal of retired mote-chatd'
+        elif [[ $name == agent-ultra ]]; then
+            [[ -n ${replacement[$name]:-} &&
+               ($old == 0.1.0-1 || $old == 0.1.0-3) &&
+               $new == - && -z ${removed[$name]:-} ]] || fail "removal of $name"
+        else
+            [[ -n ${replacement[$name]:-} && $old == "${reviewed_old[$name]}" && $new == - && -z ${removed[$name]:-} ]] || fail "removal of $name"
+        fi
+        removed[$name]=true
+    elif [[ $action == '**CONFIGURE**' || $action == /*.deb ]]; then
+        ! agentsphere_container_runtime_package "$name" || fail "container runtime package $name is outside native AGPC installation"
+        if [[ ${agpc_profile:-standard} == standard && $name == agpc-apps ]]; then
+            fail 'application composition is outside the standard AGPC profile'
+        fi
+        [[ $name != mote-chatd ]] || fail 'retired package mote-chatd is not installable'
+        case "$name" in agent-ultra|cx-mesh|sphere-manager|mote-sync|mote-syncd|cx-node|cx-agent|codex-mesh|model-node|model-grid|mcp-run|ultra-mcp-ssh|mote-bridge-mcp) fail "retired package $name" ;; esac
+        [[ $new != - ]] || fail 'missing target version'
+        [[ $old == - ]] || dpkg --compare-versions "$new" ge "$old" || fail "downgrade of $name"
+        if [[ -n ${floor[$name]:-} ]]; then
+            dpkg --compare-versions "$new" ge "${floor[$name]}" || fail "obsolete package $name"
+        fi
+        if [[ $name == mote-secd || $name == agent-sphere || $name == agpc-apps || $name == agpc-ultra || $name == agpc-manager || $name == agpc-cdp || $name == agpc-run || $name == agpc-view || $name == contextd || $name == agpc-mesh ]]; then
+            [[ $new == "${floor[$name]}" ]] || fail "unexpected composition version $name"
+        fi
+        if [[ $name == mote-transportd && $legacy_state == ordinary:* ]]; then
+            [[ $new == 2.0.0-6 && ${fields[6]} == amd64 ]] || fail 'ordinary migration requires exact transport 2.0.0-6 amd64'
+            if [[ $action == /*.deb ]]; then
+                [[ ! -L $action && -f $action ]] || fail 'unsafe transport artifact'
+                printf '%s  %s\n' 9c56cade3f014f75876cce126d2ef8c9d5c27a60709ff592ac0e9af9788dd23f "$action" | sha256sum --check --status || fail 'transport artifact changed'
+            fi
+        fi
+        if [[ $action == /*.deb ]]; then
+            [[ -z ${installed[$name]:-} ]] || fail "duplicate installation $name"
+            installed[$name]=$new
+            artifacts[$name]=$action
+        else
+            [[ -z ${configured[$name]:-} ]] || fail "duplicate configuration $name"
+            configured[$name]=$new
+        fi
+    else
+        fail 'unknown package action'
+    fi
+done
+for name in "${!removed[@]}"; do
+    if [[ $name == mote-chatd && $uchat_state == redis:* ]]; then
+        continue
+    fi
+    if [[ ${replacement[$name]} == agpc-apps &&
+          $(dpkg-query -W -f='${db:Status-Status}|${Version}' agpc-apps 2>/dev/null || true) == 'installed|0.3.0-2' ]]; then
+        continue
+    fi
+    [[ -n ${installed[${replacement[$name]}]:-} ]] || fail "$name removal lacks its reviewed replacement"
+done
+if $public_cx_migration; then
+    [[ ${installed[cx-mesh]:-} == 1.2.0-1 ]] || fail 'public CX migration requires exact cx-mesh 1.2.0-1'
+    path=${artifacts[cx-mesh]}
+    [[ ! -L $path && -f $path ]] || fail 'unsafe CX artifact'
+    [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected CX artifact architecture'
+    printf '%s  %s\n' caa078bdd810580dc8b35380d2fe8abbda6ff6c4338f2a8c8dbbba3051d02af0 "$path" | sha256sum --check --status || fail 'CX artifact changed'
+fi
+if [[ -n ${removed[mote-bridge-mcp]:-} ]]; then
+    [[ ${installed[mote-mcpd]:-} == 3.1.0-1 ]] || fail 'MCP migration requires exact mote-mcpd 3.1.0-1'
+    path=${artifacts[mote-mcpd]}
+    [[ ! -L $path && -f $path ]] || fail 'unsafe MCP artifact'
+    [[ $(dpkg-deb -f "$path" Architecture) == amd64 ]] || fail 'unexpected MCP artifact architecture'
+    printf '%s  %s\n' fae185fc735571c73adee70fb3095851541fce3a7b13b468c41cae32bec44a60 "$path" | sha256sum --check --status || fail 'MCP artifact changed'
+fi
+if [[ -n ${removed[sphere-manager]:-} ]]; then
+    [[ ${installed[agpc-manager]:-} == 4.4.0-2 ]] || fail 'Manager migration requires exact agpc-manager 4.4.0-2'
+    path=${artifacts[agpc-manager]}
+    [[ ! -L $path && -f $path ]] || fail 'unsafe Manager artifact'
+    [[ $(dpkg-deb -f "$path" Architecture) == all ]] || fail 'unexpected Manager artifact architecture'
+    printf '%s  %s\n' 2e2b6f0ee79c1d5c5b9d300fcefba9e21da05acacbfa6fc8093c71c8a6f1e091 "$path" | sha256sum --check --status || fail 'Manager artifact changed'
+fi
+GUARD
+} > "$temporary/guard"
+chmod 0700 "$temporary/guard"
+guard=$(realpath "$temporary/guard")
+[[ $guard =~ ^/[a-zA-Z0-9_./-]+$ ]] || fail 'Invalid temporary hook path.'
+apt-get update || fail 'APT update failed. Package installation was not started.'
+if ! apt-get --simulate install "${packages[@]}" > "$temporary/plan"; then
+    cat "$temporary/plan"
+    fail 'All four entry packages and their dependencies must be available in the signed MoteBus APT repository. Package installation was not started.'
+fi
+cat "$temporary/plan"
+declare -A removed=() planned=()
+while read -r action package rest; do
+    name=${package%%:*}
+    case "$action" in
+        Remv)
+            case "$name:$rest" in
+                'mote-chatd:[2.0.0-4]'*|'mote-chatd:[2.0.0-6]'*|'mote-chatd:[2.0.0-7]'*|'mote-chatd:[2.0.0-8]'*|'mote-chatd:[2.0.0-9]'*)
+                    [[ $legacy_state == ordinary:installed || $legacy_state == retention:* || $legacy_state == retired-config || $legacy_state == retirement:installed || $legacy_state == retirement:unpacked ]] || fail 'Refusing removal of unreviewed retired mote-chatd ownership.'
+                    removed[mote-chatd]=uchatd ;;
+                'mote-bridge-mcp:[3.0.0-2]'*)
+                    [[ $mcp_state == installed:* ]] || fail 'Refusing unreviewed MCP package removal.'
+                    removed[mote-bridge-mcp]=mote-mcpd ;;
+                'sphere-manager:[3.1.0-1]'*)
+                    [[ $manager_state == installed:sha256:* ]] || fail 'Refusing unreviewed Manager package removal.'
+                    removed[sphere-manager]=agpc-manager ;;
+                'mote-sync:[1.1.0-2]'*) removed[mote-sync]=mote-vault-sync ;;
+                'mote-syncd:[1.1.0-2]'*) removed[mote-syncd]=mote-vault-syncd ;;
+                cx-node:*|cx-agent:*|codex-mesh:*)
+                    expected=-
+                    IFS=, read -r -a predecessors <<< "${cx_state%%;*}"
+                    for entry in "${predecessors[@]}"; do
+                        [[ ${entry%%=*} != "$name" ]] || expected=${entry#*=}
+                    done
+                    [[ $expected != - && $rest == "[$expected]"* ]] || fail 'Refusing unreviewed CX predecessor removal.'
+                    removed[$name]=cx-mesh ;;
+                'cx-mesh:[2.1.0-1]'*|'cx-mesh:[2.2.0-1]'*)
+                    mesh_version=${cx_state#installed:}; mesh_version=${mesh_version%%:*}
+                    [[ $cx_state == installed:*:sha256:* && $rest == "[$mesh_version]"* ]] || fail 'Refusing unreviewed Mesh runtime removal.'
+                    removed[cx-mesh]=agpc-mesh ;;
+                'agent-ultra:[0.1.0-1]'*|'agent-ultra:[0.1.0-3]'*) removed[agent-ultra]=agpc-ultra ;;
+                'agent-apps:[0.3.0-1]'*|'agent-apps:[0.3.0-2]'*)
+                    [[ $legacy_apps_version != - && $rest == "[$legacy_apps_version]"* ]] || fail 'Refusing unreviewed agent-apps removal.'
+                    removed[agent-apps]=agpc-apps ;;
+                'model-node:[0.1.0-2]'*) removed[model-node]=model-llm ;;
+                *) fail "Refusing package removal: $name. Package installation was not started." ;;
+            esac ;;
+        Purg|E:) fail 'APT error or purge refused. Package installation was not started.' ;;
+        Inst)
+            if [[ $agpc_profile == standard && $name == agpc-apps ]]; then
+                fail 'Application composition is outside the standard AGPC profile. No package installation was started.'
+            fi
+            ! agentsphere_container_runtime_package "$name" || fail "Refusing container runtime package $name. Package installation was not started."
+            planned[$name]=true ;;
+    esac
+done < "$temporary/plan"
+for name in "${!removed[@]}"; do
+    if [[ $name == mote-chatd && $uchat_state == redis:* ]]; then
+        continue
+    fi
+    if [[ ${removed[$name]} == agpc-apps &&
+          $(dpkg-query -W -f='${db:Status-Status}|${Version}' agpc-apps 2>/dev/null || true) == 'installed|0.3.0-2' ]]; then
+        continue
+    fi
+    [[ -n ${planned[${removed[$name]}]:-} ]] || fail "$name removal lacks its replacement. Package installation was not started."
+done
+# A piped script has no interactive stdin. Obtain the controlling terminal
+# explicitly; without one, the caller must choose --yes for unattended use.
+if [[ ${#confirmation[@]} == 0 && ! -t 0 ]]; then
+    if ! { exec {confirmation_fd}<>/dev/tty; } 2>/dev/null; then
+        fail 'APT confirmation needs a terminal. Run with --yes only to explicitly approve unattended installation.'
+    fi
+else
+    exec {confirmation_fd}<&0
+fi
+if [[ ${#confirmation[@]} == 0 ]]; then
+    printf 'Proceed with the displayed package plan and SSH readiness check? [y/N] ' >&2
+    IFS= read -r answer <&"$confirmation_fd" || fail 'Installation was not confirmed.'
+    [[ $answer == y || $answer == Y || $answer == yes || $answer == YES ]] || fail 'Installation was not confirmed.'
+fi
+if agentsphere_run_detached; then
+    :
+else
+    code=$?
+    printf '%s\n' 'Installation or SSH verification did not complete successfully. The durable job result identifies the failed phase.' >&2
+    exit "$code"
+fi
+printf '%s\n' 'SSH configuration and loopback port 22 are ready; remote Mote reachability is a separate check.'
+printf 'Native AGPC %s packages installed. Runtime configuration and health are separate checks.\n' "$agpc_profile"
+printf '%s\n' 'Open agpc-manager as your normal desktop user (without sudo) for connections and SSH key login, or run uchat for messages.'
+if [[ -z $agpc_chat_user ]]; then printf '%s\n' 'Machine chat is open by default. Use uchat inbox to manage additional agent inboxes.'; fi

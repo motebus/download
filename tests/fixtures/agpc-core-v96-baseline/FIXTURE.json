@@ -1,0 +1,88 @@
+{
+  "schema": "agpc-core-profile.test-baseline/v1",
+  "source_commit": "1c4e1876ae560dce78bb4031f386544ad7f247b9",
+  "installer_tag": "v0.3.0-96",
+  "aggregate_tag": "agent-computer-v0.3.0-85",
+  "files": {
+    "agpc.sh": {
+      "sha256": "5462a7893ae1d487bbb90a1c2c2a6b68b44a6f451bdf26c6693073156bfb0073",
+      "bytes": 110505,
+      "mode": "100755"
+    },
+    "agpc.source.json": {
+      "sha256": "c8780b26f00b6ccf32b53ea2d4d200a3693f20f76203d6f3ef4242f85bbb0219",
+      "bytes": 291,
+      "mode": "100644"
+    },
+    "agpc-core.sh": {
+      "sha256": "5462a7893ae1d487bbb90a1c2c2a6b68b44a6f451bdf26c6693073156bfb0073",
+      "bytes": 110505,
+      "mode": "100755"
+    },
+    "agpc-core.source.json": {
+      "sha256": "9ce4609382cbc8f4c10ffcd040c0b6bfe8d21dd03bff1c40a8f6cdeb76c2b762",
+      "bytes": 296,
+      "mode": "100644"
+    },
+    "agpc-all.sh": {
+      "sha256": "ef38bed502a0e3aab4e68a7ad97c3b680db897db1595bccee38c5044c4cae3a9",
+      "bytes": 110509,
+      "mode": "100755"
+    },
+    "agpc-all.source.json": {
+      "sha256": "645b5b78e3c408768e37f8273ecf61a9e6eeb407c587f884b91ee688f9162630",
+      "bytes": 291,
+      "mode": "100644"
+    },
+    "agpc-apps.sh": {
+      "sha256": "d527ac6e357a5934a7a64d06a7cddc04a0f1d25566bea92e99ac4c8b85d856e7",
+      "bytes": 111884,
+      "mode": "100755"
+    },
+    "agpc-apps.source.json": {
+      "sha256": "a24646cc2deb3b594cab32b4590af48d1545fb2c7d8493d2c4394106a3219e23",
+      "bytes": 292,
+      "mode": "100644"
+    },
+    "uninstall.sh": {
+      "sha256": "d29b932f4002891699bd597bca06a0a26d3d281bb1a7d29a263efd282fffc207",
+      "bytes": 47876,
+      "mode": "100755"
+    },
+    "agent-computer-apt-overlay.json": {
+      "sha256": "af8865a8a40720c450e29f961aecdd55f600717e873fb0d2f354e2a78277d9b8",
+      "bytes": 17893,
+      "mode": "100644"
+    },
+    "agpc-win.ps1": {
+      "sha256": "d88937e6915ad4262af6694bfefb17443623ba6e4bda8e9614efcb07ca944cf5",
+      "bytes": 15295,
+      "mode": "100644"
+    },
+    "agpc.ps1": {
+      "sha256": "55bc0930d8bacbdfe1a3382abecfbc1df9261ff10828fdae20c23fa23cf9f21d",
+      "bytes": 6092,
+      "mode": "100644"
+    },
+    "agpc-win-uninstall.ps1": {
+      "sha256": "b378cc7cc12d4ef686eb59747b714ca58c6976650f630f23a801a94361bbd2aa",
+      "bytes": 4673,
+      "mode": "100644"
+    },
+    "agpc-unistall.ps1": {
+      "sha256": "a71262be80dae21588da09913371fd4426cde503e126e5193e7a7a8d63c99427",
+      "bytes": 4271,
+      "mode": "100644"
+    },
+    "agpc.windows.source.json": {
+      "sha256": "13e349d671662fd108f276c2630eaa6529a30d13bc60d12be579f0f1db5291e0",
+      "bytes": 563,
+      "mode": "100644"
+    },
+    "scripts/native-index.html": {
+      "sha256": "8b934db4b69ee0d28e01f19f945713aac572b975e5d5b19df0b19ab568c7d461",
+      "bytes": 4848,
+      "mode": "100644"
+    }
+  }
+}

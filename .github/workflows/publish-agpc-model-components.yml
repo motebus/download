@@ -1,0 +1,57 @@
+name: Publish signed source-bound AGPC component previews
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: Exact reviewed component publication record
+        required: true
+        type: choice
+        options: [core, vmodel, model]
+  pull_request:
+    paths:
+      - scripts/publish_agpc_model_components.py
+      - scripts/publish_native.py
+      - scripts/publish_apt.py
+      - scripts/component-publications/**
+      - tests/test_agpc_model_publication.py
+      - tests/test_agpc_core_publication.py
+      - .github/workflows/publish-agpc-model-components.yml
+permissions:
+  contents: read
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+concurrency:
+  group: ${{ github.event_name == 'workflow_dispatch' && 'native-package-publication' || format('model-publication-validation-{0}', github.ref) }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: |
+          python3 -m unittest discover -s tests -p test_agpc_model_publication.py -v
+          python3 -m unittest discover -s tests -p test_agpc_core_publication.py -v
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Sign and publish exact original main-CI component bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+          COMPONENT: ${{ inputs.component }}
+        run: python3 scripts/publish_agpc_model_components.py publish "$COMPONENT"

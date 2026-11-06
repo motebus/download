@@ -1,0 +1,12 @@
+{
+  "schema": "agpc-windows-installer-source/v1",
+  "repository": "motebus/download",
+  "tag": "agpc-windows-v0.1.2",
+  "source_commit": "3a04e95df8b56ebb77c2f03b13044211a82fbef9",
+  "assets": {
+    "agpc-win.ps1": "d88937e6915ad4262af6694bfefb17443623ba6e4bda8e9614efcb07ca944cf5",
+    "agpc.ps1": "55bc0930d8bacbdfe1a3382abecfbc1df9261ff10828fdae20c23fa23cf9f21d",
+    "agpc-win-uninstall.ps1": "b378cc7cc12d4ef686eb59747b714ca58c6976650f630f23a801a94361bbd2aa",
+    "agpc-unistall.ps1": "a71262be80dae21588da09913371fd4426cde503e126e5193e7a7a8d63c99427"
+  }
+}

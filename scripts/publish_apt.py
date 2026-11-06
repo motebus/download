@@ -303,7 +303,10 @@ MOTE_TRANSPORT_PACKAGES = (
 )
 ALLOWED_ROOT_FILES = {
     "voice-mote.sh", "VOICE-MOTE-SPEC-v0.1.md", "VOICE-MOTE-INSTALL.md",
+    "agent-sphere-apps.sh", "agent-sphere-apps.source.json",
     "AGPC-DEBIAN.md",
+    "M-CHANNEL-SPEC.md",
+    "UCHAT-EVENT-SPEC.md",
     "agpc-mac.sh", "agpc.mac.source.json", "AGPC-MAC.md",
     ".gitattributes",
     "agpc-win-uninstall.ps1",
@@ -317,8 +320,12 @@ ALLOWED_ROOT_FILES = {
     "agpc.source.json",
     "agpc-all.sh",
     "agpc-all.source.json",
-    "agent-sphere-apps.sh",
-    "agent-sphere-apps.source.json",
+    "agpc-core.sh",
+    "agpc-core.source.json",
+    "agpc-mesh.sh",
+    "agpc-mesh.source.json",
+    "agpc-apps.sh",
+    "agpc-apps.source.json",
     ".gitlab-ci.yml",
     ".gitignore",
     "github-setup.sh",
@@ -342,6 +349,23 @@ AGENT_COMPUTER_OVERLAY_PACKAGES = (("agent-sphere", "all"), ("mote-transportd", 
 AGENT_COMPUTER_FULL_SCHEMA = "agent-computer-apt-overlay/v5"
 AGENT_COMPUTER_LOOP_SCHEMA = "agent-computer-apt-overlay/v6"
 AGENT_COMPUTER_PROFILE_SCHEMA = "agent-computer-apt-overlay/v7"
+AGENT_COMPUTER_RUNTIME_SCHEMA = "agent-computer-apt-overlay/v8"
+AGENT_COMPUTER_MESH_SCHEMA = "agent-computer-apt-overlay/v9"
+AGENT_COMPUTER_ULTRA_SCHEMA = "agent-computer-apt-overlay/v10"
+AGENT_COMPUTER_BRIDGE_SCHEMA = "agent-computer-apt-overlay/v11"
+AGENT_COMPUTER_VIEW_SCHEMA = "agent-computer-apt-overlay/v12"
+AGENT_COMPUTER_CORE_SCHEMA = "agent-computer-apt-overlay/v13"
+# These reviewed candidate identities are confined to the new composition.
+# Accepting their syntax does not provide native lifecycle or Pages admission.
+AGPC_CORE_VERSION = "0.1.0~core.20261106.1"
+AGPC_VMODEL_VERSION = "0.1.0~vmodel.20261106.1"
+AGPC_CORE_DEPENDENCIES = {
+    "agent-sphere": "0.3.0-43", "agpc-manager": "4.4.0-3",
+    "agpc-view": "0.1.0-4", "agpc-mesh": "3.0.0-6",
+    "agpc-cdp": "0.2.0-2", "agpc-run": "0.2.0-4",
+    "contextd": "0.1.0-27", "iagent": "1.0.0-1",
+    "agpc-vmodel": AGPC_VMODEL_VERSION,
+}
 AGENT_COMPUTER_FULL_REPOSITORY = "motebus/download"
 AGENT_SPHERE_COMPONENTS = (
     "sphered", "moted", "mote-proxy", "mote-transportd", "mlink", "mote-secd",
@@ -353,6 +377,10 @@ AGENT_APPS_COMPONENTS = ("jujue", "iagent", "ss-webos", "mdesk", "uchat")
 # uchat owns its daemon dependency; the four entry package boundaries stay fixed.
 AGENT_APP_SERVICES = ("uchatd",)
 AGENT_ENTRY_PACKAGES = ("agent-sphere", "agent-ultra", "agpc-manager", "agent-apps")
+
+# Retired package identities may remain as immutable historical pool artifacts,
+# but they must not remain installable through the current APT index.
+RETIRED_APT_PACKAGE_NAMES = frozenset(("agent-apps", "model-node", "model-grid"))
 AGENT_META_DEPENDENCIES = {
     "agent-sphere": AGENT_SPHERE_COMPONENTS,
     "agent-ultra": ("agent-sphere", *AGENT_ULTRA_COMPONENTS),
@@ -374,30 +402,70 @@ AGENT_PROFILE_REDISTRIBUTABLE = tuple(
 AGENT_PROFILE_FLOORS = {"agent-sphere": "0.3.0-42", "contextd": "0.1.0-27",
                         "uchatd": "0.6.0-1", "uchat": "3.2.0-7", "agpc-apps": "0.3.0-1",
                         "agpc-cdp": "0.2.0-1"}
+AGENT_RUNTIME_REDISTRIBUTABLE = tuple(
+    name for old in AGENT_PROFILE_REDISTRIBUTABLE
+    for name in ((old, "agpc-run") if old == "agpc-cdp" else (old,)))
+AGENT_RUNTIME_FLOORS = {**AGENT_PROFILE_FLOORS, "agpc-run": "0.2.0-2", "cx-mesh": "2.1.0-1"}
+AGENT_MESH_REDISTRIBUTABLE = tuple(
+    "agpc-mesh" if name == "cx-mesh" else name for name in AGENT_RUNTIME_REDISTRIBUTABLE)
+AGENT_MESH_SPHERE_COMPONENTS = tuple(
+    "agpc-mesh" if name == "cx-mesh" else name for name in AGENT_PROFILE_SPHERE_COMPONENTS)
+AGENT_MESH_FLOORS = {**{name: version for name, version in AGENT_RUNTIME_FLOORS.items()
+                      if name != "cx-mesh"}, "agent-sphere": "0.3.0-43",
+                     "agpc-mesh": "3.0.0-1", "agpc-run": "0.2.0-3", "moted": "3.6.4-2", "uchatd": "0.6.0-4", "medge": "3.3.0-2", "cx-loop": "0.1.0-5"}
+AGPC_ULTRA_REDISTRIBUTABLE = tuple(
+    "agpc-ultra" if name == "agent-ultra" else name for name in AGENT_MESH_REDISTRIBUTABLE)
+AGPC_ULTRA_FLOORS = {**{name: version for name, version in AGENT_MESH_FLOORS.items()
+                        if name not in ("agent-ultra", "agpc-apps")},
+                     "agpc-ultra": "0.1.0-1", "agpc-apps": "0.3.0-2"}
+NATIVE_PROFILE_SCHEMAS = (AGENT_COMPUTER_PROFILE_SCHEMA, AGENT_COMPUTER_RUNTIME_SCHEMA,
+                          AGENT_COMPUTER_MESH_SCHEMA, AGENT_COMPUTER_ULTRA_SCHEMA, AGENT_COMPUTER_BRIDGE_SCHEMA, AGENT_COMPUTER_VIEW_SCHEMA, AGENT_COMPUTER_CORE_SCHEMA)
 
 
 def is_full_overlay(config):
     return config["schema"] in (AGENT_COMPUTER_FULL_SCHEMA, AGENT_COMPUTER_LOOP_SCHEMA,
-                                AGENT_COMPUTER_PROFILE_SCHEMA)
+                                *NATIVE_PROFILE_SCHEMAS)
 
 def core_components(config):
-    if config["schema"] == AGENT_COMPUTER_PROFILE_SCHEMA:
+    if config["schema"] in (AGENT_COMPUTER_MESH_SCHEMA, AGENT_COMPUTER_ULTRA_SCHEMA, AGENT_COMPUTER_BRIDGE_SCHEMA, AGENT_COMPUTER_VIEW_SCHEMA, AGENT_COMPUTER_CORE_SCHEMA):
+        return AGENT_MESH_SPHERE_COMPONENTS
+    if config["schema"] in NATIVE_PROFILE_SCHEMAS:
         return AGENT_PROFILE_SPHERE_COMPONENTS
     return AGENT_LOOP_SPHERE_COMPONENTS if config["schema"] == AGENT_COMPUTER_LOOP_SCHEMA else AGENT_SPHERE_COMPONENTS
 
+def installer_extra_roots(config):
+    """GUI is an installer root; backend metapackage ownership stays unchanged."""
+    if config["schema"] == AGENT_COMPUTER_CORE_SCHEMA:
+        return ("agpc-core", *AGPC_CORE_DEPENDENCIES, *AGENT_MANAGER_COMPONENTS)
+    return ("agpc-view",) if config["schema"] == AGENT_COMPUTER_VIEW_SCHEMA else ()
+
 def canonical_packages(config):
+    if config["schema"] == AGENT_COMPUTER_CORE_SCHEMA:
+        return (*AGPC_ULTRA_REDISTRIBUTABLE, "uchat-bridge", "agpc-view", "agpc-core", "agpc-vmodel")
+    if config["schema"] == AGENT_COMPUTER_VIEW_SCHEMA:
+        return (*AGPC_ULTRA_REDISTRIBUTABLE, "uchat-bridge", "agpc-view")
+    if config["schema"] == AGENT_COMPUTER_BRIDGE_SCHEMA:
+        return (*AGPC_ULTRA_REDISTRIBUTABLE, "uchat-bridge")
+    if config["schema"] in (AGENT_COMPUTER_ULTRA_SCHEMA, AGENT_COMPUTER_BRIDGE_SCHEMA, AGENT_COMPUTER_VIEW_SCHEMA, AGENT_COMPUTER_CORE_SCHEMA):
+        return AGPC_ULTRA_REDISTRIBUTABLE
+    if config["schema"] == AGENT_COMPUTER_MESH_SCHEMA:
+        return AGENT_MESH_REDISTRIBUTABLE
+    if config["schema"] == AGENT_COMPUTER_RUNTIME_SCHEMA:
+        return AGENT_RUNTIME_REDISTRIBUTABLE
     if config["schema"] == AGENT_COMPUTER_PROFILE_SCHEMA:
         return AGENT_PROFILE_REDISTRIBUTABLE
     return AGENT_LOOP_REDISTRIBUTABLE if config["schema"] == AGENT_COMPUTER_LOOP_SCHEMA else AGENT_COMPUTER_REDISTRIBUTABLE
 
-# Historical v5/v6 overlays retain the old documentation-only record. The
-# native v7 profile retires mote-chatd completely; only the agent-apps name
-# transition remains as a compatibility record.
+# Historical v5/v6 overlays retain their old documentation-only records.
+# Native profiles publish only current AGPC package names. Legacy agent-apps
+# installations are removed by the reviewed installer migration and are not
+# retained in the signed repository cohort.
 AGENT_COMPUTER_LEGACY_RETENTION = ("mote-chatd",)
-AGENT_PROFILE_RETENTION = ("mote-chatd", "agent-apps")
+AGENT_PROFILE_RETENTION = ("mote-chatd",)
 
 def retention_packages(config):
-    return AGENT_PROFILE_RETENTION if config["schema"] == AGENT_COMPUTER_PROFILE_SCHEMA else AGENT_COMPUTER_LEGACY_RETENTION
+    return (("mote-chatd", "agent-apps") if config["schema"] == AGENT_COMPUTER_PROFILE_SCHEMA else
+            AGENT_PROFILE_RETENTION if config["schema"] in NATIVE_PROFILE_SCHEMAS else AGENT_COMPUTER_LEGACY_RETENTION)
 
 
 AGENT_COMPUTER_RETIRED = {"mcp-run", "ultra-mcp-ssh", "model-node", "model-grid",
@@ -407,14 +475,23 @@ AGENT_APPS_INSTALLER = "agpc.sh"
 AGENT_APPS_INSTALLER_SOURCE = "agpc.source.json"
 AGENT_APPS_INSTALLER_SCHEMA = "agpc-installer-source/v1"
 AGENT_PROFILE_INSTALLER_SCHEMA = "agpc-installer-source/v2"
+AGENT_VIEW_INSTALLER_SCHEMA = "agpc-installer-source/v3"
+AGENT_MESH_INSTALLER_SCHEMA = "agpc-installer-source/v4"
+NATIVE_INSTALLER_SCHEMAS = (AGENT_PROFILE_INSTALLER_SCHEMA, AGENT_VIEW_INSTALLER_SCHEMA, AGENT_MESH_INSTALLER_SCHEMA)
+AGENT_CORE_INSTALLER_FILES = ("agpc-core.sh", "agpc-core.source.json")
+AGENT_MESH_INSTALLER_FILES = ("agpc-mesh.sh", "agpc-mesh.source.json")
 AGENT_FULL_INSTALLER_FILES = ("agpc-all.sh", "agpc-all.source.json")
 AGENT_INSTALLER_ALIASES = ("agent-sphere-apps.sh", "agent-sphere-apps.source.json")
+AGENT_APPS_PROFILE_FILES = ("agpc-apps.sh", "agpc-apps.source.json")
 WINDOWS_INSTALLERS = ("agpc-win.ps1", "agpc.ps1", "agpc-win-uninstall.ps1", "agpc-unistall.ps1")
 WINDOWS_INSTALLER_SOURCE = "agpc.windows.source.json"
 MAC_INSTALLER_FILES = ("agpc-mac.sh", "agpc.mac.source.json", "AGPC-MAC.md")
 AGENT_INSTALLER_FILES = (*MAC_INSTALLER_FILES, AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE,
                          *AGENT_INSTALLER_ALIASES, *WINDOWS_INSTALLERS, WINDOWS_INSTALLER_SOURCE,
                          *AGENT_FULL_INSTALLER_FILES)
+MODERN_INSTALLER_FILES = (*MAC_INSTALLER_FILES, AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE,
+                         *WINDOWS_INSTALLERS, WINDOWS_INSTALLER_SOURCE,
+                         *AGENT_FULL_INSTALLER_FILES, *AGENT_APPS_PROFILE_FILES)
 
 
 class PublishError(RuntimeError):
@@ -528,11 +605,30 @@ def validate_windows_installer(root: Path) -> dict:
     return record
 
 
+def core_installer_files(schema):
+    """The Core profile keeps its identity; v4 changes only its entry filename."""
+    return (AGENT_MESH_INSTALLER_FILES if schema == AGENT_MESH_INSTALLER_SCHEMA else
+            AGENT_CORE_INSTALLER_FILES if schema == AGENT_VIEW_INSTALLER_SCHEMA else ())
+
+
+def legacy_installer_aliases(root):
+    record = json.loads((root / AGENT_APPS_INSTALLER_SOURCE).read_text())
+    # v2 shipped first with a byte-identical Full alias. Later v2 added a distinct
+    # Apps profile; its absence can only select this mode if both old aliases
+    # also pass their original exact-byte validation below.
+    return (record.get("schema") == AGENT_APPS_INSTALLER_SCHEMA or
+            (record.get("schema") == AGENT_PROFILE_INSTALLER_SCHEMA
+             and not (root / AGENT_APPS_PROFILE_FILES[1]).exists()))
+
+
 def agent_installer_files(root: Path) -> tuple[str, ...]:
     record = json.loads((root / AGENT_APPS_INSTALLER_SOURCE).read_text())
-    if record.get("schema") == AGENT_PROFILE_INSTALLER_SCHEMA:
-        return AGENT_INSTALLER_FILES
-    return tuple(name for name in AGENT_INSTALLER_FILES if name not in AGENT_FULL_INSTALLER_FILES)
+    if legacy_installer_aliases(root):
+        return (AGENT_INSTALLER_FILES if record.get("schema") == AGENT_PROFILE_INSTALLER_SCHEMA else
+                tuple(name for name in AGENT_INSTALLER_FILES if name not in AGENT_FULL_INSTALLER_FILES))
+    if record.get("schema") in NATIVE_INSTALLER_SCHEMAS:
+        return (*MODERN_INSTALLER_FILES, *core_installer_files(record["schema"]))
+    raise PublishError("invalid installer schema")
 
 
 def validate_agent_apps_installer(root: Path) -> dict:
@@ -545,19 +641,19 @@ def validate_agent_apps_installer(root: Path) -> dict:
         record = json.loads(source.read_text(encoding="utf-8"))
         schema = record.get("schema") if isinstance(record, dict) else None
         required = {"schema", "repository", "tag", "source_commit", "asset", "sha256"}
-        if schema == AGENT_PROFILE_INSTALLER_SCHEMA:
+        if schema in NATIVE_INSTALLER_SCHEMAS:
             required.add("profile")
         require(isinstance(record, dict) and set(record) == required,
                 "Agent Apps installer source fields are invalid")
-        require(schema in (AGENT_APPS_INSTALLER_SCHEMA, AGENT_PROFILE_INSTALLER_SCHEMA),
+        require(schema in (AGENT_APPS_INSTALLER_SCHEMA, *NATIVE_INSTALLER_SCHEMAS),
                 "Agent Apps installer source schema is invalid")
         if profile is not None:
-            require(schema == AGENT_PROFILE_INSTALLER_SCHEMA and record["profile"] == profile,
+            require(schema in NATIVE_INSTALLER_SCHEMAS and record["profile"] == profile,
                     "Agent Apps installer profile is invalid")
-        elif schema == AGENT_PROFILE_INSTALLER_SCHEMA:
+        elif schema in NATIVE_INSTALLER_SCHEMAS:
             require(record["profile"] == "standard", "agpc.sh must declare the standard profile")
         expected_repository = (AGENT_PROFILE_INSTALLER_REPOSITORY
-                               if schema == AGENT_PROFILE_INSTALLER_SCHEMA
+                               if schema in NATIVE_INSTALLER_SCHEMAS
                                else AGENT_COMPUTER_OVERLAY_REPOSITORY)
         require(record["repository"] == expected_repository,
                 "Agent Apps installer source repository is not allowed")
@@ -577,18 +673,34 @@ def validate_agent_apps_installer(root: Path) -> dict:
 
     record = validate_record(AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE)
     canonical_files = (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE)
-    if record["schema"] == AGENT_PROFILE_INSTALLER_SCHEMA:
+    if record["schema"] in NATIVE_INSTALLER_SCHEMAS:
         full = validate_record(*AGENT_FULL_INSTALLER_FILES, profile="full")
-        require(all(full[key] == record[key] for key in ("repository", "tag", "source_commit")),
+        require(all(full[key] == record[key] for key in ("schema", "repository", "tag", "source_commit")),
                 "standard/full installers must share an exact source release")
+        if not legacy_installer_aliases(root):
+            apps = validate_record(*AGENT_APPS_PROFILE_FILES, profile="apps")
+            require(all(full[key] == record[key] == apps[key]
+                        for key in ("schema", "repository", "tag", "source_commit")),
+                    "standard/full/apps installers must share an exact source release")
         canonical_files = AGENT_FULL_INSTALLER_FILES
-    for canonical, alias in zip(canonical_files, AGENT_INSTALLER_ALIASES):
-        path = root / alias
-        require(path.is_file() and not path.is_symlink(), f"missing regular installer alias: {alias}")
-        require(path.read_bytes() == (root / canonical).read_bytes(),
-                f"installer alias differs from canonical bytes: {alias}")
-        if alias.endswith(".sh"):
-            require(path.stat().st_mode & 0o111 != 0, "installer alias must be executable")
+    if legacy_installer_aliases(root):
+        for canonical, alias in zip(canonical_files, AGENT_INSTALLER_ALIASES):
+            path = root / alias
+            require(path.is_file() and not path.is_symlink(), f"missing regular installer alias: {alias}")
+            require(path.read_bytes() == (root / canonical).read_bytes(),
+                    f"installer alias differs from canonical bytes: {alias}")
+            if alias.endswith(".sh"):
+                require(path.stat().st_mode & 0o111 != 0, "installer alias must be executable")
+    alias_files = core_installer_files(record["schema"])
+    if alias_files:
+        core = validate_record(*alias_files, profile="standard")
+        require(all(core[key] == record[key] for key in ("schema", "repository", "tag", "source_commit")),
+                "Core entry must share the exact standard source release")
+        require((root / alias_files[0]).read_bytes() == (root / "agpc.sh").read_bytes(),
+                "Core entry must be byte-identical to the standard installer")
+    inactive = set((*AGENT_CORE_INSTALLER_FILES, *AGENT_MESH_INSTALLER_FILES)) - set(alias_files)
+    require(not any((root / name).exists() or (root / (name + ".asc")).exists() for name in inactive),
+            "inactive Core entry or signature must not remain in the current source/site")
     validate_windows_installer(root)
     return record
 
@@ -600,7 +712,8 @@ def load_agent_computer_overlay(repository_root: Path) -> dict:
     config = json.loads(path.read_text(encoding="utf-8"))
     require(isinstance(config, dict) and set(config) == {"schema", "release"},
             "Agent Computer overlay config fields are invalid")
-    require(config["schema"] in (AGENT_COMPUTER_OVERLAY_SCHEMA, AGENT_COMPUTER_FULL_SCHEMA, AGENT_COMPUTER_LOOP_SCHEMA, AGENT_COMPUTER_PROFILE_SCHEMA),
+    require(config["schema"] in (AGENT_COMPUTER_OVERLAY_SCHEMA, AGENT_COMPUTER_FULL_SCHEMA,
+                                  AGENT_COMPUTER_LOOP_SCHEMA, *NATIVE_PROFILE_SCHEMAS),
             "invalid Agent Computer overlay schema")
     release = config["release"]
     if release is None:
@@ -635,6 +748,15 @@ def load_agent_computer_overlay(repository_root: Path) -> dict:
     return config
 
 
+def overlay_asset_name(name, version, architecture, schema):
+    # GitHub normalizes '~' in uploaded asset names. Keep the original Debian
+    # Version and bytes; only these two reviewed public filenames use '.'.
+    known = {"agpc-core": AGPC_CORE_VERSION, "agpc-vmodel": AGPC_VMODEL_VERSION}
+    public_version = (version.replace("~", ".") if schema == AGENT_COMPUTER_CORE_SCHEMA
+                      and known.get(name) == version else version)
+    return f"{name}_{public_version}_{architecture}.deb"
+
+
 def validate_full_overlay_config(release: dict, *, schema=AGENT_COMPUTER_FULL_SCHEMA) -> None:
     required = canonical_packages({"schema": schema})
     require(isinstance(release, dict) and set(release) == {
@@ -658,20 +780,35 @@ def validate_full_overlay_config(release: dict, *, schema=AGENT_COMPUTER_FULL_SC
         require(set(package) == {"name", "version", "architecture", "asset", "sha256", "provenance"},
                 "full overlay package fields are invalid")
         name = package["name"]
-        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agent-apps", "agpc-apps", "jujue", *AGENT_COMPUTER_LEGACY_RETENTION) else "amd64"
+        architecture = "all" if name in ("agent-sphere", "agent-ultra", "agpc-ultra", "agent-apps", "agpc-apps",
+                                             "agpc-run", "jujue", *AGENT_COMPUTER_LEGACY_RETENTION) else "amd64"
+        if schema in NATIVE_PROFILE_SCHEMAS and name == "agpc-manager" and (package["version"] in ("4.0.0-1", "4.1.0-1", "4.2.0-1", "4.3.0-1", "4.4.0-1", "4.4.0-2")
+                or (schema == AGENT_COMPUTER_CORE_SCHEMA and package["version"] == "4.4.0-3")):
+            architecture = "all"  # Reviewed native Python Manager successor.
         require(package["architecture"] == architecture, f"{name}: invalid full overlay architecture")
+        candidate_version = ({"agpc-core": AGPC_CORE_VERSION, "agpc-vmodel": AGPC_VMODEL_VERSION}.get(name)
+                             if schema == AGENT_COMPUTER_CORE_SCHEMA else None)
         require(isinstance(package["version"], str)
-                and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", package["version"]),
-                f"{name}: full overlay requires a canonical release version, not a preview")
-        require(package["asset"] == f"{name}_{package['version']}_{architecture}.deb",
+                and (package["version"] == candidate_version if candidate_version else
+                     re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", package["version"])),
+                f"{name}: full overlay requires its reviewed exact release identity")
+        require(package["asset"] == overlay_asset_name(name, package["version"], architecture, schema),
                 f"{name}: invalid full overlay asset")
         require(isinstance(package["sha256"], str) and HEX64_RE.fullmatch(package["sha256"]),
                 f"{name}: invalid full overlay checksum")
-        if schema == AGENT_COMPUTER_PROFILE_SCHEMA:
-            if name in AGENT_PROFILE_FLOORS:
-                run("dpkg", "--compare-versions", package["version"], "ge", AGENT_PROFILE_FLOORS[name])
-            if name == "agent-apps":
+        if schema in NATIVE_PROFILE_SCHEMAS:
+            floors = ({**AGPC_ULTRA_FLOORS, **AGPC_CORE_DEPENDENCIES, "agpc-core": AGPC_CORE_VERSION, "uchat-bridge": "0.1.0-1"}
+                      if schema == AGENT_COMPUTER_CORE_SCHEMA else
+                      {**AGPC_ULTRA_FLOORS, "uchat-bridge": "0.1.0-1", "agpc-view": "0.1.0-1"}
+                      if schema == AGENT_COMPUTER_VIEW_SCHEMA else
+                      {**AGPC_ULTRA_FLOORS, "uchat-bridge": "0.1.0-1"} if schema == AGENT_COMPUTER_BRIDGE_SCHEMA else
+                      AGPC_ULTRA_FLOORS if schema in (AGENT_COMPUTER_ULTRA_SCHEMA, AGENT_COMPUTER_BRIDGE_SCHEMA, AGENT_COMPUTER_VIEW_SCHEMA, AGENT_COMPUTER_CORE_SCHEMA) else
+                      AGENT_MESH_FLOORS if schema == AGENT_COMPUTER_MESH_SCHEMA else
+                      AGENT_RUNTIME_FLOORS if schema == AGENT_COMPUTER_RUNTIME_SCHEMA else AGENT_PROFILE_FLOORS)
+            if schema == AGENT_COMPUTER_PROFILE_SCHEMA and name == "agent-apps":
                 require(package["version"] == "0.3.0-1", "agent-apps retention requires the exact 0.3.0-1 transition")
+            if name in floors:
+                run("dpkg", "--compare-versions", package["version"], "ge", floors[name])
         proof = package["provenance"]
         require(isinstance(proof, dict) and set(proof) == {
             "source_commit", "source_ref", "main_pipeline_id", "build_status", "public_payload_reviewed"},
@@ -681,6 +818,10 @@ def validate_full_overlay_config(release: dict, *, schema=AGENT_COMPUTER_FULL_SC
                 and type(proof["main_pipeline_id"]) is int and proof["main_pipeline_id"] > 0
                 and proof["build_status"] == "success" and proof["public_payload_reviewed"] is True,
                 f"{name}: successful main CI and reviewed public payload evidence are required")
+    if schema == AGENT_COMPUTER_CORE_SCHEMA:
+        approved = {p["name"]: p for p in packages}
+        require(all(approved[name]["version"] == version for name, version in AGPC_CORE_DEPENDENCIES.items()),
+                "Core dependency pins differ from the reviewed composition")
     external = release["external_prerequisites"]
     require(isinstance(external, list) and len(external) == 1 and isinstance(external[0], dict),
             "full overlay requires exactly one official Obsidian prerequisite")
@@ -709,7 +850,7 @@ def validate_meta_dependencies(asset: Path, expected: tuple[str, ...], approved:
         match = re.fullmatch(r"([a-z0-9][a-z0-9+.-]*)\s*\((>=|=)\s*([^\s()]+)\)", term)
         require(match is not None, f"{asset.name}: meta dependency must have one exact owner and a version floor")
         name, operator, version = match.groups()
-        if name == "init-system-helpers" and asset.name.startswith(("agent-sphere_", "agent-ultra_")):
+        if name == "init-system-helpers" and asset.name.startswith(("agent-sphere_", "agent-ultra_", "agpc-ultra_")):
             require(operator == ">=", f"{asset.name}: native systemd helper requires a version floor")
             run("dpkg", "--compare-versions", version, "ge", "1.54")
             require(name not in found, f"{asset.name}: duplicate helper dependency")
@@ -723,22 +864,56 @@ def validate_meta_dependencies(asset: Path, expected: tuple[str, ...], approved:
         require(not package_field(asset, field), f"{asset.name}: undeclared additional dependency edge: {field}")
 
 
+def validate_dependency_graph(graph, config):
+    """Only the metadata-only Core composition may introduce UI dependency edges."""
+    composition = config["schema"] == AGENT_COMPUTER_CORE_SCHEMA
+    if composition:
+        require(graph.get("agpc-core") == set(AGPC_CORE_DEPENDENCIES),
+                "Core graph differs from its reviewed exact dependency roots")
+    def visit(name, ancestors):
+        require(name not in ancestors, f"{name}: circular canonical package dependency")
+        for child in graph.get(name, ()):
+            visit(child, ancestors | {name})
+    for name, edges in graph.items():
+        visit(name, set())
+        if name != "agpc-manager" and not (composition and name == "agpc-core"):
+            require("agpc-manager" not in edges, f"{name}: runtime must not depend on the management UI")
+        if config["schema"] in (AGENT_COMPUTER_VIEW_SCHEMA, AGENT_COMPUTER_CORE_SCHEMA):
+            require("agpc-view" not in edges or (composition and name == "agpc-core"),
+                    "runtime packages must not depend on the View GUI")
+
+
 def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
     release = config["release"]
     approved = {p["name"]: p for p in release["packages"] + release["external_prerequisites"]}
     meta = {**AGENT_META_DEPENDENCIES, "agent-sphere": core_components(config)}
-    if config["schema"] == AGENT_COMPUTER_PROFILE_SCHEMA:
+    if config["schema"] in NATIVE_PROFILE_SCHEMAS and config["schema"] != AGENT_COMPUTER_PROFILE_SCHEMA:
+        meta["agent-ultra"] = tuple(name for name in meta["agent-ultra"] if name != "obsidian")
+    if config["schema"] in (AGENT_COMPUTER_ULTRA_SCHEMA, AGENT_COMPUTER_BRIDGE_SCHEMA, AGENT_COMPUTER_VIEW_SCHEMA, AGENT_COMPUTER_CORE_SCHEMA):
+        meta["agpc-ultra"] = meta.pop("agent-ultra")
+        meta["agent-apps"] = tuple("agpc-ultra" if name == "agent-ultra" else name
+                                   for name in meta["agent-apps"])
+    if config["schema"] in NATIVE_PROFILE_SCHEMAS:
         meta["agpc-apps"] = meta.pop("agent-apps")
     for name, dependencies in meta.items():
         validate_meta_dependencies(bundle / approved[name]["asset"], dependencies, approved)
-    profile = config["schema"] == AGENT_COMPUTER_PROFILE_SCHEMA
+    if config["schema"] in (AGENT_COMPUTER_ULTRA_SCHEMA, AGENT_COMPUTER_BRIDGE_SCHEMA, AGENT_COMPUTER_VIEW_SCHEMA, AGENT_COMPUTER_CORE_SCHEMA):
+        ultra = bundle / approved["agpc-ultra"]["asset"]
+        require(package_field(ultra, "Provides") == "agent-ultra (= 0.1.0-3)"
+                and package_field(ultra, "Breaks") == "agent-ultra (<= 0.1.0-3)"
+                and package_field(ultra, "Replaces") == "agent-ultra (<= 0.1.0-3)",
+                "agpc-ultra must retain the exact bounded agent-ultra migration")
+    profile = config["schema"] in NATIVE_PROFILE_SCHEMAS
     validate_uchat_dependencies(bundle, approved, apps_owner="agpc-apps" if profile else "agent-apps",
                                 native_profile=profile)
     if profile:
         validate_profile_dependencies(bundle, approved)
-    if config["schema"] in (AGENT_COMPUTER_LOOP_SCHEMA, AGENT_COMPUTER_PROFILE_SCHEMA):
+    if config["schema"] in (AGENT_COMPUTER_LOOP_SCHEMA, *NATIVE_PROFILE_SCHEMAS):
         validate_cx_loop_dependencies(bundle, approved)
         validate_mcp_ultra_dependencies(bundle, approved)
+    if config["schema"] == AGENT_COMPUTER_CORE_SCHEMA:
+        from agpc_core_package import validate_core_package
+        validate_core_package(bundle / approved["agpc-core"]["asset"], approved)
     # Runtime composition must never pull the management UI back into execution.
     graph = {}
     for package in release["packages"]:
@@ -750,22 +925,28 @@ def validate_full_overlay_payload(config: dict, bundle: Path) -> None:
                 if match and match[1] in approved:
                     edges.add(match[1])
         graph[package["name"]] = edges
-    def visit(name, ancestors):
-        require(name not in ancestors, f"{name}: circular canonical package dependency")
-        for child in graph.get(name, ()):
-            visit(child, ancestors | {name})
-    for name in graph:
-        visit(name, set())
-        if name != "agpc-manager":
-            require("agpc-manager" not in graph[name],
-                    f"{name}: runtime must not depend on the management UI")
+    validate_dependency_graph(graph, config)
+    if config["schema"] in (AGENT_COMPUTER_VIEW_SCHEMA, AGENT_COMPUTER_CORE_SCHEMA):
+        view = bundle / approved["agpc-view"]["asset"]
+        terms = {term.strip() for term in package_field(view, "Depends").split(",")}
+        require({"agpc-mesh (>= 3.0.0-3)", "agpc-mesh (<< 4)", "libgtk-4-1 (>= 4.8)"} <= terms,
+                "View requires the reviewed Mesh and GTK dependency bounds")
+        run("dpkg", "--compare-versions", approved["agpc-mesh"]["version"], "ge", "3.0.0-3")
+        run("dpkg", "--compare-versions", approved["agpc-mesh"]["version"], "lt", "4.0.0")
     # Inspect tar metadata without extracting or following payload links. Locked
     # deployment identity belongs to its owner. Existing reviewed bootstrap
     # templates under usr/share remain bound by the DEB digest/content review.
     for package in overlay_packages(config):
         asset = bundle / package["asset"]
         for field in ("Depends", "Pre-Depends", "Recommends", "Suggests", "Provides"):
-            for retired in ("mote-bridge-mcp", "cx-agent", "codex-mesh", "sphere-manager"):
+            retired_names = ("mote-bridge-mcp", "cx-agent", "codex-mesh", "sphere-manager")
+            if config["schema"] in (AGENT_COMPUTER_MESH_SCHEMA, AGENT_COMPUTER_ULTRA_SCHEMA, AGENT_COMPUTER_BRIDGE_SCHEMA, AGENT_COMPUTER_VIEW_SCHEMA, AGENT_COMPUTER_CORE_SCHEMA):
+                retired_names += ("cx-mesh",)
+            if config["schema"] in (AGENT_COMPUTER_ULTRA_SCHEMA, AGENT_COMPUTER_BRIDGE_SCHEMA, AGENT_COMPUTER_VIEW_SCHEMA, AGENT_COMPUTER_CORE_SCHEMA) and package["name"] != "agpc-ultra":
+                retired_names += ("agent-ultra",)
+            if config["schema"] in NATIVE_PROFILE_SCHEMAS and config["schema"] != AGENT_COMPUTER_PROFILE_SCHEMA:
+                retired_names += ("agent-apps",)
+            for retired in retired_names:
                 require(not re.search(r"(?<![a-z0-9+.-])" + re.escape(retired) + r"(?![a-z0-9+.-])",
                                       package_field(asset, field)),
                         f"{asset.name}: {field} retains the retired {retired} package")
@@ -841,8 +1022,10 @@ def validate_profile_dependencies(bundle: Path, approved: dict) -> None:
 
 def validate_cx_loop_dependencies(bundle: Path, approved: dict) -> None:
     """Core admits Loop; uchatd exclusively owns Redis and Inbox persistence."""
+    mesh_name, mesh_floor = (("agpc-mesh", "3.0.0-1") if "agpc-mesh" in approved
+                            else ("cx-mesh", "1.2.0-1"))
     for owner, dependency, floor in (("agent-sphere", "cx-loop", "0.1.0-4"),
-                                      ("agent-sphere", "cx-mesh", "1.2.0-1"),
+                                      ("agent-sphere", mesh_name, mesh_floor),
                                       ("cx-loop", "uchatd", "0.2.0-1")):
         terms = package_field(bundle / approved[owner]["asset"], "Depends").split(",")
         versions = [m[1] for term in terms if (m := re.fullmatch(
@@ -942,7 +1125,10 @@ def download_agent_computer_overlay(repository_root: Path, destination: Path) ->
         metadata["assets"] = json.loads(run("gh", "api", f"repos/{release['repository']}/releases/{release_id}/assets?per_page=100", capture=True))
     require(metadata.get("tagName") == release["tag"] and metadata.get("isDraft") is False,
             "Agent Computer overlay source must be the exact published release")
-    if is_full_overlay(config):
+    # Historical public-source cohorts bind the aggregate tag itself. Modern
+    # cohorts instead retain canonical producer commits in source provenance;
+    # their GitHub tags point to the reviewed public publisher workflow.
+    if config["schema"] in (AGENT_COMPUTER_FULL_SCHEMA, AGENT_COMPUTER_LOOP_SCHEMA, AGENT_COMPUTER_PROFILE_SCHEMA):
         commit = json.loads(run("gh", "api", f"repos/{release['repository']}/commits/{release['tag']}", capture=True))
         require(commit.get("sha") == release["source_commit"], "aggregate tag differs from reviewed source commit")
     published = {asset["name"] for asset in metadata.get("assets", [])}
@@ -1722,9 +1908,11 @@ def validate_tree(root: Path) -> None:
     require("python3 scripts/validate_agent_sphere_apt.py . apt-site" in publish_workflow,
             "publish workflow must verify signed-index Agent Sphere dependency resolution")
     profile_record = validate_agent_apps_installer(root)
-    if profile_record["schema"] == AGENT_PROFILE_INSTALLER_SCHEMA:
+    if profile_record["schema"] in NATIVE_INSTALLER_SCHEMAS:
         signature_workflow = (root / ".github/workflows/publish-agpc-profiles.yml").read_text(encoding="utf-8")
         signed_installers = (AGENT_APPS_INSTALLER, AGENT_APPS_INSTALLER_SOURCE, *AGENT_FULL_INSTALLER_FILES)
+        if not legacy_installer_aliases(root): signed_installers += AGENT_APPS_PROFILE_FILES
+        signed_installers += core_installer_files(profile_record["schema"])
     else:
         signature_workflow = publish_workflow
         signed_installers = agent_installer_files(root)
@@ -1855,6 +2043,19 @@ def copy_package(asset: Path, site: Path) -> None:
         shutil.copy2(asset, destination)
 
 
+def filter_retired_apt_packages(packages_text: str) -> str:
+    """Remove exact retired package stanzas from apt-ftparchive output."""
+    stanzas = re.split(r"\n{2,}", packages_text.strip())
+    kept = []
+    for stanza in stanzas:
+        match = re.search(r"^Package:\s*(\S+)\s*$", stanza, re.MULTILINE)
+        if match and match.group(1) in RETIRED_APT_PACKAGE_NAMES:
+            continue
+        if stanza:
+            kept.append(stanza)
+    return "\n\n".join(kept) + ("\n\n" if kept else "")
+
+
 def write_index(
     site: Path,
     repository_root: Path,
@@ -1975,11 +2176,11 @@ checksum-verified official upstream asset. Obsidian is not redistributed here.</
 <pre>curl -fsSLo agpc.sh https://motebus.github.io/download/agpc.sh &amp;&amp;
 sudo bash ./agpc.sh</pre>
 <p>Re-running preserves existing identity, configuration and user data.
-Installation exits without opening a UI. Run <code>sudo agpc-manager</code> for owner setup. Installing packages does
+Installation exits without opening a UI. Run <code>agpc-manager</code> as your normal desktop user for connections and SSH key setup. Installing packages does
 not configure credentials or model weights. The selected local account receives its protected machine uChat name.</p>
 <p><code>cx-mesh</code> replaces the separate <code>cx-agent</code> and
 <code>codex-mesh</code> packages while preserving their established configuration.</p>
-<p>uChat runs on CX-Mesh membership. Use <code>sudo agpc-manager</code>, then Mesh → uChat, to configure the network and name authority. Each AGPC keeps <code>@machine-name</code>; additional names such as <code>@chief</code> have their own Inboxes. Manage names with <code>uchat uname</code> and messages with <code>uchat ubox</code>, <code>uget</code>, and <code>uput</code>.</p>
+<p>uChat runs on CX-Mesh membership. Use <code>uchat inbox</code> for inbox management. Each AGPC keeps <code>@machine-name</code>; additional names such as <code>@chief</code> have their own Inboxes. Manage names with <code>uchat uname</code> and messages with <code>uchat ubox</code>, <code>uget</code>, and <code>uput</code>.</p>
 <p>CX-Mesh connects collaborating computers such as AGPC-1 and AGPC-2.
 Each AGPC runs its own AgentSphere installation and local resources.</p>
 <p>AGPC requires standalone operation with configured local resources.
@@ -2004,29 +2205,51 @@ and original installer assets are retained as immutable evidence; the legacy
 uninstaller is not suitable for this Agent Computer. Current removal keeps Ubuntu, Obsidian and OS dependencies.</p>
 </html>
 """
-    if validate_agent_apps_installer(repository_root)["schema"] == AGENT_PROFILE_INSTALLER_SCHEMA:
-        index = re.sub(r"<p>Native APT installer:.*?</p>\n<p>Installer .*?</p>", "", index, flags=re.DOTALL)
-        index = re.sub(r"<p>One installer selects all four packages.*?</p>", "", index, flags=re.DOTALL)
-        index = index.replace("</html>", """<h2>Native Linux installer profiles</h2>
-<p><a href="agpc.sh">agpc.sh</a> selects standard AGPC, including contextd.
-<a href="agpc-all.sh">agpc-all.sh</a> selects standard plus agpc-apps.
-Both require the matching signed native package cohort; script publication alone
-is not proof of package availability or runtime acceptance.</p>
-<p>Full profile: <a href="agpc-all.sh.asc">installer signature</a> ·
-<a href="agpc-all.source.json">exact source and SHA-256</a> ·
-<a href="agpc-all.source.json.asc">source signature</a>.
-Standard profile: <a href="agpc.sh.asc">installer signature</a> ·
-<a href="agpc.source.json">exact source and SHA-256</a> ·
-<a href="agpc.source.json.asc">source signature</a>.</p>
-</html>""")
-    index = index.replace("</html>", """<p>Previous installer URL:
-<a href="agent-sphere-apps.sh">agent-sphere-apps.sh</a>
-(<a href="agent-sphere-apps.sh.asc">installer signature</a>) and its
-<a href="agent-sphere-apps.source.json">source record</a>
-(<a href="agent-sphere-apps.source.json.asc">source signature</a>)
-remain byte-identical aliases of the full installer and source record for v2,
-or the canonical installer for historical v1.</p>
-</html>""")
+    if legacy_installer_aliases(repository_root):
+        if validate_agent_apps_installer(repository_root)["schema"] == AGENT_PROFILE_INSTALLER_SCHEMA:
+            index = re.sub(r"<p>Native APT installer:.*?</p>\n<p>Installer .*?</p>", "", index, flags=re.DOTALL)
+            index = re.sub(r"<p>One installer selects all four packages.*?</p>", "", index, flags=re.DOTALL)
+            index = index.replace("</html>", """<h2>Native Linux installer profiles</h2>
+    <p><a href="agpc.sh">agpc.sh</a> selects standard AGPC, including contextd.
+    <a href="agpc-all.sh">agpc-all.sh</a> selects standard plus agpc-apps.
+    Both require the matching signed native package cohort; script publication alone
+    is not proof of package availability or runtime acceptance.</p>
+    <p>Full profile: <a href="agpc-all.sh.asc">installer signature</a> ·
+    <a href="agpc-all.source.json">exact source and SHA-256</a> ·
+    <a href="agpc-all.source.json.asc">source signature</a>.
+    Standard profile: <a href="agpc.sh.asc">installer signature</a> ·
+    <a href="agpc.source.json">exact source and SHA-256</a> ·
+    <a href="agpc.source.json.asc">source signature</a>.</p>
+    </html>""")
+        index = index.replace("</html>", """<p>Previous installer URL:
+    <a href="agent-sphere-apps.sh">agent-sphere-apps.sh</a>
+    (<a href="agent-sphere-apps.sh.asc">installer signature</a>) and its
+    <a href="agent-sphere-apps.source.json">source record</a>
+    (<a href="agent-sphere-apps.source.json.asc">source signature</a>)
+    remain byte-identical aliases of the full installer and source record for v2,
+    or the canonical installer for historical v1.</p>
+    </html>""")
+    else:
+        if validate_agent_apps_installer(repository_root)["schema"] in NATIVE_INSTALLER_SCHEMAS:
+            index = re.sub(r"<p>Native APT installer:.*?</p>\n<p>Installer .*?</p>", "", index, flags=re.DOTALL)
+            index = re.sub(r"<p>One installer selects all four packages.*?</p>", "", index, flags=re.DOTALL)
+            index = index.replace("</html>", """<h2>Native Linux installer profiles</h2>
+    <p><a href="agpc.sh">agpc.sh</a> selects standard AGPC, including contextd.
+    <a href="agpc-all.sh">agpc-all.sh</a> selects standard plus agpc-apps without
+    downloading Obsidian. <a href="agpc-apps.sh">agpc-apps.sh</a> installs the
+    application add-on and pinned official Obsidian package.
+    Both require the matching signed native package cohort; script publication alone
+    is not proof of package availability or runtime acceptance.</p>
+    <p>Full profile: <a href="agpc-all.sh.asc">installer signature</a> ·
+    <a href="agpc-all.source.json">exact source and SHA-256</a> ·
+    <a href="agpc-all.source.json.asc">source signature</a>.
+    Standard profile: <a href="agpc.sh.asc">installer signature</a> ·
+    <a href="agpc.source.json">exact source and SHA-256</a> ·
+    <a href="agpc.source.json.asc">source signature</a>.<br>
+    Apps profile: <a href="agpc-apps.sh.asc">installer signature</a> ·
+    <a href="agpc-apps.source.json">exact source and SHA-256</a> ·
+    <a href="agpc-apps.source.json.asc">source signature</a>.</p>
+    </html>""")
     index = index.replace("</html>", """<h2>Native platform boundary</h2>
 <p>AGPC is 100% native. Linux uses signed Debian packages; Windows native
 integration is planned. The former <a href="agpc-mac.sh">macOS bootstrap</a>
@@ -2082,10 +2305,14 @@ def sign_release(site: Path, repository_root: Path) -> None:
             and (site / AGENT_APPS_INSTALLER_SOURCE).read_bytes()
             == (repository_root / AGENT_APPS_INSTALLER_SOURCE).read_bytes(),
             "staged Agent Apps installer source differs from the reviewed record")
-    if source["schema"] == AGENT_PROFILE_INSTALLER_SCHEMA:
+    if source["schema"] in NATIVE_INSTALLER_SCHEMAS:
+        profile_files = AGENT_FULL_INSTALLER_FILES
+        if not legacy_installer_aliases(repository_root): profile_files += AGENT_APPS_PROFILE_FILES
+        profile_files += core_installer_files(source["schema"])
         require(all((site / name).read_bytes() == (repository_root / name).read_bytes()
-                    for name in AGENT_FULL_INSTALLER_FILES),
-                "staged full installer differs from the reviewed record")
+                    for name in profile_files),
+                "staged full installer differs from the reviewed record" if legacy_installer_aliases(repository_root) else
+                "staged full/apps installer differs from the reviewed record")
     require(validate_windows_installer(site) == validate_windows_installer(repository_root)
             and (site / WINDOWS_INSTALLER_SOURCE).read_bytes()
             == (repository_root / WINDOWS_INSTALLER_SOURCE).read_bytes(),
