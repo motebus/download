@@ -1,9 +1,11 @@
 """Diagnostic binding and non-interference checks; no native package execution."""
 import hashlib
 import importlib.util
+import io
 import json
 from pathlib import Path
 import tempfile
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -15,6 +17,31 @@ spec.loader.exec_module(module)
 
 
 class ProcessEvidenceTests(unittest.TestCase):
+    def test_cli_both_native_targets_keep_fixed_paths_and_actual_host_binding(self):
+        for version in ('24.04','26.04'):
+            with self.subTest(version=version), \
+                    patch.object(sys,'argv',['collect.py','--mode','fresh']), \
+                    patch.object(module.os,'geteuid',return_value=0), \
+                    patch.object(module.platform,'freedesktop_os_release',return_value={'ID':'ubuntu','VERSION_ID':version}), \
+                    patch.object(module.platform,'machine',return_value='x86_64'), \
+                    patch.object(module.platform,'node',return_value='actual-runner'), \
+                    patch.object(module,'collect',return_value={'observations':[]}) as collect, \
+                    patch.object(sys,'stdout',new=io.StringIO()):
+                module.main()
+                collect.assert_called_once_with(module.PACKET,module.RUNS,module.PROCESSES,'fresh',module.os.environ,'actual-runner')
+
+    def test_cli_refuses_other_os_architecture_and_nonroot_before_reading(self):
+        for uid,os_id,version,arch in ((1000,'ubuntu','26.04','x86_64'),
+                (0,'debian','26.04','x86_64'),(0,'ubuntu','25.10','x86_64'),(0,'ubuntu','26.04','aarch64')):
+            with self.subTest(uid=uid,os_id=os_id,version=version,arch=arch), \
+                    patch.object(sys,'argv',['collect.py','--mode','fresh']), \
+                    patch.object(module.os,'geteuid',return_value=uid), \
+                    patch.object(module.platform,'freedesktop_os_release',return_value={'ID':os_id,'VERSION_ID':version}), \
+                    patch.object(module.platform,'machine',return_value=arch), \
+                    patch.object(module,'collect') as collect:
+                with self.assertRaisesRegex(ValueError,'Root on disposable'):module.main()
+                collect.assert_not_called()
+
     def setUp(self):
         self.source = b'{"source":"fixture"}\n'
         self.github = dict(module.FIXED, GITHUB_RUN_ID='42', GITHUB_RUN_ATTEMPT='1',
