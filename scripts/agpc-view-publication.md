@@ -28,8 +28,8 @@ library-resolution text and adds the source project/commit/pipeline/job IDs.
 It contains no private repository URLs or source archive.
 
 Review the input record and candidate bytes. Stage exactly the three files
-from the candidate directory in the draft `candidate-agpc-view-v0.1.0-4`
-release: the DEB, `MANIFEST.json`, and `SHA256SUMS`. Do not replace an existing
+from the candidate directory in the unsigned `candidate-agpc-view-v0.1.0-6`
+prerelease: the DEB, `MANIFEST.json`, and `SHA256SUMS`. Do not replace an existing
 asset with different bytes. Merge the reviewed record, publisher, tests and
 workflow before dispatch:
 
@@ -48,9 +48,24 @@ The existing release-environment archive key signs `MANIFEST.json` and
 `SHA256SUMS`; both bind the exact DEB. The trusted fingerprint is
 `AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0`. The signer verifies each generated
 signature before publishing the five immutable assets as
-`agpc-view-v0.1.0-4`. It neither reads nor prints owner credentials.
+`agpc-view-v0.1.0-6`. It neither reads nor prints owner credentials.
 
 After publication, download the release independently, verify both signatures
 with established archive-key trust, check `SHA256SUMS` and manifest identity,
 and then use the target's authorized package transaction. The GUI runs as the
 desktop user. Package installation does not establish Mesh runtime readiness.
+
+
+## Two-key management release
+
+View0.1.0-6 requires coordinator0.1.0-2. The helper release contains only the new
+coordinator; Voice owner0.1.0-1 is reused byte-for-byte from the separately signed
+`agpc-key-management-v0.1.0-1` release, SHA-256
+`2112dc4d7297eeeba41ccbd18c535fba7aa493c07f839db9371821fb35ece255`.
+It is not rebuilt or republished under an unchanged package version. Its original
+MANIFEST/SHA256SUMS signatures remain the installation authority.
+
+Both new packages still require exact reviewed main CI, original producer bytes,
+native lifecycle evidence, closed payload inventories and protected archive
+signing. WebOS source/OCI/PD promotion and fresh authenticated runtime proof are
+separate activation/acceptance gates; they are never inferred from these releases.
