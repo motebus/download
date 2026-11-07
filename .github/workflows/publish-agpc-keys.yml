@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.event_name == 'workflow_dispatch' && 'native-package-publication' || format('view-publication-validation-{0}', github.ref) }}
+  group: ${{ github.event_name == 'workflow_dispatch' && 'native-package-publication' || format('keys-publication-validation-{0}', github.ref) }}
   cancel-in-progress: false
 
 jobs:
