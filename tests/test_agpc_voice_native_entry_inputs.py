@@ -165,13 +165,13 @@ class NativeEntryInputTests(unittest.TestCase):
 
     def test_changed_reviewed_component_head_is_rejected(self):
         with patch.dict(self.api['projects/1348/merge_requests/69'], sha='e' * 40):
-            self.reject('Exact reviewed MR65')
+            self.reject('Exact reviewed MR69')
         self.get_bytes.assert_not_called()
 
     def test_mr32_approval_cannot_replace_the_reviewed_service_map_head(self):
         with patch.dict(self.api['projects/1348/merge_requests/69'],
                         sha='179468b9b88073bcdaed788ddf7ac0036429ede6'):
-            self.reject('Exact reviewed MR65')
+            self.reject('Exact reviewed MR69')
         self.get_bytes.assert_not_called()
 
     def test_bad_input_types_and_extra_override_never_contact_api(self):
