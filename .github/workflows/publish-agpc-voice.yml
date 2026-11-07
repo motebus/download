@@ -55,6 +55,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 35
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -62,3 +63,5 @@ jobs:
       - name: Publish signed AGPC Voice downloads
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          timeout: '1800000'
