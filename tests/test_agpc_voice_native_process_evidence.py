@@ -64,6 +64,29 @@ class ProcessEvidenceTests(unittest.TestCase):
         self.assertEqual(self.validate(), ('42-1-fresh', self.binding))
         self.assertEqual(self.state['status'], 'held')
 
+    def test_session_producer_runtime_closure_is_accepted_for_every_mode(self):
+        producer_spec = importlib.util.spec_from_file_location('voice_session_producer',
+            ROOT/'scripts/prepare_agpc_voice_native_entry_session.py')
+        producer = importlib.util.module_from_spec(producer_spec)
+        producer_spec.loader.exec_module(producer)
+        # Derive the independent producer's inventory, not the collector's
+        # constant: the old seven-module collector rejected real nine-module runs.
+        pins = {Path(name).name: 'c'*64 for name in producer.FILES if name.startswith('src/')}
+        self.assertEqual(len(pins), 9)
+        self.assertTrue({'native_voice_plan.py', 'native_voice_preserve.py'} <= pins.keys())
+        self.assertEqual(set(module.MODES), set(producer.MODES))
+        for mode in producer.MODES:
+            state = dict(self.state, mode=mode, execution_id='42-1-'+mode, runtime_sha256=pins)
+            session = dict(self.session, mode=mode)
+            with self.subTest(mode=mode):
+                execution, binding = self.validate(session=session, state=state, mode=mode)
+                self.assertEqual(execution, '42-1-'+mode)
+                self.assertEqual(binding['runtime_sha256'], pins)
+                for missing in ('native_voice_plan.py', 'native_voice_preserve.py'):
+                    with self.assertRaisesRegex(ValueError, 'Incomplete process binding'):
+                        self.validate(session=session, state=dict(state,
+                            runtime_sha256={k:v for k,v in pins.items() if k != missing}), mode=mode)
+
     def test_other_run_attempt_mode_host_and_workflow_refused(self):
         cases = [dict(env={**self.github, 'GITHUB_RUN_ID': '43'}),
                  dict(env={**self.github, 'GITHUB_RUN_ATTEMPT': '2'}),
