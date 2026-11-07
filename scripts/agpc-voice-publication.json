@@ -1,13 +1,13 @@
 {
-  "archive_bytes": 7911835,
-  "archive_sha256": "07e095392444752b7f6654b2e697bf5cfba89b08d5a43e4124236549f570fe61",
-  "ci_job": 67247,
+  "archive_bytes": 7912829,
+  "archive_sha256": "3d6bf1ffca0bf3bb637112965936e45a9a61247f62db271e67f582c79c935f89",
+  "ci_job": 67291,
   "disclosure_review": {
-    "iid": 130,
+    "iid": 133,
     "project": 1341
   },
-  "install_review": 130,
+  "install_review": 133,
   "schema": "agpc.voice-publication-inputs/v1",
-  "source_commit": "401d99c2f5971a824731cdc6d92e30e4b612c19c",
-  "version": "0.1.7~cast777.20261105.3"
+  "source_commit": "da8ab0dd705d368ba5036aa3891cbe5220f11923",
+  "version": "0.1.7~cast777.20261107.1"
 }
