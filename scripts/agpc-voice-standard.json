@@ -1,11 +1,11 @@
 {
   "schema": "agpc-voice.standard-native-public-inputs/v1",
-  "voice_commit": "e3abdc08cadd2614d7e446ba60decb4b3f386bb7",
-  "voice_job": 67188,
-  "voice_pipeline": 28766,
-  "voice_review": 57,
-  "reviewed_head": "fcf27deac34fb0b5aa49ae203f557dd7d7e8ed36",
-  "version": "0.1.7~cast777.20261105.3",
-  "bytes": 550615,
-  "sha256": "b1a2e4403808826f132d37388b0a4a2e87f8fa1e9deed587598df2a5b3af47cb"
+  "voice_commit": "0ea85da0afaed3416a74a677ca0c04037b0217c9",
+  "voice_job": 67270,
+  "voice_pipeline": 28804,
+  "voice_review": 60,
+  "reviewed_head": "3b39ce3ea0be19f060fcbae6a302f3574b312bc0",
+  "version": "0.1.7~cast777.20261107.1",
+  "bytes": 556981,
+  "sha256": "c38bd1113a60e4a631ea9dd5f7f4746c96dd857f7c60b6dcc49b2b873e81d13a"
 }
