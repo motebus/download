@@ -16,7 +16,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = "motebus/download"
-VERSION = "0.1.0-4"
+VERSION = "0.1.0-5"
 TAG = "agpc-view-v" + VERSION
 PACKAGE = "agpc-view_" + VERSION + "_amd64.deb"
 ASSETS = {PACKAGE, "MANIFEST.json", "SHA256SUMS"}
@@ -33,11 +33,11 @@ SOURCE_FILES = {
     "src/agpc_view_component.py",
     *("components/agpc-view/" + name for name in (
         "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "README.md", "SPEC.md",
-        "src/backend.rs", "src/gtk.rs", "src/main.rs", "src/local.rs", "src/mode.rs", "src/sso.rs", "assets/agpc-view.desktop",
+        "src/keys.rs", "src/backend.rs", "src/gtk.rs", "src/main.rs", "src/local.rs", "src/mode.rs", "src/sso.rs", "assets/agpc-view.desktop",
         "assets/agpc-view.svg", "assets/style.css", "assets/copyright",
         "assets/THIRD-PARTY-NOTICES.txt", "scripts/build-deb.py", "scripts/test-package.py")),
 }
-DEPENDENCIES = ["agpc-mesh (>= 3.0.0-3)", "agpc-mesh (<< 4)", "libgtk-4-1 (>= 4.8)",
+DEPENDENCIES = ["agpc-key-manager (= 0.1.0-1)", "agpc-mesh (>= 3.0.0-3)", "agpc-mesh (<< 4)", "libgtk-4-1 (>= 4.8)",
                 "libc6 (>= 2.39)", "libgcc-s1", "libglib2.0-0t64"]
 IDENTITY = {"name": "agpc-view", "version": VERSION, "architecture": "amd64"}
 
@@ -346,9 +346,9 @@ def prepare(args):
               "pipeline_id": pipeline["id"], "job_id": native["id"], "gui_job_id": gui["id"],
               "producer_manifest_sha256": sha(original), "candidate_tag": "candidate-" + TAG,
               "assets": {}, "notes": "Native GTK4 AGPC View " + VERSION + " for amd64, built and GUI-checked by canonical main CI. "
-              "Local is restricted to this computer’s information and existing Manager prechecks; all network observations belong to Mesh. The read-only Mesh mode requires Account browser SSO at account.ypcloud.com. "
+              "Local manages this computer and now provides CI-source inspection, validation and explicit credential synchronization. Mesh requires Account browser SSO at account.ypcloud.com and adds multi-host SIP key import and separately gated retirement. "
               "Teal Local and violet Mesh styles follow light, dark and high-contrast themes. Native checks cover the authentication gate; successful human sign-in remains separate live evidence. "
-              "Requires AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. "
+              "Requires the signed agpc-key-manager 0.1.0-1 and Voice key owner dependency, the pinned existing Voice runtime, native Zenity authentication, an approved CI identity, AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. Provider retirement additionally requires an approved expiring provider binding and Admin API credential. "
               "Run agpc-view as the desktop user. This standalone release does not change Core/All installers, "
               "enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc "
               "with the established MoteBus archive key before installing.\n"}

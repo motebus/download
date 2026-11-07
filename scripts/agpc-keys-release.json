@@ -1,0 +1,40 @@
+{
+  "assets": {
+    "MANIFEST.json": {
+      "bytes": 5424,
+      "sha256": "4f928b51b295e0bcb1f5fdd46fc2d96e574daaef1bb1f4f8b1696716c073cbd1"
+    },
+    "SHA256SUMS": {
+      "bytes": 282,
+      "sha256": "0d0cd5f1453adf99350d992bea55779020470bcefb7d68e56da971f7e9fb7b29"
+    },
+    "agpc-key-manager_0.1.0-1_all.deb": {
+      "bytes": 10064,
+      "sha256": "c636e049a162a55d51603192d2137c0f58bcc3ce005c4c74550742ee3847eca2"
+    },
+    "agpc-voice-key-owner_0.1.0-1_all.deb": {
+      "bytes": 8672,
+      "sha256": "2112dc4d7297eeeba41ccbd18c535fba7aa493c07f839db9371821fb35ece255"
+    }
+  },
+  "candidate_tag": "candidate-agpc-key-management-v0.1.0-1",
+  "components": {
+    "agpc-key-manager": {
+      "job_id": 67483,
+      "pipeline_id": 28854,
+      "producer_manifest_sha256": "35851eae575b82773181c62fbc831ad9f68df3af1789554e9daee10e335a01ee",
+      "source_commit": "7fc14bf4ad9953392ced7654d2c70ade2f6ba443",
+      "source_project": 1336
+    },
+    "agpc-voice-key-owner": {
+      "job_id": 67475,
+      "pipeline_id": 28853,
+      "producer_manifest_sha256": "943ca704061899a0b22a4194bbee3e2974078a7d190aa75e2eedb40f1aafef19",
+      "source_commit": "07ffc9395402e9a42b386802da16b3fc85a27f22",
+      "source_project": 1348
+    }
+  },
+  "notes": "AGPC API Keys management 0.1.0-1. Exact administrative packages from reviewed canonical main CI, authenticated by the established archive key. The coordinator uses the existing approved CI account and target-labeled native authentication. The Voice owner preserves the existing credential UID/GID/mode and verifies the installed service-user Voice API start/close path through the existing Voice library without phone calls or caller audio. Native hidden prompts use the declared Zenity dependency. The owner pins the existing Voice runtime version; no daemon, policy grant, credential payload or runtime upgrade is included. Provider retirement requires a separate reviewed expiring binding and Admin API credential. Installation, target setup and independent fresh runtime acceptance remain separate; this release does not promote Core/All or establish whole-system readiness.\n",
+  "schema": "agpc.keys.publication-inputs/v1",
+  "tag": "agpc-key-management-v0.1.0-1"
+}

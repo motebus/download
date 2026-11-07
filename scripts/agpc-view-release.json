@@ -2,30 +2,30 @@
   "architecture": "amd64",
   "assets": {
     "MANIFEST.json": {
-      "bytes": 7492,
-      "sha256": "119444fdcfdbd2e5bc7c16bba16a64a23b7278eb4fb3d85b11b77e231104dad2"
+      "bytes": 7708,
+      "sha256": "526969a7082d40632f24ef40241d0a1aa230ff8d65440482b052c08165217abb"
     },
     "SHA256SUMS": {
       "bytes": 174,
-      "sha256": "bea75aa5e8d4a0d121d15ffe8eb563a2d2e7e2b2eae1437e16e0786a5b61e14e"
+      "sha256": "7e306fc0b4cf4a3cf05e57edd97fcbf930b102c436ce08ee8c03d02e51da910a"
     },
-    "agpc-view_0.1.0-4_amd64.deb": {
-      "bytes": 1016312,
-      "sha256": "5c6a25499f59bd5549cf2ca4c6e1b5753975092a77c43cdf38fad87c659b86a8"
+    "agpc-view_0.1.0-5_amd64.deb": {
+      "bytes": 1032836,
+      "sha256": "16efeed32c5c5245f8138907d8265ae7855f4441f38701b207a83f93abdd83a9"
     }
   },
-  "candidate_tag": "candidate-agpc-view-v0.1.0-4",
-  "gui_job_id": 67147,
-  "job_id": 67146,
-  "notes": "Native GTK4 AGPC View 0.1.0-4 for amd64, built and GUI-checked by canonical main CI. Local is restricted to this computer\u2019s information and existing Manager prechecks; all network observations belong to Mesh. The read-only Mesh mode requires Account browser SSO at account.ypcloud.com. Teal Local and violet Mesh styles follow light, dark and high-contrast themes. Native checks cover the authentication gate; successful human sign-in remains separate live evidence. Requires AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. Run agpc-view as the desktop user. This standalone release does not change Core/All installers, enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc with the established MoteBus archive key before installing.\n",
-  "package": "agpc-view_0.1.0-4_amd64.deb",
-  "pipeline_id": 28759,
+  "candidate_tag": "candidate-agpc-view-v0.1.0-5",
+  "gui_job_id": 67478,
+  "job_id": 67477,
+  "notes": "Native GTK4 AGPC View 0.1.0-5 for amd64, built and GUI-checked by canonical main CI. Local manages this computer and now provides CI-source inspection, validation and explicit credential synchronization. Mesh requires Account browser SSO at account.ypcloud.com and adds multi-host SIP key import and separately gated retirement. Teal Local and violet Mesh styles follow light, dark and high-contrast themes. Native checks cover the authentication gate; successful human sign-in remains separate live evidence. Requires the signed agpc-key-manager 0.1.0-1 and Voice key owner dependency, the pinned existing Voice runtime, native Zenity authentication, an approved CI identity, AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. Provider retirement additionally requires an approved expiring provider binding and Admin API credential. Run agpc-view as the desktop user. This standalone release does not change Core/All installers, enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc with the established MoteBus archive key before installing.\n",
+  "package": "agpc-view_0.1.0-5_amd64.deb",
+  "pipeline_id": 28854,
   "pipeline_status": "success",
-  "producer_manifest_sha256": "baf89f4b24c90246552ca33a65bf7d2240fbb1ab297f4d5f84037aa52137219a",
+  "producer_manifest_sha256": "f236b6f3f56a3531db63d46e86ce378836fbbfa5f738c07dc59737927322c5de",
   "schema": "agpc-view.publication-inputs/v1",
-  "source_commit": "b58231f1895e6f27c300eeb64a55a2998a2becd0",
+  "source_commit": "7fc14bf4ad9953392ced7654d2c70ade2f6ba443",
   "source_project": 1336,
   "source_ref": "main",
-  "tag": "agpc-view-v0.1.0-4",
-  "version": "0.1.0-4"
+  "tag": "agpc-view-v0.1.0-5",
+  "version": "0.1.0-5"
 }
