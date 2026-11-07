@@ -16,7 +16,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = "motebus/download"
-VERSION = "0.1.0-4"
+VERSION = "0.1.0-5"
 TAG = "agpc-view-v" + VERSION
 PACKAGE = "agpc-view_" + VERSION + "_amd64.deb"
 ASSETS = {PACKAGE, "MANIFEST.json", "SHA256SUMS"}
@@ -33,11 +33,11 @@ SOURCE_FILES = {
     "src/agpc_view_component.py",
     *("components/agpc-view/" + name for name in (
         "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "README.md", "SPEC.md",
-        "src/backend.rs", "src/gtk.rs", "src/main.rs", "src/local.rs", "src/mode.rs", "src/sso.rs", "assets/agpc-view.desktop",
+        "src/keys.rs", "src/backend.rs", "src/gtk.rs", "src/main.rs", "src/local.rs", "src/mode.rs", "src/sso.rs", "assets/agpc-view.desktop",
         "assets/agpc-view.svg", "assets/style.css", "assets/copyright",
         "assets/THIRD-PARTY-NOTICES.txt", "scripts/build-deb.py", "scripts/test-package.py")),
 }
-DEPENDENCIES = ["agpc-mesh (>= 3.0.0-3)", "agpc-mesh (<< 4)", "libgtk-4-1 (>= 4.8)",
+DEPENDENCIES = ["agpc-key-manager (= 0.1.0-1)", "agpc-mesh (>= 3.0.0-3)", "agpc-mesh (<< 4)", "libgtk-4-1 (>= 4.8)",
                 "libc6 (>= 2.39)", "libgcc-s1", "libglib2.0-0t64"]
 IDENTITY = {"name": "agpc-view", "version": VERSION, "architecture": "amd64"}
 

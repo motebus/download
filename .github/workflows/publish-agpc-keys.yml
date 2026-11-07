@@ -1,0 +1,49 @@
+name: Publish signed AGPC API Keys management release
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/publish_agpc_keys.py
+      - scripts/agpc-keys-release.json
+      - tests/test_agpc_keys_publication.py
+      - .github/workflows/publish-agpc-keys.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.event_name == 'workflow_dispatch' && 'native-package-publication' || format('view-publication-validation-{0}', github.ref) }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify release admission safeguards
+        run: python3 -m unittest discover -s tests -p test_agpc_keys_publication.py -v
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Publish exact main-CI native package with archive signatures
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGPC_GITLAB_READ_TOKEN: ${{ secrets.AGPC_GITLAB_READ_TOKEN }}
+          AGPC_GITLAB_SOURCE_URL: ${{ secrets.AGPC_GITLAB_SOURCE_URL }}
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: python3 scripts/publish_agpc_keys.py publish
