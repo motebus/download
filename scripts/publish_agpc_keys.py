@@ -10,9 +10,9 @@ FINGERPRINT='AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0'
 LIMIT=2*1024*1024
 PACKAGES={
  'agpc-key-manager':{'project':1336,'job':'agpc-key-manager-native','entry':'usr/bin/agpc-key-manager',
-  'dependencies':'python3 (>= 3.10), ca-certificates, sudo, openssh-client, glab, agpc-voice-key-owner (= 0.1.0-1)','module':'manager.py','test':'test_manager.py'},
+  'dependencies':'python3 (>= 3.10), ca-certificates, sudo, openssh-client, glab, zenity, agpc-voice-key-owner (= 0.1.0-1)','module':'manager.py','test':'test_manager.py'},
  'agpc-voice-key-owner':{'project':1348,'job':'voice-key-owner-native','entry':'usr/libexec/agpc-voice-key-owner',
-  'dependencies':'python3 (>= 3.10), ca-certificates','module':'owner.py','test':'test_owner.py'},
+  'dependencies':'python3 (>= 3.10), ca-certificates, agpc-voice (= 0.1.5~dialplan.20261030.1)','module':'owner.py','test':'test_owner.py'},
 }
 ASSETS={*(p+'_0.1.0-1_all.deb' for p in PACKAGES),'MANIFEST.json','SHA256SUMS'}
 
