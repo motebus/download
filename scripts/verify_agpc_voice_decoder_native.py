@@ -96,11 +96,11 @@ def wait(decoder, unit):
     raise RuntimeError('Decoder native observation deadline')
 
 
-def fixture(decoder, context):
+def fixture(decoder, context, *, cast_audio=False):
     decoder.core.secure_directory(ROOT)
     stage=ROOT/('agpc-voice-dependencies-'+secrets.token_hex(16));stage.mkdir(mode=0o700)
     decoder.publish(stage,'fixture-context.json',context)
-    decoder.publish(stage,'request.json',dict(schema=decoder.SCHEMA,release=decoder.verify_release(),transaction=stage.name))
+    decoder.publish(stage,'request.json',dict(schema=decoder.SCHEMA,release=decoder.verify_release(),transaction=stage.name,cast_audio=cast_audio))
     base='/usr/bin/python3 -I -B '+str(SCRIPT)+' worker '
     unit=stage.name+'.service'
     decoder.core.run(['/usr/bin/systemd-run','--quiet','--no-block','--unit='+unit,
@@ -141,20 +141,27 @@ def main():
     require(sys.argv[1:]==['--disposable-fresh'],'Explicit fresh fixture required')
     keys=('GITHUB_ACTIONS','RUNNER_ENVIRONMENT','GITHUB_REPOSITORY','GITHUB_REF','GITHUB_WORKFLOW_REF','GITHUB_SHA','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT')
     context={k:os.environ.get(k,'') for k in keys};decoder,manifest,previous=source(context)
-    require(not decoder.decoder_present(),'Fixture requires absent FFmpeg; prepare disposable baseline first')
+    require(not decoder.decoder_present() and not decoder.cast_audio_present(),
+            'Fixture requires absent FFmpeg and Pulse tools; prepare disposable baseline first')
     before=set((decoder.core.ROOT/'package-processes').glob('operation-*.json'))
     first=fixture(decoder,context);repeat=fixture(decoder,context)
+    cast_install=fixture(decoder,context,cast_audio=True);cast_repeat=fixture(decoder,context,cast_audio=True)
     after=set((decoder.core.ROOT/'package-processes').glob('operation-*.json'))
     processes=[read(p) for p in sorted(after-before)]
-    require(len(processes)==2 and all(decoder.core.finished_process_observation(p) and p['returncode']==0 for p in processes),
+    require(len(processes)==4 and all(decoder.core.finished_process_observation(p) and p['returncode']==0 for p in processes),
             'Actual decoder download and install completion required')
     require(first['records']['worker.json']['state']=='installed' and repeat['records']['worker.json']['state']=='verified_noop',
             'Install and repeat paths required')
+    require(cast_install['records']['worker.json']['state']=='installed'
+            and cast_repeat['records']['worker.json']['state']=='verified_noop'
+            and 'pulseaudio-utils' in cast_install['completion']['installed']
+            and 'ffmpeg' not in cast_install['completion']['installed'],'Explicit missing-only Cast tools required')
     print(json.dumps(dict(schema='agpc-voice.decoder-native-fixture/v1',github=context,source_commit=manifest['installer_commit'],
         source_manifest_sha256=hashlib.sha256(trusted(PACKET/'SOURCE.json').read_bytes()).hexdigest(),
         script_sha256=hashlib.sha256(trusted(SCRIPT).read_bytes()).hexdigest(),
         lifecycle_result_sha256=hashlib.sha256(trusted(previous).read_bytes()).hexdigest(),
-        install=first,repeat=repeat,package_process_observations=processes,native_decoder_worker_passed=True,normal_entry_acceptance=False,telephone_acceptance=False),sort_keys=True))
+        install=first,repeat=repeat,cast_install=cast_install,cast_repeat=cast_repeat,
+        native_cast_dependencies_passed=True,package_process_observations=processes,native_decoder_worker_passed=True,normal_entry_acceptance=False,telephone_acceptance=False),sort_keys=True))
 
 
 if __name__=='__main__': main()
