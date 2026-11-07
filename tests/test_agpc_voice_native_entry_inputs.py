@@ -39,19 +39,19 @@ class NativeEntryInputTests(unittest.TestCase):
         for name in staging.RUNTIME_NAMES:
             self.files['src/' + name + '.py'] = b'raise AssertionError("source must never execute")\n'
         self.files['src/native_voice.py'] = (b'INSTALL_CONTRACT_ADMITTED = False\n'
-            b"RELEASE = 'cast777.20261105.3'\nraise AssertionError('must never execute')\n")
+            b"RELEASE = 'cast777.20261107.1'\nraise AssertionError('must never execute')\n")
         for name in ('verify_agpc_voice_native_ci.py', 'verify_agpc_voice_native_entry_ci.py'):
             self.files['scripts/' + name] = b'raise AssertionError("harness must never execute")\n'
         self.wrapper()
         self.source = dict(schema='agpc.voice-native-entry-ci-source/v1', installer_commit=self.commit,
-            voice_commit=self.component, voice_ci_pipeline=900001, voice_ci_job=900002, voice_review=57,
+            voice_commit=self.component, voice_ci_pipeline=900001, voice_ci_job=900002, voice_review=60,
             **{k: False for k in staging.FALSE_FLAGS})
         self.inputs = dict(schema='agpc.voice-native-entry-ci-public-inputs/v1',
             source_commit=self.commit, ci_job=self.job, install_review=self.review)
         self.api = {}
         for project, job, commit, pipeline, review in (
                 (1341, self.job, self.commit, 73003, self.review),
-                (1348, 900002, self.component, 900001, 57)):
+                (1348, 900002, self.component, 900001, 60)):
             self.api[f'projects/{project}/jobs/{job}'] = dict(id=job, status='success', ref='main', tag=False,
                 name='agpc-voice-native-entry-ci-inputs' if project == 1341 else 'voice-source-cohort',
                 commit=dict(id=commit), pipeline=dict(id=pipeline, sha=commit, ref='main'))
@@ -121,7 +121,7 @@ class NativeEntryInputTests(unittest.TestCase):
         self.assertEqual(len(self.files), 20)
         self.assertEqual(len(self.source['files']), 19)
         self.assertEqual((self.output / 'agpc-voice.sh').stat().st_mode & 0o777, 0o755)
-        for project, review in ((1341, self.review), (1348, 57)):
+        for project, review in ((1341, self.review), (1348, 60)):
             self.get_json.assert_any_call(f'projects/{project}/merge_requests/{review}/approvals')
             self.get_json.assert_any_call(f'projects/{project}/members/all/34')
 
@@ -138,13 +138,13 @@ class NativeEntryInputTests(unittest.TestCase):
         self.assertNotEqual(manifest_sha256, sha((self.output / 'SOURCE.json').read_bytes()))
 
     def test_production_pins(self):
-        self.assertEqual(staging.VOICE_COMMIT, 'e3abdc08cadd2614d7e446ba60decb4b3f386bb7')
-        self.assertEqual((staging.VOICE_JOB, staging.VOICE_PIPELINE, staging.VOICE_REVIEW), (67188, 28766, 57))
+        self.assertEqual(staging.VOICE_COMMIT, '0ea85da0afaed3416a74a677ca0c04037b0217c9')
+        self.assertEqual((staging.VOICE_JOB, staging.VOICE_PIPELINE, staging.VOICE_REVIEW), (67270, 28804, 60))
         self.assertEqual(staging.VOICE_FILENAME,
-                         'agpc-voice_0.1.7~cast777.20261105.3_all.deb')
-        self.assertEqual(staging.VOICE_BYTES, 604352)
+                         'agpc-voice_0.1.7~cast777.20261107.1_all.deb')
+        self.assertEqual(staging.VOICE_BYTES, 614592)
         self.assertEqual(staging.PACKAGE_SHA256[staging.VOICE_FILENAME],
-                         'ebc5471254883d55aca9d257cb4853c881b59597b49f0856e9c3adbe1f4ea7fd')
+                         '1f58788b41851caea9eae38e3ccfc69d8061e3c63ba8cdccfec0ccc3c8e8538a')
         self.assertEqual(len(staging.PACKAGE_SHA256), 9)
         self.assertEqual(staging.PACKAGE_SHA256['agpc-voice_0.1.0~office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1_all.deb'],
                          '394baefe1242a288f822f5df6d90dd5a6c0eac7d71891aa66f66da19b2cb829f')
@@ -164,14 +164,14 @@ class NativeEntryInputTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
 
     def test_changed_reviewed_component_head_is_rejected(self):
-        with patch.dict(self.api['projects/1348/merge_requests/57'], sha='e' * 40):
-            self.reject('Exact reviewed MR57')
+        with patch.dict(self.api['projects/1348/merge_requests/60'], sha='e' * 40):
+            self.reject('Exact reviewed MR60')
         self.get_bytes.assert_not_called()
 
     def test_mr32_approval_cannot_replace_the_reviewed_service_map_head(self):
-        with patch.dict(self.api['projects/1348/merge_requests/57'],
+        with patch.dict(self.api['projects/1348/merge_requests/60'],
                         sha='179468b9b88073bcdaed788ddf7ac0036429ede6'):
-            self.reject('Exact reviewed MR57')
+            self.reject('Exact reviewed MR60')
         self.get_bytes.assert_not_called()
 
     def test_bad_input_types_and_extra_override_never_contact_api(self):
@@ -187,7 +187,7 @@ class NativeEntryInputTests(unittest.TestCase):
         self.get_bytes.assert_not_called()
 
     def test_actual_reviews_must_be_merged_exact_and_maintainer_approved(self):
-        for project, review in ((1341, self.review), (1348, 57)):
+        for project, review in ((1341, self.review), (1348, 60)):
             prefix = f'projects/{project}/merge_requests/{review}'
             cases = [(prefix, 'state', 'opened'), (prefix, 'merge_commit_sha', 'b' * 40),
                      (prefix + '/approvals', 'approved', False),
@@ -251,7 +251,7 @@ class NativeEntryInputTests(unittest.TestCase):
                             b'office117.20261015.2+l1isolation.2+sipauth.1', b'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1', b'office117.20261015.2+l1isolation.2+sipauth.1+radio909.1+continuous117.1+zhtw.1+utilities.1'):
             with self.subTest(predecessor=predecessor):
                 self.files['src/native_voice.py'] = original.replace(
-                    b'cast777.20261105.3', predecessor)
+                    b'cast777.20261107.1', predecessor)
                 self.wrapper(); self.refresh()
                 self.reject('closed source gate')
 
