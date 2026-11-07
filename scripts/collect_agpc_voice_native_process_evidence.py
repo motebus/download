@@ -29,7 +29,7 @@ FIELDS = {'schema', 'state', 'phase', 'reason', 'fault_classes', 'pid', 'supervi
           'finalization_proof', 'returncode', 'tracked', 'test_binding'}
 RUNTIME_FILES = {'native_voice.py', 'native_voice_dialplan.py', 'native_install.py',
                  'native_rpc.py', 'rdp_client.py', 'browser_install.py',
-                 'desktop_preferences.py'}
+                 'desktop_preferences.py', 'native_voice_plan.py', 'native_voice_preserve.py'}
 
 
 def require(condition, message):
