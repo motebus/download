@@ -1,0 +1,11 @@
+{
+  "schema": "agpc-voice.multiservice-native-public-inputs/v1",
+  "voice_commit": "8cc998a19f10d9105eeaff6d20e613ab80326df8",
+  "voice_job": 67639,
+  "voice_pipeline": 28888,
+  "voice_review": 69,
+  "reviewed_head": "567696c00cd10691287e4141ef51d1607d6468c6",
+  "version": "0.1.8~multiservice.20261107.3",
+  "bytes": 680026,
+  "sha256": "142d9608f841b27c6a715a5701db6a474153dd040e670f6f35ac98bfa32976f3"
+}
