@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
-"""Sign exact reviewed main-CI key-management packages; never build or install."""
+"""Sign the exact reviewed main-CI coordinator; reuse the previously signed Voice owner unchanged."""
 import argparse,hashlib,io,json,os,re,subprocess,tarfile,tempfile,urllib.parse,urllib.request
 from pathlib import Path,PurePosixPath
 from publish_agpc_view import SameOriginRedirect,encoded,read_json,require,run,sha
 ROOT=Path(__file__).resolve().parents[1]
 REPO='motebus/download'
-TAG='agpc-key-management-v0.1.0-1'
+TAG='agpc-key-management-v0.1.0-2'
 FINGERPRINT='AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0'
 LIMIT=2*1024*1024
 PACKAGES={
  'agpc-key-manager':{'project':1336,'job':'agpc-key-manager-native','entry':'usr/bin/agpc-key-manager',
   'dependencies':'python3 (>= 3.10), ca-certificates, sudo, openssh-client, glab, zenity, agpc-voice-key-owner (= 0.1.0-1)','module':'manager.py','test':'test_manager.py'},
- 'agpc-voice-key-owner':{'project':1348,'job':'voice-key-owner-native','entry':'usr/libexec/agpc-voice-key-owner',
-  'dependencies':'python3 (>= 3.10), ca-certificates, agpc-voice (= 0.1.5~dialplan.20261030.1)','module':'owner.py','test':'test_owner.py'},
+
 }
-ASSETS={*(p+'_0.1.0-1_all.deb' for p in PACKAGES),'MANIFEST.json','SHA256SUMS'}
+ASSETS={*(p+'_0.1.0-2_all.deb' for p in PACKAGES),'MANIFEST.json','SHA256SUMS'}
 
 def validate_record(v):
  require(set(v)=={'schema','tag','candidate_tag','components','assets','notes'},'unexpected release fields')
@@ -52,7 +51,7 @@ def fresh(record):
   jobs(c,name,read_json(get('/pipelines/'+str(c['pipeline_id']))),read_json(get('/jobs/'+str(c['job_id']))))
   prefix='/jobs/'+str(c['job_id'])+'/artifacts/components/'+name+'/dist/'
   manifest=get(prefix+'manifest.json');require(sha(manifest)==c['producer_manifest_sha256'],'original producer manifest differs')
-  filename=name+'_0.1.0-1_all.deb';data=get(prefix+filename)
+  filename=name+'_0.1.0-2_all.deb';data=get(prefix+filename)
   require({'sha256':sha(data),'bytes':len(data)}==record['assets'][filename],'original package differs')
   evidence=read_json(get(prefix+'package-evidence.json'))
   require(evidence=={'schema':'agpc.keys.package-lifecycle/v1','package_sha256':sha(data),'native_lifecycle':True,'credential_fixture_bytes_and_metadata_preserved':True,'scriptless':True,'host_dpkg_unchanged':True,'force_depends_in_isolated_fixture':True,'clean_target_dependencies_installed':False,'production_credentials_accessed':False,'runtime_acceptance':False},'native lifecycle evidence differs')
@@ -78,9 +77,9 @@ def archive(package,option,allowed):
   require(set(files)==allowed,'incomplete payload');return files
 
 def validate_package(path,name,c,build):
- expected=PACKAGES[name];filename=name+'_0.1.0-1_all.deb'
+ expected=PACKAGES[name];filename=name+'_0.1.0-2_all.deb'
  require(set(build)=={'schema','package','version','architecture','source_project','source_commit','source_files','source_date_epoch','release_admitted','runtime_verified','filename','sha256','bytes','dependencies','files'},'unexpected build fields')
- require(build['schema']=='agpc.keys.build/v1' and build['package']==name and build['version']=='0.1.0-1' and build['architecture']=='all' and build['source_project']==c['source_project'] and build['source_commit']==c['source_commit'] and build['filename']==filename and build['sha256']==sha(path.read_bytes()) and build['bytes']==path.stat().st_size and build['dependencies']==expected['dependencies'] and build['release_admitted'] is False and build['runtime_verified'] is False,'package/producer identity differs')
+ require(build['schema']=='agpc.keys.build/v1' and build['package']==name and build['version']=='0.1.0-2' and build['architecture']=='all' and build['source_project']==c['source_project'] and build['source_commit']==c['source_commit'] and build['filename']==filename and build['sha256']==sha(path.read_bytes()) and build['bytes']==path.stat().st_size and build['dependencies']==expected['dependencies'] and build['release_admitted'] is False and build['runtime_verified'] is False,'package/producer identity differs')
  sources={'components/'+name+'/'+p for p in ('README.md','build.py','test-package.py','src/'+expected['module'],'tests/'+expected['test'])}
  require(set(build['source_files'])==sources,'unexpected source inventory')
  for pin in build['source_files'].values():require(set(pin)=={'sha256','bytes'} and re.fullmatch('[a-f0-9]{64}',pin['sha256']) and type(pin['bytes']) is int and 0<pin['bytes']<LIMIT,'invalid source pin')
@@ -88,7 +87,7 @@ def validate_package(path,name,c,build):
  controls=archive(path,'--ctrl-tarfile',{'control','md5sums'});data=archive(path,'--fsys-tarfile',allowed)
  require(all(mode==0o644 for _,mode in controls.values()),'control modes differ')
  text=controls['control'][0].decode()
- for key,value in [('Package',name),('Version','0.1.0-1'),('Architecture','all'),('Depends',expected['dependencies'])]:
+ for key,value in [('Package',name),('Version','0.1.0-2'),('Architecture','all'),('Depends',expected['dependencies'])]:
   require(re.findall('^'+key+': (.*)$',text,re.M)==[value],'control identity differs')
  require(not re.search(r'^(?:Pre-Depends|Conflicts|Breaks|Replaces|Provides|Essential):',text,re.M),'unexpected relationship')
  require(set(build['files'])==allowed,'unexpected file inventory')
@@ -111,7 +110,7 @@ def validate_bundle(stage,record,originals=None):
  require(set(manifest)=={'schema','tag','components','builds','runtime_verified','core_all_admitted'} and manifest['schema']=='agpc.keys.release-manifest/v1' and manifest['tag']==TAG and manifest['components']==record['components'] and set(manifest['builds'])==set(PACKAGES) and manifest['runtime_verified'] is False and manifest['core_all_admitted'] is False,'release manifest differs')
  for name,build in manifest['builds'].items():
   if originals is not None:require(build==read_json(originals[name]),'sanitized producer differs')
-  validate_package(stage/(name+'_0.1.0-1_all.deb'),name,record['components'][name],build)
+  validate_package(stage/(name+'_0.1.0-2_all.deb'),name,record['components'][name],build)
  require((stage/'SHA256SUMS').read_text()==''.join(record['assets'][n]['sha256']+'  '+n+'\n' for n in sorted(ASSETS-{'SHA256SUMS'})),'checksum inventory differs')
  from publish_apt import validate_no_gitlab_urls
  validate_no_gitlab_urls(stage)
@@ -136,7 +135,7 @@ def publish():
    from publish_native import sign_files
    sign_files(ROOT,stage,{'MANIFEST.json','SHA256SUMS'});fresh(record);absent()
    notes=Path(directory)/'notes.txt';notes.write_text(record['notes'])
-   run('gh','release','create',TAG,'--repo',REPO,'--target',os.environ['GITHUB_SHA'],'--title','AGPC API Keys management 0.1.0-1','--notes-file',str(notes),'--latest=false',*map(str,sorted(stage.iterdir())))
+   run('gh','release','create',TAG,'--repo',REPO,'--target',os.environ['GITHUB_SHA'],'--title','AGPC API Keys management 0.1.0-2','--notes-file',str(notes),'--latest=false',*map(str,sorted(stage.iterdir())))
   finally:
    if previous is None:os.environ.pop('GNUPGHOME',None)
    else:os.environ['GNUPGHOME']=previous

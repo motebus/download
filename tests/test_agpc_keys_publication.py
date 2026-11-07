@@ -11,6 +11,9 @@ def record():
  'assets':{n:{'sha256':'c'*64,'bytes':10} for n in p.ASSETS},'notes':'Explicit credential management; runtime verification remains separate.'}
 
 class PublicationTests(unittest.TestCase):
+ def test_original_voice_owner_is_reused_without_republication(self):
+  self.assertEqual(set(p.PACKAGES),{'agpc-key-manager'})
+  self.assertIn('agpc-voice-key-owner (= 0.1.0-1)',p.PACKAGES['agpc-key-manager']['dependencies'])
  def test_record_refuses_extra_payload_and_unreviewed_sources(self):
   r=record();p.validate_record(r)
   for mutate in [lambda r:r.update(extra=True),lambda r:r.update(tag='other'),lambda r:r['assets'].update({'extra.deb':{'sha256':'c'*64,'bytes':1}}),lambda r:r['components']['agpc-key-manager'].update(source_project=1),lambda r:r['components']['agpc-key-manager'].update(job_id=True),lambda r:r['assets']['MANIFEST.json'].update(bytes=True),lambda r:r.update(notes='gitlab private')]:
@@ -27,12 +30,12 @@ class PublicationTests(unittest.TestCase):
   r=record();responses={}
   for name,c in r['components'].items():
    data=('fixture package '+name).encode();manifest=p.encoded({'sha256':p.sha(data)})
-   c['producer_manifest_sha256']=p.sha(manifest);r['assets'][name+'_0.1.0-1_all.deb']={'sha256':p.sha(data),'bytes':len(data)}
+   c['producer_manifest_sha256']=p.sha(manifest);r['assets'][name+'_0.1.0-2_all.deb']={'sha256':p.sha(data),'bytes':len(data)}
    pipeline={'id':c['pipeline_id'],'sha':c['source_commit'],'ref':'main','status':'success'}
    job={'id':c['job_id'],'name':p.PACKAGES[name]['job'],'status':'success','ref':'main','commit':{'id':c['source_commit']},'allow_failure':False,'pipeline':pipeline,'tag_list':['l5','deb','native']}
    prefix='/jobs/'+str(c['job_id'])+'/artifacts/components/'+name+'/dist/'
    evidence={'schema':'agpc.keys.package-lifecycle/v1','package_sha256':p.sha(data),'native_lifecycle':True,'credential_fixture_bytes_and_metadata_preserved':True,'scriptless':True,'host_dpkg_unchanged':True,'force_depends_in_isolated_fixture':True,'clean_target_dependencies_installed':False,'production_credentials_accessed':False,'runtime_acceptance':False}
-   responses[c['source_project']]={'/repository/branches/main':p.encoded({'commit':{'id':c['source_commit']}}),'/pipelines/'+str(c['pipeline_id']):p.encoded(pipeline),'/jobs/'+str(c['job_id']):p.encoded(job),prefix+'manifest.json':manifest,prefix+name+'_0.1.0-1_all.deb':data,prefix+'package-evidence.json':p.encoded(evidence)}
+   responses[c['source_project']]={'/repository/branches/main':p.encoded({'commit':{'id':c['source_commit']}}),'/pipelines/'+str(c['pipeline_id']):p.encoded(pipeline),'/jobs/'+str(c['job_id']):p.encoded(job),prefix+'manifest.json':manifest,prefix+name+'_0.1.0-2_all.deb':data,prefix+'package-evidence.json':p.encoded(evidence)}
   if mutate:mutate(responses)
   with patch.object(p,'api',side_effect=lambda project:lambda path:responses[project][path]),patch.object(p,'run',return_value=json.dumps({'commit':{'sha':'d'*40}})),patch.dict(os.environ,{'GITHUB_SHA':'d'*40}):
    return p.fresh(r)
@@ -40,9 +43,9 @@ class PublicationTests(unittest.TestCase):
   self.assertEqual(set(self.fresh_fixture()),set(p.PACKAGES))
   def advanced(r):r[1336]['/repository/branches/main']=p.encoded({'commit':{'id':'e'*40}})
   def package_changed(r):
-   key=next(k for k in r[1348] if k.endswith('.deb'));r[1348][key]=b'changed'
+   key=next(k for k in r[1336] if k.endswith('.deb'));r[1336][key]=b'changed'
   def evidence_changed(r):
-   key=next(k for k in r[1348] if k.endswith('package-evidence.json'));value=json.loads(r[1348][key]);value['runtime_acceptance']=True;r[1348][key]=p.encoded(value)
+   key=next(k for k in r[1336] if k.endswith('package-evidence.json'));value=json.loads(r[1336][key]);value['runtime_acceptance']=True;r[1336][key]=p.encoded(value)
   for mutate in (advanced,package_changed,evidence_changed):
    with self.assertRaises(ValueError):self.fresh_fixture(mutate)
  def fixture(self,root,name,extra=None):
@@ -52,20 +55,20 @@ class PublicationTests(unittest.TestCase):
   files={'components/'+name+'/'+f:{'sha256':p.sha(f.encode()),'bytes':len(f)} for f in ('README.md','build.py','test-package.py','src/'+spec['module'],'tests/'+spec['test'])}
   files['components/'+name+'/src/'+spec['module']]={'sha256':p.sha(source),'bytes':len(source)}
   files['components/'+name+'/README.md']={'sha256':p.sha(readme),'bytes':len(readme)}
-  proof={'schema':'agpc.keys.build/v1','package':name,'version':'0.1.0-1','architecture':'all','source_project':c['source_project'],'source_commit':c['source_commit'],'source_files':files,'source_date_epoch':1,'release_admitted':False,'runtime_verified':False}
+  proof={'schema':'agpc.keys.build/v1','package':name,'version':'0.1.0-2','architecture':'all','source_project':c['source_project'],'source_commit':c['source_commit'],'source_files':files,'source_date_epoch':1,'release_admitted':False,'runtime_verified':False}
   payload={spec['entry']:(b'#!/usr/bin/python3 -I\n'+source,0o755),f'usr/share/doc/{name}/README.md':(readme,0o644),f'usr/share/doc/{name}/PROVENANCE.json':(p.encoded(proof),0o644)}
   stage=root/'root';stage.mkdir()
   for path,(data,mode) in payload.items():
    f=stage/path;f.parent.mkdir(parents=True,exist_ok=True);f.write_bytes(data);f.chmod(mode)
   controls=stage/'DEBIAN';controls.mkdir()
-  (controls/'control').write_text(f'Package: {name}\nVersion: 0.1.0-1\nArchitecture: all\nMaintainer: Fixture <fixture@example.invalid>\nDescription: Inert fixture\nDepends: '+spec['dependencies']+'\n')
+  (controls/'control').write_text(f'Package: {name}\nVersion: 0.1.0-2\nArchitecture: all\nMaintainer: Fixture <fixture@example.invalid>\nDescription: Inert fixture\nDepends: '+spec['dependencies']+'\n')
   (controls/'md5sums').write_text(''.join(hashlib.md5(data).hexdigest()+'  '+path+'\n' for path,(data,_) in sorted(payload.items())))
   if extra:
    f=stage/extra;f.parent.mkdir(parents=True,exist_ok=True);f.write_text('#!/bin/sh\nexit 0\n' if extra.startswith('DEBIAN/') else 'unexpected');f.chmod(0o755 if extra.startswith('DEBIAN/') else 0o644)
   for f in stage.rglob('*'):
    if f.is_dir():f.chmod(0o755)
   stage.chmod(0o755)
-  deb=root/(name+'_0.1.0-1_all.deb');subprocess.run(['dpkg-deb','--root-owner-group','--build',str(stage),str(deb)],check=True,capture_output=True)
+  deb=root/(name+'_0.1.0-2_all.deb');subprocess.run(['dpkg-deb','--root-owner-group','--build',str(stage),str(deb)],check=True,capture_output=True)
   build={**proof,'filename':deb.name,'sha256':p.sha(deb.read_bytes()),'bytes':deb.stat().st_size,'dependencies':spec['dependencies'],'files':{path:{'sha256':p.sha(data),'bytes':len(data),'mode':format(mode,'04o'),'uid':0,'gid':0} for path,(data,mode) in payload.items()}}
   return deb,c,build
  def test_exact_scriptless_packages_and_source_binding(self):
@@ -77,7 +80,7 @@ class PublicationTests(unittest.TestCase):
  def test_hooks_and_credentials_are_never_packaged(self):
   for extra in ('DEBIAN/postinst','etc/agpc-voice/credentials/openai-api-key','usr/bin/unreviewed'):
    with tempfile.TemporaryDirectory() as folder:
-    name='agpc-voice-key-owner';deb,c,build=self.fixture(Path(folder),name,extra)
+    name='agpc-key-manager';deb,c,build=self.fixture(Path(folder),name,extra)
     with self.assertRaises(ValueError):p.validate_package(deb,name,c,build)
  def test_unreviewed_context_cannot_touch_signer_or_network(self):
   with patch.dict(os.environ,{},clear=True),patch.object(p,'api') as api,patch.object(p,'run') as run:
