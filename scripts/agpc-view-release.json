@@ -2,30 +2,30 @@
   "architecture": "amd64",
   "assets": {
     "MANIFEST.json": {
-      "bytes": 7708,
-      "sha256": "bddb609909859a8b1615f4b2d945b14d8cfce42692d60ef5559de0f20a923656"
+      "bytes": 8854,
+      "sha256": "2a0b7e3d8d14da4df2ca1a895ac231218a19a066445cef91eee71931b460c6c9"
     },
     "SHA256SUMS": {
       "bytes": 174,
-      "sha256": "b41eacadb89e5412d74a27c028701b234560b5e48157e0997bce08482a5cda86"
+      "sha256": "099f1f6f09db2b6df4f195c76459190f4af7e026116dbb88628f7a301c5412b9"
     },
-    "agpc-view_0.1.0-6_amd64.deb": {
-      "bytes": 1041464,
-      "sha256": "d754d278dc627a19ab0e7c719b8716a07408a91e476bacc6b86950890f9fdcde"
+    "agpc-view_0.1.0-7_amd64.deb": {
+      "bytes": 1105776,
+      "sha256": "6cec671670e8787e3a114714da29d9f1d37d3a603dfc8b745f7c6796569b7662"
     }
   },
-  "candidate_tag": "candidate-agpc-view-v0.1.0-6",
-  "gui_job_id": 67577,
-  "job_id": 67576,
-  "notes": "Native GTK4 AGPC View 0.1.0-6 for amd64, built and GUI-checked by canonical main CI. Local manages this computer and now provides CI-source inspection, validation and explicit credential synchronization. Mesh requires Account browser SSO at account.ypcloud.com and adds selected SIP and ss-webos Live key management, native provider-binding setup, import/replacement and separately gated retirement. Teal Local and violet Mesh styles follow light, dark and high-contrast themes. Native checks cover the authentication gate; successful human sign-in remains separate live evidence. Requires the signed agpc-key-manager 0.1.0-2 and Voice key owner dependency, the pinned existing Voice runtime, native Zenity authentication, an approved CI identity, AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. Provider setup and retirement require an ephemeral Admin API credential through the native prompt. WebOS activation additionally requires its reviewed owner OCI/PD promotion and existing Account system-admin role; this GUI release does not deploy that service. Run agpc-view as the desktop user. This standalone release does not change Core/All installers, enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc with the established MoteBus archive key before installing.\n",
-  "package": "agpc-view_0.1.0-6_amd64.deb",
-  "pipeline_id": 28869,
+  "candidate_tag": "candidate-agpc-view-v0.1.0-7",
+  "gui_job_id": 67834,
+  "job_id": 67833,
+  "notes": "Native GTK4 AGPC Mote Map (agpc-view) 0.1.0-7 for amd64, built and GUI-checked by canonical main CI. Authenticated Mesh shows source-labelled Motes; click one for Manager, exact owner Inbox, SSH/RDP/CDP targets, interfaces and readiness gates. Reviewed uChat sends use the existing owner and anonymous stdin; acceptance is distinct from delivery and unknown results never retry. Reviewed SSH/RDP opens existing native clients with their own authentication and host trust. CDP STOP remains in effect. Local shows this computer's facts, CPU/memory and Manager prechecks. Transport settings distinguish protocol, startup and runtime. Only current-user physical RDP protocol enable/disable on configured port 3389 has an admitted setter, with exact review and owner readback. Other setters and remote metrics are explicitly unavailable. No SNMP collector, new privileged helper, credentials or arbitrary remote execution is added. AGPC Ready remains Not ready, Live checks pending or Not verified without complete live acceptance evidence. Teal Local and violet Mesh follow light/dark/high-contrast themes. Account SSO is required for Mesh; synthetic UI checks do not prove real login, connectivity or settings changes. Requires existing signed agpc-key-manager 0.1.0-2, Voice owner 0.1.0-1 and their retained dependencies, AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8, Cairo >=1.16 and glibc >=2.39. Both signed helper packages are reused unchanged. Existing API Keys controls remain owner-authorized. Run agpc-view as the desktop user. This standalone release does not change Core/All installers, install hosts, redeploy WebOS or establish runtime readiness. Verify both MANIFEST.json.asc and SHA256SUMS.asc using the established MoteBus archive key before installing.\n",
+  "package": "agpc-view_0.1.0-7_amd64.deb",
+  "pipeline_id": 28966,
   "pipeline_status": "success",
-  "producer_manifest_sha256": "0c97441bea6cd014e5e8ef8094a3b590f41a62a84bafb2d7c95481b31ea77025",
+  "producer_manifest_sha256": "ba6015a5ea08af3d53690a31b58efd1bfd283b9e1b12bd0596ed84aacc4d5c38",
   "schema": "agpc-view.publication-inputs/v1",
-  "source_commit": "6e5d94c722df5cca62678e2b58ce54a044c21222",
+  "source_commit": "fe93a3dc7cec0cb1bc58944e493647f4e37499bd",
   "source_project": 1336,
   "source_ref": "main",
-  "tag": "agpc-view-v0.1.0-6",
-  "version": "0.1.0-6"
+  "tag": "agpc-view-v0.1.0-7",
+  "version": "0.1.0-7"
 }

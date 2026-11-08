@@ -181,7 +181,7 @@ class BuildAndBundleAdmission(unittest.TestCase):
         binary[:6] = b"\x7fELF\x02\x01"
         struct.pack_into("<H", binary, 16, 3)
         struct.pack_into("<H", binary, 18, 62)
-        needed = ["libc.so.6", "libgcc_s.so.1", "libgio-2.0.so.0", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1"]
+        needed = ["libc.so.6", "libcairo.so.2", "libgcc_s.so.1", "libgio-2.0.so.0", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1"]
         source = {name: {"sha256": pub.sha(name.encode()), "bytes": len(name)} for name in pub.SOURCE_FILES}
         proof = {
             "schema": "agpc-view.build-provenance/v1", "package": pub.IDENTITY,
@@ -236,7 +236,7 @@ class BuildAndBundleAdmission(unittest.TestCase):
         return {
             "--program-headers": "[Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]",
             "--dynamic": "\n".join("(NEEDED) [" + name + "]" for name in (
-                "libc.so.6", "libgcc_s.so.1", "libgio-2.0.so.0", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1")),
+                "libc.so.6", "libcairo.so.2", "libgcc_s.so.1", "libgio-2.0.so.0", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1")),
             "--version-info": "GLIBC_2.2.5 GLIBC_2.39",
         }[option]
 

@@ -16,7 +16,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = "motebus/download"
-VERSION = "0.1.0-6"
+VERSION = "0.1.0-7"
 TAG = "agpc-view-v" + VERSION
 PACKAGE = "agpc-view_" + VERSION + "_amd64.deb"
 ASSETS = {PACKAGE, "MANIFEST.json", "SHA256SUMS"}
@@ -33,12 +33,13 @@ SOURCE_FILES = {
     "src/agpc_view_component.py",
     *("components/agpc-view/" + name for name in (
         "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "README.md", "SPEC.md",
+        "src/motes.rs", "src/map_ui.rs", "src/uchat.rs", "src/resources.rs", "src/connections.rs", "src/transport.rs",
         "src/keys.rs", "src/backend.rs", "src/gtk.rs", "src/main.rs", "src/local.rs", "src/mode.rs", "src/sso.rs", "assets/agpc-view.desktop",
         "assets/agpc-view.svg", "assets/style.css", "assets/copyright",
         "assets/THIRD-PARTY-NOTICES.txt", "scripts/build-deb.py", "scripts/test-package.py")),
 }
 DEPENDENCIES = ["agpc-key-manager (= 0.1.0-2)", "agpc-mesh (>= 3.0.0-3)", "agpc-mesh (<< 4)", "libgtk-4-1 (>= 4.8)",
-                "libc6 (>= 2.39)", "libgcc-s1", "libglib2.0-0t64"]
+                "libc6 (>= 2.39)", "libcairo2 (>= 1.16)", "libgcc-s1", "libglib2.0-0t64"]
 IDENTITY = {"name": "agpc-view", "version": VERSION, "architecture": "amd64"}
 
 
@@ -242,7 +243,7 @@ def validate_build(package, build, record):
     abi = proof["binary"]["abi"]
     require("[Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]" in segments
             and "(RPATH)" not in dynamic and "(RUNPATH)" not in dynamic
-            and needed == ["libc.so.6", "libgcc_s.so.1", "libgio-2.0.so.0", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1"]
+            and needed == ["libc.so.6", "libcairo.so.2", "libgcc_s.so.1", "libgio-2.0.so.0", "libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1"]
             and abi["needed"] == needed and abi["format"] == "ELF64" and abi["machine"] == "x86-64"
             and abi["interpreter"] == "/lib64/ld-linux-x86-64.so.2", "unreviewed native ABI")
     floors = [tuple(map(int, version.split("."))) for version in re.findall(r"\bGLIBC_(\d+(?:\.\d+)+)\b", versions)]
@@ -325,7 +326,7 @@ def publish():
             notes = Path(directory) / "notes.txt"
             notes.write_text(record["notes"])
             run("gh", "release", "create", TAG, "--repo", REPO, "--target", os.environ["GITHUB_SHA"],
-                "--title", "AGPC View " + VERSION + " (amd64)", "--notes-file", str(notes),
+                "--title", "AGPC Mote Map (AGPC View) " + VERSION + " (amd64)", "--notes-file", str(notes),
                 "--latest=false", *map(str, sorted(stage.iterdir())))
         finally:
             if previous is None:
@@ -345,13 +346,12 @@ def prepare(args):
               "source_commit": pipeline["sha"], "source_ref": "main", "pipeline_status": "success",
               "pipeline_id": pipeline["id"], "job_id": native["id"], "gui_job_id": gui["id"],
               "producer_manifest_sha256": sha(original), "candidate_tag": "candidate-" + TAG,
-              "assets": {}, "notes": "Native GTK4 AGPC View " + VERSION + " for amd64, built and GUI-checked by canonical main CI. "
-              "Local manages this computer and now provides CI-source inspection, validation and explicit credential synchronization. Mesh requires Account browser SSO at account.ypcloud.com and adds selected SIP and ss-webos Live key management, native provider-binding setup, import/replacement and separately gated retirement. "
-              "Teal Local and violet Mesh styles follow light, dark and high-contrast themes. Native checks cover the authentication gate; successful human sign-in remains separate live evidence. "
-              "Requires the signed agpc-key-manager 0.1.0-2 and Voice key owner dependency, the pinned existing Voice runtime, native Zenity authentication, an approved CI identity, AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8 and glibc >=2.39. Provider setup and retirement require an ephemeral Admin API credential through the native prompt. WebOS activation additionally requires its reviewed owner OCI/PD promotion and existing Account system-admin role; this GUI release does not deploy that service. "
-              "Run agpc-view as the desktop user. This standalone release does not change Core/All installers, "
-              "enable Mesh RUN, or establish runtime readiness. Verify MANIFEST.json.asc and SHA256SUMS.asc "
-              "with the established MoteBus archive key before installing.\n"}
+              "assets": {}, "notes": "Native GTK4 AGPC Mote Map (agpc-view) " + VERSION + " for amd64, built and GUI-checked by canonical main CI. "
+              "Authenticated Mesh shows source-labelled Motes; click one for Manager, exact owner Inbox, SSH/RDP/CDP targets, interfaces and readiness gates. Reviewed uChat sends use the existing owner and anonymous stdin; acceptance is distinct from delivery and unknown results never retry. Reviewed SSH/RDP opens existing native clients with their own authentication and host trust. CDP STOP remains in effect. "
+              "Local shows this computer's facts, CPU/memory and Manager prechecks. Transport settings distinguish protocol, startup and runtime. Only current-user physical RDP protocol enable/disable on configured port 3389 has an admitted setter, with exact review and owner readback. Other setters and remote metrics are explicitly unavailable. No SNMP collector, new privileged helper, credentials or arbitrary remote execution is added. "
+              "AGPC Ready remains Not ready, Live checks pending or Not verified without complete live acceptance evidence. Teal Local and violet Mesh follow light/dark/high-contrast themes. Account SSO is required for Mesh; synthetic UI checks do not prove real login, connectivity or settings changes. "
+              "Requires existing signed agpc-key-manager 0.1.0-2, Voice owner 0.1.0-1 and their retained dependencies, AGPC Mesh >=3.0.0-3 and <4, GTK4 >=4.8, Cairo >=1.16 and glibc >=2.39. Both signed helper packages are reused unchanged. Existing API Keys controls remain owner-authorized. Run agpc-view as the desktop user. "
+              "This standalone release does not change Core/All installers, install hosts, redeploy WebOS or establish runtime readiness. Verify both MANIFEST.json.asc and SHA256SUMS.asc using the established MoteBus archive key before installing.\n"}
     check_jobs(record, pipeline, native, gui)
     validate_build(args.bundle / PACKAGE, build, record)
     require(not args.output.exists() and not args.record_output.exists(), "preparation output already exists")
