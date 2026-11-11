@@ -549,30 +549,47 @@ def package_field(asset: Path, field: str) -> str:
     return run("dpkg-deb", "-f", str(asset), field, capture=True)
 
 
-def validate_mac_installer(root: Path) -> dict:
+def validate_mac_installer(root: Path, key_root: Path | None = None) -> dict:
+    key_root = root if key_root is None else key_root
     for name in MAC_INSTALLER_FILES:
         path = root / name
         require(path.is_file() and not path.is_symlink(),
                 f"missing regular macOS installer file: {name}")
     record = json.loads((root / "agpc.mac.source.json").read_text())
     require(isinstance(record, dict) and set(record) == {
-        "schema", "repository", "tag", "source_commit", "status", "assets"},
-        "macOS source fields are invalid")
-    require(record["schema"] == "agpc-mac-installer-source/v1"
-            and record["repository"] == "motebus/download"
-            and record["status"] == "docker-bootstrap-only",
+        "schema", "entrypoint", "status", "release", "manifest_sha256", "source",
+        "archive", "controller_sha256", "signature_sha256", "signing_key_fingerprint",
+        "keyring_sha256", "installer_sha256", "documentation_sha256",
+    }, "macOS source fields are invalid")
+    require(record["schema"] == "agpc.mac-controller-installer/v1"
+            and record["entrypoint"] == "agpc-mac.sh"
+            and record["status"] == "arm64-controller-preview",
             "macOS preview source identity is invalid")
-    require(isinstance(record["tag"], str) and re.fullmatch(
-        r"agpc-mac-v[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+", record["tag"]),
-        "macOS source must name an exact preview release")
-    require(isinstance(record["source_commit"], str) and re.fullmatch(
-        r"[0-9a-f]{40}", record["source_commit"]), "macOS source commit is invalid")
-    require(isinstance(record["assets"], dict) and set(record["assets"]) == {
-        "agpc-mac.sh", "AGPC-MAC.md"}, "macOS asset names are invalid")
-    for name, digest in record["assets"].items():
-        require(isinstance(digest, str) and HEX64_RE.fullmatch(digest),
-                "macOS checksum is invalid")
-        require(sha256(root / name) == digest, f"macOS digest mismatch: {name}")
+    release = re.fullmatch(
+        r"https://github[.]com/motebus/download/releases/tag/agpc-native-v(\d+[.]\d+[.]\d+-preview[.]\d+)",
+        record["release"],
+    )
+    require(release is not None, "macOS source must name an exact preview release")
+    source, archive = record["source"], record["archive"]
+    require(isinstance(source, dict) and set(source) == {
+        "project_id", "ref", "commit", "pipeline_id", "job_id", "job_name", "artifact_sha256",
+    } and source["project_id"] == 1338 and source["ref"] == "main"
+        and source["job_name"] == "mac-controller"
+        and re.fullmatch(r"[0-9a-f]{40}", source["commit"])
+        and all(type(source[k]) is int and source[k] > 0 for k in ("pipeline_id", "job_id")),
+        "macOS source job identity is invalid")
+    require(isinstance(archive, dict) and set(archive) == {"name", "sha256"}
+            and archive["name"] == f"agpc-mac-arm64-{release[1]}.tar.gz",
+            "macOS archive does not match the preview")
+    for digest in (record["manifest_sha256"], record["controller_sha256"], record["signature_sha256"],
+                   record["keyring_sha256"], record["installer_sha256"], record["documentation_sha256"],
+                   source["artifact_sha256"], archive["sha256"]):
+        require(isinstance(digest, str) and HEX64_RE.fullmatch(digest), "macOS checksum is invalid")
+    require(record["signing_key_fingerprint"] == archive_fingerprint(key_root)
+            and record["keyring_sha256"] == sha256(key_root / "medge-archive-keyring.gpg"),
+            "macOS archive key mismatch")
+    for name, field in (("agpc-mac.sh", "installer_sha256"), ("AGPC-MAC.md", "documentation_sha256")):
+        require(sha256(root / name) == record[field], f"macOS digest mismatch: {name}")
     return record
 
 
@@ -2252,10 +2269,9 @@ uninstaller is not suitable for this Agent Computer. Current removal keeps Ubunt
     </html>""")
     index = index.replace("</html>", """<h2>Native platform boundary</h2>
 <p>AGPC is 100% native. Linux uses signed Debian packages; Windows native
-integration is planned. The former <a href="agpc-mac.sh">macOS bootstrap</a>
-(and its <a href="AGPC-MAC.md">historical documentation</a>) is retired and is
-not an AGPC installation path. Its <a href="agpc.mac.source.json">source record</a>
-and <a href="agpc.mac.source.json.asc">signature</a> remain only as provenance.
+integration is planned. Apple Silicon has a <a href="agpc-mac.sh">controller preview installer</a>
+with <a href="AGPC-MAC.md">installation instructions</a> and a
+<a href="agpc.mac.source.json">signed source record</a>.
 OCI images are reserved for cloud or server deployments outside AGPC.</p>
 <p>New Windows PC: <a href="agpc-win.ps1">agpc-win.ps1</a>
 (<a href="agpc-win.ps1.asc">signature</a>) installs WSL 2, Ubuntu 26.04 by default and AGPC,
@@ -2296,7 +2312,7 @@ def stage_full_overlay_uninstaller(site: Path, repository_root: Path, current: d
 
 
 def sign_release(site: Path, repository_root: Path) -> None:
-    require(validate_mac_installer(site) == validate_mac_installer(repository_root)
+    require(validate_mac_installer(site, repository_root) == validate_mac_installer(repository_root)
             and (site / "agpc.mac.source.json").read_bytes()
             == (repository_root / "agpc.mac.source.json").read_bytes(),
             "staged macOS source differs from reviewed record")

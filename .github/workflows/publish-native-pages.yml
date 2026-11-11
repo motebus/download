@@ -3,6 +3,10 @@ name: Publish native AGPC Pages entrypoints
 on:
   workflow_dispatch:
     inputs:
+      mac_installer_only:
+        description: Publish the signed Apple Silicon installer without replacing the controller
+        type: boolean
+        default: false
       windows_only:
         description: Preserve the signed site and update only agpc.exe
         type: boolean
@@ -29,9 +33,16 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - name: Verify the pinned Apple Silicon installer
+        if: inputs.mac_installer_only
+        run: |
+          command -v gpgv >/dev/null || brew install gnupg
+          bash agpc-mac.sh --verify
       - name: Execute the pinned controller on native macOS ARM64
+        if: "!inputs.mac_installer_only"
         run: python3 scripts/verify_native_mac.py
       - name: Save native controller evidence
+        if: "!inputs.mac_installer_only"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: native-mac-controller-acceptance
@@ -40,7 +51,7 @@ jobs:
 
   build:
     needs: macos-native-controller
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && !(inputs.mac_installer_only && inputs.windows_only)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: release
@@ -49,7 +60,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Validate native packaging and preservation
-        run: python3 -m unittest discover -s tests -p 'test_native_pages.py' -v
+        run: |
+          python3 -m unittest discover -s tests -p 'test_native_pages.py' -v
+          python3 -m unittest discover -s tests -p 'test_mac_publication.py' -v
       - name: Import protected archive key
         env:
           MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
@@ -62,6 +75,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
         run: |
+          if [ "${{ inputs.mac_installer_only }}" = "true" ]; then
+            python3 scripts/publish_native.py restore-and-overlay-mac-installer . apt-site \
+              --evidence "$RUNNER_TEMP/native-pages-verification.json"
+            bash apt-site/agpc-mac.sh --plan
+            exit 0
+          fi
           if [ "${{ inputs.windows_only }}" = "true" ]; then
             python3 scripts/publish_native.py restore-and-overlay-windows . apt-site \
               --evidence "$RUNNER_TEMP/native-pages-verification.json"
