@@ -238,8 +238,7 @@ AGPC is 100% native. The supported Linux path installs signed Debian packages
 with `agpc.sh` or `agpc-all.sh`; Full Windows native integration remains incomplete; the outbound-access preview is available above.
 There is no Docker, Podman, `ag-net`, WSL fallback or container runtime in the
 AGPC product. OCI images are reserved for cloud or server deployments outside
-AGPC. The former macOS Docker bootstrap is retired and is not an installation
-path.
+AGPC. For Apple Silicon, see the [controller preview installer](AGPC-MAC.md).
 
 ## Scope and verification
 

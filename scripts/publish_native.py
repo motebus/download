@@ -398,16 +398,55 @@ def overlay_windows(root, site, evidence_path, base=None):
         "preserved_files": len(set(before) - allowed)}, indent=2) + "\n")
 
 
+def overlay_mac_installer(root, site, evidence_path, base=None):
+    """Update the installer files on the deployed site and preserve its controller."""
+    from publish_apt import MAC_INSTALLER_FILES, archive_fingerprint, validate_mac_installer
+
+    before = snapshot(site)
+    record = validate_mac_installer(root)
+    require(record["signing_key_fingerprint"] == archive_fingerprint(root)
+            and record["keyring_sha256"] == file_digest(root / "medge-archive-keyring.gpg"),
+            "Mac installer archive key mismatch")
+    require(before.get("agpc") == record["controller_sha256"],
+            "deployed Mac controller differs from the installer preview")
+    tag = record["release"].rsplit("/", 1)[1]
+    manifest = json.loads(fetch_release(tag, "MANIFEST.json", record["manifest_sha256"]))
+    source = manifest["sources"]["macos"]
+    require(manifest["tag"] == tag and manifest["prerelease"] is True
+            and all(source.get(key) == value for key, value in record["source"].items())
+            and manifest["payload_sha256"]["macos"]["arm64"] == record["controller_sha256"]
+            and manifest["assets"][record["archive"]["name"]]["sha256"] == record["archive"]["sha256"],
+            "Mac installer source record differs from the release manifest")
+    names = set(MAC_INSTALLER_FILES)
+    for name in names:
+        path = site / name
+        path.write_bytes((root / name).read_bytes())
+        path.chmod(0o755 if name == "agpc-mac.sh" else 0o644)
+    sign_files(root, site, names)
+    after = snapshot(site)
+    allowed = names | {name + ".asc" for name in names}
+    verify_preservation(before, after, allowed)
+    evidence_path.write_text(json.dumps({
+        "schema": "agpc.mac-installer-pages-evidence/v1", "base": base,
+        "release": record["release"], "controller_sha256": after["agpc"],
+        "published_sha256": {name: after[name] for name in sorted(allowed)},
+        "changed_paths": sorted(name for name in allowed if before.get(name) != after[name]),
+    }, indent=2) + "\n")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["restore-and-overlay", "overlay",
-                                            "restore-and-overlay-windows", "overlay-windows"])
+                                            "restore-and-overlay-windows", "overlay-windows",
+                                            "restore-and-overlay-mac-installer", "overlay-mac-installer"])
     parser.add_argument("root", type=Path)
     parser.add_argument("site", type=Path)
     parser.add_argument("--evidence", type=Path, required=True)
     args = parser.parse_args()
     base = restore_current(args.site) if args.command.startswith("restore-and-") else None
-    if args.command.endswith("-windows"):
+    if args.command.endswith("-mac-installer"):
+        overlay_mac_installer(args.root, args.site, args.evidence, base)
+    elif args.command.endswith("-windows"):
         overlay_windows(args.root, args.site, args.evidence, base)
     else:
         overlay(args.root, args.site, args.evidence, base)

@@ -1,11 +1,26 @@
 {
-  "schema": "agpc-mac-installer-source/v1",
-  "repository": "motebus/download",
-  "tag": "agpc-mac-v0.1.0-preview.4",
-  "source_commit": "c6311361b5983e425e44cbcd09f27828054e73b1",
-  "status": "docker-bootstrap-only",
-  "assets": {
-    "agpc-mac.sh": "362e0c85217cd6361d4c462f0747d477089ee04dce30f49357ed808523753444",
-    "AGPC-MAC.md": "738b92bccadc48dd5e166c6f90c627ca2e7f7799f6881d1ecef4668b54e3c409"
-  }
+  "schema": "agpc.mac-controller-installer/v1",
+  "entrypoint": "agpc-mac.sh",
+  "status": "arm64-controller-preview",
+  "release": "https://github.com/motebus/download/releases/tag/agpc-native-v0.1.0-preview.21",
+  "manifest_sha256": "36f8f2d5922cb77b3ed2be974fea423a88f2acbba4b8fabd7ed73ede03b10a85",
+  "source": {
+    "project_id": 1338,
+    "ref": "main",
+    "commit": "c9aba1dfd117bb23f36356f653b4a5721dae6882",
+    "pipeline_id": 27109,
+    "job_id": 63281,
+    "job_name": "mac-controller",
+    "artifact_sha256": "34ef4f80f9a31875960189e22caebfc75393580bb41f81ba842869cb95856b87"
+  },
+  "archive": {
+    "name": "agpc-mac-arm64-0.1.0-preview.21.tar.gz",
+    "sha256": "c9dfa15e6a23279596bd55b04cd2ec3b86f951e04926bc108dc84e0493460cdc"
+  },
+  "controller_sha256": "6ab5b3bcbd5f6e5df695d6885c4b971624e12171c8274ed14d794d6f63c01320",
+  "signature_sha256": "65a66fccc11b03bafdb83555804338e673fe5a821fabc67b46acb38d2c74cb57",
+  "signing_key_fingerprint": "AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0",
+  "keyring_sha256": "756fc2632c307509b8e5ece665ced7f4d1a58636ac935aefc1e017f7dcfcbfbd",
+  "installer_sha256": "32d201d6737e0fb90052101715033cdd24fe4c3254e56503a106d74b16b30353",
+  "documentation_sha256": "5e9032be9bbb049659790a1585c520ae436bd73a15a6c0e40437a5bb6fd0e75d"
 }
