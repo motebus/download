@@ -549,8 +549,7 @@ def package_field(asset: Path, field: str) -> str:
     return run("dpkg-deb", "-f", str(asset), field, capture=True)
 
 
-def validate_mac_installer(root: Path, key_root: Path | None = None) -> dict:
-    key_root = root if key_root is None else key_root
+def validate_mac_installer(root: Path) -> dict:
     for name in MAC_INSTALLER_FILES:
         path = root / name
         require(path.is_file() and not path.is_symlink(),
@@ -585,9 +584,9 @@ def validate_mac_installer(root: Path, key_root: Path | None = None) -> dict:
                    record["keyring_sha256"], record["installer_sha256"], record["documentation_sha256"],
                    source["artifact_sha256"], archive["sha256"]):
         require(isinstance(digest, str) and HEX64_RE.fullmatch(digest), "macOS checksum is invalid")
-    require(record["signing_key_fingerprint"] == archive_fingerprint(key_root)
-            and record["keyring_sha256"] == sha256(key_root / "medge-archive-keyring.gpg"),
-            "macOS archive key mismatch")
+    require(isinstance(record["signing_key_fingerprint"], str)
+            and FINGERPRINT_RE.fullmatch(record["signing_key_fingerprint"]),
+            "macOS archive fingerprint is invalid")
     for name, field in (("agpc-mac.sh", "installer_sha256"), ("AGPC-MAC.md", "documentation_sha256")):
         require(sha256(root / name) == record[field], f"macOS digest mismatch: {name}")
     return record
@@ -2312,7 +2311,7 @@ def stage_full_overlay_uninstaller(site: Path, repository_root: Path, current: d
 
 
 def sign_release(site: Path, repository_root: Path) -> None:
-    require(validate_mac_installer(site, repository_root) == validate_mac_installer(repository_root)
+    require(validate_mac_installer(site) == validate_mac_installer(repository_root)
             and (site / "agpc.mac.source.json").read_bytes()
             == (repository_root / "agpc.mac.source.json").read_bytes(),
             "staged macOS source differs from reviewed record")

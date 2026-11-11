@@ -400,10 +400,13 @@ def overlay_windows(root, site, evidence_path, base=None):
 
 def overlay_mac_installer(root, site, evidence_path, base=None):
     """Update the installer files on the deployed site and preserve its controller."""
-    from publish_apt import MAC_INSTALLER_FILES, validate_mac_installer
+    from publish_apt import MAC_INSTALLER_FILES, archive_fingerprint, validate_mac_installer
 
     before = snapshot(site)
     record = validate_mac_installer(root)
+    require(record["signing_key_fingerprint"] == archive_fingerprint(root)
+            and record["keyring_sha256"] == file_digest(root / "medge-archive-keyring.gpg"),
+            "Mac installer archive key mismatch")
     require(before.get("agpc") == record["controller_sha256"],
             "deployed Mac controller differs from the installer preview")
     tag = record["release"].rsplit("/", 1)[1]
