@@ -8,6 +8,24 @@ import subprocess
 
 import publish_native as native
 
+def verify_signature(keyring, site, name):
+    subprocess.run(
+        ["gpgv", "--keyring", str(keyring.resolve()), str(site / (name + ".asc")), str(site / name)],
+        check=True,
+    )
+
+
+def stage_ready_platforms(site, keyring, before):
+    verify_signature(keyring, site, "agpc-native-SHA256SUMS")
+    verify_signature(keyring, site, "agpc-mac.sh")
+    checksums = (site / "agpc-native-SHA256SUMS").read_text().splitlines()
+    native.require(
+        f'{before["agpc.exe"]}  agpc.exe' in checksums,
+        "Windows executable differs from the signed checksum",
+    )
+    shutil.copy2(site / "agpc.exe", site / "agpc-win.exe")
+
+
 def stage_alias(root, site, entrypoint):
     stem, profile = ("agpc", "standard") if entrypoint == "ready" else ("agpc-all", "full")
     installer = stem + ".sh"
@@ -19,10 +37,7 @@ def stage_alias(root, site, entrypoint):
     before = native.snapshot(site)
     keyring = root / "medge-archive-keyring.gpg"
     for name in (installer, receipt):
-        subprocess.run(
-            ["gpgv", "--keyring", str(keyring.resolve()), str(site / (name + ".asc")), str(site / name)],
-            check=True,
-        )
+        verify_signature(keyring, site, name)
 
     source = json.loads((site / receipt).read_text())
     native.require(
@@ -37,6 +52,9 @@ def stage_alias(root, site, entrypoint):
         shutil.copy2(site / canonical, site / alias)
     changed = set(aliases)
     if entrypoint == "ready":
+        stage_ready_platforms(site, keyring, before)
+        aliases["agpc-win.exe"] = "agpc.exe"
+        changed.add("agpc-win.exe")
         index = site / "index.html"
         updated = index.read_bytes()
         for old, new in (
@@ -44,14 +62,25 @@ def stage_alias(root, site, entrypoint):
             (b"agpc.source.json", b"agpc-ready.source.json"),
             (b"agpc-all.sh", b"agpc-full.sh"),
             (b"agpc-all.source.json", b"agpc-full.source.json"),
-            (b"<td>Standard</td>", b"<td>Ready</td>"),
+            (b"<td>Standard</td>", b"<td>Ready (Ubuntu)</td>"),
             (b"The same Core system and AGPC View GUI", b"Core with AGPC View GUI"),
             (b"Standard installation", b"Ready installation"),
             (b"Standard preserves", b"Ready preserves"),
             (b"<br>Standard:", b"<br>Ready:"),
+            (b"agpc.exe", b"agpc-win.exe"),
         ):
             updated = updated.replace(old, new)
-        native.require(b'href="agpc-ready.sh"' in updated, "Ready installer link missing from download page")
+        if b'<td>Ready (Windows)</td>' not in updated:
+            rows = (
+                b'<tr><td>Ready (Windows)</td><td><a href="agpc-win.exe">agpc-win.exe</a></td>'
+                b'<td>x86-64 outbound-access preview</td></tr>\n'
+                b'<tr><td>Ready (macOS)</td><td><a href="agpc-mac.sh">agpc-mac.sh</a></td>'
+                b'<td>Apple Silicon controller preview</td></tr>\n'
+            )
+            updated = updated.replace(b"</table>", rows + b"</table>", 1)
+        native.require(all(f'href="{name}"'.encode() in updated
+                           for name in ("agpc-ready.sh", "agpc-win.exe", "agpc-mac.sh")),
+                       "Ready platform links missing from download page")
         native.require((site / "agpc-full.sh").is_file(), "Full installer missing from download site")
         index.write_bytes(updated)
         changed.add("index.html")
