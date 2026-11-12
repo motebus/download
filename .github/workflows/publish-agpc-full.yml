@@ -1,0 +1,49 @@
+name: Publish AGPC full installer alias
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: medge-apt-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Stage the existing signed full installer under the new URL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/publish_agpc_full.py . apt-site
+          bash -n apt-site/agpc-full.sh
+          bash apt-site/agpc-full.sh --help
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apt-site
+          retention-days: 30
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish the full installer alias
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          timeout: '1800000'
