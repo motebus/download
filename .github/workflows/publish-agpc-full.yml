@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Stage the existing signed full installer under the new URL
+      - name: Stage the selected signed installer
         env:
           ENTRYPOINT: ${{ inputs.entrypoint }}
           GH_TOKEN: ${{ github.token }}
