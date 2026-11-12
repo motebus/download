@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish an alias of the signed full installer from the current Pages site."""
+"""Publish signed AGPC installer entrypoints on Pages."""
 import argparse
 import json
 from pathlib import Path
@@ -8,39 +8,95 @@ import subprocess
 
 import publish_native as native
 
-ALIASES = {
-    "agpc-full.sh": "agpc-all.sh",
-    "agpc-full.sh.asc": "agpc-all.sh.asc",
-    "agpc-full.source.json": "agpc-all.source.json",
-    "agpc-full.source.json.asc": "agpc-all.source.json.asc",
-}
 
-
-def stage_alias(root, site):
-    before = native.snapshot(site)
-    keyring = root / "medge-archive-keyring.gpg"
-    for name in ("agpc-all.sh", "agpc-all.source.json"):
-        subprocess.run(
-            ["gpgv", "--keyring", str(keyring.resolve()), str(site / (name + ".asc")), str(site / name)],
-            check=True,
-        )
-
-    source = json.loads((site / "agpc-all.source.json").read_text())
-    native.require(
-        source["repository"] == native.REPOSITORY
-        and source["profile"] == "full"
-        and source["asset"] == "agpc-all.sh"
-        and source["sha256"] == before["agpc-all.sh"],
-        "the signed source record must describe the deployed full installer",
+def verify_signature(keyring, site, name):
+    subprocess.run(
+        ["gpgv", "--keyring", str(keyring.resolve()), str(site / (name + ".asc")), str(site / name)],
+        check=True,
     )
 
-    for alias, canonical in ALIASES.items():
-        shutil.copy2(site / canonical, site / alias)
-    after = native.snapshot(site)
-    native.verify_preservation(before, after, ALIASES)
+
+def ready_platform_aliases(site, keyring, before):
+    verify_signature(keyring, site, "agpc-native-SHA256SUMS")
+    verify_signature(keyring, site, "agpc-mac.sh")
+    checksums = (site / "agpc-native-SHA256SUMS").read_text().splitlines()
     native.require(
-        all(after[alias] == before[canonical] for alias, canonical in ALIASES.items()),
-        "full installer alias differs from the signed original",
+        f'{before["agpc.exe"]}  agpc.exe' in checksums,
+        "Windows executable differs from the signed checksum",
+    )
+    return {
+        "agpc-ready-win.exe": "agpc.exe",
+        "agpc-ready-mac.sh": "agpc-mac.sh",
+        "agpc-ready-mac.sh.asc": "agpc-mac.sh.asc",
+    }
+
+
+def update_ready_index(site):
+    index = site / "index.html"
+    updated = index.read_bytes()
+    for old, new in (
+        (b"agpc.sh", b"agpc-ready.sh"),
+        (b"agpc.source.json", b"agpc-ready.source.json"),
+        (b"agpc-all.sh", b"agpc-full.sh"),
+        (b"agpc-all.source.json", b"agpc-full.source.json"),
+        (b"<td>Standard</td>", b"<td>Ready (Ubuntu)</td>"),
+        (b"The same Core system and AGPC View GUI", b"Core with AGPC View GUI"),
+        (b"Standard installation", b"Ready installation"),
+        (b"Standard preserves", b"Ready preserves"),
+        (b"<br>Standard:", b"<br>Ready:"),
+        (b"agpc.exe", b"agpc-ready-win.exe"),
+    ):
+        updated = updated.replace(old, new)
+    if b'<td>Ready (Windows)</td>' not in updated:
+        rows = (
+            b'<tr><td>Ready (Windows)</td><td><a href="agpc-ready-win.exe">agpc-ready-win.exe</a></td>'
+            b'<td>x86-64 outbound-access preview</td></tr>\n'
+            b'<tr><td>Ready (macOS)</td><td><a href="agpc-ready-mac.sh">agpc-ready-mac.sh</a></td>'
+            b'<td>Apple Silicon controller preview</td></tr>\n'
+        )
+        updated = updated.replace(b"</table>", rows + b"</table>", 1)
+    native.require(all(f'href="{name}"'.encode() in updated
+                       for name in ("agpc-ready.sh", "agpc-ready-win.exe", "agpc-ready-mac.sh")),
+                   "Ready platform links missing from download page")
+    native.require((site / "agpc-full.sh").is_file(), "Full installer missing from download site")
+    index.write_bytes(updated)
+
+
+def stage_alias(root, site, entrypoint):
+    stem, profile = ("agpc", "standard") if entrypoint == "ready" else ("agpc-all", "full")
+    installer = stem + ".sh"
+    receipt = stem + ".source.json"
+    aliases = {
+        f"agpc-{entrypoint}{suffix}": stem + suffix
+        for suffix in (".sh", ".sh.asc", ".source.json", ".source.json.asc")
+    }
+    before = native.snapshot(site)
+    keyring = root / "medge-archive-keyring.gpg"
+    for name in (installer, receipt):
+        verify_signature(keyring, site, name)
+
+    source = json.loads((site / receipt).read_text())
+    native.require(
+        source["repository"] == native.REPOSITORY
+        and source["profile"] == profile
+        and source["asset"] == installer
+        and source["sha256"] == before[installer],
+        "the signed source record must describe the selected deployed installer",
+    )
+
+    if entrypoint == "ready":
+        aliases.update(ready_platform_aliases(site, keyring, before))
+    for alias, canonical in aliases.items():
+        shutil.copy2(site / canonical, site / alias)
+    changed = set(aliases)
+    if entrypoint == "ready":
+        update_ready_index(site)
+        changed.add("index.html")
+    after = native.snapshot(site)
+    native.verify_preservation(before, after, changed)
+    native.require(
+        all(after[alias] == before[canonical] for alias, canonical in aliases.items()),
+        "installer alias differs from the signed original",
     )
 
 
@@ -48,9 +104,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("root", type=Path)
     parser.add_argument("site", type=Path)
+    parser.add_argument("--entrypoint", choices=("full", "ready"), default="full")
     args = parser.parse_args()
     base = native.restore_current(args.site)
-    stage_alias(args.root, args.site)
+    stage_alias(args.root, args.site, args.entrypoint)
     native.require(native.current_pages() == base, "Pages deployment changed before promotion")
 
 

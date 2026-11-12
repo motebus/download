@@ -1,7 +1,16 @@
-name: Publish AGPC full installer alias
+name: Publish AGPC installer entrypoint
 
 on:
   workflow_dispatch:
+    inputs:
+      entrypoint:
+        description: Installer entrypoint to publish
+        required: true
+        default: ready
+        type: choice
+        options:
+          - ready
+          - full
 
 permissions:
   contents: read
@@ -23,13 +32,14 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Stage the existing signed full installer under the new URL
+      - name: Stage the selected signed installer
         env:
+          ENTRYPOINT: ${{ inputs.entrypoint }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 scripts/publish_agpc_full.py . apt-site
-          bash -n apt-site/agpc-full.sh
-          bash apt-site/agpc-full.sh --help
+          python3 scripts/publish_agpc_full.py . apt-site --entrypoint "$ENTRYPOINT"
+          bash -n "apt-site/agpc-${ENTRYPOINT}.sh"
+          bash "apt-site/agpc-${ENTRYPOINT}.sh" --help
       - uses: actions/upload-pages-artifact@v3
         with:
           path: apt-site
@@ -42,7 +52,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Publish the full installer alias
+      - name: Publish the installer entrypoint
         id: deployment
         uses: actions/deploy-pages@v4
         with:
