@@ -11,6 +11,7 @@ on:
         options:
           - ready
           - full
+          - mac-ready
 
 permissions:
   contents: read
@@ -25,9 +26,13 @@ concurrency:
 
 jobs:
   build:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && inputs.entrypoint != 'mac-ready'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -44,8 +49,48 @@ jobs:
         with:
           path: apt-site
           retention-days: 30
+  mac-ready:
+    if: github.ref == 'refs/heads/main' && inputs.entrypoint == 'mac-ready'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write
+      actions: read
+      deployments: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Check the Mac Ready installer
+        run: |
+          bash -n scripts/agpc-ready-mac.sh
+          bash scripts/agpc-ready-mac.sh --help
+          bash scripts/agpc-ready-mac.sh --plan
+      - name: Import the protected archive key
+        env:
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$MEDGE_APT_SIGNING_KEY"
+          printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
+      - name: Sign and publish the Mac Ready installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: |
+          python3 scripts/publish_agpc_full.py . apt-site \
+            --entrypoint mac-ready --release-dist "$RUNNER_TEMP/agpc-ready-mac"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apt-site
+          retention-days: 30
   deploy:
-    needs: build
+    needs: [build, mac-ready]
+    if: >-
+      !cancelled() &&
+      ((inputs.entrypoint == 'mac-ready' && needs.mac-ready.result == 'success') ||
+       (inputs.entrypoint != 'mac-ready' && needs.build.result == 'success'))
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     environment:

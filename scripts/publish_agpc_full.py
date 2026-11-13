@@ -2,11 +2,18 @@
 """Publish signed AGPC installer entrypoints on Pages."""
 import argparse
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
 
 import publish_native as native
+
+MAC_READY = "agpc-ready-mac.sh"
+MAC_READY_RECORD = "agpc-ready-mac.source.json"
+MAC_READY_TAG = "agpc-ready-v0.1.0-preview.2"
+MAC_READY_SHA256 = "ba246ddd0700a61fcbb97c5fea35b589cbdd226fcafc4b504d88f862cea0976c"
+MAC_READY_FILES = {MAC_READY, MAC_READY_RECORD}
 
 
 def verify_signature(keyring, site, name):
@@ -24,11 +31,78 @@ def ready_platform_aliases(site, keyring, before):
         f'{before["agpc.exe"]}  agpc.exe' in checksums,
         "Windows executable differs from the signed checksum",
     )
-    return {
-        "agpc-ready-win.exe": "agpc.exe",
-        "agpc-ready-mac.sh": "agpc-mac.sh",
-        "agpc-ready-mac.sh.asc": "agpc-mac.sh.asc",
+    aliases = {"agpc-ready-win.exe": "agpc.exe"}
+    if MAC_READY_RECORD in before:
+        verify_signature(keyring, site, MAC_READY)
+        verify_signature(keyring, site, MAC_READY_RECORD)
+        record = json.loads((site / MAC_READY_RECORD).read_text())
+        native.require(record["asset"] == MAC_READY and record["sha256"] == before[MAC_READY],
+                       "Mac Ready source record does not match the deployed script")
+    else:
+        aliases.update({MAC_READY: "agpc-mac.sh", MAC_READY + ".asc": "agpc-mac.sh.asc"})
+    return aliases
+
+
+def stage_mac_ready(root, site, revision):
+    before = native.snapshot(site)
+    script = root / "scripts" / MAC_READY
+    native.require(script.is_file() and not script.is_symlink(), "Mac Ready script missing")
+    native.require(native.file_digest(script) == MAC_READY_SHA256, "Mac Ready script digest mismatch")
+    shutil.copy2(script, site / MAC_READY)
+    record = {
+        "schema": "agpc.mac-ready-installer/v1",
+        "repository": native.REPOSITORY,
+        "tag": MAC_READY_TAG,
+        "source_commit": revision,
+        "asset": MAC_READY,
+        "sha256": MAC_READY_SHA256,
+        "scope": "startup-preview-for-provisioned-apple-silicon-macs",
+        "controller_tag": "agpc-native-v0.1.0-preview.21",
     }
+    (site / MAC_READY_RECORD).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    native.sign_files(root, site, MAC_READY_FILES)
+    native.verify_preservation(before, native.snapshot(site),
+                               MAC_READY_FILES | {name + ".asc" for name in MAC_READY_FILES})
+
+
+def publish_mac_ready_release(root, site, dist, revision):
+    assets = sorted(MAC_READY_FILES | {name + ".asc" for name in MAC_READY_FILES})
+    dist.mkdir()
+    for name in assets:
+        shutil.copy2(site / name, dist / name)
+    (dist / "SHA256SUMS").write_text(
+        "".join(f"{native.file_digest(dist / name)}  {name}\n" for name in assets),
+        encoding="utf-8",
+    )
+    native.sign_files(root, dist, {"SHA256SUMS"})
+    assets += ["SHA256SUMS", "SHA256SUMS.asc"]
+    notes = (
+        "Apple Silicon startup preview for a provisioned Mac with UTM, an existing "
+        "Sphere guest, and the verified native B-channel proxy. The login launcher "
+        "opens UTM, starts the guest and hides the window. Tested through an actual "
+        "M4 reboot and strict B-channel SSH. The installer uses the existing "
+        "preview.21 controller. Verify downloads with SHA256SUMS and the MEdge archive key."
+    )
+    gh_release = ["gh", "release"]
+    releases = native.gh_json(f"repos/{native.REPOSITORY}/releases?per_page=100")
+    native.require(all(item["tag_name"] != MAC_READY_TAG for item in releases),
+                   "Mac Ready release already exists")
+    tag = subprocess.run(["gh", "api", f"repos/{native.REPOSITORY}/git/ref/tags/{MAC_READY_TAG}"],
+                         capture_output=True, text=True)
+    native.require(tag.returncode != 0 and "HTTP 404" in tag.stderr,
+                   "Mac Ready tag exists or could not be checked")
+    subprocess.run([*gh_release, "create", MAC_READY_TAG, "--target", revision,
+                    "--title", "AGPC Ready for macOS v0.1.0 Preview 2",
+                    "--notes", notes, "--draft", "--prerelease", "--latest=false",
+                    *(str(dist / name) for name in assets)], check=True)
+    readback = dist / "readback"
+    subprocess.run([*gh_release, "download", MAC_READY_TAG, "--pattern", "*",
+                    "--dir", str(readback)], check=True)
+    native.require({p.name for p in readback.iterdir()} == set(assets), "Unexpected release assets")
+    for name in assets:
+        native.require(native.file_digest(readback / name) == native.file_digest(dist / name),
+                       f"Release readback digest mismatch for {name}")
+    subprocess.run([*gh_release, "edit", MAC_READY_TAG, "--draft=false", "--latest=false"], check=True)
 
 
 def update_ready_index(site):
@@ -104,11 +178,20 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("root", type=Path)
     parser.add_argument("site", type=Path)
-    parser.add_argument("--entrypoint", choices=("full", "ready"), default="full")
+    parser.add_argument("--entrypoint", choices=("full", "ready", "mac-ready"), default="full")
+    parser.add_argument("--release-dist", type=Path)
     args = parser.parse_args()
+    if (args.entrypoint == "mac-ready") != (args.release_dist is not None):
+        parser.error("--release-dist must be used with mac-ready")
     base = native.restore_current(args.site)
-    stage_alias(args.root, args.site, args.entrypoint)
+    if args.entrypoint == "mac-ready":
+        revision = os.environ["GITHUB_SHA"]
+        stage_mac_ready(args.root, args.site, revision)
+    else:
+        stage_alias(args.root, args.site, args.entrypoint)
     native.require(native.current_pages() == base, "Pages deployment changed before promotion")
+    if args.entrypoint == "mac-ready":
+        publish_mac_ready_release(args.root, args.site, args.release_dist, revision)
 
 
 if __name__ == "__main__":
