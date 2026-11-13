@@ -1,0 +1,48 @@
+name: Publish reviewed SmartScreen package to signed APT
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+  pages: write
+  id-token: write
+concurrency:
+  group: medge-apt-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends apt-utils gnupg
+      - name: Verify, add, and sign the exact SmartScreen asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          test -n "$MEDGE_APT_SIGNING_KEY"
+          printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
+          python3 scripts/promote_ss_webos_apt.py apt-site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apt-site
+          retention-days: 30
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
