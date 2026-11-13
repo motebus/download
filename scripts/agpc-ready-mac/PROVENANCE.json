@@ -1,0 +1,29 @@
+{
+  "schema": "agpc.mac-ready/v1",
+  "tag": "agpc-ready-mac-v0.1.0-preview.1",
+  "controller": {
+    "tag": "agpc-native-v0.1.0-preview.21",
+    "archive_sha256": "c9dfa15e6a23279596bd55b04cd2ec3b86f951e04926bc108dc84e0493460cdc",
+    "executable_sha256": "6ab5b3bcbd5f6e5df695d6885c4b971624e12171c8274ed14d794d6f63c01320"
+  },
+  "proxy": {
+    "asset": "agpc-ready-mac-proxy-arm64.tar.gz",
+    "sha256": "d968c36fc47b368330274050f4d38eb774146cf2029e5030f7e005116b72a3c2",
+    "build": "M4 local development build with the macOS B-channel port, Rust 1.85.1, locked dependencies, path remapping and linker code signing",
+    "upstream_base_commit": "94fbbe1b0a7eb60bce4751d2b95cf08d4d7d4ec6",
+    "sdk_base_commit": "760149b8de491c4889cafdccfe66494b3699e774",
+    "members": {
+      "mote-proxy-b": "f7978df775ef7e595163166903672551fba50689ef7619d08a43eb6a57831ccd",
+      "mote-ssh": "3f82bab32d5fe28957dc7cd002119a9404f29fabe9fbf33ced132780a70bcd18",
+      "ssh-proxy": "4981870f1e02fc99cfa6ebf8c423e97579b74ae68cc7a63818d00ce4703af540",
+      "com.agpc.mote-proxy.b.plist": "ed16eb66c8963b5e95d40a21f987a6bcbf16ac40b396d2bb487db0b8c0d15804"
+    }
+  },
+  "guest": {
+    "architecture": "amd64",
+    "mbstack_tag": "agpc-mac-deb-v2.6.7-1-preview1",
+    "mbstack_deb_sha256": "f5f46b5814f82b988e204ca30f99884f2b2a061ae3aeb034229bb764b7a7f5af",
+    "dc_payload_tag": "agent-computer-v0.3.0-87",
+    "dc_package_sha256": "38667a250b2108a9d93f0743a81892875043ec32b09a61206e33deabe9deeb9a"
+  }
+}

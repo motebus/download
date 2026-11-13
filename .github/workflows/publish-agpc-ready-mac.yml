@@ -1,0 +1,87 @@
+name: Publish signed AGPC Ready for macOS
+
+on:
+  push:
+    tags: [agpc-ready-mac-v0.1.0-preview.1]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Validate installer and staged proxy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = motebus/download
+          test "$GITHUB_REF_NAME" = agpc-ready-mac-v0.1.0-preview.1
+          export DIST="$RUNNER_TEMP/mac-ready"
+          mkdir "$DIST"
+          cp scripts/agpc-ready-mac/{agpc-ready-mac.sh,install-sphere-guest.sh,README.md,PROVENANCE.json} "$DIST/"
+          cd "$DIST"
+          bash -n agpc-ready-mac.sh
+          bash -n install-sphere-guest.sh
+          bash agpc-ready-mac.sh --plan
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,assets --jq '.isDraft and ([.assets[].name] == ["agpc-ready-mac-proxy-arm64.tar.gz"])' | grep -qx true
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --pattern agpc-ready-mac-proxy-arm64.tar.gz
+          printf '%s  %s\n' d968c36fc47b368330274050f4d38eb774146cf2029e5030f7e005116b72a3c2 \
+            agpc-ready-mac-proxy-arm64.tar.gz | sha256sum -c
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, tarfile
+
+          root = pathlib.Path(os.environ["DIST"])
+          record = json.loads((root / "PROVENANCE.json").read_text())
+          files = record["proxy"]["members"]
+          with tarfile.open(root / record["proxy"]["asset"], "r:gz") as bundle:
+              assert sorted(bundle.getnames()) == sorted(files)
+              for name, digest in files.items():
+                  member = bundle.getmember(name)
+                  assert member.isfile()
+                  with bundle.extractfile(member) as stream:
+                      assert hashlib.sha256(stream.read()).hexdigest() == digest
+          record["installer_source_commit"] = os.environ["GITHUB_SHA"]
+          (root / "PROVENANCE.json").write_text(json.dumps(record, indent=2) + "\n")
+          PY
+      - name: Sign Mac installer and verify uploaded bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}
+          MEDGE_APT_SIGNING_PASSPHRASE: ${{ secrets.MEDGE_APT_SIGNING_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$RUNNER_TEMP/mac-ready-gnupg"
+          install -d -m 0700 "$GNUPGHOME"
+          printf '%s' "$MEDGE_APT_SIGNING_KEY" | gpg --batch --import
+          fingerprint=AECAA1DCDAF19C7B7FEAF0C082A0E180EDAEA7A0
+          keyring="$GITHUB_WORKSPACE/medge-archive-keyring.gpg"
+          cd "$RUNNER_TEMP/mac-ready"
+          assets=(agpc-ready-mac.sh install-sphere-guest.sh README.md PROVENANCE.json agpc-ready-mac-proxy-arm64.tar.gz)
+          sha256sum "${assets[@]}" > SHA256SUMS
+          signatures=()
+          for asset in "${assets[@]}" SHA256SUMS; do
+            printf '%s\n' "$MEDGE_APT_SIGNING_PASSPHRASE" | gpg --batch --pinentry-mode loopback \
+              --passphrase-fd 0 --local-user "$fingerprint" --armor --detach-sign "$asset"
+            gpgv --keyring "$keyring" "$asset.asc" "$asset"
+            signatures+=("$asset.asc")
+          done
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            agpc-ready-mac.sh install-sphere-guest.sh README.md PROVENANCE.json SHA256SUMS "${signatures[@]}"
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --pattern '*' --dir "$RUNNER_TEMP/mac-ready-readback"
+          cd "$RUNNER_TEMP/mac-ready-readback"
+          for asset in "${assets[@]}" SHA256SUMS; do
+            cmp "$RUNNER_TEMP/mac-ready/$asset" "$asset"
+            gpgv --keyring "$keyring" "$asset.asc" "$asset"
+          done
+          sha256sum -c SHA256SUMS
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
