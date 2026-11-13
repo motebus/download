@@ -11,8 +11,8 @@ import publish_native as native
 
 MAC_READY = "agpc-ready-mac.sh"
 MAC_READY_RECORD = "agpc-ready-mac.source.json"
-MAC_READY_TAG = "agpc-ready-v0.1.0-preview.2"
-MAC_READY_SHA256 = "ba246ddd0700a61fcbb97c5fea35b589cbdd226fcafc4b504d88f862cea0976c"
+MAC_READY_TAG = "agpc-ready-v0.1.0-preview.3"
+MAC_READY_SHA256 = "c860b48e5c2f76a8adac865201300e43896d3102da5835d4274d6a99120b5b4d"
 MAC_READY_FILES = {MAC_READY, MAC_READY_RECORD}
 
 
@@ -56,7 +56,7 @@ def stage_mac_ready(root, site, revision):
         "source_commit": revision,
         "asset": MAC_READY,
         "sha256": MAC_READY_SHA256,
-        "scope": "startup-preview-for-provisioned-apple-silicon-macs",
+        "scope": "clean-install-preview-for-apple-silicon-macs",
         "controller_tag": "agpc-native-v0.1.0-preview.21",
     }
     (site / MAC_READY_RECORD).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
@@ -77,11 +77,13 @@ def publish_mac_ready_release(root, site, dist, revision):
     native.sign_files(root, dist, {"SHA256SUMS"})
     assets += ["SHA256SUMS", "SHA256SUMS.asc"]
     notes = (
-        "Apple Silicon startup preview for a provisioned Mac with UTM, an existing "
-        "Sphere guest, and the verified native B-channel proxy. The login launcher "
-        "opens UTM, starts the guest and hides the window. Tested through an actual "
-        "M4 reboot and strict B-channel SSH. The installer uses the existing "
-        "preview.21 controller. Verify downloads with SHA256SUMS and the MEdge archive key."
+        "Single-file installer preview for Apple Silicon Macs. It verifies the existing "
+        "preview.21 controller and the signed Darwin ARM64 B-channel proxy, then "
+        "provisions an Ubuntu amd64 Sphere guest with mbStack and DC in UTM. "
+        "Requires a Mac administrator and the deployment upstreams. Accepted on a "
+        "clean macOS 26.4 VM through installation, reboot, automatic Sphere and proxy "
+        "startup, and strict B-channel SSH to L5. The proxy is an ad hoc signed development "
+        "build. Verify downloads with SHA256SUMS and the MEdge archive key."
     )
     gh_release = ["gh", "release"]
     releases = native.gh_json(f"repos/{native.REPOSITORY}/releases?per_page=100")
@@ -92,7 +94,7 @@ def publish_mac_ready_release(root, site, dist, revision):
     native.require(tag.returncode != 0 and "HTTP 404" in tag.stderr,
                    "Mac Ready tag exists or could not be checked")
     subprocess.run([*gh_release, "create", MAC_READY_TAG, "--target", revision,
-                    "--title", "AGPC Ready for macOS v0.1.0 Preview 2",
+                    "--title", "AGPC Ready for macOS v0.1.0 Preview 3",
                     "--notes", notes, "--draft", "--prerelease", "--latest=false",
                     *(str(dist / name) for name in assets)], check=True)
     readback = dist / "readback"
