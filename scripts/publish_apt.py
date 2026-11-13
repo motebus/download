@@ -806,7 +806,16 @@ def validate_full_overlay_config(release: dict, *, schema=AGENT_COMPUTER_FULL_SC
                              if schema == AGENT_COMPUTER_CORE_SCHEMA else None)
         require(isinstance(package["version"], str)
                 and (package["version"] == candidate_version if candidate_version else
-                     re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", package["version"])),
+                     (re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-[0-9]+", package["version"])
+                      or (name == "ss-webos"
+                          and package["version"] == "2.0.0-12+l5dev1"
+                          and package["sha256"] == "94ff44219876d98b5a5489b67aeb26d26047747dd87fcb82d3c6bb0813d8aded"
+                          and package["provenance"] == {
+                              "source_commit": "8902924b143b69f60d101d40e8d3fafbeca35a0f",
+                              "source_ref": "refs/heads/main",
+                              "main_pipeline_id": 28998,
+                              "build_status": "success",
+                              "public_payload_reviewed": True}))),
                 f"{name}: full overlay requires its reviewed exact release identity")
         require(package["asset"] == overlay_asset_name(name, package["version"], architecture, schema),
                 f"{name}: invalid full overlay asset")

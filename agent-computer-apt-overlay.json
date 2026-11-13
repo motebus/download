@@ -2,7 +2,7 @@
   "schema": "agent-computer-apt-overlay/v7",
   "release": {
     "repository": "motebus/download",
-    "tag": "agent-computer-v0.3.0-53",
+    "tag": "agent-computer-v0.3.0-54",
     "source_commit": "6812fcc6fa0c3923bb1e55c3e879673999b03309",
     "packages": [
       {
@@ -371,14 +371,14 @@
       },
       {
         "name": "ss-webos",
-        "version": "2.0.0-12",
+        "version": "2.0.0-12+l5dev1",
         "architecture": "amd64",
-        "asset": "ss-webos_2.0.0-12_amd64.deb",
-        "sha256": "42f11638be9f8c8070edf52495f2c666f2967a12da955d72c9c4197fad623aa7",
+        "asset": "ss-webos_2.0.0-12+l5dev1_amd64.deb",
+        "sha256": "94ff44219876d98b5a5489b67aeb26d26047747dd87fcb82d3c6bb0813d8aded",
         "provenance": {
-          "source_commit": "4df736b629d99778fae77876ca6688618f197274",
+          "source_commit": "8902924b143b69f60d101d40e8d3fafbeca35a0f",
           "source_ref": "refs/heads/main",
-          "main_pipeline_id": 26592,
+          "main_pipeline_id": 28998,
           "build_status": "success",
           "public_payload_reviewed": true
         }
