@@ -64,9 +64,9 @@ jobs:
           persist-credentials: false
       - name: Check the Mac Ready installer
         run: |
-          bash -n agpc-ready-mac.sh
-          bash agpc-ready-mac.sh --help
-          bash agpc-ready-mac.sh --plan
+          bash -n scripts/agpc-ready-mac.sh
+          bash scripts/agpc-ready-mac.sh --help
+          bash scripts/agpc-ready-mac.sh --plan
       - name: Import the protected archive key
         env:
           MEDGE_APT_SIGNING_KEY: ${{ secrets.MEDGE_APT_SIGNING_KEY }}

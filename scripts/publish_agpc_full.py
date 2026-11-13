@@ -45,7 +45,7 @@ def ready_platform_aliases(site, keyring, before):
 
 def stage_mac_ready(root, site, revision):
     before = native.snapshot(site)
-    script = root / MAC_READY
+    script = root / "scripts" / MAC_READY
     native.require(script.is_file() and not script.is_symlink(), "Mac Ready script missing")
     native.require(native.file_digest(script) == MAC_READY_SHA256, "Mac Ready script digest mismatch")
     shutil.copy2(script, site / MAC_READY)
