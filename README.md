@@ -158,10 +158,11 @@ Preview 14 fixes MCP discovery by preserving the Windows SystemDrive variable. N
 
 Preview 18 validates the protected uChat endpoint through pinned Windows file and ancestor handles, including ownership, ACL and size checks. Untrusted configuration is rejected. It does not install native Redis or uchatd, provision accounts, or complete the UAC identity handoff; live chat remains unavailable.
 
-[Download agpc.exe (x86-64)](https://motebus.github.io/download/agpc.exe):
-**0.1.0-host-access-preview.18**, an unsigned outbound-access preview with
-local CDP/cdpd, the Windows `mstsc.exe` RDP client, and native MCP. One elevated
-installation registers the stable `C:\Program Files\AGPC\bin` machine PATH and creates `cdp.exe`,
+[Download agpc-ready-win.exe (x86-64)](https://motebus.github.io/download/agpc-ready-win.exe).
+AGPC Ready Preview 1 includes Windows **0.1.0-host-access-preview.26**, an unsigned outbound-access preview with
+local CDP/cdpd, the Windows `mstsc.exe` RDP client, and native MCP. Run the downloaded
+`agpc-ready-win.exe` and approve Windows UAC to install the `agpc.exe` command.
+Installation registers the stable `C:\Program Files\AGPC\bin` machine PATH and creates `cdp.exe`,
 `rdp.exe`, `run.exe`, `mesh.exe`, `uchat.exe`, and `agpc-manager.exe` as hard links to that one
 payload. The protected native bootstrap forwards each command to the HKLM-registered current release. Existing preview 9/10 terminals need one initial refresh; later upgrades keep the same command path.
 No Docker or WSL is required for native Windows.
@@ -210,7 +211,7 @@ their production services and S admission exist. Local CDP prerequisites were
 observed on MEDGE-OA; this does not establish browser execution on this exact
 build, remote readiness, or clean-machine acceptance.
 
-[Release notes, manifests and checksums](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.18).
+[AGPC Ready release and checksums](https://github.com/motebus/download/releases/tag/agpc-ready-v0.1.0-preview.1), [Windows preview 26 release notes](https://github.com/motebus/download/releases/tag/agpc-windows-v0.1.0-host-access-preview.26).
 
 Preview 10 adds native human uChat client commands: `uchat uput @machine MESSAGE`,
 `uchat ubox [AFTER_CURSOR]`, `uchat uget INBOX_ID`, and `uchat info`.
